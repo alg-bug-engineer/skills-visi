@@ -32,12 +32,13 @@ bash scripts/dev.sh      # v1 前端 5567（需 frontend/ 独立仓库）
 与开发环境一致，**不使用 Docker**：
 
 ```bash
-cp backend/.env.example backend/.env   # 填写 PG、DASHSCOPE_API_KEY
-bash scripts/prod-start.sh             # 构建前端 + 启动 uvicorn + 配置 Nginx
-# 浏览器访问 http://<ECS公网IP>/
+cp backend/.env.example backend/.env
+# 填写 PG、DASHSCOPE_API_KEY；可选 HTTP_PORT=5568（默认，禁止 80）
+bash scripts/prod-start.sh
+# 浏览器访问 http://<ECS公网IP>:5568/
 ```
 
-- 后端监听 `0.0.0.0:8011`，Nginx 反代 `/api` 与 `/health`
+- 前端默认 **5568** 端口（Nginx），**不使用 80**；后端 `0.0.0.0:8011` 仅本机反代
 - 演示汇报：设置 `DEMO_MODE=1`
 - 详见 [deploy/README.md](deploy/README.md)
 

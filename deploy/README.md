@@ -13,7 +13,7 @@
 | Nginx | 1.20+ |
 | 系统 | 阿里云 ECS（CentOS / Ubuntu / Alibaba Cloud Linux） |
 
-安全组放行：**80**（HTTP）。8011 仅本机访问，无需公网暴露。
+安全组放行：**5568**（前端 HTTP，默认）。8011 仅本机访问，无需公网暴露。**不使用 80 端口。**
 
 ### 安装 Python 3.11（ECS 默认常为 3.10，需单独安装）
 
@@ -52,7 +52,7 @@ cp backend/.env.example backend/.env
 # 编辑 PG、DASHSCOPE_API_KEY、DEMO_MODE 等
 
 # 3. 一键构建并启动
-bash scripts/prod-start.sh
+HTTP_PORT=5568 bash scripts/prod-start.sh   # 默认 5568，禁止 80
 ```
 
 `prod-start.sh` 会：
@@ -60,7 +60,7 @@ bash scripts/prod-start.sh
 1. 创建/更新 `backend/.venv` 并安装依赖
 2. `npm ci && npm run build` 构建 `frontend-v2/dist`（`VITE_API_BASE=` 空，同源反代）
 3. 后台启动 `uvicorn`（`0.0.0.0:8011`）
-4. 若检测到 Nginx，安装 `deploy/nginx.host.conf` 并重载
+4. 若检测到 Nginx，渲染 `deploy/nginx.host.conf`（默认监听 **5568**，非 80）并重载
 
 ---
 
@@ -100,6 +100,7 @@ sudo systemctl start intersection-agent-backend
 
 | 变量 | 生产值 | 说明 |
 |------|--------|------|
+| `HTTP_PORT` | `5568` | 前端 Nginx 监听端口（**禁止 80**） |
 | `HOST` | `0.0.0.0` | 后端监听地址 |
 | `PORT` | `8011` | 后端端口 |
 | `CORS_ORIGINS` | `*` 或域名 | 跨域 |
@@ -119,7 +120,7 @@ bash scripts/prod-stop.sh     # 停止后端与相关进程
 
 # 健康检查
 curl http://127.0.0.1:8011/health
-curl http://127.0.0.1/health
+curl http://127.0.0.1:5568/health
 
 # 日志
 tail -f backend/data/logs/app.log
@@ -142,7 +143,7 @@ Docker 配置见 `deploy/Dockerfile.*` 与 `deploy/nginx.conf`（容器内 `back
 
 ## 8. 验收清单
 
-- [ ] `curl http://<ECS_IP>/health` 返回 200
-- [ ] 浏览器访问 `http://<ECS_IP>/` 可打开三栏工作台
+- [ ] `curl http://<ECS_IP>:5568/health` 返回 200
+- [ ] 浏览器访问 `http://<ECS_IP>:5568/` 可打开三栏工作台
 - [ ] 完成一次 SSE 诊断对话
 - [ ] `DEMO_MODE=1` 时 TOP3 演示路口话术可用

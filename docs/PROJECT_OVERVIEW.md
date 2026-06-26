@@ -136,10 +136,10 @@ bash scripts/dev.sh       # v1 前端 5567（需 frontend/ 独立仓库）
 
 1. 宿主机安装 Python 3.11、Node 22、Nginx
 2. `bash scripts/prod-start.sh` 构建前端、启动 uvicorn、配置 Nginx
-3. 安全组放行 **80** 端口
+3. 安全组放行 **5568** 端口
 
 ```
-公网 → ECS:80 (Nginx)
+公网 → ECS:5568 (Nginx，默认，禁止 80)
          ├─ /        → frontend-v2/dist 静态资源
          ├─ /api/*   → 127.0.0.1:8011
          └─ /health  → 127.0.0.1:8011

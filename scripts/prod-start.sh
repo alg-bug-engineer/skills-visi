@@ -6,7 +6,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BACKEND_PORT="${PORT:-8011}"
-HTTP_PORT="${HTTP_PORT:-80}"
 LOG_DIR="${ROOT}/.prod-logs"
 BACKEND_LOG="${LOG_DIR}/backend.log"
 PID_FILE="${LOG_DIR}/pids"
@@ -25,6 +24,15 @@ fi
 set -a
 source "${ROOT}/backend/.env"
 set +a
+
+BACKEND_PORT="${PORT:-8011}"
+# 前端对外端口，默认 5568（与 dev-v2 一致）；禁止使用 80
+HTTP_PORT="${HTTP_PORT:-5568}"
+if [[ "$HTTP_PORT" == "80" ]]; then
+  log "禁止使用 80 端口。请设置 HTTP_PORT（推荐 5568），例如:"
+  log "  HTTP_PORT=5568 bash scripts/prod-start.sh"
+  exit 1
+fi
 
 kill_port() {
   local port=$1 name=$2 pids=""
@@ -101,7 +109,10 @@ setup_nginx() {
   local tmp_conf
   tmp_conf="$(mktemp)"
 
-  sed "s|/var/www/intersection-agent|${DEPLOY_ROOT}|g" "$conf_src" >"$tmp_conf"
+  sed -e "s|__DEPLOY_ROOT__|${DEPLOY_ROOT}|g" \
+      -e "s|__HTTP_PORT__|${HTTP_PORT}|g" \
+      -e "s|__BACKEND_PORT__|${BACKEND_PORT}|g" \
+      "$conf_src" >"$tmp_conf"
 
   if [[ -d /etc/nginx/conf.d ]]; then
     if [[ -w /etc/nginx/conf.d ]]; then
@@ -117,7 +128,7 @@ setup_nginx() {
     if command -v nginx >/dev/null 2>&1; then
       if sudo nginx -t 2>/dev/null || nginx -t 2>/dev/null; then
         sudo systemctl reload nginx 2>/dev/null || sudo nginx -s reload 2>/dev/null || nginx -s reload 2>/dev/null || true
-        log "Nginx 已重载，静态目录: ${dist_path}"
+        log "Nginx 已重载，监听端口: ${HTTP_PORT}，静态目录: ${dist_path}"
         return 0
       fi
     fi
