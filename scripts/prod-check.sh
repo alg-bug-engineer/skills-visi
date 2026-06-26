@@ -54,7 +54,23 @@ fi
 if curl -sf "http://127.0.0.1:${HTTP_PORT}/" >/dev/null 2>&1; then
   ok "前端静态 http://127.0.0.1:${HTTP_PORT}/"
 else
-  fail "前端首页不可达"
+  code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${HTTP_PORT}/" || echo '?')"
+  fail "前端首页不可达 (HTTP ${code})"
+  if [[ "$ROOT" == /root/* ]]; then
+    log "  原因: 项目在 /root 下，www-data 无法读取（Permission denied → 500）"
+    log "  修复: bash scripts/prod-start.sh 会自动同步到 /var/www/intersection-agent/"
+  fi
+  if [[ -f /var/log/nginx/error.log ]]; then
+    log "  最近 Nginx 错误:"
+  fi
+  run_tail_nginx_error() {
+    if [[ -r /var/log/nginx/error.log ]]; then
+      tail -3 /var/log/nginx/error.log | sed 's/^/    /'
+    elif command -v sudo >/dev/null 2>&1; then
+      sudo tail -3 /var/log/nginx/error.log 2>/dev/null | sed 's/^/    /' || true
+    fi
+  }
+  run_tail_nginx_error
   errors=$((errors + 1))
 fi
 
@@ -69,8 +85,14 @@ done
 
 if command -v nginx >/dev/null 2>&1; then
   log ""
-  log "--- nginx -T 中 listen ${HTTP_PORT} ---"
-  nginx -T 2>/dev/null | grep -E "listen.*${HTTP_PORT}" || log "  （未找到 listen ${HTTP_PORT}）"
+  log "--- nginx -T 中 listen ${HTTP_PORT} / root ---"
+  nginx -T 2>/dev/null | grep -E "listen.*${HTTP_PORT}|root .*/frontend-v2/dist" | head -5 \
+    || log "  （未找到相关配置）"
+fi
+
+if [[ -f "${ROOT}/.prod-logs/nginx-static-root" ]]; then
+  log ""
+  log "Nginx 静态目录: $(cat "${ROOT}/.prod-logs/nginx-static-root")"
 fi
 
 log ""

@@ -102,17 +102,9 @@ log "后端就绪 http://127.0.0.1:${BACKEND_PORT}/health"
 
 echo "$BACKEND_PID backend" >"$PID_FILE"
 
-# --- Nginx ---
-render_nginx_conf() {
-  local conf_src="${ROOT}/deploy/nginx.host.conf"
-  local tmp_conf
-  tmp_conf="$(mktemp)"
-  sed -e "s|__DEPLOY_ROOT__|${DEPLOY_ROOT}|g" \
-      -e "s|__HTTP_PORT__|${HTTP_PORT}|g" \
-      -e "s|__BACKEND_PORT__|${BACKEND_PORT}|g" \
-      "$conf_src" >"$tmp_conf"
-  printf '%s' "$tmp_conf"
-}
+# --- Nginx 静态资源（www-data 须可读；/root 下不可直接托管）---
+DEFAULT_PUBLIC_STATIC="/var/www/intersection-agent/frontend-v2/dist"
+NGINX_STATIC_ROOT="${NGINX_STATIC_ROOT:-}"
 
 run_privileged() {
   if [[ "$(id -u)" -eq 0 ]]; then
@@ -124,8 +116,61 @@ run_privileged() {
   fi
 }
 
+publish_static_dist() {
+  local src="${ROOT}/frontend-v2/dist"
+  local dest=$1
+  if [[ ! -d "$src" ]]; then
+    log "缺少构建产物 ${src}"
+    return 1
+  fi
+  run_privileged mkdir -p "$dest"
+  if command -v rsync >/dev/null 2>&1; then
+    run_privileged rsync -a --delete "${src}/" "${dest}/"
+  else
+    run_privileged rm -rf "${dest:?}/"*
+    run_privileged cp -a "${src}/." "${dest}/"
+  fi
+  run_privileged chown -R www-data:www-data "$dest" 2>/dev/null \
+    || run_privileged chmod -R a+rX "$dest"
+}
+
+resolve_nginx_static_root() {
+  local dest
+  if [[ -n "$NGINX_STATIC_ROOT" ]]; then
+    dest="$NGINX_STATIC_ROOT"
+  elif [[ "$DEPLOY_ROOT" == /root/* ]]; then
+    dest="$DEFAULT_PUBLIC_STATIC"
+    log "项目在 /root 下，Nginx(www-data) 无法读取；同步静态文件到 ${dest}"
+  else
+    dest="${DEPLOY_ROOT}/frontend-v2/dist"
+  fi
+  if [[ "$dest" != "${ROOT}/frontend-v2/dist" ]]; then
+    publish_static_dist "$dest"
+  elif [[ "$DEPLOY_ROOT" == /root/* ]]; then
+    publish_static_dist "$dest"
+  else
+    # 非 /root 部署也确保 nginx 可读
+    run_privileged chmod -R a+rX "${dest}" 2>/dev/null || true
+  fi
+  printf '%s' "$dest"
+}
+
+STATIC_ROOT="$(resolve_nginx_static_root)"
+echo "$STATIC_ROOT" >"${LOG_DIR}/nginx-static-root"
+
+# --- Nginx ---
+render_nginx_conf() {
+  local conf_src="${ROOT}/deploy/nginx.host.conf"
+  local tmp_conf
+  tmp_conf="$(mktemp)"
+  sed -e "s|__STATIC_ROOT__|${STATIC_ROOT}|g" \
+      -e "s|__HTTP_PORT__|${HTTP_PORT}|g" \
+      -e "s|__BACKEND_PORT__|${BACKEND_PORT}|g" \
+      "$conf_src" >"$tmp_conf"
+  printf '%s' "$tmp_conf"
+}
+
 setup_nginx() {
-  local dist_path="${DEPLOY_ROOT}/frontend-v2/dist"
   local tmp_conf site_name="${NGINX_SITE_NAME:-intersection-agent}"
   local installed=0
 
@@ -166,18 +211,32 @@ setup_nginx() {
     || run_privileged nginx -s reload 2>/dev/null \
     || true
 
-  log "Nginx 已重载，监听 HTTP 端口: ${HTTP_PORT}，静态: ${dist_path}"
+  log "Nginx 已重载，监听 HTTP 端口: ${HTTP_PORT}，静态: ${STATIC_ROOT}"
   return 0
 }
 
 verify_deploy() {
   sleep 1
+  local ok_health=0 ok_home=0
   if curl -sf "http://127.0.0.1:${HTTP_PORT}/health" >/dev/null 2>&1; then
+    ok_health=1
     log "本机验证通过: http://127.0.0.1:${HTTP_PORT}/health"
+  fi
+  if curl -sf "http://127.0.0.1:${HTTP_PORT}/" >/dev/null 2>&1; then
+    ok_home=1
+    log "本机验证通过: http://127.0.0.1:${HTTP_PORT}/"
+  fi
+  if [[ "$ok_health" -eq 1 && "$ok_home" -eq 1 ]]; then
     return 0
   fi
-  log "警告: 本机 http://127.0.0.1:${HTTP_PORT}/health 不可达"
-  log "请运行: bash scripts/prod-check.sh"
+  if [[ "$ok_health" -eq 1 && "$ok_home" -eq 0 ]]; then
+    log "警告: /health 正常但首页 500 — 多为 Nginx 无权读静态目录"
+    log "静态 root: ${STATIC_ROOT}"
+    log "请确认已重新部署；或查看: sudo tail -20 /var/log/nginx/error.log"
+  else
+    log "警告: 本机 http://127.0.0.1:${HTTP_PORT}/ 不可达"
+    log "请运行: bash scripts/prod-check.sh"
+  fi
   if command -v ss >/dev/null 2>&1; then
     log "当前监听端口:"
     ss -tlnp 2>/dev/null | grep -E ":(${HTTP_PORT}|${BACKEND_PORT}) " || true

@@ -87,11 +87,14 @@ http://8.149.232.39:5568/health
 
 ```bash
 cd ~/workspaces/skills-visi
-DEPLOY_ROOT="$(pwd)" HTTP_PORT=5568 BACKEND_PORT=8011
+STATIC_ROOT="/var/www/intersection-agent/frontend-v2/dist"
+sudo mkdir -p "$STATIC_ROOT"
+sudo rsync -a --delete frontend-v2/dist/ "$STATIC_ROOT/"
+sudo chown -R www-data:www-data "$STATIC_ROOT"
 
-sed -e "s|__DEPLOY_ROOT__|${DEPLOY_ROOT}|g" \
-    -e "s|__HTTP_PORT__|${HTTP_PORT}|g" \
-    -e "s|__BACKEND_PORT__|${BACKEND_PORT}|g" \
+sed -e "s|__STATIC_ROOT__|${STATIC_ROOT}|g" \
+    -e "s|__HTTP_PORT__|5568|g" \
+    -e "s|__BACKEND_PORT__|8011|g" \
     deploy/nginx.host.conf | sudo tee /etc/nginx/sites-available/intersection-agent.conf
 
 sudo ln -sf /etc/nginx/sites-available/intersection-agent.conf \
@@ -114,9 +117,9 @@ sudo nginx -t && sudo systemctl reload nginx
 **常见原因：**
 
 1. **用了 https** → 改为 `http://IP:5568`
-2. **Nginx 写在 conf.d 但未 include** → 已改为 `sites-enabled`（与 ppt.conf 同机制）
-3. **阿里云安全组未放行 5568** → 控制台 → 安全组 → 入方向添加 `5568/tcp`（**ufw 放行不够，还有云安全组一层**）
-4. **nginx -t 失败未 reload** → 查看 `sudo nginx -t` 报错
+2. **项目在 `/root` 下** → Nginx(www-data) 无权读 `/root`，`prod-start.sh` 会同步到 `/var/www/intersection-agent/frontend-v2/dist`
+3. **首页 500 但 /health 正常** → `sudo tail /var/log/nginx/error.log` 多为 Permission denied
+4. **阿里云安全组未放行 5568** → 控制台入方向添加 `5568/tcp`
 
 ---
 
@@ -150,13 +153,13 @@ sudo systemctl start intersection-agent-backend
 
 ---
 
-## 6. 运维命令
+## 7. 运维命令
 
 ```bash
 bash scripts/prod-start.sh    # 构建 + 启动
-bash scripts/prod-stop.sh     # 停止后端与相关进程
+bash scripts/prod-check.sh    # 部署自检
 
-# 健康检查
+bash scripts/prod-stop.sh     # 停止后端与相关进程
 curl http://127.0.0.1:8011/health
 curl http://127.0.0.1:5568/health
 
