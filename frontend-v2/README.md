@@ -83,4 +83,4 @@ cd frontend-v2 && npm install && npm run dev
 ## 与 frontend (v1) 关系
 
 - `frontend/`：稳定版，端口 5567  
-- `frontend-v2/`：工作台重构版，**独立 git 仓库**，可并行迭代  
+- `frontend-v2/`：工作台重构版，纳入根 monorepo，可并行迭代  
