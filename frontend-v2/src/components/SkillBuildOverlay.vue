@@ -251,7 +251,6 @@ function onDownloadClick() {
 }
 
 .overlay-panel {
-  --skill-build-scale: 0.8;
   width: min(calc(1440px * var(--skill-build-scale)), calc(100vw * var(--skill-build-scale)));
   max-height: calc(96vh * var(--skill-build-scale));
   margin: 0;
