@@ -216,11 +216,12 @@ function onDownloadClick() {
 
 <style scoped>
 .skill-build-overlay {
+  --skill-build-scale: 0.8;
   position: fixed;
   inset: 0;
   z-index: 100;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   background: rgba(2, 8, 16, 0.72);
   backdrop-filter: blur(6px);
@@ -250,10 +251,12 @@ function onDownloadClick() {
 }
 
 .overlay-panel {
-  width: min(1440px, 100%);
-  max-height: 96vh;
-  margin: 0 12px 12px;
-  padding: 18px 20px 16px;
+  --skill-build-scale: 0.8;
+  width: min(calc(1440px * var(--skill-build-scale)), calc(100vw * var(--skill-build-scale)));
+  max-height: calc(96vh * var(--skill-build-scale));
+  margin: 0;
+  padding: calc(18px * var(--skill-build-scale)) calc(20px * var(--skill-build-scale))
+    calc(16px * var(--skill-build-scale));
   border-radius: 6px;
   border: 1px solid rgba(0, 212, 240, 0.35);
   background: rgba(6, 14, 26, 0.96);
@@ -269,22 +272,22 @@ function onDownloadClick() {
 
 @keyframes panel-rise {
   from {
-    transform: translateY(100%);
+    transform: translateY(12%) scale(0.96);
     opacity: 0.2;
   }
   to {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
 }
 
 @keyframes panel-exit {
   from {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
   to {
-    transform: translateY(110%);
+    transform: translateY(12%) scale(0.96);
     opacity: 0;
   }
 }
@@ -323,7 +326,7 @@ function onDownloadClick() {
 
 .build-header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: calc(24px * var(--skill-build-scale));
   font-weight: 600;
 }
 
@@ -388,9 +391,12 @@ function onDownloadClick() {
 
 .workbench {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr) 260px;
-  gap: 12px;
-  min-height: 420px;
+  grid-template-columns:
+    calc(200px * var(--skill-build-scale))
+    minmax(0, 1fr)
+    calc(260px * var(--skill-build-scale));
+  gap: calc(12px * var(--skill-build-scale));
+  min-height: calc(420px * var(--skill-build-scale));
 }
 
 .timeline,
@@ -474,8 +480,8 @@ function onDownloadClick() {
 }
 
 .thinking-text {
-  min-height: 64px;
-  max-height: 110px;
+  min-height: calc(64px * var(--skill-build-scale));
+  max-height: calc(110px * var(--skill-build-scale));
   margin: 0;
   padding: 0 14px 12px;
   overflow: auto;
@@ -516,7 +522,7 @@ function onDownloadClick() {
 }
 
 .diff-removed-block {
-  max-height: 120px;
+  max-height: calc(120px * var(--skill-build-scale));
   overflow: auto;
   padding: 8px 12px;
   border-bottom: 1px solid rgba(255, 107, 107, 0.25);
@@ -545,8 +551,8 @@ function onDownloadClick() {
 
 .code-output {
   flex: 1;
-  min-height: 280px;
-  max-height: 360px;
+  min-height: calc(280px * var(--skill-build-scale));
+  max-height: calc(360px * var(--skill-build-scale));
   overflow: auto;
   padding: 10px 0;
   background: #020810;
@@ -596,7 +602,7 @@ function onDownloadClick() {
 }
 
 .log-list {
-  max-height: 120px;
+  max-height: calc(120px * var(--skill-build-scale));
   overflow: auto;
   padding: 10px 14px;
 }
