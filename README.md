@@ -27,16 +27,17 @@ bash scripts/dev.sh      # v1 前端 5567（需 frontend/ 独立仓库）
 - 前端 v2：http://127.0.0.1:5568  
 - 前端 v1：http://127.0.0.1:5567  
 
-### 阿里云 ECS 生产部署（原生方式）
+### 阿里云 ECS
 
-与开发环境一致，**不使用 Docker**：
+**开发阶段（推荐）：**
 
 ```bash
 cp backend/.env.example backend/.env
-# 填写 PG、DASHSCOPE_API_KEY；可选 HTTP_PORT=5568（默认，禁止 80）
-bash scripts/prod-start.sh
-# 浏览器访问 http://<ECS公网IP>:5568/
+bash scripts/prod-dev.sh
+# http://<ECS公网IP>:5568/
 ```
+
+**预发布 / 稳定演示：** `bash scripts/prod-start.sh`（build + Nginx）
 
 - 前端默认 **5568** 端口（Nginx），**不使用 80**；后端 `0.0.0.0:8011` 仅本机反代
 - 演示汇报：设置 `DEMO_MODE=1`

@@ -41,18 +41,30 @@ sudo dnf install -y python3.11 python3.11-devel
 
 ## 2. 首次部署
 
+### 开发阶段（推荐，与本地一致）
+
+**不需要 `npm run build`，也不需要 Nginx 托管静态文件。**
+
 ```bash
-# 1. 克隆/同步代码到 ECS（示例路径）
-sudo mkdir -p /var/www/intersection-agent
-sudo chown "$USER:$USER" /var/www/intersection-agent
-# rsync 或 git clone 到 /var/www/intersection-agent
-
-# 2. 配置环境变量
 cp backend/.env.example backend/.env
-# 编辑 PG、DASHSCOPE_API_KEY、DEMO_MODE 等
+bash scripts/prod-dev.sh
+# 访问 http://<公网IP>:5568/
+```
 
-# 3. 一键构建并启动
-HTTP_PORT=5568 bash scripts/prod-start.sh   # 默认 5568，禁止 80
+与本地 `BIND_HOST=0.0.0.0 bash scripts/dev-v2.sh` 相同：Vite 开发服 + 内置 `/api` 反代。
+
+| | `prod-dev.sh`（开发） | `prod-start.sh`（预发布/演示） |
+|--|----------------------|-------------------------------|
+| 前端 | `npm run dev` | `npm run build` + Nginx |
+| 热更新 | ✅ | ❌ |
+| Nginx | 不需要 | 需要 |
+| 适用 | 联调、演示迭代 | 稳定对外、性能更好 |
+
+### 预发布 / 演示稳定版
+
+```bash
+bash scripts/prod-start.sh
+bash scripts/prod-check.sh
 ```
 
 `prod-start.sh` 会：
