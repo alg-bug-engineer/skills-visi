@@ -15,6 +15,28 @@
 
 安全组放行：**80**（HTTP）。8011 仅本机访问，无需公网暴露。
 
+### 安装 Python 3.11（ECS 默认常为 3.10，需单独安装）
+
+```bash
+# Ubuntu 22.04 / Debian
+sudo apt update
+sudo apt install -y python3.11 python3.11-venv python3.11-dev
+
+# 验证
+python3.11 --version   # 应 >= 3.11
+
+# 若曾用 3.10 创建过 venv，需删除后重装
+rm -rf backend/.venv
+```
+
+Alibaba Cloud Linux 3：
+
+```bash
+sudo dnf install -y python3.11 python3.11-devel
+# 若仓库无 3.11，请用 pyenv 或源码编译，然后:
+# PYTHON_BIN=/path/to/python3.11 bash scripts/prod-start.sh
+```
+
 ---
 
 ## 2. 首次部署

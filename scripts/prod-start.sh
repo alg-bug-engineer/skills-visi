@@ -43,14 +43,17 @@ backend_healthy() {
   curl -sf "http://127.0.0.1:${BACKEND_PORT}/health" >/dev/null 2>&1
 }
 
+# shellcheck source=lib/python.sh
+source "${ROOT}/scripts/lib/python.sh"
+
 # --- Backend venv ---
-if [[ ! -d "${ROOT}/backend/.venv" ]]; then
-  log "创建 Python 虚拟环境…"
-  python3 -m venv "${ROOT}/backend/.venv"
+if ! ensure_backend_venv "$ROOT"; then
+  exit 1
 fi
 # shellcheck disable=SC1091
 source "${ROOT}/backend/.venv/bin/activate"
 log "安装/更新后端依赖…"
+pip install -q --upgrade pip
 pip install -q -e "${ROOT}/backend"
 
 # --- Frontend build ---
