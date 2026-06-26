@@ -22,12 +22,26 @@ const items = computed(() => buildEvidenceListItems(props.evidence))
 <style scoped>
 .evidence-note {
   max-width: min(300px, 42vw);
+  max-height: 100%;
   padding: 10px 12px;
   border-radius: 6px;
   background: rgba(8, 12, 20, 0.9);
   border: 1px solid rgba(255, 194, 102, 0.35);
   border-left: 3px solid #ffc266;
-  pointer-events: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 194, 102, 0.35) transparent;
+}
+
+.evidence-note::-webkit-scrollbar {
+  width: 4px;
+}
+
+.evidence-note::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: rgba(255, 194, 102, 0.35);
 }
 
 .eyebrow {

@@ -299,6 +299,8 @@ watch(
   top: 12px;
   left: 12px;
   z-index: 6;
+  /* 不超过渠化区高度的 2/3，为左下图例留出空间 */
+  max-height: 66.67%;
 }
 
 .chan-suggestion-note {
