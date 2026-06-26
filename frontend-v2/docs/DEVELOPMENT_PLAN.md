@@ -8,7 +8,7 @@
 
 | 阶段 | 内容 | 状态 |
 |------|------|------|
-| P0 骨架 | 复制 frontend、独立端口 5568、git 初始化 | ✅ |
+| P0 骨架 | 复制 frontend、独立端口 5568、纳入根 monorepo | ✅ |
 | P0 布局 | WorkbenchLayout 三栏 + 响应式折叠 | ✅ |
 | P0 0625 | InsightStack + SSE `problem_evidence` | ✅ |
 | P1 渠化 | ChannelizationMiniWindow + GIS 全屏 | ✅ |
