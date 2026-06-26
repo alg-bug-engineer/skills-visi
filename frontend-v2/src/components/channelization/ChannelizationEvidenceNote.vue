@@ -22,7 +22,6 @@ const items = computed(() => buildEvidenceListItems(props.evidence))
 <style scoped>
 .evidence-note {
   max-width: min(300px, 42vw);
-  max-height: 100%;
   padding: 10px 12px;
   border-radius: 6px;
   background: rgba(8, 12, 20, 0.9);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { ProblemEvidence } from '../../types/evidence'
 import type { CognitionPayload } from '../../types/map'
 import type {
@@ -86,6 +86,59 @@ const totalLanes = computed(() =>
 const evidenceNoteRevealed = ref(false)
 const governanceNoteRevealed = ref(false)
 
+const chanBodyRef = ref<HTMLElement | null>(null)
+const legendCompRef = ref<InstanceType<typeof ChannelizationLegend> | null>(null)
+const evidenceNoteMaxPx = ref<number | null>(null)
+
+const EVIDENCE_NOTE_TOP = 12
+const LEGEND_BOTTOM = 12
+const EVIDENCE_LEGEND_GAP = 12
+
+function legendEl(): HTMLElement | null {
+  const el = legendCompRef.value?.$el
+  return el instanceof HTMLElement ? el : null
+}
+
+function measureEvidenceNoteMax() {
+  const body = chanBodyRef.value
+  if (!body) return
+  const bodyH = body.clientHeight
+  if (bodyH <= 0) return
+
+  const legendH = legendEl()?.offsetHeight ?? 0
+  const maxByRatio = bodyH * (2 / 3)
+  const maxByLegend =
+    bodyH - EVIDENCE_NOTE_TOP - EVIDENCE_LEGEND_GAP - legendH - LEGEND_BOTTOM
+
+  evidenceNoteMaxPx.value = Math.max(96, Math.min(maxByRatio, maxByLegend))
+}
+
+const evidenceNoteStyle = computed(() =>
+  evidenceNoteMaxPx.value != null
+    ? { maxHeight: `${evidenceNoteMaxPx.value}px` }
+    : undefined,
+)
+
+let resizeObs: ResizeObserver | null = null
+
+function bindResizeObserver() {
+  resizeObs?.disconnect()
+  resizeObs = new ResizeObserver(() => measureEvidenceNoteMax())
+  if (chanBodyRef.value) resizeObs.observe(chanBodyRef.value)
+  const legend = legendEl()
+  if (legend) resizeObs.observe(legend)
+  measureEvidenceNoteMax()
+}
+
+onMounted(() => {
+  void nextTick(bindResizeObserver)
+})
+
+onUnmounted(() => {
+  resizeObs?.disconnect()
+  resizeObs = null
+})
+
 watch(
   () => props.showEvidenceNote,
   (v) => {
@@ -107,6 +160,19 @@ watch(
   () => {
     evidenceNoteRevealed.value = false
     governanceNoteRevealed.value = false
+  },
+)
+
+watch(
+  [
+    () => props.visible,
+    () => props.fullscreen,
+    evidenceNoteRevealed,
+    hasQueue,
+    () => props.phase,
+  ],
+  () => {
+    void nextTick(bindResizeObserver)
   },
 )
 </script>
@@ -134,7 +200,7 @@ watch(
         <span class="phase-tag">{{ phaseLabel }}</span>
       </header>
 
-      <div class="chan-body">
+      <div ref="chanBodyRef" class="chan-body">
         <div v-if="fullscreen" class="chan-minis">
           <TimingRingMiniWindow
             :visible="Boolean(timingRingVisible)"
@@ -147,11 +213,13 @@ watch(
             @close="emit('closeCorridorWave')"
           />
         </div>
-        <ChannelizationEvidenceNote
+        <div
           v-if="fullscreen && evidenceNoteRevealed && evidence"
           class="chan-evidence-note"
-          :evidence="evidence"
-        />
+          :style="evidenceNoteStyle"
+        >
+          <ChannelizationEvidenceNote :evidence="evidence" />
+        </div>
         <ChannelizationSuggestionNote
           v-if="fullscreen && governanceNoteRevealed"
           class="chan-suggestion-note"
@@ -167,6 +235,7 @@ watch(
         />
         <ChannelizationLegend
           v-if="fullscreen"
+          ref="legendCompRef"
           :phase="phase"
           :show-queue="hasQueue"
           :run-key="runKey"
@@ -299,8 +368,18 @@ watch(
   top: 12px;
   left: 12px;
   z-index: 6;
-  /* 不超过渠化区高度的 2/3，为左下图例留出空间 */
-  max-height: 66.67%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.chan-evidence-note :deep(.evidence-note) {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .chan-suggestion-note {
