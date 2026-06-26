@@ -1,0 +1,7 @@
+# 阈值真源说明
+#
+# 运行时由 `intersection_agent/utils/thresholds_loader.py` 合并加载：
+# 1. docs/intersection/common/thresholds.yaml  （检查单权威真源）
+# 2. backend/rules/thresholds_extensions.yaml  （backend 扩展项）
+#
+# 本文件仅作兼容回退，请勿直接修改；扩展项请写入 thresholds_extensions.yaml。

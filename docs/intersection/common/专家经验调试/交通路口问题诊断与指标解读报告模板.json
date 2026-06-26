@@ -1,0 +1,468 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://example.com/traffic_intersection_problem_diagnosis_v1.json",
+    "title": "交通路口问题诊断报告（路口聚焦版）",
+    "description": "用于交通路口“问题诊断”环节的标准化数据结构。聚焦本路口直接相关的交通问题，从路段—路口两维度识别静态短板，从供需—秩序—事件三方面定位动态问题，并对单点信控问题进行诊断。输出“是什么问题”和“为什么是这个问题”，不涉及治理建议。",
+    "type": "object",
+    "required": [
+      "reportMeta",
+      "staticDiagnosis",
+      "dynamicDiagnosis",
+      "signalDiagnosis",
+      "causationScoring",
+      "issueList"
+    ],
+    "definitions": {
+      "severityLevel": {
+        "type": "string",
+        "enum": ["高", "中", "低"]
+      },
+      "priorityLevel": {
+        "type": "string",
+        "enum": ["P0", "P1", "P2", "P3"]
+      },
+      "urgencyLevel": {
+        "type": "string",
+        "enum": ["极高", "高", "中", "低"]
+      },
+      "contributionLevel": {
+        "type": "string",
+        "enum": ["高", "中", "低"]
+      },
+      "causationDimension": {
+        "type": "string",
+        "enum": ["A", "B", "C", "D", "E", "F"]
+      },
+      "diagnosisScope": {
+        "type": "string",
+        "enum": ["independent", "coordination_reference"],
+        "description": "诊断归属：independent=路口独立控制，在路口层面诊断；coordination_reference=处于协调范围，转由协调层面诊断"
+      },
+      "timePeriodValue": {
+        "type": "object",
+        "properties": {
+          "早高峰": { "type": "number" },
+          "晚高峰": { "type": "number" },
+          "白平峰": { "type": "number" }
+        },
+        "description": "三个时段的数值指标"
+      }
+    },
+    "properties": {
+      "reportMeta": {
+        "type": "object",
+        "description": "报告元信息",
+        "properties": {
+          "reportName": { "type": "string", "const": "交通路口问题诊断报告" },
+          "version": { "type": "string" },
+          "generatedAt": { "type": "string", "format": "date-time" },
+          "intersectionId": { "type": "string", "description": "路口编号/名称" },
+          "sceneProfileRef": {
+            "type": "object",
+            "description": "上游场景认知结果引用；仅用于证据回链，不作为独立报告章节展示",
+            "properties": {
+              "sourcePhase": { "type": "string", "const": "scene_cognition" },
+              "sourceReport": { "type": "string", "description": "上游 scenario_report 或场景画像标识" },
+              "profileFields": {
+                "type": "array",
+                "description": "本诊断消费的场景认知内部画像字段",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "supply_profile",
+                    "demand_profile",
+                    "traffic_state",
+                    "control_profile",
+                    "congestion_profile",
+                    "context_tags",
+                    "quality_tags",
+                    "evidence_chain"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "required": ["reportName", "intersectionId"]
+      },
+  
+      "staticDiagnosis": {
+        "type": "object",
+        "description": "第1章：静态问题诊断（路段—路口两维度）",
+        "properties": {
+          "roadSegment": {
+            "type": "array",
+            "description": "1.1 路段维度静态问题",
+            "items": {
+              "type": "object",
+              "properties": {
+                "issueType": {
+                  "type": "string",
+                  "enum": [
+                    "公交站点设置不合理",
+                    "单位出入口密集",
+                    "存在强交通吸引点",
+                    "缺少非机动车专用道",
+                    "行人过街斑马线过多",
+                    "道路断面设计不合理"
+                  ]
+                },
+                "criteria": { "type": "string", "description": "诊断依据" },
+                "performance": { "type": "string", "description": "本路段表现" },
+                "judgment": { "type": "string", "description": "问题判定" }
+              },
+              "required": ["issueType", "criteria", "performance", "judgment"]
+            }
+          },
+          "intersection": {
+            "type": "object",
+            "description": "1.2 路口维度静态问题",
+            "properties": {
+              "phaseChannelMatch": {
+                "type": "array",
+                "description": "1.2.1 相位相序与渠化匹配性诊断",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "approach": { "type": "string", "enum": ["东进口", "西进口", "南进口", "北进口"] },
+                    "laneFunction": { "type": "string", "description": "车道功能，如'左转专用+直行+右转'" },
+                    "signalPhase": { "type": "string", "enum": ["有", "无"] },
+                    "matchStatus": { "type": "string", "enum": ["匹配", "错位"] },
+                    "description": { "type": "string", "description": "问题描述" }
+                  }
+                }
+              },
+              "channelizationFlowMatch": {
+                "type": "object",
+                "description": "1.2.2 渠化设计与流量匹配性诊断",
+                "properties": {
+                  "inOutLanes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "approach": { "type": "string", "enum": ["东进口", "西进口", "南进口", "北进口"] },
+                        "inboundLanes": { "type": "integer" },
+                        "outboundLanes": { "type": "integer" },
+                        "flowDemand": { "type": "number", "description": "pcu/h" },
+                        "matchStatus": { "type": "string", "enum": ["匹配", "瓶颈"] },
+                        "riskDescription": { "type": "string", "description": "风险识别" }
+                      }
+                    }
+                  },
+                  "turnLaneLength": {
+                    "type": "object",
+                    "properties": {
+                      "actualLength": { "type": "number", "description": "m" },
+                      "peakQueueLength": { "type": "number", "description": "m" },
+                      "storageRatio": { "type": "number" },
+                      "status": { "type": "string", "enum": ["充足", "不足"] },
+                      "riskDescription": { "type": "string" }
+                    }
+                  }
+                }
+              },
+              "conflictSafety": {
+                "type": "object",
+                "description": "1.2.3 轨迹冲突与慢行安全性诊断",
+                "properties": {
+                  "conflicts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "conflictType": { "type": "string", "enum": ["机-机冲突", "机-非冲突", "机-人冲突"] },
+                        "conflictPoint": { "type": "string", "description": "冲突流向/点位" },
+                        "frequency": { "type": "number", "description": "次/h" },
+                        "riskLevel": { "$ref": "#/definitions/severityLevel" },
+                        "rootCause": { "type": "string", "description": "根因分析" }
+                      }
+                    }
+                  },
+                  "slowTrafficFacilities": {
+                    "type": "object",
+                    "properties": {
+                      "crosswalkDistance": { "type": "number", "description": "m" },
+                      "safetyIsland": { "type": "string", "enum": ["有", "无"] },
+                      "bikeWaitingArea": { "type": "string", "enum": ["有", "无"] },
+                      "judgment": { "type": "string", "description": "评估结论" }
+                    }
+                  }
+                }
+              },
+              "areaClearance": {
+                "type": "object",
+                "description": "1.2.4 路口面积与清空效率诊断",
+                "properties": {
+                  "intersectionArea": {
+                    "type": "object",
+                    "properties": {
+                      "value": { "type": "number", "description": "m²" },
+                      "threshold": { "type": "number", "description": "合理阈值，一般2000" },
+                      "diagnosis": { "type": "string" }
+                    }
+                  },
+                  "startupLoss": {
+                    "type": "object",
+                    "properties": {
+                      "value": { "type": "number", "description": "s" },
+                      "threshold": { "type": "string", "description": "2-3s/相位" },
+                      "diagnosis": { "type": "string" }
+                    }
+                  }
+                }
+              },
+              "spacingDiagnosis": {
+                "type": "array",
+                "description": "1.2.5 交叉口间距过近诊断",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "adjacentIntersection": { "type": "string" },
+                    "distance": { "type": "number", "description": "m" },
+                    "maxQueueExtension": { "type": "number", "description": "m" },
+                    "isMutualImpact": { "type": "boolean" },
+                    "riskJudgment": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+  
+      "dynamicDiagnosis": {
+        "type": "object",
+        "description": "第2章：动态问题诊断（供需—秩序—事件三维度）",
+        "properties": {
+          "supplyDemand": {
+            "type": "object",
+            "description": "2.1 交通供需失衡诊断",
+            "properties": {
+              "capacityOverload": {
+                "type": "array",
+                "description": "2.1.1 通行能力过载诊断",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "period": { "type": "string" },
+                    "criticalFlow": { "type": "string", "description": "关键流向" },
+                    "demand": { "type": "number", "description": "pcu/h" },
+                    "capacity": { "type": "number", "description": "pcu/h" },
+                    "vcr": { "type": "number", "description": "饱和度 V/C" },
+                    "judgment": { "type": "string", "description": "问题判定" }
+                  }
+                }
+              },
+              "busLaneUtilization": {
+                "type": "array",
+                "description": "2.1.2 公交专用道利用率低诊断",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "roadSection": { "type": "string" },
+                    "lanePosition": { "type": "string", "enum": ["路侧", "路中"] },
+                    "busFlow": { "type": "number", "description": "辆/h" },
+                    "socialCarFlow": { "type": "number", "description": "pcu/h" },
+                    "judgment": { "type": "string" }
+                  }
+                }
+              },
+              "attractionQueueSpill": {
+                "type": "array",
+                "description": "2.1.3 强吸引点出入口停车排队溢出诊断",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "sourceName": { "type": "string" },
+                    "location": { "type": "string", "description": "出入口位置" },
+                    "spillPeriod": { "type": "string" },
+                    "spillLength": { "type": "number", "description": "m" },
+                    "impactIntersection": { "type": "boolean" },
+                    "impactDescription": { "type": "string" }
+                  }
+                }
+              },
+              "laneFunctionMismatch": {
+                "type": "object",
+                "description": "2.1.4 车道功能与交通需求不匹配诊断",
+                "properties": {
+                  "approaches": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "approach": { "type": "string", "enum": ["东进口", "西进口", "南进口", "北进口"] },
+                        "laneConfig": { "type": "string", "description": "左:直:右 = X:X:X" },
+                        "actualTurnRatio": { "type": "string", "description": "左:直:右 = X:X:X" },
+                        "judgment": { "type": "string" }
+                      }
+                    }
+                  },
+                  "tidalLane": {
+                    "type": "object",
+                    "properties": {
+                      "has": { "type": "boolean" },
+                      "isActive": { "type": "string", "enum": ["启用", "未启用"] },
+                      "tidalRatio": { "type": "number" },
+                      "judgment": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "orderManagement": {
+            "type": "object",
+            "description": "2.2 交通秩序与管理问题诊断",
+            "properties": {
+              "illegalParking": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "roadSection": { "type": "string" },
+                    "violationPeriod": { "type": "string" },
+                    "occupiedLanes": { "type": "string" },
+                    "impactDegree": { "type": "string", "description": "通行能力下降XX%" },
+                    "judgment": { "type": "string" }
+                  }
+                }
+              },
+              "badDrivingBehavior": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "behaviorType": { "type": "string", "enum": ["加塞", "龟速行驶", "违规变道"] },
+                    "location": { "type": "string" },
+                    "frequency": { "type": "number", "description": "次/h" },
+                    "impactAnalysis": { "type": "string" }
+                  }
+                }
+              },
+              "conflictBetweenMotorAndBike": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "issueType": { "type": "string" },
+                    "conflictPoint": { "type": "string" },
+                    "frequency": { "type": "number", "description": "次/h" },
+                    "rootCause": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "incident": {
+            "type": "array",
+            "description": "2.3 突发事件与外部干扰诊断",
+            "items": {
+              "type": "object",
+              "properties": {
+                "eventType": { "type": "string", "enum": ["交通事故", "恶劣天气", "临时施工", "大型活动"] },
+                "description": { "type": "string" },
+                "frequency": { "type": "string" },
+                "impactPeriod": { "type": "string" },
+                "impactScope": { "type": "string" },
+                "emergencyResponse": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+  
+      "signalDiagnosis": {
+        "type": "object",
+        "description": "第3章：单点信控问题诊断",
+        "properties": {
+          "coordinationConstraint": {
+            "type": "object",
+            "description": "协调约束前置判定",
+            "properties": {
+              "isInCoordination": { "type": "boolean" },
+              "coordinationScope": { "type": "string", "description": "协调对象名称" }
+            }
+          },
+          "issues": {
+            "type": "array",
+            "description": "单点信控问题列表",
+            "items": {
+              "type": "object",
+              "properties": {
+                "issueType": {
+                  "type": "string",
+                  "enum": [
+                    "时段划分合理性",
+                    "周期合理性评价",
+                    "路口失衡",
+                    "溢流",
+                    "空放",
+                    "相位相序不合理",
+                    "行人/非机动车配时缺失或不合理",
+                    "信号配时与路口渠化不匹配",
+                    "特殊流向需求被忽视"
+                  ]
+                },
+                "criteria": { "type": "string", "description": "判定标准" },
+                "diagnosisScope": { "$ref": "#/definitions/diagnosisScope", "description": "诊断归属：independent=路口独立诊断；coordination_reference=转由协调层面" },
+                "performance": { "type": "string", "description": "本路口表现" },
+                "diagnosisConclusion": { "type": "string", "description": "诊断结论" },
+                "severity": { "$ref": "#/definitions/severityLevel" }
+              }
+            }
+          }
+        }
+      },
+  
+      "causationScoring": {
+        "type": "object",
+        "description": "第4章：拥堵成因量化评分（核心归因）",
+        "properties": {
+          "scoringCard": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": ["A. 供给能力不足", "B. 交通需求过大", "C. 控制方案不合理", "D. 运行秩序紊乱", "E. 外部事件干扰", "F. 数据质量/监测盲区"]
+                },
+                "score": { "type": "number", "minimum": 0, "maximum": 100 },
+                "contributionLevel": { "$ref": "#/definitions/contributionLevel" },
+                "evidence": { "type": "string", "description": "典型依据（引用前述诊断结论）" }
+              }
+            }
+          },
+          "comprehensiveConclusion": {
+            "type": "object",
+            "description": "4.2 综合诊断结论",
+            "properties": {
+              "primaryCauses": { "type": "string", "description": "绝对主因（>30%），列出评分>30的维度" },
+              "coreProblem": { "type": "string", "description": "关键症结" },
+              "coordinationNote": { "type": "string", "description": "协调约束说明（若适用）" }
+            }
+          }
+        }
+      },
+  
+      "issueList": {
+        "type": "array",
+        "description": "第5章：问题清单与优先级排序",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "pattern": "^Q-\\d{3}$", "description": "问题编号，如Q-001" },
+            "priority": { "$ref": "#/definitions/priorityLevel" },
+            "category": { "type": "string", "description": "问题类别" },
+            "summary": { "type": "string", "description": "问题摘要" },
+            "severity": { "$ref": "#/definitions/severityLevel" },
+            "urgency": { "$ref": "#/definitions/urgencyLevel" },
+            "causationDimension": { "$ref": "#/definitions/causationDimension" },
+            "isCoordinationRelated": { "type": "boolean", "description": "是否转由协调层面诊断" }
+          }
+        }
+      }
+    }
+  }

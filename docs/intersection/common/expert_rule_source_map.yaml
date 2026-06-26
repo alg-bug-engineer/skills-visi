@@ -1,0 +1,117 @@
+version: 1.0.0
+source:
+  path: /Users/zhangml/agents/traffic_signal_deepagent/skillpacks/intersection/common/路口专家经验规则.md
+  compiler: expert_compiler/0.1.0
+rules:
+- source_id: EXP-SCENE-001
+  title: 供给-需求-状态三维画像
+  phase: scene_cognition
+  targets:
+  - rules_md
+  - skill_md
+  requires_human_review: true
+- source_id: EXP-SCENE-002
+  title: 结构性瓶颈供给线索
+  phase: scene_cognition
+  targets:
+  - diagnosis_checklist
+  - rules_md
+  - thresholds
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-SCENE-003
+  title: 强吸引点上下文标签
+  phase: scene_cognition
+  targets:
+  - scene_cognition_checklist
+  - rules_md
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-SCENE-004
+  title: 状态指标联合判断
+  phase: scene_cognition
+  targets:
+  - rules_md
+  - thresholds
+  - script_draft
+  requires_human_review: true
+- source_id: EXP-SCENE-005
+  title: 拥堵空间形态与发展阶段
+  phase: scene_cognition
+  targets:
+  - rules_md
+  - scene_type_rules
+  requires_human_review: true
+- source_id: EXP-SCENE-006
+  title: 数据冲突与不确定性
+  phase: scene_cognition
+  targets:
+  - rules_md
+  - thresholds
+  - script_draft
+  requires_human_review: true
+- source_id: EXP-SCENE-007
+  title: 路口道路等级与供给优先级
+  phase: scene_cognition
+  targets:
+  - rules_md
+  - skill_md
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-SCENE-008
+  title: 路口几何形态与冲突模式
+  phase: scene_cognition
+  targets:
+  - rules_md
+  - scene_type_rules
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-DIAG-002
+  title: 动态供需失衡
+  phase: problem_diagnosis
+  targets:
+  - thresholds
+  - rules_md
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-DIAG-003
+  title: 交通秩序与外部事件干扰
+  phase: problem_diagnosis
+  targets:
+  - diagnosis_checklist
+  - scene_type_rules
+  - rules_md
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-DIAG-004
+  title: 路口服务失衡
+  phase: problem_diagnosis
+  targets:
+  - thresholds
+  - rules_md
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-DIAG-006
+  title: 绿灯损失或空放
+  phase: problem_diagnosis
+  targets:
+  - thresholds
+  - rules_md
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-DIAG-007
+  title: 相位相序与慢行保护
+  phase: problem_diagnosis
+  targets:
+  - diagnosis_checklist
+  - rules_md
+  - script_draft
+  - checklist_rules_md
+  requires_human_review: true
+- source_id: EXP-DIAG-009
+  title: 诊断优先级
+  phase: problem_diagnosis
+  targets:
+  - rules_md
+  - scene_type_rules
+  requires_human_review: true

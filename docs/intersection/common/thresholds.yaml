@@ -1,0 +1,179 @@
+# 路口技能包统一阈值词典（机器可读真源）
+# 场景认知与问题诊断共用；同一指标在不同阶段语义可能不同，见各行备注。
+# 加载方式：load_config.threshold("分组.键名")，例如 threshold("saturation.oversaturation")
+
+version: "1.0.0"
+
+# ── 饱和度（volume/capacity 或 DWS 评价饱和度）──
+saturation:
+  high: 0.8
+  # 场景认知：5 分钟时序中标记「高饱和时段窗口」的下限（interpret_key_metrics）
+  oversaturation: 0.90
+  # 场景认知：标记「过饱和时段窗口」
+  pressure_baseline: 0.6
+  # 场景认知：计算 pressure_level 时饱和度贡献的基准扣减值（低于此值不计入压力）
+  near_saturated: 0.8
+  # 场景认知：supply_demand_state 中「接近饱和」状态分界
+  low_saturation_conflict: 0.6
+  # 数据质量：饱和度很低但延误/排队很高时，标记指标冲突（怀疑下游阻塞或数据异常）
+
+# ── 排队与存储空间 ──
+queue:
+  long_queue_m: 100.0
+  # 场景认知：单进口/转向「长排队」时段窗口阈值（米）
+  queue_storage_ratio_high: 0.80
+  # 排队长度/进口存储长度 ≥ 此值 → 萌芽期拥堵、溢流/锁死风险升高（诊断 spillback）
+  queue_storage_ratio_diffusion: 0.90
+  # 排队存储比 ≥ 此值 → 拥堵阶段判为「扩散期」
+  queue_m_pressure: 300.0
+  # 场景认知：计算 pressure_level 时排队长度（米）归一化上限
+
+# ── 延误与停车 ──
+delay:
+  high_delay_index: 2.0
+  # 场景认知：延误指数时序中「高延误」时段窗口阈值（DWS delay_index）
+  excess_delay_s: 60.0
+  # 场景认知辅助：平均延误（秒）偏高参考
+  delay_pressure: 120.0
+  # 场景认知：计算 pressure_level 时平均延误（秒）归一化上限
+
+# ── 绿灯利用与空放 ──
+green:
+  low_utilization_cognition: 0.6
+  # 场景认知：绿灯利用率时序中「低利用/空放风险」时段窗口（低于此值）
+  low_utilization_diagnosis: 0.6
+  # 问题诊断：连续低于此绿灯利用率触发 empty_green
+  empty_green_rate: 0.20
+  # 场景认知/画像展示用；问题诊断 empty_green 仅依据 green_utilization
+  start_loss_s: 2.0
+  # 场景认知参考；问题诊断 empty_green 不使用
+  utilization_conflict_high: 0.85
+  # 数据质量：空放率高但绿灯利用率也很高时，标记指标冲突
+
+# ── 进口/相位服务失衡 ──
+imbalance:
+  high: 0.35
+  # 场景认知：失衡指数时序中「高失衡」时段窗口；拥堵空间形态「面状」辅助判定
+  diagnosis: 0.30
+  # 问题诊断：imbalance_index 连续超阈值触发 service_imbalance
+  movement_saturation_gap: 0.60
+  # 问题诊断：转向车流饱和度极差连续超阈值可触发 service_imbalance（与失衡指数二选一）
+  sustained_minutes: 15
+  # 问题诊断：指标需连续超过阈值的最小时长（分钟）
+  sustained_step_minutes: 5
+  # 问题诊断：时序步长（分钟），与 DWS 5min 表一致
+
+# ── 溢流与回溢 ──
+spillback:
+  risk_high: 0.80
+  # spillback_risk ≥ 此值：诊断溢流/锁死；场景认知线状拥堵、扩散期判定
+
+# ── 机非人冲突 ──
+conflict:
+  risk_high: 0.60
+  # slow_traffic_facilities 检查项辅助判定
+
+# ── 静态供给与渠化 ──
+static:
+  adjacent_spacing_m: 150
+  # 相邻信控路口间距（m）< 此值：短间距串联，green_wave_break / 联动约束
+  right_turn_lane_width_m: 3.25
+  # 右转或混行车道有效宽度（m）< 此值：慢行冲突、右转通行受限风险升高
+  driveway_spacing_arterial_m: 100
+  # 主干路出入口距离交叉口小于此值：出口/进口扰动显著
+  driveway_spacing_collector_m: 80
+  # 次干路出入口距离交叉口小于此值：出口/进口扰动显著
+  driveway_spacing_branch_m: 50
+  # 支路出入口距离交叉口小于此值：出口/进口扰动显著
+  lane_utilization_cv: 0.35
+  # 车道利用率离散系数 ≥ 此值：渠化与流量不匹配（lane_mismatch）
+  lane_mismatch_index: 0.50
+  # 渠化匹配指数 ≥ 此值：渠化设计与车流量不匹配（lane_mismatch）
+
+# ── 专家诊断：相位渠化匹配 ──
+phase_channel:
+  small_intersection_max_lanes: 3
+  # 对向直左冲突判定：任一方进口车道数 ≥ 此值视为大路口，不可容忍同放
+
+# ── 专家诊断：渠化与流量结构匹配 ──
+channelization:
+  left_turn_share_high: 0.25
+  # 左转流量占比 ≥ 此值且无左转专用道 → 结构不匹配
+  left_turn_share_low: 0.10
+  # 左转专用道存在但占比 < 此值且饱和度低 → 轻风险提示
+  straight_share_high: 0.60
+  # 直行占比 ≥ 此值且仅单直行车道且高饱和 → 结构不匹配
+  straight_share_low: 0.35
+  # 直行占比低但多直行车道且低饱和 → 轻风险提示
+  mixed_left_share_high: 0.35
+  # 存在左直混行且左转占比 ≥ 此值 → 应专用化
+  structure_deviation_index: 0.50
+  # |车道配置比 − 流量占比| 之和 ≥ 此值 → 结构明显错位
+  saturation_imbalance_high: 0.90
+  # 同进口某转向饱和度 ≥ 此值且另一转向 ≤ saturation_imbalance_low → 运行错位
+  saturation_imbalance_low: 0.50
+  queue_imbalance_long_m: 100
+  # 同进口最大排队 ≥ 此值且相邻 < queue_imbalance_short_m → 排队分配失衡
+  queue_imbalance_short_m: 30
+  saturation_adjacent_low: 0.55
+  # 相邻转向/车道饱和度 ≤ 此值作为「空闲」侧判定辅助
+
+# ── 需求压力感知（诊断 demand_pressure_perception）──
+demand:
+  high_saturation_duration_h: 2
+  # 路口饱和度 ≥ saturation.high 的连续持续时间 ≥ 此值 → 需求压力偏高，需考虑分流、错峰或需求管理
+
+attractor:
+  arrival_capacity_ratio_year1: 0.20
+  # 强吸引点到达量/通行能力比第 1 年增幅 > 此值：对路口通行效率有影响
+  arrival_capacity_ratio_year2: 0.40
+  # 强吸引点到达量/通行能力比第 2 年增幅 > 此值：对路口通行效率有影响
+  arrival_capacity_ratio_year3: 0.60
+  # 强吸引点到达量/通行能力比第 3 年增幅 > 此值：对路口通行效率有影响
+
+organization:
+  approach_capacity_ratio_low: 1.0
+  # 进口通行能力与路段需求能力比 < 此值：进口道通行能力不足
+  movement_vc_ratio_high: 1.0
+  # 左转/直行/右转流量与通行能力比 > 此值：对应流向通行能力不足
+  lane_group_capacity_unbalance: 1.0
+  # 各进口车道或转向能力不均衡系数 > 此值：流量溢出或通行能力不匹配
+  detour_time_min: 30
+  # 路段平均绕行时间 > 此值：潮汐或绕行压力明显，可考虑潮汐车道/可变车道
+  exit_lane_merge_diff: 0
+  # 同一相位汇入车道数与出口道数差值 > 此值：出口道通行能力不匹配
+
+# ── 信号周期 ──
+cycle:
+  max_s: 190
+  # 当前周期（秒）> 此值：周期过长，触发 cycle_timing_issue
+  min_s: 60
+  # 当前周期（秒）< 此值：周期过短，触发 cycle_timing_issue
+
+# ── 配时方案精细度 ──
+plan:
+  min_time_plans: 5
+  # 时段方案套数 ≤ 此值：配时方案精细度不足（plan_granularity）
+  period_variation_index: 0.35
+  # 时段内指标波动指数 ≥ 此值：现有方案划分难以覆盖需求波动
+
+# ── 其他运行与协调指标 ──
+green_wave_pass_rate: 0.55
+# 绿波通过率 < 此值：触发 green_wave_break（上下游协调/绿波断裂）
+
+offset_deviation_s: 10
+# 相位差偏差（秒）≥ 此值：触发 green_wave_break
+
+# ── 压力等级与严重程度分档（内部评分用）──
+pressure:
+  severity_high: 0.75
+  # 综合压力得分 ≥ 此值 → severity/high（如拥堵画像严重程度）
+  severity_medium: 0.45
+  # 综合压力得分 ≥ 此值且 < high → severity/medium
+
+# ── 数据质量与输入可信度 ──
+data_quality:
+  detector_online_rate: 0.90
+  # 检测器在线率 < 此值：写入 quality_tags，降低诊断置信度
+  latency_s: 120
+  # 数据延迟（秒）> 此值：写入 quality_tags，时序解读需谨慎

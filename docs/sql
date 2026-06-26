@@ -1,0 +1,94 @@
+-- 新泺大街 分方向晚高峰
+SELECT f_dir_8_label,
+       ROUND(AVG(queue_len_avg)::numeric,1) avg_q,
+       ROUND(MAX(queue_len_max)::numeric,1) max_q,
+       ROUND(AVG(stop_time)::numeric,1) avg_stop
+FROM dws_inter_dir_turn_perf_5min_mm
+WHERE inter_id='011wwe295cm00001' AND is_deleted=0 AND turn_dir_no=0
+  AND step_index BETWEEN 192 AND 215
+GROUP BY f_dir_8_label ORDER BY max_q DESC;
+
+
+
+-- 1) 两路口基础信息
+SELECT inter_id, inter_name, is_signalized
+FROM dim_inter_info
+WHERE version_id = '20260501'
+  AND inter_id IN ('011wwe295cm00001', '011wwe28ctu00001');
+
+-- 2) 五表完备度
+SELECT i.inter_id, i.inter_name,
+  EXISTS (SELECT 1 FROM dwd_tfc_inter_dir_perf_5min d WHERE d.inter_id=i.inter_id AND d.is_deleted=0) AS has_dwd,
+  EXISTS (SELECT 1 FROM dws_inter_dir_turn_perf_5min_mm s WHERE s.inter_id=i.inter_id AND s.is_deleted=0) AS has_dws_dir,
+  EXISTS (SELECT 1 FROM dws_inter_evaluation_5min_mm e WHERE e.inter_id=i.inter_id AND e.is_deleted=0) AS has_eval,
+  EXISTS (SELECT 1 FROM dwd_tfc_lane_roadcross_flow_5mi f WHERE f.inter_id=i.inter_id AND f.is_deleted=0) AS has_flow,
+  EXISTS (SELECT 1 FROM dwd_ctl_inter_plan_cfg c WHERE c.inter_id=i.inter_id AND c.is_deleted=0) AS has_ctl
+FROM dim_inter_info i
+WHERE i.inter_id IN ('011wwe295cm00001', '011wwe28ctu00001');
+
+SET
+     inter_id     |       inter_name       | is_signalized 
+------------------+------------------------+---------------
+ 011wwe28ctu00001 | 奥体西路与经十路路口   |             1
+ 011wwe295cm00001 | 奥体中路与新泺大街路口 |             1
+(2 rows)
+
+     inter_id     |       inter_name       | has_dwd | has_dws_dir | has_eval | has_flow | has_ctl 
+------------------+------------------------+---------+-------------+----------+----------+---------
+ 011wwe28ctu00001 | 奥体西路与经十路路口   | f       | f           | t        | t        | t
+ 011wwe295cm00001 | 奥体中路与新泺大街路口 | t       | t           | t        | t        | t
+(2 rows)
+
+
+
+-- DWD 数据日历范围
+SELECT inter_id, MIN(stat_time::date) d_from, MAX(stat_time::date) d_to, COUNT(DISTINCT stat_time::date) days
+FROM dwd_tfc_inter_dir_perf_5min
+WHERE inter_id IN ('011wwe295cm00001','011wwe28ctu00001') AND is_deleted=0
+GROUP BY inter_id;
+
+-- 晚高峰(16-18) 常发性：近7日超标天数
+WITH daily AS (
+  SELECT inter_id, stat_time::date AS d,
+         AVG(stop_time) avg_stop, MAX(queue_len_max) max_q
+  FROM dwd_tfc_inter_dir_perf_5min
+  WHERE inter_id IN ('011wwe295cm00001','011wwe28ctu00001') AND is_deleted=0
+    AND stat_time::time >= '16:00' AND stat_time::time < '18:00'
+  GROUP BY 1,2
+)
+SELECT d.inter_id, i.inter_name,
+       COUNT(*) total_days,
+       COUNT(*) FILTER (WHERE avg_stop >= 60 OR max_q >= 100) congested_days,
+       ROUND(AVG(avg_stop)::numeric,1) avg_stop_s,
+       MAX(max_q) peak_queue_m
+FROM daily d
+JOIN dim_inter_info i ON i.inter_id=d.inter_id AND i.version_id='20260501'
+GROUP BY d.inter_id, i.inter_name;
+
+-- 晚高峰 DWS 饱和度/失衡
+SELECT e.inter_id, i.inter_name,
+       ROUND(AVG(saturation_max)::numeric,3) avg_sat,
+       ROUND(AVG(unbalance_index)::numeric,3) avg_imbalance,
+       COUNT(*) cnt
+FROM dws_inter_evaluation_5min_mm e
+JOIN dim_inter_info i ON i.inter_id=e.inter_id AND i.version_id='20260501'
+WHERE e.inter_id IN ('011wwe295cm00001','011wwe28ctu00001')
+  AND e.is_deleted=0 AND e.step_index BETWEEN 192 AND 215
+GROUP BY e.inter_id, i.inter_name;
+" 2>&1
+SET
+     inter_id     |   d_from   |    d_to    | days 
+------------------+------------+------------+------
+ 011wwe295cm00001 | 2026-06-08 | 2026-06-14 |    7
+(1 row)
+
+     inter_id     |       inter_name       | total_days | congested_days | avg_stop_s | peak_queue_m 
+------------------+------------------------+------------+----------------+------------+--------------
+ 011wwe295cm00001 | 奥体中路与新泺大街路口 |          7 |              7 |       25.4 |          311
+(1 row)
+
+     inter_id     |       inter_name       | avg_sat | avg_imbalance | cnt 
+------------------+------------------------+---------+---------------+-----
+ 011wwe28ctu00001 | 奥体西路与经十路路口   |   1.244 |         0.404 | 168
+ 011wwe295cm00001 | 奥体中路与新泺大街路口 |   1.820 |         0.468 | 168
+(2 rows)

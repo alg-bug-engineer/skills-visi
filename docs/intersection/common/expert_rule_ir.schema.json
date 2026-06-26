@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://traffic-signal.local/schemas/expert_rule_ir.schema.json",
+  "title": "Intersection Expert Rule IR",
+  "type": "object",
+  "required": ["version", "source", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "source": {
+      "type": "object",
+      "required": ["path", "compiled_at"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "compiled_at": {"type": "string"},
+        "compiler": {"type": "string"}
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/rule"},
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "phase": {
+      "type": "string",
+      "enum": [
+        "scene_cognition",
+        "problem_diagnosis",
+        "control_strategy",
+        "plan_generation",
+        "evaluation_feedback"
+      ]
+    },
+    "ruleType": {
+      "type": "string",
+      "enum": [
+        "checklist_item",
+        "threshold",
+        "issue_code",
+        "scene_type_rule",
+        "skill_step",
+        "script_logic",
+        "narrative_rule"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "enum": [
+        "skill_md",
+        "rules_md",
+        "checklist_rules_md",
+        "thresholds",
+        "diagnosis_checklist",
+        "scene_cognition_checklist",
+        "scene_type_rules",
+        "script_draft"
+      ]
+    },
+    "causeDimension": {
+      "type": "string",
+      "enum": ["supply", "demand", "control", "order", "event", "data_quality"]
+    },
+    "thresholdRef": {
+      "type": "object",
+      "required": ["key", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "key": {"type": "string"},
+        "value": {"type": ["number", "null"]},
+        "unit": {"type": "string"},
+        "description": {"type": "string"},
+        "is_new": {"type": "boolean"}
+      }
+    },
+    "checklistItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {"type": "string"},
+        "category": {"type": "string"},
+        "label": {"type": "string"},
+        "profile_field": {"type": "string"},
+        "issue_codes": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "thresholds": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "profile_checklist_ref": {"type": "string"},
+        "cause_dimensions": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        }
+      }
+    },
+    "scriptSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filename": {"type": "string"},
+        "function": {"type": "string"},
+        "input": {"type": "string"},
+        "output": {"type": "string"},
+        "pseudocode": {"type": "string"},
+        "test_cases": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "title",
+        "phase",
+        "rule_types",
+        "targets",
+        "phenomenon",
+        "evidence",
+        "runtime_intent",
+        "confidence",
+        "requires_human_review"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {"type": "string", "pattern": "^EXP-[A-Z]+-\\d{3}$"},
+        "title": {"type": "string"},
+        "phase": {"$ref": "#/$defs/phase"},
+        "rule_types": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/ruleType"},
+          "minItems": 1
+        },
+        "targets": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/target"},
+          "minItems": 1
+        },
+        "phenomenon": {"type": "string"},
+        "evidence": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "applicability": {"type": "string"},
+        "avoid_misdiagnosis": {"type": "string"},
+        "runtime_intent": {"type": "string"},
+        "fields": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "threshold_refs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/thresholdRef"}
+        },
+        "issue_codes": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "cause_dimensions": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/causeDimension"},
+          "additionalProperties": {"type": "number"}
+        },
+        "checklist_item": {"$ref": "#/$defs/checklistItem"},
+        "script_spec": {"$ref": "#/$defs/scriptSpec"},
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "requires_human_review": {"type": "boolean"},
+        "notes": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    }
+  }
+}

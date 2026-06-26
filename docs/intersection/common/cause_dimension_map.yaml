@@ -1,0 +1,23 @@
+# 问题码 → 成因维度权重（供 score_intersection_issues 使用）
+
+version: "1.0.0"
+
+issue_to_dimension:
+  oversaturation: demand
+  spillback: control
+  phase_sequence_conflict: control
+  service_imbalance: control
+  excess_delay: control
+  empty_green: control
+  lane_mismatch: supply
+  phase_channel_mismatch: supply
+  oversized_intersection: supply
+  manual_intervention: control
+  plan_granularity: control
+  green_wave_break: control
+  external_disturbance: order
+  downstream_blockage: event
+  public_complaint: order
+  pedestrian_protection_gap: control
+  cycle_timing_issue: control
+  stable: control

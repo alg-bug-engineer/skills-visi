@@ -1,0 +1,40 @@
+# --- 外部独立仓库（不纳入根 monorepo）---
+frontend/
+signal_optimization_engine-main/
+
+# --- 开发与运行时 ---
+.dev-logs/
+.prod-logs/
+.DS_Store
+*.log
+
+# --- 后端 ---
+backend/.venv/
+backend/.env
+backend/.env.local
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.coverage
+backend/htmlcov/
+backend/data/logs/
+backend/data/skills/*/
+!backend/data/skills/.gitkeep
+!backend/data/skills/_template/
+backend/.playwright-cli/
+
+# --- frontend-v2 ---
+frontend-v2/node_modules/
+frontend-v2/dist/
+frontend-v2/dist-ssr/
+frontend-v2/.playwright-cli/
+frontend-v2/*.local
+
+# --- 参考原型（不接入主项目）---
+前端可视化技能创建/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo

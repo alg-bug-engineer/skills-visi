@@ -1,0 +1,23 @@
+# 市委书记汇报演示路口配置（嗅探 2026-06-27）
+demo:
+  reference_date: "2026-06-13"
+  time_period_label: "晚高峰 17:00-19:00"
+  dws_day_of_week: 5
+  nlu_prompts:
+    primary: "会展路与奥体中路路口晚高峰17点到19点东向西拥堵严重，配时感觉跟不上流量"
+    secondary: "二环东路与工业南路路口晚高峰排队很长，也有群众投诉"
+    backup: "奥体中路与经十路路口晚高峰东西向饱和度很高，部分方向绿灯空放"
+  intersections:
+    - role: primary
+      inter_id: "011wwe29jbf00001"
+      inter_name: "会展路与奥体中路路口"
+      focus_categories: [imbalance, empty_green, spillback]
+    - role: secondary
+      inter_id: "011wwe2854m00001"
+      inter_name: "二环东路与工业南路路口"
+      focus_categories: [saturation, spillback]
+      highlight: [complaint, corridor]
+    - role: backup
+      inter_id: "011wwe291ey00001"
+      inter_name: "奥体中路与经十路路口"
+      focus_categories: [saturation, imbalance, empty_green]

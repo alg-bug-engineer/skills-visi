@@ -1,0 +1,768 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/traffic_intersection_scenario_cognition_v3.json",
+  "title": "交通路口场景认知报告（六维度可视化对齐版）",
+  "description": "用于交通路口场景认知环节的标准化数据结构。顶层含六个可视化维度（basicScenario / flowAndDemand / capacityAndSupply / operationalStatus / signalTimingFeatures / spatiotemporalPatterns）及独立的 scenarioSummary 场景特征总结；仅描述现状特征与规律，不涉及问题诊断或治理建议。字段口径与 calculate_saturation.build_scenario_report 及前端 SceneProfileView 六维度表格一致。",
+  "type": "object",
+  "required": [
+    "basicScenario",
+    "flowAndDemand",
+    "capacityAndSupply",
+    "operationalStatus",
+    "signalTimingFeatures",
+    "spatiotemporalPatterns",
+    "scenarioSummary"
+  ],
+  "definitions": {
+    "importDirection": {
+      "type": "string",
+      "enum": ["东进口", "西进口", "南进口", "北进口"]
+    },
+    "turnType": {
+      "type": "string",
+      "enum": ["左转", "直行", "右转"]
+    },
+    "periodName": {
+      "type": "string",
+      "enum": ["早高峰", "晚高峰", "白平峰"],
+      "description": "默认时段：早高峰 07:00-09:00，白平峰 10:00-16:00，晚高峰 17:00-19:00。"
+    },
+    "timePeriodValue": {
+      "type": "object",
+      "properties": {
+        "早高峰": { "type": ["number", "null"] },
+        "晚高峰": { "type": ["number", "null"] },
+        "白平峰": { "type": ["number", "null"] }
+      },
+      "description": "三时段数值指标；仅有单时段输入时只填充对应列，其余保持 null（前端显示 -）。"
+    },
+    "turnProportionRow": {
+      "type": "object",
+      "required": ["进口道", "时段", "左转", "直行", "右转"],
+      "properties": {
+        "进口道": { "$ref": "#/definitions/importDirection" },
+        "时段": { "$ref": "#/definitions/periodName" },
+        "左转": { "type": "number", "minimum": 0, "maximum": 100, "description": "左转占比（%）" },
+        "直行": { "type": "number", "minimum": 0, "maximum": 100, "description": "直行占比（%）" },
+        "右转": { "type": "number", "minimum": 0, "maximum": 100, "description": "右转占比（%）" },
+        "左转占比": { "type": "number", "description": "与 左转 同义，兼容别名" },
+        "直行占比": { "type": "number", "description": "与 直行 同义，兼容别名" },
+        "右转占比": { "type": "number", "description": "与 右转 同义，兼容别名" }
+      },
+      "description": "前端 2.2 转向流量占比表：按进口道×时段一行，列为左/直/右占比。"
+    },
+    "movementStatusRow": {
+      "type": "object",
+      "required": ["进口道", "转向", "时段"],
+      "properties": {
+        "进口道": { "$ref": "#/definitions/importDirection" },
+        "转向": { "$ref": "#/definitions/turnType" },
+        "时段": { "$ref": "#/definitions/periodName" },
+        "饱和度": { "type": ["number", "null"] },
+        "最大排队长度": { "type": ["number", "null"], "description": "m" },
+        "平均延误": { "type": ["number", "null"], "description": "s 或延误指数，取决于数据源" },
+        "平均停车次数": { "type": ["number", "null"], "description": "次" },
+        "绿灯利用率": { "type": ["number", "null"], "description": "百分比（%）" }
+      },
+      "description": "前端 4.1 转向运行指标：按进口×转向×时段合并展示。"
+    },
+    "queueTimeCurveRow": {
+      "type": "object",
+      "required": ["时段"],
+      "properties": {
+        "时段": { "$ref": "#/definitions/periodName" },
+        "进口方向": { "type": "string", "description": "峰值排队所在进口，如 东进口" },
+        "转向": { "$ref": "#/definitions/turnType" },
+        "最大排队": { "type": ["number", "null"], "description": "m" },
+        "存储比": { "type": ["number", "null"], "description": "排队/存储空间" },
+        "描述": { "type": "string", "description": "定性描述，如 早高峰最大排队约 160m" }
+      },
+      "description": "前端 6.2 最大排队长度时变曲线表格行。"
+    },
+    "upstreamRelationRow": {
+      "type": "object",
+      "properties": {
+        "方向": { "$ref": "#/definitions/importDirection" },
+        "关联方向": { "type": "string", "enum": ["上游", "下游"] },
+        "关联路口": { "type": "string", "description": "相邻信控路口名称或编号" },
+        "上游路口": { "type": "string", "description": "与 关联路口 同义，兼容别名" },
+        "间距": { "type": ["number", "null"], "description": "m" },
+        "距离": { "type": ["number", "null"], "description": "与 间距 同义，用于 upstreamByDirection" },
+        "本方向最大排队": { "type": ["number", "null"], "description": "该进口方向最大排队长度（m）" },
+        "本路口排队最大延伸": { "type": ["number", "null"], "description": "兼容旧字段名，等同 本方向最大排队" },
+        "是否影响关联路口": { "type": ["boolean", "null"], "description": "排队延伸 ≥ 间距时为 true" },
+        "是否影响": { "type": ["boolean", "null"], "description": "兼容旧字段名" }
+      }
+    }
+  },
+  "properties": {
+    "basicScenario": {
+      "type": "object",
+      "description": "维度1：路口基础场景刻画",
+      "required": ["nodeAttributes", "spatialCoordination", "attractionSources"],
+      "properties": {
+        "nodeAttributes": {
+          "type": "object",
+          "description": "1.1 节点属性（前端表格：属性项 / 内容）",
+          "required": ["intersectionId", "roadGradeCombination", "geometryType"],
+          "properties": {
+            "intersectionId": { "type": "string", "description": "路口编号/名称" },
+            "roadGradeCombination": { "type": "string", "description": "交叉道路等级组合，如 主干路-次干路相交" },
+            "roadFunction": { "type": "string", "description": "道路功能定位，如 通过性主干道/集散性次干道" },
+            "geometryType": {
+              "type": "string",
+              "enum": ["十字", "T型", "Y型", "五叉", "环岛", "畸形"],
+              "description": "路口几何形态"
+            },
+            "inboundLanes": {
+              "type": "object",
+              "description": "进口道数量（总计及各方向）",
+              "properties": {
+                "total": { "type": "integer" },
+                "东": { "type": "integer" },
+                "西": { "type": "integer" },
+                "南": { "type": "integer" },
+                "北": { "type": "integer" }
+              }
+            },
+            "outboundLanes": {
+              "type": "object",
+              "description": "出口道数量（总计及各方向）",
+              "properties": {
+                "total": { "type": "integer" },
+                "东": { "type": "integer" },
+                "西": { "type": "integer" },
+                "南": { "type": "integer" },
+                "北": { "type": "integer" }
+              }
+            },
+            "waitingArea": {
+              "type": "object",
+              "description": "待行区设置（无 PG 来源时占位，不臆造）",
+              "properties": {
+                "has": { "type": ["boolean", "null"] },
+                "type": { "type": "string", "enum": ["左转待行区", "直行待行区", ""] }
+              }
+            },
+            "slowTrafficFacilities": {
+              "type": "object",
+              "description": "慢行设施（无 PG 来源时占位）",
+              "properties": {
+                "bikeLane": { "type": "string", "description": "有/无，宽度（m）" },
+                "crosswalk": { "type": "string", "description": "有/无，长度（m）" },
+                "safetyIsland": { "type": ["boolean", "null"] }
+              }
+            },
+            "busFacilities": {
+              "type": "object",
+              "description": "公交设施（无 PG 来源时占位）",
+              "properties": {
+                "has": { "type": ["boolean", "null"] },
+                "location": { "type": "string", "enum": ["上游", "下游", "进口道", "出口道", ""] },
+                "distanceToStopLine": { "type": ["number", "null"], "description": "距离停止线距离（m）" }
+              }
+            },
+            "turnProportions": {
+              "type": "array",
+              "description": "兼容字段：与 flowAndDemand.turnProportions 同内容，前端优先读取后者",
+              "items": { "$ref": "#/definitions/turnProportionRow" }
+            }
+          }
+        },
+        "spatialCoordination": {
+          "type": "object",
+          "description": "1.2 空间协同概括 + 内部 relations",
+          "properties": {
+            "upstreamIntersection": { "type": "string", "description": "上游路口名称/编号汇总" },
+            "downstreamIntersection": { "type": "string", "description": "下游路口名称/编号汇总" },
+            "upstreamByDirection": {
+              "type": "array",
+              "description": "前端 1.2 表格：方向 / 上游路口 / 距离(m)",
+              "items": {
+                "type": "object",
+                "required": ["方向", "上游路口"],
+                "properties": {
+                  "方向": { "$ref": "#/definitions/importDirection" },
+                  "上游路口": { "type": "string" },
+                  "距离": { "type": ["number", "null"], "description": "至上游路口间距（m）" }
+                }
+              }
+            },
+            "relations": {
+              "type": "array",
+              "description": "相邻路口明细（仅含上游，供维度六复用）",
+              "items": { "$ref": "#/definitions/upstreamRelationRow" }
+            },
+            "seriesRelation": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["独立路口", "短间距串联", "连续交叉口群"] },
+                "count": { "type": "integer", "description": "串联路口数量" }
+              }
+            },
+            "storageSpace": {
+              "type": "object",
+              "properties": {
+                "upstreamLength": { "type": ["number", "null"], "description": "上游可存储长度（m）" },
+                "downstreamLength": { "type": ["number", "null"], "description": "下游可释放长度（m）" }
+              }
+            }
+          }
+        },
+        "attractionSources": {
+          "type": "array",
+          "description": "1.3 周边交通发生源/吸引源（前端表格：类型 / 名称 / 方位/距离 / 影响时段 / 影响方式）",
+          "items": {
+            "type": "object",
+            "required": ["type", "name"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["学校", "医院", "商圈", "港区/园区", "公交站", "停车场", "查验口/收费站", "其他"]
+              },
+              "name": { "type": "string" },
+              "directionDistance": { "type": "string", "description": "方位/距离，如 东侧 200m" },
+              "direction": { "type": "string", "description": "兼容字段：方位" },
+              "distance_m": { "type": ["number", "null"], "description": "兼容字段：距离（m）" },
+              "impactTime": { "type": "string", "description": "影响时段" },
+              "impactMethod": { "type": "string", "description": "影响方式" }
+            }
+          }
+        }
+      }
+    },
+    "flowAndDemand": {
+      "type": "object",
+      "description": "维度2：流量与需求特征",
+      "required": ["turnFlows", "turnProportions", "timeDistribution"],
+      "properties": {
+        "turnFlows": {
+          "type": "array",
+          "description": "2.1 转向流量（前端表格：进口道 / 转向 / 早高峰 / 晚高峰 / 白平峰，单位 pcu/h）",
+          "items": {
+            "type": "object",
+            "required": ["进口道", "转向"],
+            "properties": {
+              "进口道": { "$ref": "#/definitions/importDirection" },
+              "转向": { "$ref": "#/definitions/turnType" },
+              "早高峰": { "type": ["number", "null"], "description": "流量（pcu/h）" },
+              "晚高峰": { "type": ["number", "null"], "description": "流量（pcu/h）" },
+              "白平峰": { "type": ["number", "null"], "description": "流量（pcu/h）" },
+              "峰值时段": { "type": "string", "description": "该转向流量峰值出现的具体时段" }
+            }
+          }
+        },
+        "turnProportions": {
+          "type": "array",
+          "description": "2.2 转向流量占比（前端表格：进口道 / 时段 / 左转 / 直行 / 右转，单位 %）",
+          "items": { "$ref": "#/definitions/turnProportionRow" }
+        },
+        "timeDistribution": {
+          "type": "object",
+          "description": "2.3 路口流量时间分布特征（前端表格：特征项 / 描述）",
+          "properties": {
+            "curveShape": {
+              "type": "string",
+              "enum": ["单峰型", "双峰型", "平峰型", "多峰型"],
+              "description": "日变化曲线形态；有全天时序时来自 demand_pattern"
+            },
+            "peakPeriods": {
+              "type": "object",
+              "properties": {
+                "早高峰": { "type": "string", "description": "起止时间，如 07:00-09:00；非峰值时段可为空字符串" },
+                "晚高峰": { "type": "string" },
+                "白平峰": { "type": "string" }
+              }
+            },
+            "peakFlows": {
+              "type": "object",
+              "properties": {
+                "早高峰": { "type": ["number", "null"], "description": "流量（pcu/h）" },
+                "晚高峰": { "type": ["number", "null"], "description": "流量（pcu/h）" },
+                "白平峰": { "type": ["number", "null"], "description": "流量（pcu/h）" },
+                "全天总量": { "type": ["number", "null"], "description": "全天总流量（pcu），来自 metrics_insights.demand_pattern" },
+                "peakToPeakRatio": { "type": ["number", "null"], "description": "路口饱和峰值，非传统峰平比" }
+              }
+            },
+            "flowConcentration": { "type": "string", "description": "高峰流量占全天比例描述" },
+            "growthRecession": {
+              "type": "object",
+              "description": "流量增长/消退特征",
+              "properties": {
+                "早高峰": { "type": "string" },
+                "晚高峰": { "type": "string" }
+              }
+            },
+            "mainSubFlow": {
+              "type": "object",
+              "properties": {
+                "main": { "type": "string", "description": "主流向及占比" },
+                "sub": { "type": "string", "description": "次流向及占比" }
+              }
+            },
+            "tidalCharacteristics": { "type": "string", "description": "潮汐特征描述" }
+          }
+        },
+        "flowTrace": {
+          "type": "array",
+          "description": "2.4 流量溯源（前端表格：进口道 / 转向 / 时段 / 流量来源TOP1-3 / 流量去向TOP1-3）",
+          "items": {
+            "type": "object",
+            "required": ["进口道", "转向", "时段"],
+            "properties": {
+              "进口道": { "$ref": "#/definitions/importDirection" },
+              "转向": { "$ref": "#/definitions/turnType" },
+              "时段": { "$ref": "#/definitions/periodName" },
+              "流量来源": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "上游来源 TOP 列表，格式：关联路口 进口转向 占比%"
+              },
+              "流量去向": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "下游去向 TOP 列表"
+              },
+              "流量来源TOP1": { "type": "string" },
+              "流量来源TOP2": { "type": "string" },
+              "流量来源TOP3": { "type": "string" },
+              "流量去向TOP1": { "type": "string" },
+              "流量去向TOP2": { "type": "string" },
+              "流量去向TOP3": { "type": "string" }
+            }
+          }
+        },
+        "slowTraffic": {
+          "type": "array",
+          "description": "2.5 非机动车与行人流量（前端表格：时段 / 非机动车流量(辆/h) / 行人流量(人/h) / 过街方向）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "时段": { "$ref": "#/definitions/periodName" },
+              "非机动车流量": { "type": ["number", "null"], "description": "辆/h" },
+              "行人流量": { "type": ["number", "null"], "description": "人/h" },
+              "过街方向": { "type": "string" }
+            }
+          }
+        },
+        "demandCharacteristics": {
+          "type": "array",
+          "description": "需求特征（内部/调试字段，当前六维度可视化未单独展示）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "时段": { "$ref": "#/definitions/periodName" },
+              "状态判定": { "type": "string", "enum": ["非饱和", "饱和", "过饱和", ""] },
+              "实际流量": { "type": ["number", "null"], "description": "pcu/h" },
+              "剩余排队": { "type": ["number", "null"], "description": "pcu" },
+              "估算总需求": { "type": ["number", "null"], "description": "pcu/h" }
+            }
+          }
+        }
+      }
+    },
+    "capacityAndSupply": {
+      "type": "object",
+      "description": "维度3：通行能力与供给特征",
+      "required": ["saturationFlowRates", "turnCapacities", "totalCapacity"],
+      "properties": {
+        "saturationFlowRates": {
+          "type": "array",
+          "description": "3.1 车道级饱和流率（前端表格：进口转向 / 车道数 / 平均饱和车头时距(s) / 平均饱和流率(pcu/h) / 测定条件）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "进口转向": { "type": "string", "description": "如 东进口直行" },
+              "进口道": { "$ref": "#/definitions/importDirection" },
+              "转向": { "type": "string", "description": "车道功能标签，可为 左转+直行 等混行描述" },
+              "车道功能": { "type": "string", "description": "与 转向 同义，兼容别名" },
+              "车道数": { "type": ["integer", "null"] },
+              "车道号": { "type": "string" },
+              "平均饱和车头时距": { "type": ["number", "null"], "description": "s" },
+              "平均饱和流率": { "type": ["number", "null"], "description": "pcu/h" },
+              "饱和车头时距": { "type": ["number", "null"], "description": "兼容别名" },
+              "饱和流率": { "type": ["number", "null"], "description": "兼容别名" },
+              "测定条件": { "type": "string", "description": "如 工作日；日内多时段均值" }
+            }
+          }
+        },
+        "turnCapacities": {
+          "type": "array",
+          "description": "3.2 进口转向通行能力（前端表格：进口道 / 转向 / 早高峰(pcu/h) / 晚高峰(pcu/h) / 白平峰(pcu/h)）",
+          "items": {
+            "type": "object",
+            "required": ["进口道", "转向"],
+            "properties": {
+              "进口道": { "$ref": "#/definitions/importDirection" },
+              "转向": { "$ref": "#/definitions/turnType" },
+              "早高峰": { "type": ["number", "null"], "description": "通行能力（pcu/h）" },
+              "晚高峰": { "type": ["number", "null"], "description": "通行能力（pcu/h）" },
+              "白平峰": { "type": ["number", "null"], "description": "通行能力（pcu/h）" }
+            }
+          }
+        },
+        "totalCapacity": {
+          "type": "array",
+          "description": "3.3 路口总通行能力（前端表格：时段 / 路口总通行能力(pcu/h) / 实际总需求(pcu/h) / 饱和度）",
+          "items": {
+            "type": "object",
+            "required": ["时段"],
+            "properties": {
+              "时段": { "$ref": "#/definitions/periodName" },
+              "路口总通行能力": { "type": ["number", "null"], "description": "pcu/h" },
+              "实际总需求": { "type": ["number", "null"], "description": "pcu/h" },
+              "饱和度": { "type": ["number", "null"], "description": "需求与通行能力匹配程度" }
+            }
+          }
+        }
+      }
+    },
+    "operationalStatus": {
+      "type": "object",
+      "description": "维度4：运行状态特征",
+      "required": ["movementStatus", "imbalanceAndService"],
+      "properties": {
+        "movementStatus": {
+          "type": "array",
+          "description": "4.1 转向运行指标（前端主表格：进口道 / 转向 / 时段 / 饱和度 / 最大排队长度 / 平均延误 / 平均停车次数 / 绿灯利用率）",
+          "items": { "$ref": "#/definitions/movementStatusRow" }
+        },
+        "imbalanceAndService": {
+          "type": "array",
+          "description": "4.2 失衡指数与服务水平（前端表格：时段 / 饱和度 / 失衡指数 / 服务水平）",
+          "items": {
+            "type": "object",
+            "required": ["时段"],
+            "properties": {
+              "时段": { "$ref": "#/definitions/periodName" },
+              "饱和度": { "type": ["number", "null"], "description": "路口综合评价饱和度" },
+              "失衡指数": { "type": ["number", "null"] },
+              "服务水平": { "type": "string", "description": "LOS A-F" },
+              "状态说明": { "type": "string", "description": "可选文字说明，当前前端表格不展示" }
+            }
+          }
+        },
+        "dataAvailability": {
+          "type": "array",
+          "description": "数据可用性提示（如无 turn_perf 时的说明）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "指标": { "type": "string" },
+              "说明": { "type": "string" }
+            }
+          }
+        },
+        "saturations": {
+          "type": "array",
+          "description": "兼容字段：分进口×转向×三时段饱和度，供调试与旧版展示",
+          "items": {
+            "type": "object",
+            "properties": {
+              "进口道": { "$ref": "#/definitions/importDirection" },
+              "转向": { "$ref": "#/definitions/turnType" },
+              "早高峰": { "type": ["number", "null"] },
+              "晚高峰": { "type": ["number", "null"] },
+              "白平峰": { "type": ["number", "null"] }
+            }
+          }
+        },
+        "queues": {
+          "type": "array",
+          "description": "兼容字段：排队特征明细",
+          "items": {
+            "type": "object",
+            "properties": {
+              "进口道": { "$ref": "#/definitions/importDirection" },
+              "转向": { "type": "string" },
+              "平均排队长度": { "$ref": "#/definitions/timePeriodValue" },
+              "最大排队长度": { "$ref": "#/definitions/timePeriodValue" },
+              "排队存储比": { "$ref": "#/definitions/timePeriodValue" }
+            }
+          }
+        },
+        "delaysAndStops": {
+          "type": "array",
+          "description": "兼容字段：延误与停车明细",
+          "items": {
+            "type": "object",
+            "properties": {
+              "进口道": { "type": "string", "enum": ["东进口", "西进口", "南进口", "北进口", "路口平均"] },
+              "转向": { "type": "string" },
+              "平均延误": { "$ref": "#/definitions/timePeriodValue" },
+              "平均停车次数": { "$ref": "#/definitions/timePeriodValue" }
+            }
+          }
+        },
+        "greenUtilization": {
+          "type": "array",
+          "description": "兼容字段：绿灯利用率与空放（按进口×转向）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "进口道": { "type": "string" },
+              "转向": { "type": "string" },
+              "绿灯利用率": { "$ref": "#/definitions/timePeriodValue", "description": "百分比（%）" },
+              "空放率": { "$ref": "#/definitions/timePeriodValue", "description": "百分比（%）" }
+            }
+          }
+        },
+        "overflows": {
+          "type": "array",
+          "description": "溢流线索（当前六维度可视化未单独展示）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "进口道": { "$ref": "#/definitions/importDirection" },
+              "溢流次数": { "$ref": "#/definitions/timePeriodValue" },
+              "严重溢流次数": { "$ref": "#/definitions/timePeriodValue" },
+              "周期失效率": { "$ref": "#/definitions/timePeriodValue" }
+            }
+          }
+        },
+        "conflicts": {
+          "type": "array",
+          "description": "阶段内冲突线索（当前六维度可视化未单独展示）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "冲突类型": { "type": "string", "enum": ["交叉冲突", "合流冲突", "人车冲突"] },
+              "冲突流向": { "type": "string" },
+              "早高峰": { "type": ["number", "null"] },
+              "晚高峰": { "type": ["number", "null"] },
+              "白平峰": { "type": ["number", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "signalTimingFeatures": {
+      "type": "object",
+      "description": "维度5：现状配时方案特征解析",
+      "required": ["timeSegments", "phaseSequence", "cycle", "summary"],
+      "properties": {
+        "timeSegments": {
+          "type": "array",
+          "description": "5.1 原始时段调度明细；前端聚合展示为 日期类型 / 时段划分数量 / 时间段划分明细",
+          "items": {
+            "type": "object",
+            "properties": {
+              "时段名称": { "type": "string" },
+              "调度编号": { "type": "string" },
+              "星期": { "type": ["string", "integer", "null"], "description": "1-7 或 周一-周日" },
+              "日方案": { "type": "string" },
+              "时段序号": { "type": ["string", "integer", "null"] },
+              "开始时间": { "type": "string", "description": "HH:MM" },
+              "结束时间": { "type": "string", "description": "HH:MM" },
+              "方案编号": { "type": "string" },
+              "控制方式": { "type": "string", "description": "如 定周期 / 协调定周期" },
+              "生效开始": { "type": "string" },
+              "生效结束": { "type": "string" },
+              "备注": { "type": "string" }
+            }
+          }
+        },
+        "phaseSequence": {
+          "type": "array",
+          "description": "原始相位相序；前端 5.2 聚合为 放行顺序 / 使用时段 / 总结描述",
+          "items": {
+            "type": "object",
+            "properties": {
+              "方案编号": { "type": "string" },
+              "方案名称": { "type": "string" },
+              "阶段": { "type": "string" },
+              "相序": { "type": ["string", "integer", "null"] },
+              "放行车流": { "type": "string" },
+              "绿灯时长": { "type": ["number", "null"], "description": "s" },
+              "黄灯时长": { "type": ["number", "null"], "description": "s" },
+              "全红时长": { "type": ["number", "null"], "description": "s" },
+              "阶段总时长": { "type": ["number", "null"], "description": "s" },
+              "最小绿": { "type": ["number", "null"], "description": "s" },
+              "最大绿": { "type": ["number", "null"], "description": "s" },
+              "绿信比": { "type": ["number", "null"] },
+              "解析来源": { "type": "string" }
+            }
+          }
+        },
+        "cycle": {
+          "type": "object",
+          "description": "当前周期与方案信息",
+          "properties": {
+            "方案编号": { "type": "string" },
+            "方案名称": { "type": "string" },
+            "当前周期": { "type": ["number", "null"], "description": "s" },
+            "协调方式": { "type": "string" },
+            "相位数": { "type": ["integer", "null"] },
+            "offset": { "type": ["number", "null"], "description": "s" },
+            "阶段总时长": { "type": ["number", "null"], "description": "各阶段总时长求和" },
+            "周期校验": { "type": "string", "enum": ["matched", "mismatch", "unknown"] },
+            "周期差值": { "type": ["number", "null"], "description": "阶段总时长与当前周期差值（s）" }
+          }
+        },
+        "greenRatios": {
+          "type": "array",
+          "description": "各阶段绿信比明细",
+          "items": {
+            "type": "object",
+            "properties": {
+              "阶段": { "type": "string" },
+              "绿灯时长": { "type": ["number", "null"] },
+              "绿信比": { "type": ["number", "null"] }
+            }
+          }
+        },
+        "minGreens": {
+          "type": "array",
+          "description": "相位/转向最小绿（调试视图使用；前端六维度当前不单独展示）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "阶段": { "type": "string" },
+              "转向": { "type": "string" },
+              "link_id": { "type": "string" },
+              "turn_dir_no": { "type": ["string", "integer", "null"] },
+              "最小绿": { "type": ["number", "null"], "description": "s" },
+              "计划绿": { "type": ["number", "null"], "description": "s" },
+              "是否含行人": { "type": ["boolean", "null"] }
+            }
+          }
+        },
+        "flowGreenConsistency": {
+          "type": "object",
+          "description": "流量份额与有效绿时间份额一致性检验（Spearman 相关）",
+          "properties": {
+            "correlation": { "type": ["number", "null"] },
+            "consistent": { "type": ["boolean", "null"] },
+            "summary": { "type": "string" }
+          }
+        },
+        "summary": {
+          "type": "string",
+          "description": "配时方案现状概述；前端 5.x 配时特征概述"
+        }
+      }
+    },
+    "spatiotemporalPatterns": {
+      "type": "object",
+      "description": "维度6：时空特征建模与关联规律",
+      "required": ["congestionTimeProfile", "queueTimeCurveRows", "upstreamDownstream"],
+      "properties": {
+        "congestionTimeProfile": {
+          "type": "array",
+          "description": "6.1 拥堵时段画像（前端表格：时段区间 / 拥堵程度 / 发展阶段）",
+          "items": {
+            "type": "object",
+            "required": ["时段区间"],
+            "properties": {
+              "时段区间": {
+                "type": "string",
+                "description": "如 07:00-08:30 或 [07:00-08:30]"
+              },
+              "拥堵程度": {
+                "type": "string",
+                "description": "如 0.92 / 过饱和 或 [0.70-0.85 / 轻度]"
+              },
+              "发展阶段": {
+                "type": "string",
+                "enum": ["酝酿期", "形成期", "上升期", "加剧期", "峰值平台期", "过饱和平台期", "消散期", "白平峰期"]
+              }
+            }
+          }
+        },
+        "queueTimeCurveRows": {
+          "type": "array",
+          "description": "6.2 最大排队长度时变曲线（前端主表格）",
+          "items": { "$ref": "#/definitions/queueTimeCurveRow" }
+        },
+        "queueTimeCurve": {
+          "type": "object",
+          "description": "6.2 定性描述（兼容字段，前端优先展示 queueTimeCurveRows）",
+          "properties": {
+            "早高峰": { "type": "string" },
+            "晚高峰": { "type": "string" },
+            "白平峰": { "type": "string" },
+            "queueSpillback": { "type": "string", "description": "排队上溯描述" }
+          }
+        },
+        "upstreamDownstream": {
+          "type": "object",
+          "description": "6.3 上下游关联特征",
+          "properties": {
+            "relations": {
+              "type": "array",
+              "description": "前端表格：方向 / 上游路口 / 间距 / 本方向最大排队 / 是否影响关联路口（仅上游）",
+              "items": { "$ref": "#/definitions/upstreamRelationRow" }
+            },
+            "seriesPosition": {
+              "type": "string",
+              "description": "串联路口总数及本路口位置"
+            }
+          }
+        },
+        "attractionImpact": {
+          "type": "array",
+          "description": "6.4 吸引源影响关联（前端表格：吸引源名称 / 距离 / 影响方式 / 对应时段 / 本路口对应状态）",
+          "items": {
+            "type": "object",
+            "required": ["吸引源名称"],
+            "properties": {
+              "吸引源名称": { "type": "string" },
+              "距离": { "type": ["number", "null"], "description": "m" },
+              "影响方式": { "type": "string" },
+              "对应时段": { "type": "string" },
+              "本路口对应状态": { "type": "string" }
+            }
+          }
+        },
+        "incidentImpacts": {
+          "type": "array",
+          "description": "6.5 异常事件影响（前端列表展示）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "事件类型": { "type": "string", "enum": ["交通事故", "恶劣天气", "施工占道", "其他"] },
+              "事件描述": { "type": "string" },
+              "影响时段": { "type": "string" },
+              "影响车道": { "type": "string" },
+              "影响范围": { "type": ["number", "null"], "description": "m" }
+            }
+          }
+        }
+      }
+    },
+    "scenarioSummary": {
+      "type": "object",
+      "description": "场景特征总结（独立于六维度可视化，展示于报告顶部）",
+      "required": ["portrait", "tags"],
+      "properties": {
+        "portrait": {
+          "type": "object",
+          "description": "路口场景画像（前端表格：维度 / 特征描述）",
+          "properties": {
+            "等级定位": { "type": "string" },
+            "形态特征": { "type": "string" },
+            "空间约束": { "type": "string" },
+            "外部荷载": { "type": "string", "description": "周边主要吸引源及影响时段" },
+            "流量规律": { "type": "string", "description": "日变化形态、主流向、各时段流量、峰平比" },
+            "转向特征": { "type": "string", "description": "各进口转向占比及时段差异" },
+            "供需匹配": { "type": "string", "description": "各时段需求/能力比及矛盾突出的方向" },
+            "运行状态": { "type": "string", "description": "分早/晚/白平峰描述饱和度、排队、延误" },
+            "配时特征": { "type": "string", "description": "来自 signalTimingFeatures.summary" },
+            "时间规律": { "type": "string", "description": "拥堵时段、峰值平台持续及消散时长" },
+            "时间节律": { "type": "string", "description": "兼容旧字段名，等同 时间规律" },
+            "关联特征": { "type": "string", "description": "兼容旧字段名，串联影响及排队延伸情况" }
+          }
+        },
+        "tags": {
+          "type": "object",
+          "description": "路口场景类别（归档标签）",
+          "properties": {
+            "static": { "type": "string", "description": "静态标签" },
+            "dynamic": { "type": "string", "description": "动态标签" },
+            "comprehensive": { "type": "string", "description": "综合场景描述" }
+          }
+        }
+      }
+    }
+  }
+}

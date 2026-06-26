@@ -1,0 +1,323 @@
+rules:
+  - id: rule_oversaturation
+    name: 过饱和需增加绿灯
+    problem_type: congestion
+    focus_category: saturation
+    priority: 5
+    conditions:
+      - metric: traffic_flow.saturation_rate
+        operator: ">="
+        threshold_ref: saturation.oversaturation
+        threshold: 0.90
+    logic: AND
+    conclusion: 关键方向过饱和，建议增加绿灯时长
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "min(traffic_flow.saturation_rate * 12, 25)"
+    confidence: 0.82
+
+  - id: rule_green_insufficient
+    name: 绿灯时长不足导致拥堵
+    problem_type: congestion
+    priority: 10
+    conditions:
+      - metric: evaluation.delay_index
+        operator: ">"
+        threshold_ref: delay.high_delay_index
+        threshold: 1.5
+      - metric: signal_plan.green_ratio
+        operator: "<"
+        threshold_ref: green.green_ratio_low
+        threshold: 0.35
+    logic: AND
+    conclusion: 绿灯配时不足是主因
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "min(traffic_flow.saturation_rate * signal_plan.cycle_length * 0.15, 20)"
+    confidence: 0.85
+
+  - id: rule_empty_green
+    name: 空放与绿灯损失
+    problem_type: signal_timing
+    focus_category: empty_green
+    priority: 15
+    conditions:
+      - metric: evaluation.green_utilization
+        operator: "<"
+        threshold_ref: green.low_utilization_diagnosis
+        threshold: 0.60
+      - metric: evaluation.empty_green_rate
+        operator: ">="
+        threshold_ref: green.empty_green_rate
+        threshold: 0.20
+    logic: OR
+    conclusion: 存在空放，可优化相位绿信比
+    action:
+      type: green_light_adjustment
+      direction: decrease
+      formula: "8"
+    confidence: 0.75
+
+  - id: rule_service_imbalance
+    name: 进口服务失衡
+    problem_type: congestion
+    focus_category: imbalance
+    priority: 20
+    conditions:
+      - metric: evaluation.imbalance_index
+        operator: ">="
+        threshold_ref: imbalance.diagnosis
+        threshold: 0.30
+      - metric: traffic_flow.saturation_rate
+        operator: ">="
+        threshold_ref: saturation.high
+        threshold: 0.80
+    logic: AND
+    conclusion: 各进口饱和度差异大，主方向绿灯不足
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "min(traffic_flow.saturation_rate * 8, 15)"
+    confidence: 0.80
+
+  - id: rule_turn_imbalance
+    name: 转向饱和度极差过大
+    problem_type: congestion
+    focus_category: imbalance
+    priority: 18
+    conditions:
+      - metric: traffic_flow.turn_saturation_spread
+        operator: ">="
+        threshold_ref: imbalance.movement_saturation_gap
+        threshold: 0.60
+      - metric: traffic_flow.saturation_rate
+        operator: ">="
+        threshold_ref: saturation.high
+        threshold: 0.80
+    logic: AND
+    conclusion: 部分转向严重过饱和而其他转向空闲，服务分配失衡
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "min(traffic_flow.turn_saturation_spread * 30, 18)"
+    confidence: 0.78
+
+  - id: rule_green_below_min
+    name: 计划绿灯低于理论最小绿
+    problem_type: signal_timing
+    priority: 12
+    conditions:
+      - metric: timing.green_deficit_ratio_max
+        operator: ">"
+        threshold_ref: timing.green_deficit_ratio
+        threshold: 0.10
+      - metric: traffic_flow.saturation_rate
+        operator: ">="
+        threshold_ref: saturation.high
+        threshold: 0.80
+    logic: AND
+    conclusion: 关键转向计划绿灯低于理论最小绿，配时结构不满足通行需求
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "min(timing.green_deficit_ratio_max * signal_plan.cycle_length * 0.2, 15)"
+    confidence: 0.83
+
+  - id: rule_cycle_too_long
+    name: 信号周期过长
+    problem_type: signal_timing
+    priority: 25
+    conditions:
+      - metric: timing.cycle_issue
+        operator: "=="
+        value: "too_long"
+    logic: AND
+    conclusion: 周期偏长，行人等待与协调弹性受限，宜压缩周期或优化相序
+    action:
+      type: green_light_adjustment
+      direction: decrease
+      formula: "10"
+    confidence: 0.72
+
+  - id: rule_cycle_too_short
+    name: 信号周期过短
+    problem_type: signal_timing
+    priority: 26
+    conditions:
+      - metric: timing.cycle_issue
+        operator: "=="
+        value: "too_short"
+    logic: AND
+    conclusion: 周期偏短，清空与相位切换可能不足
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "8"
+    confidence: 0.70
+
+  - id: rule_plan_granularity
+    name: 时段方案精细度不足
+    problem_type: signal_timing
+    priority: 35
+    conditions:
+      - metric: timing.plan_granularity_low
+        operator: "=="
+        value: true
+      - metric: traffic_flow.saturation_rate
+        operator: ">="
+        threshold_ref: saturation.high
+        threshold: 0.80
+    logic: AND
+    conclusion: 时段方案划分较粗，高峰与平峰共用配时导致效率损失
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "5"
+    confidence: 0.68
+
+  - id: rule_flow_green_mismatch
+    name: 流量与绿信比失配
+    problem_type: signal_timing
+    focus_category: imbalance
+    priority: 22
+    conditions:
+      - metric: timing.flow_green_verdict
+        operator: "=="
+        value: "mismatch"
+      - metric: evaluation.imbalance_index
+        operator: ">="
+        threshold_ref: imbalance.diagnosis
+        threshold: 0.30
+    logic: AND
+    conclusion: 高流量转向的有效绿灯占比偏低，流量-配时结构失配
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "12"
+    confidence: 0.76
+
+  - id: rule_approach_high_delay
+    name: 进口延误与停车偏高
+    problem_type: congestion
+    priority: 28
+    conditions:
+      - metric: granularity.approach_stop_time_max
+        operator: ">="
+        threshold_ref: approach.stop_time_high_sec
+        threshold: 60
+      - metric: granularity.approach_stop_times_max
+        operator: ">="
+        threshold_ref: approach.stop_times_high
+        threshold: 1.5
+    logic: OR
+    conclusion: 部分进口延误时间与停车次数偏高，存在连续停车
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "10"
+    confidence: 0.74
+
+  - id: rule_green_wave_break
+    name: 干线协调绿波断裂风险
+    problem_type: corridor
+    priority: 16
+    conditions:
+      - metric: corridor.green_wave_break_risk
+        operator: "=="
+        value: true
+      - metric: corridor.in_corridor
+        operator: "=="
+        value: true
+    logic: AND
+    conclusion: 路口处于协调走廊且协调方向停车偏高，单点加绿灯可能恶化绿波
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "5"
+    confidence: 0.77
+    control_ceiling: medium
+
+  - id: rule_public_complaint_demo
+    name: 民意投诉（演示模式）
+    problem_type: external
+    priority: 38
+    conditions:
+      - metric: meta.demo_mode
+        operator: "=="
+        value: true
+      - metric: external_evidence.complaint_total
+        operator: ">="
+        threshold_ref: external.complaint_count_demo
+        threshold: 1
+    logic: AND
+    conclusion: 民意投诉与运行数据交叉印证，需优先回应群众诉求
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "8"
+    confidence: 0.71
+
+  - id: rule_public_complaint
+    name: 民意投诉与运行数据交叉印证
+    problem_type: external
+    priority: 40
+    conditions:
+      - metric: external_evidence.complaint_total
+        operator: ">="
+        threshold_ref: external.complaint_count_high
+        threshold: 5
+      - metric: traffic_flow.saturation_rate
+        operator: ">="
+        threshold_ref: saturation.high
+        threshold: 0.80
+    logic: AND
+    conclusion: 投诉台账与运行数据均指向信控/拥堵问题，需优先回应群众诉求
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "8"
+    confidence: 0.71
+
+  - id: rule_spillback_overflow
+    name: 排队溢出风险
+    problem_type: congestion
+    focus_category: spillback
+    priority: 14
+    conditions:
+      - metric: problem_evidence.metrics.spillback_risk_max
+        operator: ">="
+        threshold_ref: queue.queue_storage_ratio_high
+        threshold: 0.80
+      - metric: granularity.approach_stop_time_max
+        operator: ">="
+        threshold_ref: approach.stop_time_high_sec
+        threshold: 60
+    logic: OR
+    conclusion: 排队接近或超过进口存储能力，存在外溢风险
+    action:
+      type: green_light_adjustment
+      direction: decrease
+      formula: "8"
+    confidence: 0.79
+
+  - id: rule_channelization_conflict
+    name: 渠化与配时冲突
+    problem_type: channelization
+    priority: 30
+    conditions:
+      - metric: channelization.has_mixed_left
+        operator: "=="
+        value: true
+      - metric: signal_plan.green_ratio
+        operator: "<"
+        threshold: 0.30
+    logic: AND
+    conclusion: 渠化与配时存在冲突，信控改善空间有限
+    action:
+      type: green_light_adjustment
+      direction: increase
+      formula: "10"
+    confidence: 0.70
+    control_ceiling: low

@@ -1,0 +1,207 @@
+version: 1.0.0
+phase: problem_diagnosis
+items:
+- item_id: phase_channel_mismatch
+  category: static
+  label: 相位相序与渠化是否匹配
+  issue_codes:
+  - phase_channel_mismatch
+  profile_field: supply_profile.channelization
+  cause_dimensions:
+    supply: 0.5
+    control: 0.2
+- item_id: lane_flow_mismatch
+  category: static
+  label: 渠化设计与车流量是否匹配
+  issue_codes:
+  - lane_mismatch
+  profile_field: demand_profile.lane_utilization_cv
+  thresholds:
+  - lane_utilization_cv
+  - lane_mismatch_index
+  cause_dimensions:
+    supply: 0.5
+- item_id: funnel_effect
+  category: static
+  label: 进出口是否存在漏斗效应
+  issue_codes:
+  - lane_mismatch
+  profile_field: supply_profile.static_flags
+  cause_dimensions:
+    supply: 0.45
+- item_id: adjacent_spacing
+  category: static
+  label: 相邻路口间距是否过短、联动约束是否强
+  issue_codes:
+  - green_wave_break
+  profile_field: supply_profile.adjacent_inter_spacing_m
+  thresholds:
+  - adjacent_spacing_m
+  cause_dimensions:
+    supply: 0.3
+    control: 0.2
+- item_id: road_segment_interference
+  category: static
+  label: 公交站点、单位出入口、强吸引点是否干扰路口运行
+  issue_codes:
+  - external_disturbance
+  - downstream_blockage
+  profile_field: context.aoi_sources, scenario_report.basicScenario.attractionSources
+  profile_checklist_ref: aoi_sources
+  thresholds:
+  - static.driveway_spacing_arterial_m
+  - static.driveway_spacing_collector_m
+  - static.driveway_spacing_branch_m
+  cause_dimensions:
+    supply: 0.25
+    order: 0.35
+    event: 0.2
+- item_id: demand_pressure_perception
+  category: dynamic
+  label: 高饱和持续是否提示需求压力
+  issue_codes: []
+  profile_field: traffic_state
+  thresholds:
+  - saturation.high
+  - demand.high_saturation_duration_h
+  profile_checklist_ref: inter_evaluation
+  cause_dimensions:
+    demand: 0.4
+    control: 0.15
+- item_id: attractor_demand_pressure
+  category: special
+  label: 强吸引点到达量是否超过路口承载能力
+  issue_codes:
+  - external_disturbance
+  profile_field: context_tags
+  thresholds:
+  - attractor.arrival_capacity_ratio_year1
+  - attractor.arrival_capacity_ratio_year2
+  - attractor.arrival_capacity_ratio_year3
+  cause_dimensions:
+    demand: 0.35
+    event: 0.2
+- item_id: slow_traffic_facilities
+  category: static
+  label: 非机动车、行人过街、右转空间等慢行设施是否不足
+  issue_codes:
+  - pedestrian_protection_gap
+  - phase_sequence_conflict
+  profile_field: supply_profile.static_flags
+  thresholds:
+  - conflict.risk_high
+  - static.right_turn_lane_width_m
+  cause_dimensions:
+    supply: 0.25
+    control: 0.25
+    order: 0.2
+- item_id: spillback
+  category: dynamic
+  label: 是否存在排队溢出、上游回溢和锁死风险
+  issue_codes:
+  - spillback
+  profile_field: traffic_state.spillback_risk
+  thresholds:
+  - spillback.risk_high
+  - queue.queue_storage_ratio_high
+  profile_checklist_ref: turn_perf
+  cause_dimensions:
+    control: 0.4
+- item_id: downstream_blockage
+  category: dynamic
+  label: 是否存在出口停车干扰、下游阻塞
+  issue_codes:
+  - downstream_blockage
+  - spillback
+  profile_field: traffic_state.spillback_risk
+  profile_checklist_ref: turn_perf
+  cause_dimensions:
+    event: 0.35
+    order: 0.25
+- item_id: service_imbalance
+  category: dynamic
+  label: 是否存在进口/相位服务失衡
+  issue_codes:
+  - service_imbalance
+  profile_field: traffic_state.imbalance_index
+  thresholds:
+  - imbalance.diagnosis
+  - imbalance.movement_saturation_gap
+  - imbalance.sustained_minutes
+  profile_checklist_ref: inter_evaluation
+  cause_dimensions:
+    control: 0.4
+- item_id: empty_green
+  category: dynamic
+  label: 是否存在空放、绿灯利用率偏低
+  issue_codes:
+  - empty_green
+  profile_field: traffic_state.green_utilization
+  thresholds:
+  - green.low_utilization_diagnosis
+  - imbalance.sustained_minutes
+  profile_checklist_ref: green_utilization
+  cause_dimensions:
+    control: 0.45
+- item_id: cycle_timing
+  category: dynamic
+  label: 周期是否过长或过短
+  issue_codes:
+  - cycle_timing_issue
+  profile_field: control_profile.current_cycle_s
+  thresholds:
+  - cycle.max_s
+  - cycle.min_s
+  profile_checklist_ref: plan_cfg
+  cause_dimensions:
+    control: 0.35
+- item_id: plan_granularity
+  category: dynamic
+  label: 配时方案精细度是否不足
+  issue_codes:
+  - plan_granularity
+  profile_field: control_profile.time_plan_count
+  thresholds:
+  - plan.min_time_plans
+  - plan.period_variation_index
+  profile_checklist_ref: schedule_cfg
+  cause_dimensions:
+    control: 0.3
+- item_id: special_demand
+  category: special
+  label: 是否存在学校/医院/公交/货运/应急/施工等特殊需求
+  issue_codes:
+  - pedestrian_protection_gap
+  - external_disturbance
+  profile_field: context_tags
+  cause_dimensions:
+    control: 0.2
+    event: 0.2
+- item_id: public_complaint
+  category: special
+  label: 是否存在投诉或现场调研问题
+  issue_codes:
+  - public_complaint
+  profile_field: context.complaints
+  profile_checklist_ref: complaint_records
+  cause_dimensions:
+    order: 0.35
+- item_id: expert_expert_rule
+  category: special
+  label: 交通秩序与外部事件干扰
+  profile_field: context.complaints
+  issue_codes:
+  - external_disturbance
+  - public_complaint
+  thresholds: []
+  cause_dimensions:
+    demand: 0.3
+    order: 0.3
+    event: 0.3
+  source_experience_id: EXP-DIAG-003
+  requires_human_review: true
+- item_id: cause_scores
+  category: summary
+  label: 拥堵成因六维评分汇总
+  issue_codes: []
+  profile_field: cause_scores

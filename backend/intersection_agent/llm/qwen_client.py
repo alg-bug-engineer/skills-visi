@@ -1,0 +1,270 @@
+"""Qwen LLM client via DashScope OpenAI-compatible API."""
+
+from __future__ import annotations
+
+import json
+import logging
+import re
+from typing import Any
+
+import httpx
+
+from intersection_agent.config import Settings, get_settings
+from intersection_agent.logging.helpers import log_event, safe_preview
+
+logger = logging.getLogger(__name__)
+
+
+class QwenClient:
+    """Async client for Qwen chat completions."""
+
+    def __init__(self, settings: Settings | None = None) -> None:
+        self._settings = settings or get_settings()
+
+    async def chat(
+        self,
+        *,
+        system: str,
+        user: str,
+        temperature: float = 0.2,
+        json_mode: bool = False,
+    ) -> str:
+        """Send chat completion and return assistant text.
+
+        Args:
+            system: System prompt.
+            user: User message.
+            temperature: Sampling temperature.
+            json_mode: Use DashScope JSON Object mode (requires "JSON" in messages).
+
+        Returns:
+            Assistant message content.
+
+        Raises:
+            RuntimeError: If API call fails or mock is disabled without key.
+        """
+        if self._settings.mock_llm:
+            log_event(logger, logging.DEBUG, "llm.mock", json_mode=json_mode)
+            return self._mock_response(system, user)
+
+        if not self._settings.dashscope_api_key:
+            raise RuntimeError("DASHSCOPE_API_KEY is not configured")
+
+        if json_mode and "json" not in (system + user).lower():
+            system = f"{system}\n请严格以 JSON 格式输出。"
+
+        log_event(
+            logger,
+            logging.INFO,
+            "llm.request",
+            model=self._settings.qwen_model,
+            json_mode=json_mode,
+            user_preview=safe_preview(user, 200),
+        )
+
+        url = f"{self._settings.dashscope_base_url.rstrip('/')}/chat/completions"
+        payload: dict[str, Any] = {
+            "model": self._settings.qwen_model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": temperature,
+        }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+            payload["enable_thinking"] = False
+
+        headers = {
+            "Authorization": f"Bearer {self._settings.dashscope_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        async with httpx.AsyncClient(timeout=self._settings.llm_timeout_s) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            if response.status_code >= 400:
+                log_event(
+                    logger,
+                    logging.ERROR,
+                    "llm.error",
+                    status=response.status_code,
+                    body=safe_preview(response.text, 400),
+                )
+            response.raise_for_status()
+            data = response.json()
+
+        content = data["choices"][0]["message"]["content"]
+        usage = data.get("usage", {})
+        log_event(
+            logger,
+            logging.INFO,
+            "llm.response",
+            json_mode=json_mode,
+            output_len=len(content),
+            total_tokens=usage.get("total_tokens"),
+            preview=safe_preview(content, 300),
+        )
+        return content.strip()
+
+    async def chat_json(
+        self,
+        *,
+        system: str,
+        user: str,
+        max_retries: int = 2,
+    ) -> dict[str, Any]:
+        """Chat with JSON mode and parse response; retry with repair on failure."""
+        last_error: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                text = await self.chat(system=system, user=user, json_mode=True)
+                return self._extract_json(text)
+            except (ValueError, json.JSONDecodeError) as exc:
+                last_error = exc
+                logger.warning("NLU JSON parse failed attempt=%d: %s", attempt + 1, exc)
+                if attempt < max_retries:
+                    user = (
+                        f"{user}\n\n上次输出无法解析，请仅返回符合字段规范的 JSON 对象，"
+                        "不要 markdown 代码块。"
+                    )
+        if last_error:
+            raise last_error
+        raise ValueError("Failed to obtain JSON from model")
+
+    @staticmethod
+    def _extract_json(text: str) -> dict[str, Any]:
+        """Extract JSON object from model output."""
+        text = text.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", text, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+        raise ValueError(f"Failed to parse JSON from LLM output: {text[:200]}")
+
+    def _mock_response(self, system: str, user: str) -> str:
+        """Deterministic mock for offline tests."""
+        if "只输出 JSON" in system or "必须严格使用以下字段名" in system:
+            result: dict[str, Any] = {
+                "intersection": None,
+                "time_period": None,
+                "directions": [],
+                "user_suggestion": None,
+            }
+            if "奥体" in user or "经十" in user:
+                result["intersection"] = "奥体西路与经十路交叉口"
+            if "四点" in user or "16" in user or "晚高峰" in user or "下午" in user:
+                result["time_period"] = {
+                    "start": "16:00",
+                    "end": "18:00",
+                    "label": "晚高峰",
+                }
+            if "早高峰" in user or "早上" in user or "七点" in user:
+                result["time_period"] = {
+                    "start": "07:00",
+                    "end": "09:00",
+                    "label": "早高峰",
+                }
+            if (
+                "平峰" in user
+                or "十点" in user
+                or "十一点" in user
+                or "上午十" in user
+            ):
+                result["time_period"] = {
+                    "start": "10:00",
+                    "end": "11:00",
+                    "label": "平峰",
+                }
+            explicit_suggestion_tokens = (
+                "绿灯延长",
+                "绿灯应",
+                "绿灯应该",
+                "应该绿灯",
+                "不超过",
+                "建议",
+                "优先",
+                "考虑",
+                "不能",
+                "避免",
+                "溢出",
+            )
+            if any(token in user for token in explicit_suggestion_tokens):
+                if "垂直方向不能溢出" in user:
+                    result["user_suggestion"] = "要考虑垂直方向不能溢出"
+                elif "不超过" in user and "秒" in user:
+                    result["user_suggestion"] = "绿灯不超过10秒"
+                else:
+                    result["user_suggestion"] = "绿灯延长"
+            if "南北" in user:
+                result["directions"] = ["南北向"]
+            if "东西" in user and "东西路" not in user:
+                result["directions"] = ["东西向"]
+            if "只有路口" in user:
+                result["intersection"] = "测试路口A与测试路B交叉口"
+                result["time_period"] = None
+            if "缺少时段" in user:
+                result["intersection"] = "奥体西路与经十路交叉口"
+                result["time_period"] = None
+            return json.dumps(result, ensure_ascii=False)
+
+        if "路口名称变体" in system or "规范化" in system:
+            return json.dumps(
+                {
+                    "variants": [
+                        "奥体西路与经十路交叉口",
+                        "经十路与奥体西路交叉口",
+                    ]
+                },
+                ensure_ascii=False,
+            )
+
+        if (
+            "治理建议" in system
+            or "诊断结果" in system
+            or "治理建议" in user
+            or "诊断结果" in user
+        ):
+            if "用户约束或建议：" in user and "无" not in user.split("用户约束或建议：", 1)[1][:4]:
+                constraint = user.split("用户约束或建议：", 1)[1].splitlines()[0].strip()
+                return (
+                    "根据运行数据，建议适当增加主方向绿灯时长，"
+                    f"同时重点考虑{constraint}，避免造成次要方向排队外溢。"
+                )
+            return "根据运行数据，建议适当增加主方向绿灯时长，缓解晚高峰排队。"
+
+        if "引导" in system or "追问" in system or "交通智能体" in system:
+            return self._mock_follow_up(user)
+
+        return "好的。"
+
+    @staticmethod
+    def _mock_follow_up(user: str) -> str:
+        """Context-aware mock follow-up for offline tests."""
+        if "【对话历史】" in user:
+            history = user.split("【对话历史】")[1].split("【")[0].strip()
+        else:
+            history = user
+        greeting = history.strip() in ("你好", "您好", "hi", "hello", "嗨")
+        if greeting or (len(history) < 8 and "路口" not in history):
+            return (
+                "您好！我是交通智能体，专门做路口拥堵诊断。"
+                "请先告诉我具体是哪个路口，以及拥堵一般在什么时段出现。"
+            )
+        if "本轮需引导补充】intersection" in user:
+            return "好的，请先告诉我具体是哪个路口？"
+        if "本轮需引导补充】time_period" in user:
+            return "了解。这个路口一般在什么时段拥堵比较明显，比如晚高峰或下午四五点？"
+        if "候选路口" in user or "系统候选" in user:
+            return "这几个路口里，您说的是哪一个？直接回复完整路口名即可。"
+        if "未找到" in user or "暂无运行数据" in user:
+            return "抱歉，系统里暂时没有这个路口的数据，麻烦您再核对一下路口名称。"
+        if "Skill" in user or "固化" in user:
+            return "如果您认可这份诊断，回复「是」即可固化；不需要的话回复「否」。"
+        return "请再补充一些信息，方便我继续分析。"
