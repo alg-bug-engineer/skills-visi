@@ -45,8 +45,7 @@ const hideInputDock = computed(
     inputLocked.value &&
     !showConfirm.value &&
     !followUpBubble.value &&
-    !awaitingSuggestionConfirm.value &&
-    !suggestionConfirmQueued,
+    !awaitingSuggestionConfirm.value,
 )
 
 const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
@@ -232,7 +231,6 @@ function queueSuggestionConfirmPause(message: string) {
   if (suggestionConfirmQueued || awaitingSuggestionConfirm.value) return
   suggestionConfirmQueued = true
   docked.value = true
-  inputLocked.value = false
   analysisQueue.enqueue(async () => {
     suggestionConfirmQueued = false
     await revealSuggestionStep(message)
