@@ -103,55 +103,104 @@ log "后端就绪 http://127.0.0.1:${BACKEND_PORT}/health"
 echo "$BACKEND_PID backend" >"$PID_FILE"
 
 # --- Nginx ---
-setup_nginx() {
+render_nginx_conf() {
   local conf_src="${ROOT}/deploy/nginx.host.conf"
-  local dist_path="${DEPLOY_ROOT}/frontend-v2/dist"
   local tmp_conf
   tmp_conf="$(mktemp)"
-
   sed -e "s|__DEPLOY_ROOT__|${DEPLOY_ROOT}|g" \
       -e "s|__HTTP_PORT__|${HTTP_PORT}|g" \
       -e "s|__BACKEND_PORT__|${BACKEND_PORT}|g" \
       "$conf_src" >"$tmp_conf"
+  printf '%s' "$tmp_conf"
+}
 
-  if [[ -d /etc/nginx/conf.d ]]; then
-    if [[ -w /etc/nginx/conf.d ]]; then
-      cp "$tmp_conf" /etc/nginx/conf.d/intersection-agent.conf
-    elif command -v sudo >/dev/null 2>&1; then
-      sudo cp "$tmp_conf" /etc/nginx/conf.d/intersection-agent.conf
-    else
-      log "无法写入 /etc/nginx/conf.d，请手动复制 deploy/nginx.host.conf"
-      rm -f "$tmp_conf"
-      return 1
-    fi
-    rm -f "$tmp_conf"
-    if command -v nginx >/dev/null 2>&1; then
-      if sudo nginx -t 2>/dev/null || nginx -t 2>/dev/null; then
-        sudo systemctl reload nginx 2>/dev/null || sudo nginx -s reload 2>/dev/null || nginx -s reload 2>/dev/null || true
-        log "Nginx 已重载，监听端口: ${HTTP_PORT}，静态目录: ${dist_path}"
-        return 0
-      fi
+run_privileged() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    return 1
+  fi
+}
+
+setup_nginx() {
+  local dist_path="${DEPLOY_ROOT}/frontend-v2/dist"
+  local tmp_conf site_name="${NGINX_SITE_NAME:-intersection-agent}"
+  local installed=0
+
+  tmp_conf="$(render_nginx_conf)"
+
+  # Ubuntu/Debian 常用 sites-available（与本机 ppt.conf 同目录）
+  if [[ -d /etc/nginx/sites-available ]]; then
+    if run_privileged cp "$tmp_conf" "/etc/nginx/sites-available/${site_name}.conf"; then
+      run_privileged ln -sf "/etc/nginx/sites-available/${site_name}.conf" \
+        "/etc/nginx/sites-enabled/${site_name}.conf" || true
+      run_privileged rm -f /etc/nginx/conf.d/intersection-agent.conf 2>/dev/null || true
+      installed=1
+      log "Nginx 配置已写入 sites-available/${site_name}.conf"
     fi
   fi
+
+  # 回退 conf.d
+  if [[ "$installed" -eq 0 && -d /etc/nginx/conf.d ]]; then
+    if run_privileged cp "$tmp_conf" /etc/nginx/conf.d/intersection-agent.conf; then
+      installed=1
+      log "Nginx 配置已写入 conf.d/intersection-agent.conf"
+    fi
+  fi
+
   rm -f "$tmp_conf"
+
+  if [[ "$installed" -eq 0 ]]; then
+    log "无法写入 Nginx 配置，请手动: sudo cp deploy/nginx.host.conf /etc/nginx/sites-available/${site_name}.conf"
+    return 1
+  fi
+
+  if ! run_privileged nginx -t; then
+    log "nginx -t 失败，配置未生效，请检查上方错误"
+    return 1
+  fi
+
+  run_privileged systemctl reload nginx 2>/dev/null \
+    || run_privileged nginx -s reload 2>/dev/null \
+    || true
+
+  log "Nginx 已重载，监听 HTTP 端口: ${HTTP_PORT}，静态: ${dist_path}"
+  return 0
+}
+
+verify_deploy() {
+  sleep 1
+  if curl -sf "http://127.0.0.1:${HTTP_PORT}/health" >/dev/null 2>&1; then
+    log "本机验证通过: http://127.0.0.1:${HTTP_PORT}/health"
+    return 0
+  fi
+  log "警告: 本机 http://127.0.0.1:${HTTP_PORT}/health 不可达"
+  log "请运行: bash scripts/prod-check.sh"
+  if command -v ss >/dev/null 2>&1; then
+    log "当前监听端口:"
+    ss -tlnp 2>/dev/null | grep -E ":(${HTTP_PORT}|${BACKEND_PORT}) " || true
+  fi
   return 1
 }
 
 if command -v nginx >/dev/null 2>&1; then
   if setup_nginx; then
-  :
+    verify_deploy || true
   else
-    log "Nginx 配置需手动完成，见 deploy/README.md"
+    log "Nginx 配置失败，见 deploy/README.md 手动配置"
   fi
 else
   log "未检测到 Nginx。生产环境请安装 Nginx 并配置 deploy/nginx.host.conf"
-  log "临时访问: 将 frontend-v2/dist 部署到 Web 服务器，或开发模式 BIND_HOST=0.0.0.0 bash scripts/dev-v2.sh"
+  log "临时访问: BIND_HOST=0.0.0.0 bash scripts/dev-v2.sh"
 fi
 
 log "=========================================="
 log "  部署方式  原生（uvicorn + Nginx）"
-log "  前端      http://<ECS公网IP>:${HTTP_PORT}/"
+log "  前端      http://<ECS公网IP>:${HTTP_PORT}/  （勿用 https）"
 log "  健康检查  http://<ECS公网IP>:${HTTP_PORT}/health"
+log "  自检      bash scripts/prod-check.sh"
 log "  后端日志  tail -f ${BACKEND_LOG}"
 log "  停止服务  bash scripts/prod-stop.sh"
 log "=========================================="

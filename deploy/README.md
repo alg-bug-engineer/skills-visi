@@ -64,25 +64,63 @@ HTTP_PORT=5568 bash scripts/prod-start.sh   # 默认 5568，禁止 80
 
 ---
 
-## 3. Nginx 手动配置
+## 3. Nginx 配置（公网 IP + 端口，无域名）
 
-若脚本未自动配置 Nginx：
+本服务与 `ppt.conf` 等站点**独立**，写入 `sites-available/intersection-agent.conf`，监听 **HTTP 5568**（非 80/443）。
 
 ```bash
-sudo cp deploy/nginx.host.conf /etc/nginx/conf.d/intersection-agent.conf
-# 确认 root 路径与项目部署目录一致
+# 脚本自动完成；或手动：
+bash scripts/prod-start.sh
+bash scripts/prod-check.sh    # 自检
+```
+
+**访问地址（必须用 HTTP，不要用 HTTPS）：**
+
+```
+http://8.149.232.39:5568/
+http://8.149.232.39:5568/health
+```
+
+`https://IP:5568` 无效——5568 未配置 SSL 证书。`ppt.conf` 的 443 证书只绑定域名 `ppt.ai-knowledgepoints.cn`。
+
+### 手动配置（若脚本未生效）
+
+```bash
+cd ~/workspaces/skills-visi
+DEPLOY_ROOT="$(pwd)" HTTP_PORT=5568 BACKEND_PORT=8011
+
+sed -e "s|__DEPLOY_ROOT__|${DEPLOY_ROOT}|g" \
+    -e "s|__HTTP_PORT__|${HTTP_PORT}|g" \
+    -e "s|__BACKEND_PORT__|${BACKEND_PORT}|g" \
+    deploy/nginx.host.conf | sudo tee /etc/nginx/sites-available/intersection-agent.conf
+
+sudo ln -sf /etc/nginx/sites-available/intersection-agent.conf \
+  /etc/nginx/sites-enabled/intersection-agent.conf
 sudo nginx -t && sudo systemctl reload nginx
-```
-
-修改 `root` 行以匹配实际部署路径，默认：
-
-```
-root /var/www/intersection-agent/frontend-v2/dist;
 ```
 
 ---
 
-## 4. systemd 持久化（推荐）
+## 4. 外网无法访问排查
+
+| 检查项 | 命令 |
+|--------|------|
+| 本机后端 | `curl http://127.0.0.1:8011/health` |
+| 本机 Nginx | `curl http://127.0.0.1:5568/health` |
+| 端口监听 | `ss -tlnp \| grep 5568` |
+| Nginx 配置 | `nginx -T \| grep 5568` |
+| 一键自检 | `bash scripts/prod-check.sh` |
+
+**常见原因：**
+
+1. **用了 https** → 改为 `http://IP:5568`
+2. **Nginx 写在 conf.d 但未 include** → 已改为 `sites-enabled`（与 ppt.conf 同机制）
+3. **阿里云安全组未放行 5568** → 控制台 → 安全组 → 入方向添加 `5568/tcp`（**ufw 放行不够，还有云安全组一层**）
+4. **nginx -t 失败未 reload** → 查看 `sudo nginx -t` 报错
+
+---
+
+## 5. systemd 持久化（推荐）
 
 ```bash
 sudo cp deploy/intersection-agent-backend.service /etc/systemd/system/
@@ -96,7 +134,7 @@ sudo systemctl start intersection-agent-backend
 
 ---
 
-## 5. 环境变量
+## 6. 环境变量
 
 | 变量 | 生产值 | 说明 |
 |------|--------|------|
