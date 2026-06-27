@@ -1,5 +1,15 @@
 # 变更日志
 
+## 经验吸收可视化 v2 (2026-06-28)
+
+- 用户确认固化后，由 `InterleavedSkillPersistVisualizer` 统一编排 **L3 交错**：`skill_absorption` 头脑阶段 → `write_phase_start` → 每文件右栏联动行 ∥ 左抽屉 `skill_build` 打字 → `drawer_close`。
+- `skill_absorption` SSE 阶段：回顾 → 解构 → 检索 → 比对 → 价值 → 转化；自言自语文案由后端模板 + 真实 session/技能库数据生成（`AbsorptionRenderer` / `AbsorptionNarrativeService`），禁止 LLM 即兴旁白。
+- Skill 标签扩展为 `match` / `content` / `meta` 三层结构，写入 `skill.meta.json`；`diff_with_session` 扩展 content 层比对。
+- frontend-v2：右栏 `ExperienceAbsorptionPanel`（理解过程折叠摘要 + 吸收追踪）+ 左 `SkillBuildDrawer`（终端风格落盘，**替代**全屏 `SkillBuildOverlay`）；演示节奏由 `demo_pacing.py` 控速（≤40s）。
+- 后端单测 **89** 项（含 absorption / interleaved SSE 顺序断言）。
+
+详见 `docs/plans/2026-06-28-经验吸收与技能固化演示开发计划.md`。
+
 ## problem_evidence SSE 扩展 (2026-06-25 · frontend-v2 联调)
 
 - `problem_evidence` 步骤 `data` 增加 `by_direction`、`quantitative_constraints`（约束解析后一并下发，便于前端与理解过程同步展示）。

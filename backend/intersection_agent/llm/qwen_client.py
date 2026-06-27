@@ -242,6 +242,14 @@ class QwenClient:
         if "引导" in system or "追问" in system or "交通智能体" in system:
             return self._mock_follow_up(user)
 
+        if "经验吸收追踪日志" in system or "experience_points" in user:
+            from intersection_agent.skills.absorption_narrative_service import (
+                mock_narrative_from_facts,
+            )
+
+            facts = json.loads(user)
+            return json.dumps(mock_narrative_from_facts(facts), ensure_ascii=False)
+
         return "好的。"
 
     @staticmethod

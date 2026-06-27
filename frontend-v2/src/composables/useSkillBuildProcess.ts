@@ -25,6 +25,7 @@ export function createInitialSkillBuildState(): SkillBuildState {
     fileContents: {},
     fileDiffs: {},
     logs: [],
+    interleaved: false,
   }
 }
 
@@ -101,11 +102,34 @@ export function reduceSkillBuildEvent(
   state.currentStage = (event.stage as SkillBuildState['currentStage']) || state.currentStage
 
   switch (event.type) {
+    case 'drawer_open':
+      state.visible = true
+      state.exiting = false
+      state.status = 'running'
+      state.progress = Number(payload.progress ?? state.progress)
+      state.action = String(payload.action ?? state.action)
+      state.skillId = String(payload.skill_id ?? state.skillId ?? '')
+      state.intersection = String(payload.intersection ?? '')
+      state.timePeriodLabel = String(payload.time_period_label ?? '')
+      state.diffChanges = Array.isArray(payload.diff_changes)
+        ? (payload.diff_changes as string[])
+        : []
+      state.isUpdate = Boolean(payload.is_update)
+      state.title = state.isUpdate
+        ? `更新 · ${state.intersection}`
+        : `沉淀 · ${state.intersection}`
+      state.modelStatus = String(payload.display_text ?? '终端抽屉已展开')
+      break
+    case 'drawer_close':
+      state.modelStatus = String(payload.display_text ?? '写入完成，等待确认')
+      state.progress = Math.max(state.progress, Number(payload.progress ?? 98))
+      break
     case 'skill_build_start':
       state.visible = true
       state.exiting = false
       state.status = 'running'
       state.progress = Number(payload.progress ?? 1)
+      state.interleaved = Boolean(payload.interleaved)
       state.action = String(payload.action ?? 'create')
       state.skillId = String(payload.skill_id ?? '')
       state.intersection = String(payload.intersection ?? '')
@@ -114,11 +138,18 @@ export function reduceSkillBuildEvent(
         ? (payload.diff_changes as string[])
         : []
       state.isUpdate = Boolean(payload.is_update)
-      state.title = state.isUpdate
-        ? `更新技能 · ${state.intersection}`
-        : `沉淀技能 · ${state.intersection}`
-      state.thoughtText = ''
-      state.modelStatus = '正在理解本次诊断'
+      if (!state.title || state.title === '技能沉淀工作台') {
+        state.title = state.isUpdate
+          ? `更新 · ${state.intersection}`
+          : `沉淀 · ${state.intersection}`
+      }
+      if (state.interleaved) {
+        state.thoughtText = ''
+        state.modelStatus = String(payload.display_text ?? '开始写入技能包')
+      } else {
+        state.thoughtText = ''
+        state.modelStatus = '正在理解本次诊断'
+      }
       break
     case 'stage_start':
       state.status = 'running'

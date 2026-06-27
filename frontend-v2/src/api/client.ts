@@ -1,5 +1,6 @@
 import type { ExecutionStepEvent, MessageResponse, SseStreamEvent } from '../types/api'
 import type { SkillBuildEvent } from '../types/skillBuild'
+import type { SkillAbsorptionEvent } from '../types/skillAbsorption'
 import { logger } from '../utils/logger'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -101,6 +102,7 @@ export async function checkHealth(): Promise<Record<string, unknown>> {
 export type StreamCallbacks = {
   onStep: (event: ExecutionStepEvent) => void
   onSkillBuild?: (event: SkillBuildEvent) => void
+  onSkillAbsorption?: (event: SkillAbsorptionEvent) => void
   onResult: (result: MessageResponse) => void
   onError: (message: string, detail?: string) => void
 }
@@ -160,6 +162,9 @@ export async function sendMessageStream(
     } else if (event.event === 'skill_build') {
       logger.info('skill_build', `${event.type} · ${event.stage}`, event.payload)
       callbacks.onSkillBuild?.(event as SkillBuildEvent)
+    } else if (event.event === 'skill_absorption') {
+      logger.info('skill_absorption', `${event.type} · ${event.stage}`, event.payload)
+      callbacks.onSkillAbsorption?.(event as SkillAbsorptionEvent)
     } else if (event.event === 'result') {
       gotResult = true
       const result = event.data as unknown as MessageResponse

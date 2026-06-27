@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { ProcessStepState } from '../composables/useUnderstandingProcess'
+import { parseTerminalLine, splitTerminalLines } from '../utils/terminalLines'
 
 export interface ConversationTurn {
   role: 'user' | 'assistant'
@@ -16,6 +17,8 @@ const props = defineProps<{
   missingFields?: string[]
   /** 嵌入工作台右栏时勿占满整列高度 */
   embedded?: boolean
+  /** 经验吸收阶段：默认折叠为摘要条，可点击展开回看 */
+  stackSummaryMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,6 +26,16 @@ const emit = defineEmits<{
 }>()
 
 const panelExpanded = ref(true)
+
+watch(
+  () => props.stackSummaryMode,
+  (enabled) => {
+    if (enabled) panelExpanded.value = false
+  },
+  { immediate: true },
+)
+
+const doneStepCount = computed(() => props.steps.filter((s) => s.status === 'done').length)
 
 const missingFieldLabels: Record<string, string> = {
   intersection: '路口',
@@ -38,8 +51,11 @@ const activeStepIndex = computed(() => {
 
 function displayedLines(step: ProcessStepState): string[] {
   const text = step.fullText.slice(0, step.displayedLength)
-  if (!text) return []
-  return text.split('\n').filter((line) => line.length > 0)
+  return splitTerminalLines(text)
+}
+
+function terminalLineParts(line: string) {
+  return parseTerminalLine(line)
 }
 
 function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
@@ -50,12 +66,23 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
 </script>
 
 <template>
-  <aside class="process-panel" :class="{ embedded }">
+  <aside class="process-panel" :class="{ embedded, 'summary-mode': stackSummaryMode && !panelExpanded }">
     <header class="panel-header">
       <span class="eyebrow">{{ mode === 'conversation' ? 'DIALOGUE' : 'ANALYSIS' }}</span>
       <h2>{{ mode === 'conversation' ? '对话追问' : '理解过程' }}</h2>
       <span v-if="active" class="pulse-dot" title="处理中" />
     </header>
+
+    <button
+      v-if="stackSummaryMode && mode === 'analysis' && steps.length"
+      type="button"
+      class="summary-strip"
+      @click="panelExpanded = !panelExpanded"
+    >
+      <span>{{ panelExpanded ? '▾' : '▸' }}</span>
+      <span>理解过程 · {{ doneStepCount }} 步已完成</span>
+      <span class="summary-hint">{{ panelExpanded ? '点击收起' : '点击展开回看' }}</span>
+    </button>
 
     <section v-if="mode === 'conversation' && conversation.length" class="conversation">
       <p v-if="missingFields?.length" class="missing-hint">
@@ -117,18 +144,22 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
               <span v-else class="status-indicator done" title="已完成">✓</span>
             </button>
 
-            <div v-show="!step.collapsed" class="step-body">
+            <div v-show="!step.collapsed" class="step-body terminal-body">
               <p
                 v-for="(line, lineIdx) in displayedLines(step)"
                 :key="lineIdx"
-                class="step-line"
+                class="terminal-line"
               >
-                {{ line }}<span
+                <span v-if="terminalLineParts(line).prompt" class="terminal-prompt">{{
+                  terminalLineParts(line).prompt
+                }}</span>
+                <span class="terminal-text">{{ terminalLineParts(line).body }}</span>
+                <span
                   v-if="step.status === 'typing' && lineIdx === displayedLines(step).length - 1"
                   class="cursor"
                 >|</span>
               </p>
-              <p v-if="step.status === 'typing' && !displayedLines(step).length" class="step-line">
+              <p v-if="step.status === 'typing' && !displayedLines(step).length" class="terminal-line">
                 <span class="cursor">|</span>
               </p>
             </div>
@@ -422,12 +453,42 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
 }
 
 .step-body {
-  padding: 4px 0 2px 11px;
-  border-left: 1px solid rgba(94, 184, 255, 0.12);
   margin-left: 4px;
+}
+
+.terminal-body {
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: rgba(1, 6, 12, 0.88);
+  border: 1px solid rgba(0, 229, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(0, 229, 255, 0.04);
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  font-family: ui-monospace, 'Courier New', Courier, monospace;
+}
+
+.terminal-line {
+  display: flex;
+  align-items: flex-start;
   gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  min-height: 1.55em;
+}
+
+.terminal-prompt {
+  flex-shrink: 0;
+  color: rgba(0, 229, 255, 0.72);
+  user-select: none;
+}
+
+.terminal-text {
+  flex: 1;
+  min-width: 0;
+  color: rgba(197, 230, 220, 0.9);
+  word-break: break-word;
 }
 
 .step-line {
@@ -510,5 +571,32 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
   line-height: 1.65;
   color: rgba(232, 244, 255, 0.9);
   white-space: pre-wrap;
+}
+
+.summary-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid rgba(0, 212, 240, 0.1);
+  background: rgba(0, 10, 20, 0.85);
+  color: #9ecae8;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.summary-hint {
+  margin-left: auto;
+  font-size: 10px;
+  color: #6a8a9a;
+}
+
+.process-panel.summary-mode {
+  flex: 0 0 auto;
+  max-height: 42%;
+  overflow: hidden;
 }
 </style>

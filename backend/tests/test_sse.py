@@ -64,3 +64,48 @@ async def test_message_stream_nlu_follow_up(client):
 
     result = next(e for e in events if e.get("event") == "result")
     assert result["data"]["reply"]["type"] == "follow_up"
+
+
+@pytest.mark.asyncio
+async def test_message_stream_skill_absorption_before_build(client, skill_dir_path):
+    create = await client.post("/api/v1/sessions")
+    sid = create.json()["session_id"]
+
+    await client.post(
+        f"/api/v1/sessions/{sid}/messages",
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵"},
+    )
+    await client.post(
+        f"/api/v1/sessions/{sid}/messages",
+        json={"content": "是，优先保障南北向直行，绿灯可以延长"},
+    )
+
+    async with client.stream(
+        "POST",
+        f"/api/v1/sessions/{sid}/messages/stream",
+        json={"content": "确认固化"},
+    ) as response:
+        events = await _collect_sse_events(response)
+
+    absorption = [e for e in events if e.get("event") == "skill_absorption"]
+    builds = [e for e in events if e.get("event") == "skill_build"]
+    assert absorption
+    assert builds
+    assert absorption[0]["type"] == "skill_absorption_start"
+    absorption_types = [e["type"] for e in absorption]
+    assert "thought_delta" in absorption_types
+    assert "write_phase_start" in absorption_types
+    build_types = [e["type"] for e in builds]
+    assert "drawer_open" in build_types
+    assert "skill_build_start" in build_types
+    assert absorption[-1]["type"] == "skill_absorption_done"
+    assert any(e["type"] == "skill_build_done" for e in builds)
+    write_idx = next(i for i, e in enumerate(events) if e.get("type") == "write_phase_start")
+    done_idx = next(
+        i for i, e in enumerate(events) if e.get("type") == "skill_absorption_done"
+    )
+    first_file_idx = next(
+        i for i, e in enumerate(events)
+        if e.get("event") == "skill_build" and e.get("type") == "file_delta"
+    )
+    assert write_idx < first_file_idx < done_idx

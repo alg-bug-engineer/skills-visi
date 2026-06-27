@@ -42,7 +42,10 @@ export interface ExecutionStepEvent {
   timestamp?: string
 }
 
-export type SseStreamEvent = ExecutionStepEvent | import('./skillBuild').SkillBuildEvent
+export type SseStreamEvent =
+  | ExecutionStepEvent
+  | import('./skillBuild').SkillBuildEvent
+  | import('./skillAbsorption').SkillAbsorptionEvent
 
 export interface CognitionMeta {
   intersection?: Record<string, unknown>

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from intersection_agent.config import Settings, get_settings
 from intersection_agent.models.domain import NluResult, Session
@@ -16,9 +16,11 @@ from intersection_agent.models.skill import (
     SkillRecord,
     SkillUpsertResult,
 )
+from intersection_agent.skills.interleaved_skill_persist_visualizer import (
+    InterleavedSkillPersistVisualizer,
+)
 from intersection_agent.skills.package_builder import SkillPackageBuilder, skill_dir_name
-from intersection_agent.skills.skill_build_visualizer import SkillBuildVisualizer
-from intersection_agent.services.skill_matcher import build_skill_tags, match_skill
+from intersection_agent.services.skill_matcher import build_skill_tags, compare_content_tags, match_skill
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +69,35 @@ class SkillService:
         if formula and formula != skill.suggestion_formula:
             changes.append("建议计算公式已变化")
 
-        return SkillDiff(has_material_diff=bool(changes), changes=changes)
+        candidate_constraints = (session.nlu.user_suggestion if session.nlu else None) or ""
+        if (skill.user_constraints or "") != candidate_constraints:
+            changes.append(
+                f"治理约束: {skill.user_constraints or '无'} → {candidate_constraints or '无'}"
+            )
+
+        quantitative = session.data_payload.get("quantitative_constraints")
+        candidate_tags = build_skill_tags(
+            intersection=skill.intersection,
+            inter_id=skill.inter_id,
+            problem_type=skill.problem_type,
+            time_period_label=skill.time_period_label,
+            directions=list(session.nlu.directions or []) if session.nlu else [],
+            match_keywords=skill.match_keywords,
+            rule_ids=new_rule_ids,
+            user_constraints=candidate_constraints or None,
+            quantitative_constraints=quantitative,
+            suggestion_formula=formula or skill.suggestion_formula,
+        )
+        changes.extend(compare_content_tags(skill.tags, candidate_tags))
+
+        deduped: list[str] = []
+        seen: set[str] = set()
+        for line in changes:
+            if line not in seen:
+                seen.add(line)
+                deduped.append(line)
+
+        return SkillDiff(has_material_diff=bool(deduped), changes=deduped)
 
     def build_from_session(
         self,
@@ -91,6 +121,17 @@ class SkillService:
         directions = list(session.nlu.directions or [])
         user_constraints = session.nlu.user_suggestion
         quantitative_constraints = session.data_payload.get("quantitative_constraints")
+        flow_gov = session.data_payload.get("flow_timing_governance") or {}
+        issue_codes = [
+            str(p["category"])
+            for p in (flow_gov.get("problems") or [])
+            if p.get("detected") and p.get("category")
+        ]
+        data_window = (
+            session.data_payload.get("meta", {}).get("data_window")
+            if session.data_payload
+            else None
+        )
         tags = build_skill_tags(
             intersection=session.resolved_intersection or session.nlu.intersection or "",
             inter_id=session.inter_id or "",
@@ -101,6 +142,10 @@ class SkillService:
             rule_ids=[r["id"] for r in session.diagnosis.matched_rules],
             user_constraints=user_constraints,
             quantitative_constraints=quantitative_constraints,
+            suggestion_formula=rule["action"]["formula"],
+            issue_codes=issue_codes,
+            data_window=data_window,
+            source_utterance_summary=_summarize_context(session),
         )
         return SkillRecord(
             skill_id=skill_id,
@@ -171,9 +216,9 @@ class SkillService:
         candidate = self.build_from_session(session)
         existing = self.get_by_id(candidate.skill_id)
         diff = self.diff_with_session(existing, session) if existing else SkillDiff(False, [])
+        snapshot_equal = bool(existing and _snapshot_equal(existing, candidate))
 
         if existing:
-            merged_keywords = _merge_keywords(existing.match_keywords, candidate.match_keywords)
             candidate = SkillRecord(
                 skill_id=candidate.skill_id,
                 skill_dir=existing.skill_dir,
@@ -181,46 +226,53 @@ class SkillService:
                 inter_id=candidate.inter_id,
                 problem_type=candidate.problem_type,
                 time_period_label=candidate.time_period_label,
-                match_keywords=merged_keywords,
+                match_keywords=_merge_keywords(existing.match_keywords, candidate.match_keywords),
                 data_query_spec=candidate.data_query_spec,
                 rule_ids=candidate.rule_ids,
                 suggestion_formula=candidate.suggestion_formula,
                 created_at=existing.created_at,
-                updated_at=datetime.now(timezone.utc).isoformat(),
+                updated_at=candidate.updated_at,
                 user_constraints=candidate.user_constraints,
                 quantitative_constraints=candidate.quantitative_constraints,
                 tags=candidate.tags,
             )
-            if _snapshot_equal(existing, candidate):
-                await emitter.emit_skill_build(
-                    "skill_build_done",
-                    "packaging",
-                    display_text="技能已是最新，无需更新。",
-                    progress=100,
-                    skill_id=candidate.skill_id,
-                    skill_dir=candidate.skill_dir,
-                    action="unchanged",
-                    download_url=f"/api/v1/skills/{candidate.skill_id}/download",
-                )
-                return SkillUpsertResult(record=existing, action="unchanged")
 
-            visualizer = SkillBuildVisualizer(self._builder)
-            return await visualizer.upsert_with_visualization(
-                record=candidate,
-                session=session,
-                upsert_action="update",
-                diff_changes=diff.changes,
-                emitter=emitter,
-            )
-
-        visualizer = SkillBuildVisualizer(self._builder)
-        return await visualizer.upsert_with_visualization(
-            record=candidate,
+        interleaved = InterleavedSkillPersistVisualizer(self, self._builder)
+        report, result = await interleaved.emit(
             session=session,
-            upsert_action="created",
-            diff_changes=[],
+            candidate=candidate,
+            existing=existing,
+            diff=diff,
+            snapshot_equal=snapshot_equal,
+            upsert_action="update" if existing else "created",
             emitter=emitter,
         )
+        candidate = SkillRecord(
+            skill_id=candidate.skill_id,
+            skill_dir=candidate.skill_dir if not existing else existing.skill_dir,
+            intersection=candidate.intersection,
+            inter_id=candidate.inter_id,
+            problem_type=candidate.problem_type,
+            time_period_label=candidate.time_period_label,
+            match_keywords=candidate.match_keywords,
+            data_query_spec=candidate.data_query_spec,
+            rule_ids=candidate.rule_ids,
+            suggestion_formula=candidate.suggestion_formula,
+            created_at=existing.created_at if existing else candidate.created_at,
+            updated_at=candidate.updated_at,
+            user_constraints=candidate.user_constraints,
+            quantitative_constraints=candidate.quantitative_constraints,
+            tags=report.tags,
+        )
+
+        if result.action == "unchanged":
+            return result
+
+        if existing:
+            merged_keywords = _merge_keywords(existing.match_keywords, candidate.match_keywords)
+            candidate.match_keywords = merged_keywords
+
+        return result
 
     def package_zip(self, skill_id: str) -> tuple[bytes, str]:
         """Return zip bytes and filename for a skill package."""
@@ -253,6 +305,12 @@ class SkillService:
         logger.info("skill.created path=%s", pkg_path)
 
 
+def _summarize_context(session: Session) -> str:
+    from intersection_agent.skills.tag_helpers import summarize_utterance
+
+    return summarize_utterance(session.raw_user_context or session.user_messages_text())
+
+
 def _extract_keywords(text: str) -> list[str]:
     """Extract simple keywords from user input."""
     keywords: list[str] = []
@@ -282,5 +340,30 @@ def _snapshot_equal(left: SkillRecord, right: SkillRecord) -> bool:
         and left.quantitative_constraints == right.quantitative_constraints
         and left.data_query_spec == right.data_query_spec
         and left.match_keywords == right.match_keywords
-        and left.tags == right.tags
+        and _tags_materially_equal(left.tags, right.tags)
+    )
+
+
+def _tags_materially_equal(
+    left: dict[str, Any] | None,
+    right: dict[str, Any] | None,
+) -> bool:
+    """Compare tag layers excluding volatile meta timestamps and library counters."""
+    if left == right:
+        return True
+    if not left or not right:
+        return left == right
+
+    def _strip_volatile(tags: dict[str, Any]) -> dict[str, Any]:
+        copied = dict(tags)
+        meta = dict(copied.get("meta") or {})
+        for key in ("absorbed_at", "library_count_before", "library_count_after"):
+            meta.pop(key, None)
+        copied["meta"] = meta
+        return copied
+
+    return (
+        (left.get("match") or {}) == (right.get("match") or {})
+        and (left.get("content") or {}) == (right.get("content") or {})
+        and _strip_volatile(left).get("meta") == _strip_volatile(right).get("meta")
     )

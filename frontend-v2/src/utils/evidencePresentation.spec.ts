@@ -66,6 +66,7 @@ describe('presentation state', () => {
       constraints: false,
       extended: false,
       governance: false,
+      suggestionNote: false,
     })
   })
 })

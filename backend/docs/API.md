@@ -64,10 +64,35 @@ curl -N -X POST "http://localhost:8000/api/v1/sessions/${SESSION_ID}/messages/st
 
 | event | 说明 |
 |-------|------|
-| `skill_build` | 技能固化可视化（`skill_build_start` / `skill_build_stage` / `skill_build_file_chunk` / `skill_build_done` 等） |
+| `skill_build` | 技能固化可视化（`skill_build_start` / `drawer_open` / `skill_build_file_chunk` / `drawer_close` / `skill_build_done` 等） |
+| `skill_absorption` | 经验吸收可视化（`skill_absorption_start` / `stage_start` / `thought_delta` / `evidence` / `skill_absorption_done` 等） |
 | `map_scene` | 地图场景数据（phase、markers、highlights、hud） |
 
 `skill_build_done` 载荷含 `download_url`，对应下载接口。
+
+### skill_absorption 事件（经验吸收）
+
+在用户确认固化后、`skill_build` 之前推送。`type` 取值：
+
+| type | 说明 |
+|------|------|
+| `skill_absorption_start` | 开始吸收，含 `skill_id`、`intersection`、`action`（CREATE/UPDATE/UNCHANGED） |
+| `stage_start` | 阶段开始：`recap` / `decompose` / `retrieve` / `compare` / `value` / `blueprint` |
+| `thought_delta` | 系统自言自语日志流（模板 + 真实字段） |
+| `evidence` | 结构化证据：`chips`、`candidates`、`changes` 等 |
+| `stage_done` | 阶段结束，含 `duration_ms` |
+| `skill_absorption_done` | 吸收完成，`progress: 100` |
+
+`skill_absorption_done` 之后衔接 `write_phase_start`（同属 `skill_absorption` 事件）→ `skill_build_start` / `drawer_open` → 逐文件 L3 交错写入 → `drawer_close` → `skill_build_done`。
+
+### skill_build 抽屉事件（v2 · L3 交错）
+
+| type | 说明 |
+|------|------|
+| `drawer_open` | 左抽屉滑入，开始终端风格落盘展示 |
+| `skill_build_file_chunk` | 单文件内容增量（与右栏吸收联动行同步） |
+| `drawer_close` | 抽屉收起前完成态 |
+| `skill_build_done` | 落盘结束，含 `download_url` |
 
 ## 下载 Skill 包
 

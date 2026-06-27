@@ -10,7 +10,11 @@ import MapStage from '../MapStage.vue'
 import UnderstandingProcessPanel, {
   type ConversationTurn,
 } from '../UnderstandingProcessPanel.vue'
+import ExperienceAbsorptionPanel from '../ExperienceAbsorptionPanel.vue'
+import SkillBuildDrawer from '../SkillBuildDrawer.vue'
 import type { ProcessStepState } from '../../composables/useUnderstandingProcess'
+import type { ExperienceAbsorptionState } from '../../types/skillAbsorption'
+import type { SkillBuildState } from '../../types/skillBuild'
 
 const props = defineProps<{
   presentation: PresentationState
@@ -31,6 +35,9 @@ const props = defineProps<{
   hideInputDock?: boolean
   channelizationActive?: boolean
   analysisRunKey?: number
+  panelLayout?: 'single' | 'stacked'
+  absorptionState?: ExperienceAbsorptionState
+  skillBuildState?: SkillBuildState
 }>()
 
 const emit = defineEmits<{
@@ -45,6 +52,8 @@ const emit = defineEmits<{
   confirm: []
   deny: []
   channelizationActive: [active: boolean]
+  selectSkillFile: [path: string]
+  skillBuildFinish: []
 }>()
 
 const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
@@ -120,6 +129,13 @@ const insightFloatStyle = computed(() => {
         </div>
 
         <div class="stage-body">
+          <SkillBuildDrawer
+            v-if="skillBuildState"
+            :state="skillBuildState"
+            @select-file="emit('selectSkillFile', $event)"
+            @finish="emit('skillBuildFinish')"
+          />
+
           <MapStage
             ref="mapStageRef"
             :map-actions="mapActions"
@@ -180,16 +196,23 @@ const insightFloatStyle = computed(() => {
         />
       </main>
 
-      <aside v-show="!presentation.processCollapsed" class="process-column">
+      <aside v-show="!presentation.processCollapsed" class="process-column" :class="{ stacked: panelLayout === 'stacked' }">
         <UnderstandingProcessPanel
-          class="process-panel"
+          class="process-panel process-panel-top"
           embedded
           :steps="processSteps"
           :mode="panelMode"
           :conversation="conversation"
           :missing-fields="missingFields"
           :active="processActive"
+          :stack-summary-mode="panelLayout === 'stacked'"
           @toggle="emit('toggleStep', $event)"
+        />
+        <ExperienceAbsorptionPanel
+          v-if="panelLayout === 'stacked' && absorptionState"
+          class="absorption-panel-bottom"
+          embedded
+          :state="absorptionState"
         />
       </aside>
     </div>
@@ -318,6 +341,22 @@ const insightFloatStyle = computed(() => {
   overflow: hidden;
   border-left: 1px solid rgba(0, 212, 240, 0.12);
   background: rgba(0, 6, 14, 0.97);
+}
+
+.process-column.stacked {
+  display: flex;
+  flex-direction: column;
+}
+
+.process-column.stacked :deep(.process-panel-top.embedded) {
+  flex: 0 0 auto;
+  max-height: 38%;
+  overflow-y: auto;
+}
+
+.process-column.stacked :deep(.absorption-panel-bottom) {
+  flex: 1;
+  min-height: 0;
 }
 
 .process-column :deep(.process-panel.embedded) {

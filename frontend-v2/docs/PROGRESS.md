@@ -1,5 +1,23 @@
 # frontend-v2 进度记录
 
+## v2.0.3（2026-06-28）— 经验吸收 + L3 交错落盘
+
+### 已完成
+
+- [x] SSE `skill_absorption`：回顾 → 解构 → 检索 → 比对 → 价值 → 转化
+- [x] `useExperienceAbsorption` + `ExperienceAbsorptionPanel`（右栏追踪流）
+- [x] `SkillBuildDrawer` 左抽屉终端落盘（**替代**全屏 `SkillBuildOverlay`）
+- [x] L3 交错：每写一文件，右栏联动行 ∥ 左抽屉 `file_delta` 同步
+- [x] 理解过程折叠摘要（`forcedCollapsed`）+ 右栏 `stacked` 布局
+- [x] 单测：`useExperienceAbsorption.spec.ts`、`terminalLines.spec.ts`
+
+### 待办
+
+- [ ] 领导彩排三场（见开发计划 §8）
+- [ ] E2E Playwright 吸收 + 抽屉时序断言
+
+---
+
 ## v2.0.2（2026-06-25）— 推理证据侧栏与时序对齐
 
 ### 已完成

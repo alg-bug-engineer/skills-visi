@@ -57,6 +57,7 @@ export type SkillBuildState = {
   fileDiffs: Record<string, DiffLine[]>
   logs: SkillBuildLog[]
   error?: string
+  interleaved: boolean
 }
 
 export type SkillBuildEvent = {

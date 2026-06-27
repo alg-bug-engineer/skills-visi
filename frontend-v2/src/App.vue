@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { checkHealth, createSession, sendMessageStream } from './api/client'
-import SkillBuildOverlay from './components/SkillBuildOverlay.vue'
 import WorkbenchLayout from './components/workbench/WorkbenchLayout.vue'
 import { STEP_INDICES, STEP_PAUSE_MS } from './constants'
 import { usePresentation } from './composables/usePresentation'
 import { useUnderstandingProcess } from './composables/useUnderstandingProcess'
 import { useSkillBuildProcess } from './composables/useSkillBuildProcess'
+import { useExperienceAbsorption } from './composables/useExperienceAbsorption'
 import { SKILL_BUILD_STAGES } from './types/skillBuild'
 import type { ChatMessage, MessageResponse, StepRecord } from './types/api'
 import type { ProblemEvidence, QuantitativeConstraints } from './types/evidence'
@@ -37,16 +37,6 @@ const mapToast = ref<string | null>(null)
 const awaitingSuggestionConfirm = ref(false)
 const channelizationActive = ref(false)
 const analysisRunKey = ref(0)
-
-/** 渠化全屏时仅在分析进行中隐藏输入框；等待用户确认/补充约束时必须露出 */
-const hideInputDock = computed(
-  () =>
-    channelizationActive.value &&
-    inputLocked.value &&
-    !showConfirm.value &&
-    !followUpBubble.value &&
-    !awaitingSuggestionConfirm.value,
-)
 
 const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
 const workbenchRef = ref<InstanceType<typeof WorkbenchLayout> | null>(null)
@@ -95,6 +85,26 @@ const {
 } = useSkillBuildProcess()
 
 const skillBuildPendingFinish = ref(false)
+
+const panelLayout = ref<'single' | 'stacked'>('single')
+
+const {
+  state: absorptionState,
+  applyEvent: applyAbsorptionEvent,
+  reset: resetAbsorption,
+} = useExperienceAbsorption()
+
+/** 渠化全屏或技能固化/经验吸收演示时隐藏输入框，避免遮挡左侧终端 */
+const hideInputDock = computed(
+  () =>
+    skillBuildState.visible ||
+    absorptionState.active ||
+    (channelizationActive.value &&
+      inputLocked.value &&
+      !showConfirm.value &&
+      !followUpBubble.value &&
+      !awaitingSuggestionConfirm.value),
+)
 
 const analysisQueue = new AnalysisQueue()
 let abortController: AbortController | null = null
@@ -156,31 +166,44 @@ function skillStageLabel(stage: string): string | null {
   return SKILL_BUILD_STAGES.find((s) => s.key === stage)?.label ?? null
 }
 
+function handleSkillAbsorptionEvent(event: import('./types/skillAbsorption').SkillAbsorptionEvent) {
+  applyAbsorptionEvent(event)
+  if (event.type === 'skill_absorption_start') {
+    panelLayout.value = 'stacked'
+    enqueueProcess(STEP_INDICES.SKILL, '经验吸收追踪已启动…', true, true)
+  }
+  if (event.type === 'skill_absorption_done') {
+    enqueueProcess(STEP_INDICES.SKILL, '经验吸收与技能写入完成。', true, true)
+  }
+}
+
 function handleSkillBuildEvent(event: import('./types/skillBuild').SkillBuildEvent) {
   applySkillBuildEvent(event)
   if (panelMode.value !== 'analysis') return
 
   const payload = event.payload
   switch (event.type) {
+    case 'drawer_open':
+      break
     case 'skill_build_start':
-      enqueueProcess(
-        STEP_INDICES.SKILL,
-        `开始${payload.is_update ? '更新' : '固化'}路口 Skill 包…`,
-        true,
-      )
+      if (payload.interleaved) break
       break
     case 'stage_start': {
+      if (skillBuildState.interleaved && ['understanding', 'planning'].includes(event.stage)) {
+        break
+      }
       const label = skillStageLabel(event.stage)
-      if (label) enqueueProcess(STEP_INDICES.SKILL, `· ${label}`, true)
+      if (label) enqueueProcess(STEP_INDICES.SKILL, `· ${label}`, true, true)
       break
     }
     case 'file_created':
-      if (payload.path) enqueueProcess(STEP_INDICES.SKILL, `· 写入 ${payload.path}`, true)
+      if (payload.path) enqueueProcess(STEP_INDICES.SKILL, `· 写入 ${payload.path}`, true, true)
       break
     case 'skill_build_done':
       enqueueProcess(
         STEP_INDICES.SKILL,
         `技能包已生成${payload.download_url ? '，可下载' : ''}。`,
+        true,
         true,
       )
       break
@@ -795,6 +818,8 @@ async function initSession() {
   analysisQueue.reset()
   resetProcess()
   resetSkillBuild()
+  resetAbsorption()
+  panelLayout.value = 'single'
   presentation.reset()
   skillBuildPendingFinish.value = false
   loading.value = false
@@ -880,6 +905,9 @@ async function handleSend(content: string) {
         },
         onSkillBuild: (event) => {
           handleSkillBuildEvent(event)
+        },
+        onSkillAbsorption: (event) => {
+          handleSkillAbsorptionEvent(event)
         },
         onResult: (result) => {
           sessionState.value = result.state
@@ -979,8 +1007,10 @@ function onSkillBuildFinish() {
   window.setTimeout(async () => {
     closeSkillBuild()
     skillBuildPendingFinish.value = false
+    panelLayout.value = 'single'
+    resetAbsorption()
     await initSession()
-  }, 680)
+  }, 650)
 }
 
 function onDeny() {
@@ -1024,6 +1054,9 @@ onMounted(async () => {
       :hide-input-dock="hideInputDock"
       :channelization-active="channelizationActive"
       :analysis-run-key="analysisRunKey"
+      :panel-layout="panelLayout"
+      :absorption-state="absorptionState"
+      :skill-build-state="skillBuildState"
       @channelization-active="channelizationActive = $event"
       @send="handleSend"
       @input-activity="onInputActivity"
@@ -1035,12 +1068,8 @@ onMounted(async () => {
       @close-corridor-wave="presentation.closeCorridorWaveMini()"
       @confirm="onConfirm"
       @deny="onDeny"
-    />
-
-    <SkillBuildOverlay
-      :state="skillBuildState"
-      @select-file="selectSkillFile"
-      @finish="onSkillBuildFinish"
+      @select-skill-file="selectSkillFile"
+      @skill-build-finish="onSkillBuildFinish"
     />
   </div>
 </template>

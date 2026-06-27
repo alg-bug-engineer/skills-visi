@@ -15,6 +15,7 @@
 | P1 叙事 | AnalysisQueue、二次确认、Skill 固化（继承 v1） | ✅ |
 | P2 质量 | vitest、`scripts/e2e-v2.sh` | ✅ |
 | P2.1 时序 | 证据卡与理解过程步骤同步、运行数据单卡合并 | ✅ |
+| P2.2 经验吸收 | skill_absorption + SkillBuildDrawer L3 交错 | ✅ |
 | P3 迭代 | 常发日历热力、Playwright E2E、清理遗留 overlay 组件 | 待办 |
 
 ## 验收标准

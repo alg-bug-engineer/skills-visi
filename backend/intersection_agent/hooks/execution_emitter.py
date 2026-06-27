@@ -106,3 +106,24 @@ class ExecutionEmitter:
             await self._callback(body)
         except Exception:
             logger.exception("execution_emitter.skill_build_failed type=%s", event_type)
+
+    async def emit_skill_absorption(
+        self,
+        event_type: str,
+        stage: str,
+        **payload: Any,
+    ) -> None:
+        """Emit an experience-absorption visualization event."""
+        if not self._callback:
+            return
+        body: dict[str, Any] = {
+            "event": "skill_absorption",
+            "type": event_type,
+            "stage": stage,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": payload,
+        }
+        try:
+            await self._callback(body)
+        except Exception:
+            logger.exception("execution_emitter.skill_absorption_failed type=%s", event_type)

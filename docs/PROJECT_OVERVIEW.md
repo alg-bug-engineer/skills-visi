@@ -1,6 +1,6 @@
 # 项目总览 · 路口问题诊断以及固化技能
 
-> 版本：2026-06-26  
+> 版本：2026-06-28  
 > 本文档汇总开发内容、计划进度、主要变更与部署方式，作为根仓库的权威索引。
 
 ---
@@ -57,6 +57,7 @@
 | 技能标签 | 2026-06-26 | Skill 标签体系、命中提示、约束感知快路径 |
 | 四类信控问题 | 2026-06-26 | 饱和度/失衡/空放/溢出 + `flow_timing_governance` |
 | 演示嗅探 | 2026-06-27 | 演示路口 TOP3、`DEMO_MODE`、检查单阈值对齐 |
+| 经验吸收演示 | 2026-06-28 | `skill_absorption` SSE、三层 tags、L3 交错落盘、`InterleavedSkillPersistVisualizer` |
 
 ### 3.2 前端 v2 能力演进
 
@@ -66,6 +67,7 @@
 | v2.0.1 | 2026-06-25 | GIS 全屏 + 渠化右下角小窗 |
 | v2.0.2 | 2026-06-25 | 三栏布局（GIS \| 推理证据 \| 理解过程），证据卡与步骤同步 |
 | 渠化增强 | 2026-06-26 | ChannelizationCanvas3D、指标条、失衡横幅、配时环 |
+| 经验吸收 v2 | 2026-06-28 | 右栏 `ExperienceAbsorptionPanel` + 左 `SkillBuildDrawer` 同框 L3 交错 |
 
 ### 3.3 文档与技能包
 
@@ -89,6 +91,7 @@
 | [技能沉淀与匹配逻辑](技能沉淀与匹配逻辑开发计划.md) | ✅ 标签、快路径、命中提示 |
 | [四类问题与 ECS 部署](plans/2026-06-26-四类问题与ECS部署开发计划.md) | ✅ P1–P4 完成；P5 改为**原生部署** |
 | [演示路口嗅探](plans/2026-06-27-演示路口嗅探与检查单对齐开发计划.md) | ✅ TOP3 路口、`DEMO_MODE` |
+| [经验吸收与技能固化演示](plans/2026-06-28-经验吸收与技能固化演示开发计划.md) | ✅ skill_absorption SSE + 右栏叠层 UI |
 | [frontend-v2 开发计划](../frontend-v2/docs/DEVELOPMENT_PLAN.md) | ✅ P0–P2.1；P3 待办 |
 
 ### 4.2 待办
@@ -116,6 +119,8 @@
 | 2026-06-26 | `FlowTimingGovernanceService`、四类信控问题 |
 | 2026-06-26 | 车道通行能力联表、`diagnose_focused` |
 | 2026-06-27 | 演示路口嗅探脚本、`demo_intersections.yaml` |
+| 2026-06-28 | `skill_absorption` SSE、三层 Skill tags、L3 交错落盘（吸收 + 写文件同框） |
+| 2026-06-28 | frontend-v2 `ExperienceAbsorptionPanel` + `SkillBuildDrawer`（替代全屏 overlay） |
 
 ---
 
@@ -186,8 +191,8 @@ bash scripts/dev.sh       # v1 前端 5567（需 frontend/ 独立仓库）
 ## 9. 测试
 
 ```bash
-# 后端单测
-cd backend && MOCK_LLM=1 MOCK_DB=1 pytest -q
+# 后端单测（需 Python 3.11+，推荐 backend/.venv）
+cd backend && MOCK_LLM=1 MOCK_DB=1 .venv/bin/pytest -q   # 89 项
 
 # 前端单测
 cd frontend-v2 && npm run test
