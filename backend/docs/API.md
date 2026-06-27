@@ -136,3 +136,18 @@ curl -s "http://localhost:8000/api/v1/skills?intersection=奥体"
 前端对接详见 **`docs/FRONTEND_EVIDENCE_INTEGRATION.md`**；演示路口 SQL：`scripts/list_demo_intersections.sql`。
 
 完整 curl 场景见 `scripts/curl_tests.sh`。
+
+## 语音合成（Qwen-TTS Realtime）
+
+前端关键点引导式播报，后端代理 DashScope WebSocket，需配置 `DASHSCOPE_API_KEY` 与 `DASHSCOPE_WORKSPACE_ID`。
+
+| 端点 | 说明 |
+|------|------|
+| `POST /api/v1/tts/synthesize` | 整段 WAV（回退） |
+| `POST /api/v1/tts/synthesize/stream` | PCM 流式（首选，低延迟） |
+
+请求体：`{"text": "开始分析运行数据。", "cue_id": "step:3:data_fetch"}`（`text` ≤300 字）
+
+流式响应头：`X-Audio-Sample-Rate`（24000）、`X-Audio-Channels`（1）、`X-Audio-Sample-Width`（2）。
+
+环境变量：`TTS_ENABLED=1`、`QWEN_TTS_MODEL=qwen3-tts-flash-realtime`、`QWEN_TTS_VOICE=Cherry`、`QWEN_TTS_MODE=commit`。

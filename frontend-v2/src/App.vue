@@ -19,7 +19,6 @@ import { highlightDirsForGroup } from './utils/evidencePresentation'
 import { parseHighlightTurn } from './utils/cognitionChannelAdapter'
 import { buildEvidenceListItems } from './utils/channelizationCopy'
 import {
-  buildEvidenceIntroCue,
   buildEvidenceVoiceCue,
   buildImbalanceCue,
   buildRuleCue,
@@ -107,6 +106,7 @@ const {
 
 const voice = useVoiceNarration()
 let cognitionVoiceSent = false
+let dataFetchDetailVoiceSent = false
 
 /** 渠化全屏或技能固化/经验吸收演示时隐藏输入框，避免遮挡左侧终端 */
 const hideInputDock = computed(
@@ -575,6 +575,7 @@ function prepareNewAnalysisRun(userContent: string) {
   pendingNarration = null
   analysisRunKey.value += 1
   cognitionVoiceSent = false
+  dataFetchDetailVoiceSent = false
   voice.resetSession()
   void workbenchRef.value?.mapStageRef?.prepareNewAnalysisRun()
   lastUserContent = userContent
@@ -641,15 +642,21 @@ function handleNarration(action: MapActionEvent) {
     enqueueProcess(STEP_INDICES.DATA_FETCH, `${prefix}${text}`, true)
     if (action.phase === 'saturation') {
       const metrics = action.metrics as { saturation?: number } | undefined
-      voice.enqueue(buildSaturationCue(metrics?.saturation ?? null))
+      const cue = buildSaturationCue(metrics?.saturation ?? null)
+      if (cue) {
+        dataFetchDetailVoiceSent = true
+        voice.enqueue(cue)
+      }
     }
     if (action.phase === 'imbalance') {
       const metrics = action.metrics as
         | { imbalance_index?: number; green_utilization?: number }
         | undefined
-      voice.enqueue(
-        buildImbalanceCue(metrics?.imbalance_index ?? null, metrics?.green_utilization ?? null),
-      )
+      const cue = buildImbalanceCue(metrics?.imbalance_index ?? null, metrics?.green_utilization ?? null)
+      if (cue) {
+        dataFetchDetailVoiceSent = true
+        voice.enqueue(cue)
+      }
     }
     return
   }
@@ -855,7 +862,6 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
 
 function handleProblemEvidenceStep(data: Record<string, unknown>) {
   const text = formatEvidenceStepText(data)
-  voice.enqueue(buildEvidenceIntroCue())
   voice.enqueue(buildEvidenceVoiceCue(data))
   analysisQueue.enqueue(async () => {
     enqueueProcess(STEP_INDICES.PROBLEM_EVIDENCE, text)
@@ -943,14 +949,17 @@ function handlePipelineStep(
   }
 
   if (event.step === 'data_fetch') {
-    voice.enqueue({
-      id: 'step:3:data_fetch',
-      stepIndex: STEP_INDICES.DATA_FETCH,
-      phase: 'data_fetch',
-      kind: 'guide',
-      text: VOICE_GUIDE.dataFetch,
-      priority: 0,
-    })
+    if (!dataFetchDetailVoiceSent) {
+      voice.enqueue({
+        id: 'step:3:data_fetch',
+        stepIndex: STEP_INDICES.DATA_FETCH,
+        phase: 'data_fetch',
+        kind: 'guide',
+        text: VOICE_GUIDE.dataFetch,
+        priority: 0,
+      })
+    }
+    dataFetchDetailVoiceSent = false
     const partial = data as {
       timing_profile?: ProblemEvidence['timing_profile']
       corridor_context?: ProblemEvidence['corridor_context']
@@ -997,15 +1006,17 @@ function handlePipelineStep(
         )
       }, STEP_PAUSE_MS)
     }
-    voice.enqueue({
-      id: 'step:5:rule:intro',
-      stepIndex: STEP_INDICES.RULE,
-      phase: 'rule',
-      kind: 'guide',
-      text: VOICE_GUIDE.ruleIntro,
-      priority: 0,
-    })
-    voice.enqueue(buildRuleCue(data))
+    const ruleCue =
+      buildRuleCue(data) ??
+      ({
+        id: 'step:5:rule:intro',
+        stepIndex: STEP_INDICES.RULE,
+        phase: 'rule',
+        kind: 'guide' as const,
+        text: VOICE_GUIDE.ruleIntro,
+        priority: 0,
+      })
+    voice.enqueue(ruleCue)
     return
   }
 

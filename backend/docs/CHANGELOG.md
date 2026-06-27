@@ -19,6 +19,7 @@
 ### 语音（feature/tts）
 
 - TTS 迁移至 Qwen-TTS Realtime；移除阿里云 ISI 实现；关键点引导式播报。
+- 修复并发 `drain` 导致双路 PCM 重叠、流式失败后 WAV 回退叠音；运行数据步骤去重引导句。
 
 - 后端单测 **118** 项。
 

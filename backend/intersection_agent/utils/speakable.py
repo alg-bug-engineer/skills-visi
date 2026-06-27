@@ -1,4 +1,4 @@
-"""Normalize text for Aliyun TTS (short voice cues)."""
+"""Normalize text for Qwen-TTS Realtime voice cues."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def to_speakable(text: str) -> str:
 
 
 def truncate_speakable(text: str, limit: int = _MAX_CHARS) -> str:
-    """Hard cap for Aliyun 300-char limit."""
+    """Hard cap for Qwen-TTS input length."""
     body = to_speakable(text)
     if len(body) <= limit:
         return body
