@@ -45,28 +45,27 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     public_url: str = ""
 
-    aliyun_nls_appkey: str = ""
-    aliyun_ak_id: str = ""
-    aliyun_ak_secret: str = ""
-    aliyun_nls_region: str = "cn-shanghai"
-    aliyun_nls_voice: str = "zhishuo"
-    aliyun_nls_format: str = "mp3"
-    aliyun_nls_sample_rate: int = 16000
-    aliyun_nls_speech_rate: int = 0
+    dashscope_workspace_id: str = ""
+    qwen_tts_model: str = "qwen3-tts-flash-realtime"
+    qwen_tts_voice: str = "Cherry"
+    qwen_tts_mode: str = "commit"
+    qwen_tts_sample_rate: int = 24000
     tts_enabled: bool = True
 
     rules_dir: Path = _BACKEND_ROOT / "rules"
 
     @property
-    def aliyun_nls_gateway_host(self) -> str:
-        """NLS gateway host for TTS REST API."""
-        region = self.aliyun_nls_region.strip() or "cn-shanghai"
-        return f"nls-gateway-{region}.aliyuncs.com"
+    def qwen_tts_ws_url(self) -> str:
+        """WebSocket URL for Qwen-TTS Realtime (Beijing).
+
+        Workspace is sent via ``X-DashScope-WorkSpace`` on the client, not in the host.
+        """
+        return "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
 
     @property
     def tts_configured(self) -> bool:
-        """Whether Aliyun TTS credentials are present."""
-        return bool(self.aliyun_nls_appkey and self.aliyun_ak_id and self.aliyun_ak_secret)
+        """Whether Qwen TTS Realtime credentials are present."""
+        return bool(self.dashscope_api_key and self.dashscope_workspace_id)
 
     @property
     def cors_origin_list(self) -> list[str]:

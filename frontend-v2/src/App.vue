@@ -12,6 +12,7 @@ import { SKILL_BUILD_STAGES } from './types/skillBuild'
 import type { ChatMessage, MessageResponse, StepRecord } from './types/api'
 import type { ProblemEvidence, QuantitativeConstraints } from './types/evidence'
 import type { CognitionPayload, IntersectionLink, MapActionEvent } from './types/map'
+import type { CorridorIntersectionItem } from './types/corridor'
 import type { GovernanceSuggestionPayload } from './types/presentation'
 import { AnalysisQueue } from './utils/analysisQueue'
 import { highlightDirsForGroup } from './utils/evidencePresentation'
@@ -451,7 +452,10 @@ function isFollowUpResult(result: MessageResponse): boolean {
   if (isSuggestionGenerateConfirm(result)) return false
   return (
     result.reply.type === 'follow_up' ||
+    result.reply.type === 'corridor_scan' ||
     result.state === 'nlu_incomplete' ||
+    result.state === 'corridor_nlu_incomplete' ||
+    result.state === 'awaiting_corridor_pick' ||
     result.state === 'intersection_ambiguous'
   )
 }
@@ -460,6 +464,54 @@ function formatConversationSummary(): string {
   return conversationTurns.value
     .map((t) => (t.role === 'user' ? `用户：${t.content}` : `助手：${t.content}`))
     .join('\n')
+}
+
+function syncCorridorScanFromScene(action: MapActionEvent) {
+  const intersections = (action.intersections ?? []) as unknown as CorridorIntersectionItem[]
+  if (!intersections.length) return
+  presentation.setCorridorScan({
+    lineName: action.corridor?.line_name || '干线',
+    timePeriodLabel: action.time_period?.label || '时段',
+    intersections,
+    focusInterId: action.focus_inter_id ?? null,
+  })
+}
+
+function syncCorridorScanFromMeta(meta: MessageResponse['meta']) {
+  const scan = meta?.corridor_scan as
+    | {
+        road_name?: string
+        line_name?: string
+        time_period?: { label?: string }
+        intersections?: CorridorIntersectionItem[]
+      }
+    | undefined
+  if (!scan?.intersections?.length) {
+    const scene = meta?.corridor_scan_scene as MapActionEvent | undefined
+    if (scene) syncCorridorScanFromScene(scene)
+    return
+  }
+  const scene = meta?.corridor_scan_scene as MapActionEvent | undefined
+  presentation.setCorridorScan({
+    lineName: scan.road_name || scan.line_name || '干线',
+    timePeriodLabel: scan.time_period?.label || '时段',
+    intersections: scan.intersections,
+    focusInterId: scene?.focus_inter_id ?? null,
+  })
+  if (scene?.hud) {
+    presentation.setHud(scene.hud)
+  }
+}
+
+function handleCorridorSelect(interId: string) {
+  presentation.selectCorridorIntersection(interId)
+  const item = presentation.state.corridorScan?.intersections.find((i) => i.inter_id === interId)
+  if (item?.lon != null && item?.lat != null) {
+    void workbenchRef.value?.mapStageRef?.focusCorridorIntersection(item.lon, item.lat)
+  }
+  if (sessionState.value === 'awaiting_corridor_pick' && item?.inter_name && !loading.value) {
+    void handleSend(item.inter_name)
+  }
 }
 
 function enterConversationMode(result: MessageResponse) {
@@ -473,12 +525,20 @@ function enterConversationMode(result: MessageResponse) {
   pendingNarration = null
 
   const last = conversationTurns.value[conversationTurns.value.length - 1]
+  const tag = result.reply.type === 'corridor_scan' ? '干线扫描' : '追问'
   if (!last || last.role !== 'assistant' || last.content !== result.reply.content) {
     conversationTurns.value.push({
       role: 'assistant',
       content: result.reply.content,
-      tag: '追问',
+      tag,
     })
+  }
+  if (result.reply.type === 'corridor_scan') {
+    presentation.setPhase('corridor_scan')
+    syncCorridorScanFromMeta(result.meta)
+    if (result.meta?.corridor_scan_scene) {
+      pushMapAction(result.meta.corridor_scan_scene as MapActionEvent)
+    }
   }
   inputLocked.value = false
 }
@@ -752,6 +812,16 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       return
     }
 
+    if (action.action === 'corridor_scan_scene') {
+      presentation.setPhase('corridor_scan')
+      syncCorridorScanFromScene(action)
+      if (action.hud) {
+        presentation.setHud(action.hud)
+      }
+      pushMapAction(action)
+      return
+    }
+
     if (action.action === 'confirm_bubble') {
       if (action.action_type === 'generate_suggestion') {
         const message = action.message ?? '问题诊断成立，是否需要生成治理建议？'
@@ -986,7 +1056,10 @@ async function initSession() {
 async function handleSend(content: string) {
   if (!sessionId.value || loading.value || inputLocked.value) return
 
-  const isContinuation = sessionState.value === 'nlu_incomplete'
+  const isContinuation =
+    sessionState.value === 'nlu_incomplete' ||
+    sessionState.value === 'corridor_nlu_incomplete' ||
+    sessionState.value === 'awaiting_corridor_pick'
   const wasSuggestionConfirm = awaitingSuggestionConfirm.value
   if (wasSuggestionConfirm) {
     stopSuggestionConfirmPause()
@@ -1206,6 +1279,7 @@ onMounted(async () => {
       @deny="onDeny"
       @select-skill-file="selectSkillFile"
       @skill-build-finish="onSkillBuildFinish"
+      @corridor-select="handleCorridorSelect"
     />
   </div>
 </template>

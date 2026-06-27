@@ -35,12 +35,16 @@ const props = defineProps<{
   governanceSuggestion?: import('../types/presentation').GovernanceSuggestionPayload | null
   /** 新一轮分析时递增，用于重置地图浮层 */
   analysisRunKey?: number
+  corridorSelectedInterId?: string | null
+  /** 左侧干线列表占用时的视觉中心偏移 */
+  visualPanOffsetX?: number
 }>()
 
 const emit = defineEmits<{
   channelizationActive: [active: boolean]
   closeTimingRing: []
   closeCorridorWave: []
+  corridorIntersectionSelect: [interId: string]
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
@@ -80,8 +84,11 @@ const channelHighlightDirs = computed(() =>
 )
 
 const PANEL_OFFSET_X = -120
+const CORRIDOR_FOCUS_ZOOM = 16.8
 const FOCUS_ZOOM = 17.8
 const CITY_ZOOM = 11
+
+let lastCorridorAction: MapActionEvent | null = null
 
 let map: AMapMap | null = null
 let AMapLib: typeof AMap | null = null
@@ -228,25 +235,79 @@ function markerAnchor(dir?: string): string {
 function renderMarkers(action: MapActionEvent) {
   if (!map || !AMapLib) return
   clearMarkers()
-  const merged = [...mergeSceneMarkers(action, cognition.value), ...extraEvidenceMarkers]
+  const isCorridor = scenePhase.value === 'corridor_scan'
+  const selectedId = props.corridorSelectedInterId
+  const merged = [...mergeSceneMarkers(action, cognition.value), ...extraEvidenceMarkers].map((m) => {
+    if (!isCorridor || !m.inter_id) return m
+    return { ...m, selected: m.inter_id === selectedId }
+  })
   merged.forEach((m) => {
     const marker = new AMapLib.Marker({
       position: [m.lon, m.lat],
-      anchor: markerAnchor(m.dir),
+      anchor: isCorridor ? 'center' : markerAnchor(m.dir),
       content: markerHtml(m),
       zIndex:
-        m.kind === 'suggestion'
-          ? 220
-          : m.kind === 'evidence'
-            ? 210
-            : m.kind === 'link-info'
-              ? 195
-              : 200,
-      offset: new AMapLib.Pixel(0, -6),
+        m.selected && isCorridor
+          ? 230
+          : m.kind === 'suggestion'
+            ? 220
+            : m.kind === 'evidence'
+              ? 210
+              : m.kind === 'link-info'
+                ? 195
+                : isCorridor
+                  ? 205
+                  : 200,
+      offset: new AMapLib.Pixel(0, isCorridor ? 0 : -6),
     })
+    if (isCorridor && m.inter_id) {
+      marker.on('click', () => {
+        emit('corridorIntersectionSelect', m.inter_id!)
+      })
+    }
     marker.setMap(map)
     markers.push(marker)
   })
+}
+
+function drawCorridorPaths(action: MapActionEvent) {
+  if (!map || !AMapLib) return
+  const polyline = action.corridor?.polyline ?? []
+  if (polyline.length < 2) return
+
+  const glow = new AMapLib.Polyline({
+    path: polyline,
+    strokeColor: '#00e5ff',
+    strokeWeight: 14,
+    strokeOpacity: 0.18,
+    lineJoin: 'round',
+    lineCap: 'round',
+    zIndex: 48,
+  })
+  glow.setMap(map)
+  glowOverlays.push(glow)
+
+  const line = new AMapLib.Polyline({
+    path: polyline,
+    strokeColor: '#00e5ff',
+    strokeWeight: 5,
+    strokeOpacity: 0.92,
+    lineJoin: 'round',
+    lineCap: 'round',
+    zIndex: 55,
+  })
+  line.setMap(map)
+  linkOverlays.push(line)
+}
+
+function corridorPanOffsetX(): number {
+  return props.visualPanOffsetX ?? PANEL_OFFSET_X
+}
+
+async function focusCorridorIntersection(lon: number, lat: number, zoom = CORRIDOR_FOCUS_ZOOM) {
+  if (!map || !AMapLib || channelizationLocked.value) return
+  await flyTo(map, AMapLib, [lon, lat], zoom, 750)
+  panToVisualCenter(map, [lon, lat], corridorPanOffsetX(), 0)
 }
 
 async function prepareNewAnalysisRun() {
@@ -255,6 +316,7 @@ async function prepareNewAnalysisRun() {
   viewMode.value = 'map'
   hud.value = null
   scenePhase.value = null
+  lastCorridorAction = null
   extraEvidenceMarkers = []
   sceneOpts.value = {
     highlightDirs: [],
@@ -307,6 +369,28 @@ async function focusPoint(lon: number, lat: number, zoom: number) {
 
 async function focusIntersection(lon: number, lat: number, zoom = FOCUS_ZOOM) {
   await focusPoint(lon, lat, zoom)
+}
+
+async function applyCorridorScanScene(action: MapActionEvent) {
+  scenePhase.value = action.phase ?? 'corridor_scan'
+  hud.value = props.hudOverride ?? action.hud ?? null
+  channelizationLocked.value = false
+  viewMode.value = 'map'
+  cognition.value = null
+  stopLinkFlash()
+  clearMarkers()
+  clearOverlays()
+  lastCorridorAction = action
+
+  drawCorridorPaths(action)
+  renderMarkers(action)
+
+  const center = action.center ?? action.camera?.center
+  const zoom = action.zoom ?? action.camera?.zoom ?? CORRIDOR_FOCUS_ZOOM
+  if (map && AMapLib && center) {
+    await flyTo(map, AMapLib, center, zoom, 900)
+    panToVisualCenter(map, center, corridorPanOffsetX(), 0)
+  }
 }
 
 async function applyMapScene(action: MapActionEvent) {
@@ -400,6 +484,10 @@ async function handleAction(action: MapActionEvent) {
     }
     case 'map_scene': {
       await applyMapScene(action)
+      break
+    }
+    case 'corridor_scan_scene': {
+      await applyCorridorScanScene(action)
       break
     }
     default:
@@ -503,7 +591,21 @@ onUnmounted(() => {
   map?.destroy()
 })
 
-defineExpose({ resetToCityDefault, setEvidenceOverlay, prepareNewAnalysisRun })
+defineExpose({ resetToCityDefault, setEvidenceOverlay, prepareNewAnalysisRun, focusCorridorIntersection })
+
+watch(
+  () => props.corridorSelectedInterId,
+  (interId, prev) => {
+    if (!interId || interId === prev || scenePhase.value !== 'corridor_scan') return
+    if (lastCorridorAction) {
+      renderMarkers(lastCorridorAction)
+    }
+    const marker = lastCorridorAction?.markers?.find((m) => m.inter_id === interId)
+    if (marker?.lon != null && marker?.lat != null) {
+      void focusCorridorIntersection(marker.lon, marker.lat)
+    }
+  },
+)
 </script>
 
 <template>
@@ -916,6 +1018,76 @@ defineExpose({ resetToCityDefault, setEvidenceOverlay, prepareNewAnalysisRun })
 
 .map-marker.corridor .marker-badge {
   color: #69f0ae;
+}
+
+.map-marker.corridor-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 229, 255, 0.55);
+  background: rgba(8, 20, 32, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.map-marker.corridor-pin:hover {
+  transform: scale(1.08);
+}
+
+.map-marker.corridor-pin.selected {
+  border-color: #00e5ff;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.45);
+  transform: scale(1.12);
+}
+
+.map-marker.corridor-pin.sev-high {
+  border-color: rgba(255, 100, 100, 0.85);
+  background: rgba(40, 10, 10, 0.94);
+}
+
+.map-marker.corridor-pin.sev-medium {
+  border-color: rgba(255, 180, 80, 0.75);
+}
+
+.map-marker.corridor-pin.no-data {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.map-marker.corridor-pin .pin-rank {
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(0, 229, 255, 0.75);
+}
+
+.map-marker.corridor-pin .pin-value {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #f0f8ff;
+}
+
+.map-marker.corridor-scan {
+  border-color: rgba(255, 138, 100, 0.55);
+  background: rgba(28, 12, 8, 0.92);
+  min-width: 108px;
+}
+
+.map-marker.corridor-scan.sev-high {
+  border-color: rgba(255, 100, 100, 0.75);
+}
+
+.map-marker.corridor-scan.no-data {
+  opacity: 0.75;
+}
+
+.map-marker.corridor-scan .marker-badge {
+  color: #ffb74d;
 }
 
 @keyframes marker-pop {

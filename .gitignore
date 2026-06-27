@@ -36,7 +36,7 @@ frontend-v2/*.local
 # --- 密钥（勿提交）---
 docs/AccessKey.csv
 
-# --- IDE ---
+*.egg-info/
 .idea/
 .vscode/
 *.swp

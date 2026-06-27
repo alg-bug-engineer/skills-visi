@@ -314,6 +314,15 @@ export function markerHtml(m: {
       <div class="marker-sub">${escapeHtml(m.subtitle || '')}</div>
     </div>`
   }
+  if (kind === 'corridor-scan' || variant === 'rank' || variant === 'no-data') {
+    const rank = (m as { rank?: number | null }).rank
+    const selected = (m as { selected?: boolean }).selected
+    const rankLabel = rank != null ? String(rank) : '·'
+    return `<div class="map-marker corridor-pin ${sev} ${variant === 'no-data' ? 'no-data' : ''} ${selected ? 'selected' : ''}">
+      <span class="pin-rank">${escapeHtml(rankLabel)}</span>
+      <span class="pin-value">${escapeHtml(m.value || '—')}</span>
+    </div>`
+  }
   if (kind === 'corridor' || variant === 'peer' || variant === 'current') {
     return `<div class="map-marker corridor ${variant === 'current' ? 'corridor-current' : ''} ${sev}">
       <div class="marker-badge">协调</div>

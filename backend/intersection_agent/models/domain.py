@@ -16,6 +16,9 @@ class SessionState(str, enum.Enum):
     IDLE = "idle"
     NLU_INCOMPLETE = "nlu_incomplete"
     INTERSECTION_AMBIGUOUS = "intersection_ambiguous"
+    CORRIDOR_NLU_INCOMPLETE = "corridor_nlu_incomplete"
+    CORRIDOR_SCANNING = "corridor_scanning"
+    AWAITING_CORRIDOR_PICK = "awaiting_corridor_pick"
     PROCESSING = "processing"
     AWAITING_CONFIRM = "awaiting_confirm"
     DONE = "done"
@@ -30,6 +33,7 @@ class ReplyType(str, enum.Enum):
     SKILL_CREATED = "skill_created"
     SKILL_UPDATED = "skill_updated"
     ERROR = "error"
+    CORRIDOR_SCAN = "corridor_scan"
 
 
 class TimePeriod(BaseModel):
@@ -38,6 +42,12 @@ class TimePeriod(BaseModel):
     start: str
     end: str
     label: str
+
+
+class CorridorScanNlu(BaseModel):
+    corridor: str | None = None
+    time_period: TimePeriod | None = None
+    problem_type: str = "congestion"
 
 
 class NluResult(BaseModel):
@@ -86,6 +96,7 @@ class Session(BaseModel):
     state: SessionState = SessionState.IDLE
     messages: list[MessageRecord] = Field(default_factory=list)
     nlu: NluResult | None = None
+    corridor_scan_nlu: CorridorScanNlu | None = None
     raw_user_context: str = ""
     inter_id: str | None = None
     resolved_intersection: str | None = None

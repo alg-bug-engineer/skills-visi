@@ -7,7 +7,7 @@ import logging
 
 from intersection_agent.llm.qwen_client import QwenClient
 from intersection_agent.logging.helpers import log_event, safe_preview
-from intersection_agent.models.domain import NluResult
+from intersection_agent.models.domain import CorridorScanNlu, NluResult
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,28 @@ FALLBACK_TEMPLATES = {
     "intersection": "请告诉我具体是哪个路口拥堵？",
     "time_period": "这个路口一般在什么时段拥堵比较明显？如方便也可说明方向（东西向、南北向）。",
     "directions": "拥堵主要集中在哪个方向？例如东西向或南北向，也可以说具体进口。",
+    "corridor": "请告诉我您要扫描哪条干线？例如奥体西路、经十路。",
 }
+
+CORRIDOR_FIELD_GUIDE = {
+    "corridor": "要扫描的干线/道路名称（如奥体西路）",
+    "time_period": "关心的时段（早高峰、晚高峰、平峰等）",
+}
+
+CORRIDOR_FALLBACK = {
+    "corridor": "请告诉我您要查看哪条干线？例如奥体西路、经十路。",
+    "time_period": "请问您关心哪个时段？早高峰、晚高峰还是平峰？",
+}
+
+CORRIDOR_FOLLOW_UP_SYSTEM = """
+你是「交通智能体」，专门帮助交警扫描一条干线/道路上各路口的拥堵情况。
+
+要求：
+- 用户已说明道路名时，不要追问具体路口名称，只追问缺失的时段
+- 一次只引导补充一个信息点
+- 只输出 1～2 句中文，不要 JSON
+- 语气专业友好
+""".strip()
 
 
 class FollowUpService:
@@ -69,6 +90,41 @@ class FollowUpService:
 
         fallback = FALLBACK_TEMPLATES.get(focus_field, "请补充路口或时段信息。")
         return await self._generate("nlu", user_prompt, fallback=fallback)
+
+    async def for_corridor_scan(
+        self,
+        user_context: str,
+        *,
+        missing: list[str],
+        focus_field: str,
+        partial: CorridorScanNlu | None = None,
+    ) -> str:
+        partial_dict = partial.model_dump() if partial else {}
+        user_prompt = (
+            f"【对话历史】\n{user_context}\n\n"
+            f"【已识别】\n{json.dumps(partial_dict, ensure_ascii=False)}\n\n"
+            f"【本轮需补充】{focus_field}：{CORRIDOR_FIELD_GUIDE.get(focus_field, focus_field)}\n"
+            "请生成追问（干线扫描场景，不要问具体路口名）。"
+        )
+        fallback = CORRIDOR_FALLBACK.get(focus_field, "请补充干线名称或时段。")
+        try:
+            text = await self._llm.chat(
+                system=CORRIDOR_FOLLOW_UP_SYSTEM,
+                user=user_prompt,
+                temperature=0.3,
+            )
+            text = text.strip()
+            if text:
+                return text
+        except RuntimeError as exc:
+            logger.warning("corridor follow_up failed: %s", exc)
+        return fallback
+
+    async def for_corridor_pick(self, user_context: str) -> str:
+        return (
+            "请告诉我您想深入分析哪个路口？可以说「最拥堵的」「第二个」，"
+            "或直接说路口名称，也可以点击地图上的标注。"
+        )
 
     async def for_intersection_candidates(
         self,

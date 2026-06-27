@@ -1,75 +1,47 @@
-# 项目状态快照 · 新增 Skills 可视化
+# 项目状态快照 · 干线扫描 + 语音 v2
 
-> 标签：`新增 Skills 可视化`  
-> 日期：2026-06-24  
-> 仓库：`backend/` + `frontend/`（各自独立 Git，同标签）
-
----
-
-## 1. 项目是什么
-
-**交通智能体 · 拥堵诊断**
-
-交警自然语言描述路口拥堵 → NLU（含方向必填）→ 地图认知与数据展示 → PostgreSQL 查数 → YAML 规则诊断 → 治理建议 → 可选**可视化固化**为标准 Agent Skill 包。
-
-技术栈：FastAPI · Qwen · PostgreSQL · 高德地图 · Vue 3 · SSE
+> 日期：2026-06-29  
+> 分支：`main`（自 `feature/tts` 合并）  
+> 单测：backend **118** passed
 
 ---
 
-## 2. 本标签相对 tag2 的新增能力
+## 1. 本阶段新增能力
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
-| Skills 固化可视化 | ✅ | 全屏 overlay + SSE 分阶段 + 真实写盘 + zip 下载 |
-| 地图主舞台 | ✅ | 分阶段 map_scene，进口道指标与证据链 |
-| 进口道锚点 | ✅ | 指标在路段停线附近，不外推边框 |
-| 方向路段强调 | ✅ | 认知阶段按向闪烁/配色 |
-| NLU 方向必填 | ✅ | 追问路口 → 时段 → 方向 |
-| 地图复位 | ✅ | 技能完成后飞回济南默认视角 |
+| 干线扫描 | ✅ | 道路级拥堵发现、PG 排名、Top3 引导 |
+| 意图 LLM 分类 | ✅ | 首轮二分类 + 规则兜底，禁 thinking |
+| 路网可视化 | ✅ | link 链化单 polyline，左侧路口列表 |
+| 路口选型 | ✅ | 排名/口语/列表点击 → 单点诊断 |
+| Qwen-TTS Realtime | ✅ | PCM 流式播报，替代阿里云 ISI |
 
 ---
 
-## 3. 目录结构（增量）
-
-```
-backend/intersection_agent/
-├── skills/skill_build_visualizer.py   # 固化可视化
-├── services/map_presentation_service.py
-├── services/intersection_cognition_service.py
-└── hooks/execution_emitter.py         # + emit_skill_build
-
-frontend/src/
-├── components/MapStage.vue
-├── components/SkillBuildOverlay.vue
-├── utils/mapMarkers.ts
-└── composables/useSkillBuildProcess.ts
-```
-
----
-
-## 4. 快速启动
-
-```bash
-bash scripts/dev.sh          # 根目录，8011 + 5567
-MOCK_LLM=1 MOCK_DB=1 pytest -q   # 后端 39 项
-```
-
----
-
-## 5. 文档索引
+## 2. 关键文档
 
 | 文档 | 内容 |
 |------|------|
-| [RELEASE_新增Skills可视化.md](RELEASE_新增Skills可视化.md) | **本标签发布说明** |
+| [干线扫描功能说明](../../docs/plans/2026-06-27-干线扫描与路口发现.md) | 流程、状态机、模块索引 |
 | [CHANGELOG.md](CHANGELOG.md) | 变更记录 |
-| [API.md](API.md) | SSE / 下载 API |
+| [PROJECT_LOGIC.md](PROJECT_LOGIC.md) | 总体逻辑（含干线分支） |
+| [PROJECT_OVERVIEW.md](../../docs/PROJECT_OVERVIEW.md) | 根仓库索引 |
 
 ---
 
-## 6. Git 标签
+## 3. 快速启动
 
 ```bash
-git checkout 新增-Skills-可视化
+bash scripts/dev-v2.sh          # 8011 + 5568
+cd backend && pytest -q         # 118 项
 ```
 
-标签说明：**Skills 固化可视化 + 地图主舞台 + 进口道指标呈现**（Git 标签名：`新增-Skills-可视化`）
+环境：`backend/.env` 参考 `.env.example`（`MOCK_LLM=0` + PG 可查真实干线）
+
+---
+
+## 4. 验证用例
+
+1. 「奥体西路有哪些拥堵路口在早高峰」→ 地图 + 左侧列表  
+2. 「奥体西与经十路」→ 选定经十路路口，追问方向  
+3. 点击左侧 #1 路口 → 自动进入诊断流程  

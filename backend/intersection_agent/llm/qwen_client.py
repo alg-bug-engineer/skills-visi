@@ -28,6 +28,8 @@ class QwenClient:
         user: str,
         temperature: float = 0.2,
         json_mode: bool = False,
+        enable_thinking: bool | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """Send chat completion and return assistant text.
 
@@ -73,7 +75,12 @@ class QwenClient:
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
+        if enable_thinking is not None:
+            payload["enable_thinking"] = enable_thinking
+        elif json_mode:
             payload["enable_thinking"] = False
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
 
         headers = {
             "Authorization": f"Bearer {self._settings.dashscope_api_key}",
@@ -112,12 +119,22 @@ class QwenClient:
         system: str,
         user: str,
         max_retries: int = 2,
+        temperature: float = 0.2,
+        enable_thinking: bool = False,
+        max_tokens: int | None = None,
     ) -> dict[str, Any]:
         """Chat with JSON mode and parse response; retry with repair on failure."""
         last_error: Exception | None = None
         for attempt in range(max_retries + 1):
             try:
-                text = await self.chat(system=system, user=user, json_mode=True)
+                text = await self.chat(
+                    system=system,
+                    user=user,
+                    json_mode=True,
+                    temperature=temperature,
+                    enable_thinking=enable_thinking,
+                    max_tokens=max_tokens,
+                )
                 return self._extract_json(text)
             except (ValueError, json.JSONDecodeError) as exc:
                 last_error = exc
@@ -150,7 +167,12 @@ class QwenClient:
 
     def _mock_response(self, system: str, user: str) -> str:
         """Deterministic mock for offline tests."""
+        if "首轮意图分类器" in system:
+            return self._mock_intent_classifier_json(user)
+
         if "只输出 JSON" in system or "必须严格使用以下字段名" in system:
+            if "干线拥堵扫描" in system or '"corridor"' in system:
+                return self._mock_corridor_scan_json(user)
             result: dict[str, Any] = {
                 "intersection": None,
                 "time_period": None,
@@ -253,6 +275,47 @@ class QwenClient:
         return "好的。"
 
     @staticmethod
+    def _mock_intent_classifier_json(user: str) -> str:
+        from intersection_agent.services.intent_router import route_intent_by_rules
+
+        intent = route_intent_by_rules(user)
+        return json.dumps(
+            {
+                "intent": intent,
+                "confidence": "high",
+                "reason": "mock 与规则一致",
+            },
+            ensure_ascii=False,
+        )
+
+    @staticmethod
+    def _mock_corridor_scan_json(user: str) -> str:
+        result: dict[str, Any] = {
+            "corridor": None,
+            "time_period": None,
+            "problem_type": "congestion",
+        }
+        if "奥体" in user:
+            result["corridor"] = "奥体西路"
+        if "晚高峰" in user or "四点" in user or "下午" in user:
+            result["time_period"] = {
+                "start": "16:00",
+                "end": "18:00",
+                "label": "晚高峰",
+            }
+        if "早高峰" in user or "早上" in user or "七点" in user:
+            result["time_period"] = {
+                "start": "07:00",
+                "end": "09:00",
+                "label": "早高峰",
+            }
+        if ("最拥堵" in user or "最堵" in user) and "晚高峰" not in user and "早高峰" not in user:
+            if "奥体" in user:
+                result["corridor"] = "奥体西路"
+            result["time_period"] = None
+        return json.dumps(result, ensure_ascii=False)
+
+    @staticmethod
     def _mock_follow_up(user: str) -> str:
         """Context-aware mock follow-up for offline tests."""
         if "【对话历史】" in user:
@@ -269,6 +332,10 @@ class QwenClient:
             return "好的，请先告诉我具体是哪个路口？"
         if "本轮需引导补充】time_period" in user:
             return "了解。这个路口一般在什么时段拥堵比较明显，比如晚高峰或下午四五点？"
+        if "本轮需引导补充】directions" in user:
+            return "拥堵主要集中在哪个方向？例如东西向或南北向。"
+        if "干线扫描" in user or "本轮需补充】time_period" in user:
+            return "请问您关心哪个时段？早高峰、晚高峰还是平峰？"
         if "候选路口" in user or "系统候选" in user:
             return "这几个路口里，您说的是哪一个？直接回复完整路口名即可。"
         if "未找到" in user or "暂无运行数据" in user:

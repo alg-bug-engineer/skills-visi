@@ -1,6 +1,6 @@
 # 项目总览 · 路口问题诊断以及固化技能
 
-> 版本：2026-06-28  
+> 版本：2026-06-29  
 > 本文档汇总开发内容、计划进度、主要变更与部署方式，作为根仓库的权威索引。
 
 ---
@@ -58,6 +58,8 @@
 | 四类信控问题 | 2026-06-26 | 饱和度/失衡/空放/溢出 + `flow_timing_governance` |
 | 演示嗅探 | 2026-06-27 | 演示路口 TOP3、`DEMO_MODE`、检查单阈值对齐 |
 | 经验吸收演示 | 2026-06-28 | `skill_absorption` SSE、三层 tags、L3 交错落盘、`InterleavedSkillPersistVisualizer` |
+| **干线扫描** | **2026-06-29** | 道路级拥堵发现、地图沿路高亮、Top3 引导、选型接单点诊断；意图 LLM+规则 |
+| **语音播报 v2** | **2026-06-29** | Qwen-TTS Realtime PCM 流式播报（替代阿里云 ISI） |
 
 ### 3.2 前端 v2 能力演进
 
@@ -92,6 +94,7 @@
 | [四类问题与 ECS 部署](plans/2026-06-26-四类问题与ECS部署开发计划.md) | ✅ P1–P4 完成；P5 改为**原生部署** |
 | [演示路口嗅探](plans/2026-06-27-演示路口嗅探与检查单对齐开发计划.md) | ✅ TOP3 路口、`DEMO_MODE` |
 | [经验吸收与技能固化演示](plans/2026-06-28-经验吸收与技能固化演示开发计划.md) | ✅ skill_absorption SSE + 右栏叠层 UI |
+| [干线扫描与路口发现](plans/2026-06-27-干线扫描与路口发现.md) | ✅ 意图 LLM+规则、PG 排名、地图沿路高亮、选型接单点 |
 | [frontend-v2 开发计划](../frontend-v2/docs/DEVELOPMENT_PLAN.md) | ✅ P0–P2.1；P3 待办 |
 
 ### 4.2 待办
@@ -121,6 +124,8 @@
 | 2026-06-27 | 演示路口嗅探脚本、`demo_intersections.yaml` |
 | 2026-06-28 | `skill_absorption` SSE、三层 Skill tags、L3 交错落盘（吸收 + 写文件同框） |
 | 2026-06-28 | frontend-v2 `ExperienceAbsorptionPanel` + `SkillBuildDrawer`（替代全屏 overlay） |
+| 2026-06-29 | **干线扫描**：`corridor_scan` 流水线、意图 LLM 二分类+规则兜底、路网链化可视化 |
+| 2026-06-29 | **语音 v2**：Qwen-TTS Realtime；选型口语匹配「奥体西与经十路」 |
 
 ---
 

@@ -1,11 +1,13 @@
 import type { FlowTimingGovernance, ProblemEvidence, QuantitativeConstraints } from './evidence'
 import type { CognitionPayload, MapSceneHud } from './map'
+import type { CorridorScanState } from './corridor'
 import type { InsightCardEntry } from './insight'
 import { createInsightCards as mkCards } from './insight'
 
 export type PipelinePhase =
   | 'idle'
   | 'conversation'
+  | 'corridor_scan'
   | 'locate'
   | 'links'
   | 'channelization'
@@ -103,6 +105,8 @@ export interface PresentationState {
   runtimeMetrics: RuntimeMetrics | null
   /** 多粒度阶段强调的转向，如西左转 */
   highlightTurn: HighlightTurn | null
+  /** 干线扫描：左侧路口列表与选中态 */
+  corridorScan: CorridorScanState | null
 }
 
 export interface RuntimeMetrics {
@@ -150,6 +154,7 @@ export function createInitialPresentation(): PresentationState {
     processCollapsed: false,
     runtimeMetrics: null,
     highlightTurn: null,
+    corridorScan: null,
   }
 }
 

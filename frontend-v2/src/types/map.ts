@@ -60,7 +60,7 @@ export interface MapSceneMarker {
   id: string
   lon: number
   lat: number
-  kind?: 'chip' | 'metric' | 'alert' | 'rule' | 'suggestion' | 'imbalance' | 'evidence' | 'link-info' | 'timing' | 'corridor'
+  kind?: 'chip' | 'metric' | 'alert' | 'rule' | 'suggestion' | 'imbalance' | 'evidence' | 'link-info' | 'timing' | 'corridor' | 'corridor-scan'
   variant?: string
   title?: string
   subtitle?: string
@@ -68,6 +68,12 @@ export interface MapSceneMarker {
   severity?: 'high' | 'medium' | 'low' | 'unknown'
   dir?: string
   link_id?: string
+  inter_id?: string
+  inter_name?: string
+  rank?: number | null
+  selected?: boolean
+  has_data?: boolean
+  metrics?: Record<string, unknown>
 }
 
 export interface MapSceneHud {
@@ -124,6 +130,19 @@ export interface MapActionEvent {
   focus?: { lon: number; lat: number } | null
   highlight_turn?: { dir: string; turn: string; label?: string; saturation?: number | null }
   suggestion?: Record<string, unknown>
+  focus_inter_id?: string
+  intersections?: Array<Record<string, unknown>>
+  top3_inter_ids?: string[]
+  time_period?: { label?: string; name?: string }
+  corridor?: {
+    line_id?: string
+    line_name?: string
+    bounds?: { sw: [number, number]; ne: [number, number] }
+    polyline?: Array<[number, number]>
+    line_paths?: Array<{ link_id?: string; seq_no?: number; path: Array<[number, number]> }>
+    envelope_style?: string
+  }
+  camera?: { center: [number, number]; zoom: number }
 }
 
 export interface NarrationCard {

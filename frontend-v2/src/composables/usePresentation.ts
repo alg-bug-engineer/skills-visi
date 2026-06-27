@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 import type { FlowTimingGovernance, ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
 import type { CognitionPayload, MapSceneHud } from '../types/map'
+import type { CorridorIntersectionItem } from '../types/corridor'
 import type { DataInsight, DataInsightMetric, InsightCardEntry } from '../types/insight'
 import { STEP_INDICES } from '../constants'
 import {
@@ -73,6 +74,7 @@ export function usePresentation() {
     state.hud = null
     state.runtimeMetrics = null
     state.highlightTurn = null
+    state.corridorScan = null
     state.focusedDirs = []
     state.protectedDirs = []
     state.revealedInsightSteps = {
@@ -90,6 +92,7 @@ export function usePresentation() {
     clearInsights()
     state.phase = 'idle'
     state.cognition = null
+    state.corridorScan = null
     state.highlightDirs = []
     state.timingRingMiniOpen = false
     state.timingRingMiniDismissed = false
@@ -331,6 +334,32 @@ export function usePresentation() {
     }
   }
 
+  function setCorridorScan(payload: {
+    lineName: string
+    timePeriodLabel: string
+    intersections: CorridorIntersectionItem[]
+    focusInterId?: string | null
+  }) {
+    const focus = payload.focusInterId ?? null
+    state.corridorScan = {
+      lineName: payload.lineName,
+      timePeriodLabel: payload.timePeriodLabel,
+      intersections: payload.intersections,
+      focusInterId: focus,
+      selectedInterId: focus,
+    }
+    state.phase = 'corridor_scan'
+  }
+
+  function selectCorridorIntersection(interId: string) {
+    if (!state.corridorScan) return
+    state.corridorScan.selectedInterId = interId
+  }
+
+  function clearCorridorScan() {
+    state.corridorScan = null
+  }
+
   return {
     state,
     clearInsights,
@@ -360,6 +389,9 @@ export function usePresentation() {
     closeCorridorWaveMini,
     toggleCorridorWaveMini,
     toggleProcessPanel,
+    setCorridorScan,
+    selectCorridorIntersection,
+    clearCorridorScan,
   }
 }
 

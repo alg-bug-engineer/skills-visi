@@ -14,7 +14,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "simpleeval>=1.0.0",
     "python-dotenv>=1.0.1",
-    "aliyun-python-sdk-core>=2.15.1",
+    "dashscope>=1.25.11",
 ]
 
 [project.optional-dependencies]

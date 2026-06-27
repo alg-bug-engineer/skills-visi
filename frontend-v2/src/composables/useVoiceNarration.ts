@@ -1,6 +1,7 @@
 import { ref, shallowRef } from 'vue'
 import type { VoiceCue } from '../types/voice'
-import { synthesizeVoice } from '../services/ttsClient'
+import { PcmStreamPlayer } from '../services/pcmStreamPlayer'
+import { streamVoicePcm, synthesizeVoiceWav } from '../services/ttsClient'
 
 const STORAGE_KEY = 'voice-narration-enabled'
 
@@ -8,10 +9,10 @@ export function useVoiceNarration() {
   const enabled = ref(localStorage.getItem(STORAGE_KEY) === '1')
   const playing = ref(false)
   const queue = shallowRef<VoiceCue[]>([])
-  let audio: HTMLAudioElement | null = null
-  let prefetchBlob: Blob | null = null
-  let prefetchCueId: string | null = null
+  let pcmPlayer: PcmStreamPlayer | null = null
+  let fallbackAudio: HTMLAudioElement | null = null
   let sessionEpoch = 0
+  let abortController: AbortController | null = null
 
   function setEnabled(value: boolean) {
     enabled.value = value
@@ -26,12 +27,14 @@ export function useVoiceNarration() {
   function interrupt() {
     sessionEpoch += 1
     queue.value = []
-    prefetchBlob = null
-    prefetchCueId = null
-    if (audio) {
-      audio.pause()
-      audio.src = ''
-      audio = null
+    abortController?.abort()
+    abortController = null
+    pcmPlayer?.close()
+    pcmPlayer = null
+    if (fallbackAudio) {
+      fallbackAudio.pause()
+      fallbackAudio.src = ''
+      fallbackAudio = null
     }
     playing.value = false
   }
@@ -45,14 +48,10 @@ export function useVoiceNarration() {
     items.push(cue)
 
     if (cue.priority >= 2 && playing.value) {
-      if (audio) {
-        audio.pause()
-        audio.src = ''
-        audio = null
-      }
+      abortController?.abort()
+      pcmPlayer?.close()
+      pcmPlayer = null
       playing.value = false
-      prefetchBlob = null
-      prefetchCueId = null
       queue.value = [cue, ...items.filter((item) => item.id !== cue.id)]
     } else {
       queue.value = items
@@ -61,49 +60,56 @@ export function useVoiceNarration() {
     void drain()
   }
 
-  async function prefetchNext(next: VoiceCue, epoch: number) {
-    if (prefetchCueId === next.id && prefetchBlob) return
+  async function playCueStream(cue: VoiceCue, epoch: number) {
+    playing.value = true
+    abortController = new AbortController()
+    pcmPlayer = new PcmStreamPlayer()
     try {
-      const blob = await synthesizeVoice(next.text, next.id)
+      await streamVoicePcm(
+        cue.text,
+        (chunk, meta) => {
+          if (epoch !== sessionEpoch) return
+          void pcmPlayer?.ensureContext(meta.sampleRate).then(() => {
+            pcmPlayer?.scheduleChunk(chunk, meta)
+          })
+        },
+        cue.id,
+        abortController.signal,
+      )
       if (epoch !== sessionEpoch) return
-      prefetchBlob = blob
-      prefetchCueId = next.id
+      await pcmPlayer.drain()
     } catch {
-      prefetchBlob = null
-      prefetchCueId = null
+      if (epoch !== sessionEpoch) return
+      await playCueWavFallback(cue, epoch)
+    } finally {
+      if (epoch === sessionEpoch) {
+        pcmPlayer?.close()
+        pcmPlayer = null
+        abortController = null
+        playing.value = false
+      }
     }
   }
 
-  async function playCue(cue: VoiceCue, epoch: number) {
-    playing.value = true
+  async function playCueWavFallback(cue: VoiceCue, epoch: number) {
     try {
-      let blob: Blob
-      if (prefetchCueId === cue.id && prefetchBlob) {
-        blob = prefetchBlob
-        prefetchBlob = null
-        prefetchCueId = null
-      } else {
-        blob = await synthesizeVoice(cue.text, cue.id)
-      }
+      const blob = await synthesizeVoiceWav(cue.text, cue.id)
       if (epoch !== sessionEpoch) return
-
       await new Promise<void>((resolve, reject) => {
         const url = URL.createObjectURL(blob)
-        audio = new Audio(url)
-        audio.onended = () => {
+        fallbackAudio = new Audio(url)
+        fallbackAudio.onended = () => {
           URL.revokeObjectURL(url)
           resolve()
         }
-        audio.onerror = () => {
+        fallbackAudio.onerror = () => {
           URL.revokeObjectURL(url)
           reject(new Error('audio playback failed'))
         }
-        void audio.play().catch(reject)
+        void fallbackAudio.play().catch(reject)
       })
     } catch {
       /* silent degrade */
-    } finally {
-      if (epoch === sessionEpoch) playing.value = false
     }
   }
 
@@ -112,8 +118,7 @@ export function useVoiceNarration() {
     while (enabled.value && epoch === sessionEpoch && queue.value.length > 0) {
       const [current, ...rest] = queue.value
       queue.value = rest
-      if (rest[0]) void prefetchNext(rest[0], epoch)
-      await playCue(current, epoch)
+      await playCueStream(current, epoch)
     }
   }
 

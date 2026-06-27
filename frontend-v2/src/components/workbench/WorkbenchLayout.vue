@@ -7,6 +7,7 @@ import type { MapActionEvent } from '../../types/map'
 import InsightStack from '../insight/InsightStack.vue'
 import InputDock from '../InputDock.vue'
 import MapStage from '../MapStage.vue'
+import CorridorScanSidebar from '../corridor/CorridorScanSidebar.vue'
 import VoiceToggle from '../VoiceToggle.vue'
 import UnderstandingProcessPanel, {
   type ConversationTurn,
@@ -58,6 +59,7 @@ const emit = defineEmits<{
   channelizationActive: [active: boolean]
   selectSkillFile: [path: string]
   skillBuildFinish: []
+  corridorSelect: [interId: string]
 }>()
 
 const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
@@ -67,6 +69,12 @@ defineExpose({ mapStageRef })
 const showTimingMini = computed(() =>
   shouldShowTimingRingMini(props.presentation.phase, props.presentation),
 )
+
+const showCorridorSidebar = computed(
+  () => props.presentation.phase === 'corridor_scan' && Boolean(props.presentation.corridorScan),
+)
+
+const corridorPanOffsetX = computed(() => (showCorridorSidebar.value ? 90 : -120))
 
 const showCorridorMini = computed(() =>
   shouldShowCorridorWaveMini(props.presentation.phase, props.presentation),
@@ -105,8 +113,16 @@ const insightFloatStyle = computed(() => {
       class="workbench-grid"
       :class="{
         'process-collapsed': presentation.processCollapsed,
+        'corridor-active': showCorridorSidebar,
       }"
     >
+      <CorridorScanSidebar
+        v-if="showCorridorSidebar && presentation.corridorScan"
+        class="corridor-column"
+        :corridor="presentation.corridorScan"
+        @select="emit('corridorSelect', $event)"
+      />
+
       <main class="stage-column">
         <div class="stage-toolbar">
           <span class="stage-label">路口 GIS</span>
@@ -161,12 +177,15 @@ const insightFloatStyle = computed(() => {
             :corridor-wave-visible="showCorridorMini"
             :show-evidence-note="presentation.revealedInsightSteps.evidence"
             :show-governance-note="presentation.revealedInsightSteps.suggestionNote"
-      :governance="presentation.flowTimingGovernance"
-      :governance-suggestion="presentation.governanceSuggestion"
-      :analysis-run-key="analysisRunKey"
-      @channelization-active="emit('channelizationActive', $event)"
+            :governance="presentation.flowTimingGovernance"
+            :governance-suggestion="presentation.governanceSuggestion"
+            :analysis-run-key="analysisRunKey"
+            :corridor-selected-inter-id="presentation.corridorScan?.selectedInterId ?? null"
+            :visual-pan-offset-x="corridorPanOffsetX"
+            @channelization-active="emit('channelizationActive', $event)"
             @close-timing-ring="emit('closeTimingRing')"
             @close-corridor-wave="emit('closeCorridorWave')"
+            @corridor-intersection-select="emit('corridorSelect', $event)"
           />
 
           <InsightStack
@@ -260,6 +279,20 @@ const insightFloatStyle = computed(() => {
   min-height: 0;
   display: grid;
   grid-template-columns: 1fr minmax(300px, 360px);
+}
+
+.workbench-grid.corridor-active {
+  grid-template-columns: minmax(240px, 280px) 1fr minmax(300px, 360px);
+}
+
+.workbench-grid.corridor-active.process-collapsed {
+  grid-template-columns: minmax(240px, 280px) 1fr;
+}
+
+.corridor-column {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .workbench-grid.process-collapsed {

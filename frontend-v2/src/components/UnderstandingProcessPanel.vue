@@ -39,6 +39,7 @@ const doneStepCount = computed(() => props.steps.filter((s) => s.status === 'don
 
 const missingFieldLabels: Record<string, string> = {
   intersection: '路口',
+  corridor: '干线',
   time_period: '时段',
   problem_type: '问题类型',
   directions: '方向',

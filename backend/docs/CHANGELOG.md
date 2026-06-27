@@ -1,5 +1,29 @@
 # 变更日志
 
+## 干线扫描与路口发现 + 意图 LLM 分类 (2026-06-29)
+
+### 干线扫描（Corridor Scan）
+
+- 新增首轮分支：**干线扫描** vs **单点路口诊断**；扫描三要素（干线、时段、拥堵），缺时段追问、不问具体路口名。
+- 会话态：`corridor_nlu_incomplete` → `awaiting_corridor_pick` → 选型后接单点 NLU（只追问方向）。
+- 后端：`LineResolver`、`CorridorScanService`（PG 批量排名）、`CorridorNarrativeService`、`build_corridor_scan_scene`。
+- 路网可视化：按路口顺序链化 link 几何（`corridor_geometry`），单条 polyline + 路口 snap；修复「多条平行直线」问题。
+- 选型：`corridor_pick_resolver` 支持排名口语、「奥体西与经十路」等简称；前端列表/地图点击自动提交路口名。
+- 前端：`CorridorScanSidebar`、MapStage 沿路高亮与下钻、三栏布局。
+
+### 意图识别
+
+- 首轮 **LLM 二分类**（`IntentClassifierService`）+ **规则兜底**（`intent_router`）；`enable_thinking=False`、短 prompt、无重试。
+- 规则扩展：支持「路口有哪些」倒装、经常拥堵、哪里堵等表述。
+
+### 语音（feature/tts）
+
+- TTS 迁移至 Qwen-TTS Realtime；移除阿里云 ISI 实现；关键点引导式播报。
+
+- 后端单测 **118** 项。
+
+详见 `docs/plans/2026-06-27-干线扫描与路口发现.md`。
+
 ## 经验吸收可视化 v2 (2026-06-28)
 
 - 用户确认固化后，由 `InterleavedSkillPersistVisualizer` 统一编排 **L3 交错**：`skill_absorption` 头脑阶段 → `write_phase_start` → 每文件右栏联动行 ∥ 左抽屉 `skill_build` 打字 → `drawer_close`。

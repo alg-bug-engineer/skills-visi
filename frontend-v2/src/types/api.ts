@@ -1,7 +1,7 @@
 import type { ProblemEvidence, QuantitativeConstraints } from './evidence'
 
 export interface ReplyPayload {
-  type: 'follow_up' | 'diagnosis' | 'skill_created' | 'skill_updated' | 'text' | 'error'
+  type: 'follow_up' | 'diagnosis' | 'skill_created' | 'skill_updated' | 'text' | 'error' | 'corridor_scan'
   content: string
 }
 
