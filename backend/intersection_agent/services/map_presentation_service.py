@@ -127,7 +127,7 @@ def build_narration_steps(
                 "title": "多粒度画像",
                 "text": (
                     f"转向级：{top_turn.get('label')} 饱和度 "
-                    f"{float(top_turn.get('turn_saturation') or 0):.0%}；"
+                    f"{float(top_turn.get('turn_saturation') or 0):.2f}；"
                     f"进口级：{len(gran.get('by_approach') or [])} 条进口道已纳入评价"
                 ),
             }
@@ -179,6 +179,7 @@ def build_narration_steps(
                 if saturation is not None
                 else "饱和度数据待补充。"
             ),
+            "metrics": {"saturation": saturation},
         }
     )
 
@@ -508,7 +509,7 @@ def build_map_scene(
     }
 
     if phase == "traffic":
-        sat_text = f"{float(saturation):.0%}" if saturation is not None else "—"
+        sat_text = f"{float(saturation):.2f}" if saturation is not None else "—"
         delay_text = f"{float(delay):.2f}" if delay is not None else "—"
         time_label = ""
         if nlu and nlu.time_period:

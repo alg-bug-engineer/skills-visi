@@ -117,7 +117,7 @@ export function buildArmMetricMarkers(cognition: CognitionPayload | null): MapSc
       kind: 'metric',
       variant: 'saturation',
       title: `${dir}进口`,
-      value: `${(sat * 100).toFixed(0)}%`,
+      value: sat.toFixed(2),
       subtitle: '饱和度',
       severity,
       dir,

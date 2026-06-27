@@ -313,7 +313,7 @@ class ProblemEvidenceService:
                 "window_days": window_days,
                 "rate": None,
                 "congested_dates": [],
-                "verdict": f"DWS 周模式显示该时段饱和度 {sat_max:.0%} 持续偏高（无日历明细）",
+                "verdict": f"DWS 周模式显示该时段饱和度 {sat_max:.2f} 持续偏高（无日历明细）",
                 "method": "dws_pattern_estimate",
             }
 
@@ -519,7 +519,7 @@ class ProblemEvidenceService:
         queue = metrics.get("avg_queue_m")
         metric_bits: list[str] = []
         if sat is not None:
-            metric_bits.append(f"饱和度 {float(sat):.0%}")
+            metric_bits.append(f"饱和度 {float(sat):.2f}")
         if delay is not None:
             metric_bits.append(f"平均停车 {delay}s")
         if queue is not None:
@@ -561,7 +561,7 @@ class ProblemEvidenceService:
         metrics = evidence.get("metrics") or {}
         metric_bits: list[str] = []
         if metrics.get("saturation_rate") is not None:
-            metric_bits.append(f"饱和度 {float(metrics['saturation_rate']):.0%}")
+            metric_bits.append(f"饱和度 {float(metrics['saturation_rate']):.2f}")
         if metrics.get("level_of_service_label"):
             metric_bits.append(f"服务水平 {metrics['level_of_service_label']}")
         if metric_bits:
@@ -582,7 +582,7 @@ class ProblemEvidenceService:
                     "title": "转向画像",
                     "text": (
                         f"最繁忙 {top.get('label')} 饱和度 "
-                        f"{float(top.get('turn_saturation') or 0):.0%}，"
+                        f"{float(top.get('turn_saturation') or 0):.2f}，"
                         f"绿灯利用率 {float(top.get('green_utilization') or 0):.0%}"
                     ),
                 }
@@ -700,7 +700,7 @@ class ProblemEvidenceService:
             "summary": (
                 f"近7日中5日该时段运行指标超标，属常发性拥堵；"
                 f"{dow_label(target_dow)}该时段指标超标；"
-                f"关注方向 {'、'.join(nlu.directions) or '南北向'}：饱和度 {sat:.0%}，平均排队约 96m"
+                f"关注方向 {'、'.join(nlu.directions) or '南北向'}：饱和度 {sat:.2f}，平均排队约 96m"
             ),
             "query_trace": [],
         }

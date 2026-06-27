@@ -3,6 +3,7 @@ import { ANALYSIS_STEP_LABELS, STEP_INDICES, THRESHOLDS } from '../constants'
 import {
   constraintProgress,
   formatPercent,
+  formatSaturation,
   highlightDirsForGroup,
   metricLabel,
   sourceTierLabel,
@@ -25,6 +26,12 @@ describe('evidencePresentation', () => {
   it('formats percent values', () => {
     expect(formatPercent(0.92)).toBe('92%')
     expect(formatPercent(null)).toBe('—')
+  })
+
+  it('formats saturation as decimal ratio', () => {
+    expect(formatSaturation(0.92)).toBe('0.92')
+    expect(formatSaturation(1.5)).toBe('1.50')
+    expect(formatSaturation(null)).toBe('—')
   })
 
   it('maps metric labels', () => {

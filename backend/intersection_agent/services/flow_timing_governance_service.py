@@ -147,7 +147,7 @@ def _detect_problems(
                 [
                     _line(
                         saturation_rate is not None,
-                        f"路口饱和度 {saturation_rate:.0%}" if saturation_rate is not None else "",
+                        f"路口饱和度 {saturation_rate:.2f}" if saturation_rate is not None else "",
                     ),
                     _line(
                         lane_sat_max is not None,

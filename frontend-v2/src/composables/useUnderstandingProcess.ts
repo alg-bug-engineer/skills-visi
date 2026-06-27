@@ -13,6 +13,8 @@ export interface ProcessStepState {
 const CHAR_MS = 22
 
 export interface UnderstandingProcessOptions {
+  /** 某一步首次出现在理解过程面板、开始展示时触发（与语音旁白对齐） */
+  onStepStart?: (index: number) => void
   /** 某一步打字动画结束（本轮）时触发 */
   onStepComplete?: (index: number) => void
 }
@@ -134,6 +136,7 @@ export function useUnderstandingProcess(options: UnderstandingProcessOptions = {
       }
       steps.value.push(step)
       sortSteps()
+      options.onStepStart?.(index)
     }
 
     clearTimers()

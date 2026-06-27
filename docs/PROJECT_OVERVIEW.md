@@ -1,6 +1,6 @@
 # 项目总览 · 路口问题诊断以及固化技能
 
-> 版本：2026-06-29  
+> 版本：2026-06-27  
 > 本文档汇总开发内容、计划进度、主要变更与部署方式，作为根仓库的权威索引。
 
 ---
@@ -60,6 +60,8 @@
 | 经验吸收演示 | 2026-06-28 | `skill_absorption` SSE、三层 tags、L3 交错落盘、`InterleavedSkillPersistVisualizer` |
 | **干线扫描** | **2026-06-29** | 道路级拥堵发现、地图沿路高亮、Top3 引导、选型接单点诊断；意图 LLM+规则 |
 | **语音播报 v2** | **2026-06-29** | Qwen-TTS Realtime PCM 流式播报（替代阿里云 ISI） |
+| **语音步骤同步** | **2026-06-27** | `voice_narration.json` 外置文案 + 理解过程 `onStepStart` 对齐 |
+| **饱和度口径** | **2026-06-27** | 全链路小数展示（0.92）；约束 delta 裁剪顺序修复 |
 
 ### 3.2 前端 v2 能力演进
 
@@ -70,6 +72,8 @@
 | v2.0.2 | 2026-06-25 | 三栏布局（GIS \| 推理证据 \| 理解过程），证据卡与步骤同步 |
 | 渠化增强 | 2026-06-26 | ChannelizationCanvas3D、指标条、失衡横幅、配时环 |
 | 经验吸收 v2 | 2026-06-28 | 右栏 `ExperienceAbsorptionPanel` + 左 `SkillBuildDrawer` 同框 L3 交错 |
+| 语音步骤同步 | 2026-06-27 | `voice_narration.json` + `voiceStepSync` + PCM drain 改进 |
+| 饱和度小数 | 2026-06-27 | `formatSaturation` 统一证据卡/地图/渠化/语音 |
 
 ### 3.3 文档与技能包
 
@@ -126,6 +130,9 @@
 | 2026-06-28 | frontend-v2 `ExperienceAbsorptionPanel` + `SkillBuildDrawer`（替代全屏 overlay） |
 | 2026-06-29 | **干线扫描**：`corridor_scan` 流水线、意图 LLM 二分类+规则兜底、路网链化可视化 |
 | 2026-06-29 | **语音 v2**：Qwen-TTS Realtime；选型口语匹配「奥体西与经十路」 |
+| 2026-06-27 | **语音步骤同步**：`voice_narration.json` + `onStepStart` 旁白与理解过程对齐 |
+| 2026-06-27 | **饱和度口径**：前后端统一小数；约束「不能超过 N 秒」解析扩展 |
+| 2026-06-27 | **交互修复**：暂不固化不误开新分析；delta 裁剪写入建议 narrative |
 
 ---
 
@@ -197,10 +204,10 @@ bash scripts/dev.sh       # v1 前端 5567（需 frontend/ 独立仓库）
 
 ```bash
 # 后端单测（需 Python 3.11+，推荐 backend/.venv）
-cd backend && MOCK_LLM=1 MOCK_DB=1 .venv/bin/pytest -q   # 89 项
+cd backend && MOCK_LLM=1 MOCK_DB=1 .venv/bin/pytest -q   # 119 项
 
 # 前端单测
-cd frontend-v2 && npm run test
+cd frontend-v2 && npm run test   # 24 项
 
 # 联调冒烟
 bash scripts/e2e-v2.sh

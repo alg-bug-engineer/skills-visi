@@ -57,3 +57,10 @@ def test_max_delta_constraint():
     result = svc.resolve("绿灯延长不超过8秒", nlu_directions=["南北向"])
     assert result is not None
     assert any(c["metric"] == "delta_seconds" and c["value"] == 8 for c in result["constraints"])
+
+
+def test_max_delta_constraint_cannot_exceed_wording():
+    svc = ConstraintResolverService()
+    result = svc.resolve("绿灯增加时间不能超过5秒", nlu_directions=["南北向"])
+    assert result is not None
+    assert any(c["metric"] == "delta_seconds" and c["value"] == 5 for c in result["constraints"])

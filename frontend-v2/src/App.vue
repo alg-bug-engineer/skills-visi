@@ -18,13 +18,8 @@ import { AnalysisQueue } from './utils/analysisQueue'
 import { highlightDirsForGroup } from './utils/evidencePresentation'
 import { parseHighlightTurn } from './utils/cognitionChannelAdapter'
 import { buildEvidenceListItems } from './utils/channelizationCopy'
-import {
-  buildEvidenceVoiceCue,
-  buildImbalanceCue,
-  buildRuleCue,
-  buildSaturationCue,
-} from './services/voiceCueExtractors'
-import { VOICE_GUIDE, voiceSuggestion } from './services/voiceCueTemplates'
+import { VOICE_GUIDE } from './services/voiceCueTemplates'
+import { processStepPhase, resolveProcessStepVoice } from './services/voiceStepSync'
 import { ABSORPTION_STAGE_VOICE } from './types/voice'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
 import type MapStage from './components/MapStage.vue'
@@ -73,6 +68,34 @@ const conversationTurns = ref<ConversationTurn[]>([])
 const missingFields = ref<string[]>([])
 const followUpBubble = ref<string | null>(null)
 
+const voice = useVoiceNarration()
+const lastIntersectionName = ref<string | null>(null)
+const voiceSentForStep = new Set<number>()
+
+function rememberIntersectionName(name: string) {
+  const trimmed = name.trim()
+  if (!trimmed) return
+  lastIntersectionName.value = trimmed
+  handleProcessStepVoice(STEP_INDICES.INTERSECTION)
+}
+
+function handleProcessStepVoice(stepIndex: number) {
+  if (!voice.enabled.value || voiceSentForStep.has(stepIndex)) return
+  const text = resolveProcessStepVoice(stepIndex, {
+    intersectionName: lastIntersectionName.value,
+  })
+  if (!text) return
+  voiceSentForStep.add(stepIndex)
+  voice.enqueue({
+    id: `step:${stepIndex}:guide`,
+    stepIndex,
+    phase: processStepPhase(stepIndex),
+    kind: 'guide',
+    text,
+    priority: 0,
+  })
+}
+
 const {
   steps: processSteps,
   enqueue: enqueueProcess,
@@ -80,6 +103,9 @@ const {
   toggleStep,
   whenIdle: whenProcessIdle,
 } = useUnderstandingProcess({
+  onStepStart(stepIndex) {
+    handleProcessStepVoice(stepIndex)
+  },
   onStepComplete(stepIndex) {
     presentation.revealInsightsForProcessStep(stepIndex)
   },
@@ -103,10 +129,6 @@ const {
   applyEvent: applyAbsorptionEvent,
   reset: resetAbsorption,
 } = useExperienceAbsorption()
-
-const voice = useVoiceNarration()
-let cognitionVoiceSent = false
-let dataFetchDetailVoiceSent = false
 
 /** 渠化全屏或技能固化/经验吸收演示时隐藏输入框，避免遮挡左侧终端 */
 const hideInputDock = computed(
@@ -555,14 +577,6 @@ function beginAnalysisFlow(userContent: string) {
       : `用户描述：${userContent}`
   conversationTurns.value = []
   enqueueProcess(STEP_INDICES.UNDERSTAND, intro)
-  voice.enqueue({
-    id: 'step:0:understand',
-    stepIndex: STEP_INDICES.UNDERSTAND,
-    phase: 'understand',
-    kind: 'guide',
-    text: VOICE_GUIDE.understand,
-    priority: 0,
-  })
 }
 
 function prepareNewAnalysisRun(userContent: string) {
@@ -574,8 +588,8 @@ function prepareNewAnalysisRun(userContent: string) {
   mapActions.value = []
   pendingNarration = null
   analysisRunKey.value += 1
-  cognitionVoiceSent = false
-  dataFetchDetailVoiceSent = false
+  lastIntersectionName.value = null
+  voiceSentForStep.clear()
   voice.resetSession()
   void workbenchRef.value?.mapStageRef?.prepareNewAnalysisRun()
   lastUserContent = userContent
@@ -610,20 +624,6 @@ function handleNarration(action: MapActionEvent) {
   const text = action.text ?? ''
   if (!text) return
 
-  if (action.phase === 'links' || action.phase === 'channelization' || action.phase === 'locate') {
-    if (!cognitionVoiceSent) {
-      cognitionVoiceSent = true
-      voice.enqueue({
-        id: 'step:2:cognition',
-        stepIndex: STEP_INDICES.COGNITION,
-        phase: 'cognition',
-        kind: 'guide',
-        text: VOICE_GUIDE.cognition,
-        priority: 0,
-      })
-    }
-  }
-
   if (action.phase === 'links' || action.phase === 'channelization') {
     enqueueProcess(STEP_INDICES.COGNITION, text)
     return
@@ -640,24 +640,6 @@ function handleNarration(action: MapActionEvent) {
   ) {
     const prefix = action.title ? `${action.title}：` : ''
     enqueueProcess(STEP_INDICES.DATA_FETCH, `${prefix}${text}`, true)
-    if (action.phase === 'saturation') {
-      const metrics = action.metrics as { saturation?: number } | undefined
-      const cue = buildSaturationCue(metrics?.saturation ?? null)
-      if (cue) {
-        dataFetchDetailVoiceSent = true
-        voice.enqueue(cue)
-      }
-    }
-    if (action.phase === 'imbalance') {
-      const metrics = action.metrics as
-        | { imbalance_index?: number; green_utilization?: number }
-        | undefined
-      const cue = buildImbalanceCue(metrics?.imbalance_index ?? null, metrics?.green_utilization ?? null)
-      if (cue) {
-        dataFetchDetailVoiceSent = true
-        voice.enqueue(cue)
-      }
-    }
     return
   }
   if (action.phase === 'rule') {
@@ -669,15 +651,6 @@ function handleNarration(action: MapActionEvent) {
     presentation.setPhase('conclusion')
     patchSuggestionPayload(action.suggestion)
     enqueueProcess(STEP_INDICES.SUGGESTION, text)
-    const sug = action.suggestion as { direction?: string; delta_seconds?: number } | undefined
-    voice.enqueue({
-      id: 'step:6:suggestion',
-      stepIndex: STEP_INDICES.SUGGESTION,
-      phase: 'conclusion',
-      kind: 'highlight',
-      text: voiceSuggestion(sug?.direction, sug?.delta_seconds),
-      priority: 1,
-    })
     return
   }
   if (action.phase === 'locate') {
@@ -734,6 +707,7 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
     if (action.action === 'fly_to_intersection') {
       const inter = action.intersection
       if (inter?.name) {
+        rememberIntersectionName(inter.name)
         enqueueProcess(STEP_INDICES.INTERSECTION, `已定位路口：${inter.name}`, true, true)
       }
       presentation.setPhase('locate')
@@ -762,7 +736,7 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
           const n = Number(sat)
           metrics.push({
             label: '饱和度',
-            value: `${(n * 100).toFixed(0)}%`,
+            value: `${Number(sat).toFixed(2)}`,
             severity: n >= 0.8 ? 'high' : n >= 0.65 ? 'medium' : 'low',
           })
         }
@@ -862,7 +836,6 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
 
 function handleProblemEvidenceStep(data: Record<string, unknown>) {
   const text = formatEvidenceStepText(data)
-  voice.enqueue(buildEvidenceVoiceCue(data))
   analysisQueue.enqueue(async () => {
     enqueueProcess(STEP_INDICES.PROBLEM_EVIDENCE, text)
 
@@ -930,17 +903,10 @@ function handlePipelineStep(
   }
 
   if (event.step === 'intersection' && data.inter_name) {
+    rememberIntersectionName(String(data.inter_name))
     analysisQueue.enqueue(async () => {
       enqueueProcess(STEP_INDICES.INTERSECTION, `路口匹配：${data.inter_name}`, true, true)
     }, STEP_PAUSE_MS)
-    voice.enqueue({
-      id: 'step:1:intersection',
-      stepIndex: STEP_INDICES.INTERSECTION,
-      phase: 'intersection',
-      kind: 'guide',
-      text: VOICE_GUIDE.intersection(String(data.inter_name)),
-      priority: 0,
-    })
   }
 
   if (event.step === 'problem_evidence') {
@@ -949,17 +915,6 @@ function handlePipelineStep(
   }
 
   if (event.step === 'data_fetch') {
-    if (!dataFetchDetailVoiceSent) {
-      voice.enqueue({
-        id: 'step:3:data_fetch',
-        stepIndex: STEP_INDICES.DATA_FETCH,
-        phase: 'data_fetch',
-        kind: 'guide',
-        text: VOICE_GUIDE.dataFetch,
-        priority: 0,
-      })
-    }
-    dataFetchDetailVoiceSent = false
     const partial = data as {
       timing_profile?: ProblemEvidence['timing_profile']
       corridor_context?: ProblemEvidence['corridor_context']
@@ -1006,17 +961,6 @@ function handlePipelineStep(
         )
       }, STEP_PAUSE_MS)
     }
-    const ruleCue =
-      buildRuleCue(data) ??
-      ({
-        id: 'step:5:rule:intro',
-        stepIndex: STEP_INDICES.RULE,
-        phase: 'rule',
-        kind: 'guide' as const,
-        text: VOICE_GUIDE.ruleIntro,
-        priority: 0,
-      })
-    voice.enqueue(ruleCue)
     return
   }
 
@@ -1046,6 +990,8 @@ async function initSession() {
   mapActions.value = []
   pendingNarration = null
   suggestionConfirmQueued = false
+  lastIntersectionName.value = null
+  voiceSentForStep.clear()
   panelMode.value = 'idle'
   sessionState.value = 'idle'
   conversationTurns.value = []
@@ -1072,6 +1018,7 @@ async function handleSend(content: string) {
     sessionState.value === 'corridor_nlu_incomplete' ||
     sessionState.value === 'awaiting_corridor_pick'
   const wasSuggestionConfirm = awaitingSuggestionConfirm.value
+  const isSkillConfirmReply = sessionState.value === 'awaiting_confirm'
   if (wasSuggestionConfirm) {
     stopSuggestionConfirmPause()
   } else {
@@ -1093,7 +1040,7 @@ async function handleSend(content: string) {
     pendingNarration = null
   } else if (panelMode.value !== 'analysis' || isContinuation) {
     conversationTurns.value.push({ role: 'user', content })
-  } else if (panelMode.value === 'analysis') {
+  } else if (panelMode.value === 'analysis' && !isSkillConfirmReply) {
     prepareNewAnalysisRun(content)
     docked.value = true
     enqueueProcess(STEP_INDICES.UNDERSTAND, `用户描述：${content}`)
@@ -1181,6 +1128,13 @@ async function handleSend(content: string) {
           } else if (result.state !== 'awaiting_confirm') {
             inputLocked.value = false
           }
+
+          const skillAction = result.meta?.skill_action as string | undefined
+          if (skillAction === 'declined_create' || skillAction === 'declined_update') {
+            panelLayout.value = 'single'
+            resetAbsorption()
+            void initSession()
+          }
         },
         onError: (message, detail) => {
           errorBanner.value = detail ? `${message}: ${detail}` : message
@@ -1230,12 +1184,11 @@ function onSkillBuildFinish() {
   }, 650)
 }
 
-function onDeny() {
+async function onDeny() {
   showConfirm.value = false
   pendingConfirm.value = false
-  analysisQueue.resume()
-  enqueueProcess(STEP_INDICES.SKILL, '用户选择暂不固化，本次诊断结束。', true)
-  handleSend('否')
+  analysisQueue.reset()
+  await handleSend('否')
 }
 
 onMounted(async () => {

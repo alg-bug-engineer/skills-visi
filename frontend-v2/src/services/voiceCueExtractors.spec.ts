@@ -1,18 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { buildEvidenceVoiceCue, buildImbalanceCue, buildSaturationCue } from './voiceCueExtractors'
+import { buildEvidenceIntroCue, buildImbalanceCue, buildSaturationCue } from './voiceCueExtractors'
+import { voiceConfig } from './voiceConfig'
 
 describe('voiceCueExtractors', () => {
-  it('prefers chronic highlight for evidence', () => {
-    const cue = buildEvidenceVoiceCue({
-      chronic: { is_chronic: true, congested_days: 5, window_days: 7 },
-    })
-    expect(cue.text).toContain('5 天常发拥堵')
-    expect(cue.kind).toBe('highlight')
+  it('uses stage guide for evidence intro', () => {
+    const cue = buildEvidenceIntroCue()
+    expect(cue.text).toBe(voiceConfig.guide.evidenceIntro)
+    expect(cue.stepIndex).toBe(4)
   })
 
-  it('builds saturation cue', () => {
+  it('builds saturation template cue', () => {
     const cue = buildSaturationCue(0.88)
-    expect(cue?.text).toContain('百分之88')
+    expect(cue?.text).toContain('0.88')
     expect(cue?.text).toContain('过饱和')
   })
 

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import type { ProblemEvidence } from '../../types/evidence'
 import { THRESHOLDS } from '../../constants'
-import { formatPercent, sourceTierLabel } from '../../utils/evidencePresentation'
+import { formatSaturation, sourceTierLabel } from '../../utils/evidencePresentation'
 
 const props = defineProps<{
   evidence: ProblemEvidence
@@ -73,7 +73,7 @@ const dowRate = computed(() => {
             high: (evidence.metrics.saturation_rate ?? 0) >= THRESHOLDS.saturationHigh,
           }"
         >
-          {{ formatPercent(evidence.metrics.saturation_rate) }}
+          {{ formatSaturation(evidence.metrics.saturation_rate) }}
         </span>
       </div>
       <div class="m-item">
@@ -89,7 +89,7 @@ const dowRate = computed(() => {
     <ul v-if="evidence.by_direction?.length" class="dirs">
       <li v-for="row in evidence.by_direction" :key="row.group" :class="{ focused: row.focused }">
         <span>{{ row.group }}<em v-if="row.focused">关注</em></span>
-        <span>{{ formatPercent(row.saturation) }} · {{ row.avg_queue_m?.toFixed(0) ?? '—' }}m</span>
+        <span>{{ formatSaturation(row.saturation) }} · {{ row.avg_queue_m?.toFixed(0) ?? '—' }}m</span>
       </li>
     </ul>
   </div>

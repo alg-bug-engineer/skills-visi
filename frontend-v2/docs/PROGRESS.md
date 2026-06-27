@@ -1,5 +1,30 @@
 # frontend-v2 进度记录
 
+## v2.0.4（2026-06-27）— 语音步骤同步 + 饱和度口径
+
+### 已完成
+
+- [x] 语音文案外置 `src/config/voice_narration.json`，`voiceConfig.ts` 统一加载
+- [x] `voiceStepSync.ts` + `useUnderstandingProcess.onStepStart`：旁白与理解过程步骤首次展示对齐
+- [x] 移除 `App.vue` 分散 `voice.enqueue`；PCM 播放器源追踪 + 可配置 `cueGapMs` / `drainTailMs`
+- [x] 饱和度全链路改为小数（`formatSaturation`）：证据卡、地图 marker、渠化条、语音模板
+- [x] 修复「暂不固化」误触发新分析；`declined_create/update` 后重置会话
+- [x] 单测：`voiceStepSync.spec.ts`、`useUnderstandingProcess.spec.ts`（共 24 项 vitest）
+
+### 已知问题 / 待优化
+
+- [ ] 高优先级 cue 打断默认关闭（`interruptOnHighPriority: false`），可按演示需求调整
+- [ ] Playwright E2E 语音步骤时序断言
+
+### 配置入口
+
+| 文件 | 用途 |
+|------|------|
+| `src/config/voice_narration.json` | 固定引导语、模板、播放参数 |
+| `src/services/voiceStepSync.ts` | 理解过程步骤 ↔ 旁白映射 |
+
+---
+
 ## v2.0.3（2026-06-28）— 经验吸收 + L3 交错落盘
 
 ### 已完成

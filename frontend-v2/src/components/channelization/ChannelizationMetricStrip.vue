@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ChannelQueueArm } from '../../utils/cognitionChannelAdapter'
-import { formatPercent } from '../../utils/evidencePresentation'
+import { formatSaturation } from '../../utils/evidencePresentation'
 import { THRESHOLDS } from '../../constants'
 
 const props = defineProps<{
@@ -16,7 +16,7 @@ const cards = computed(() =>
       queueLabel:
         arm.queueM > 0 ? `排队约 ${Math.round(arm.queueM)}m` : '暂无排队',
       satLabel:
-        satRatio != null ? `饱和度 ${formatPercent(satRatio)}` : '饱和度 —',
+        satRatio != null ? `饱和度 ${formatSaturation(satRatio)}` : '饱和度 —',
       satHigh: satRatio != null && satRatio >= THRESHOLDS.saturationHigh,
     }
   }),

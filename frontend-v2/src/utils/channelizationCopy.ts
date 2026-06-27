@@ -1,6 +1,6 @@
 import type { ProblemEvidence } from '../types/evidence'
 import type { GovernanceSuggestionPayload } from '../types/presentation'
-import { formatPercent } from './evidencePresentation'
+import { formatSaturation } from './evidencePresentation'
 
 function simplifyEvidenceSummary(summary: string): string {
   return summary
@@ -47,9 +47,9 @@ export function buildEvidenceListItems(evidence: ProblemEvidence): string[] {
 
   const sat = evidence.metrics?.saturation_rate
   if (sat != null && sat >= 0.85) {
-    parts.push(`路口整体饱和度 ${formatPercent(sat)}，已过饱和`)
+    parts.push(`路口整体饱和度 ${formatSaturation(sat)}，已过饱和`)
   } else if (sat != null && sat >= 0.65) {
-    parts.push(`路口整体饱和度 ${formatPercent(sat)}，处于偏高`)
+    parts.push(`路口整体饱和度 ${formatSaturation(sat)}，处于偏高`)
   }
 
   if (parts.length) return parts

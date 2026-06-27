@@ -1,5 +1,34 @@
 # 变更日志
 
+## 语音旁白步骤同步 + 饱和度口径 + 约束裁剪 (2026-06-27)
+
+### 语音旁白（frontend-v2）
+
+- 文案外置至 `frontend-v2/src/config/voice_narration.json`，由 `voiceConfig.ts` 加载；固定引导语与模板占位符分离，TTS 仅合成配置文案。
+- 新增 `voiceStepSync.ts`：`useUnderstandingProcess.onStepStart` 驱动步骤旁白，与理解过程面板首次展示对齐；移除 `App.vue` 中分散的 `voice.enqueue`。
+- PCM 播放：`PcmStreamPlayer` 追踪 `AudioBufferSource` 结束事件；`drain` 等待真实播完 + 可配置尾音；队列项间 `cueGapMs` 间隔；单会话复用播放器实例。
+- 认知/数据抓取引导语扩写（渠化、多指标、证据验证说明）。
+
+### 饱和度展示口径
+
+- 前后端统一用小数表示饱和度（如 `0.92`），不再用百分比（`92%`）；前端 `formatSaturation()`，后端 `{:.2f}`。
+- 地图 marker、证据卡、渠化条、语音模板同步调整。
+
+### 约束与治理建议
+
+- 修复 delta 裁剪顺序：先 `evaluate_formula` 得 `raw_delta`，经 `ConstraintResolverService.apply_to_delta` 裁剪后再传入 `SuggestionService`（`delta_override`）。
+- 约束解析扩展口语：「不能超过 N 秒」「N 秒以内/之内」。
+
+### 交互修复
+
+- Skill 固化回复「否」时不再误触发 `prepareNewAnalysisRun`（`awaiting_confirm` 态识别）。
+- `declined_create` / `declined_update` 后重置布局与会话。
+- `onDeny` 改为 async，先 `analysisQueue.reset()` 再提交否定回复。
+
+- 后端单测 **119** 项；前端 vitest **24** 项。
+
+---
+
 ## 干线扫描与路口发现 + 意图 LLM 分类 (2026-06-29)
 
 ### 干线扫描（Corridor Scan）

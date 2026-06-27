@@ -17,7 +17,7 @@ NARRATIVE_PROMPT = """
 - 时段：{time_label}
 - 问题：{conclusion}
 - 建议：{direction_text}绿灯时长 {delta} 秒
-- 数据支撑：饱和度 {saturation:.0%}，延迟指数 {delay_index}，当前绿灯占比 {green_ratio:.0%}
+- 数据支撑：饱和度 {saturation:.2f}，延迟指数 {delay_index}，当前绿灯占比 {green_ratio:.0%}
 - 流量-配时匹配：{flow_timing_match}
 - 四类问题摘要：{focus_problems}
 - 用户约束或建议：{user_suggestion}
@@ -41,11 +41,16 @@ class SuggestionService:
         *,
         user_suggestion: str | None = None,
         quantitative_constraints: dict[str, Any] | None = None,
+        delta_override: int | None = None,
     ) -> SuggestionResult:
         """Build suggestion from matched rule."""
         action = rule["action"]
         formula = action["formula"]
-        delta = evaluate_formula(formula, data)
+        delta = (
+            delta_override
+            if delta_override is not None
+            else evaluate_formula(formula, data)
+        )
         direction = action.get("direction", "increase")
 
         meta = data.get("meta", {})

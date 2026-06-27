@@ -96,7 +96,7 @@ class ConstraintResolverService:
                         "threshold_ref": "saturation.high",
                     }
                 )
-                narratives.append(f"{group}饱和度不超过 {cap_s:.0%}（当前约 {saturation:.0%}）")
+                narratives.append(f"{group}饱和度不超过 {cap_s:.2f}（当前约 {saturation:.2f}）")
 
         max_delta = self._extract_max_delta(text)
         if max_delta is not None:
@@ -215,9 +215,14 @@ class ConstraintResolverService:
 
     @staticmethod
     def _extract_max_delta(text: str) -> int | None:
-        match = re.search(r"(?:不超过|至多|最多)\s*(\d+)\s*秒", text)
-        if match:
-            return int(match.group(1))
+        patterns = (
+            r"(?:不超过|不能(?:超过|超)|不可超过|至多|最多)\s*(\d+)\s*秒",
+            r"(\d+)\s*秒(?:以内|之内|内)",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                return int(match.group(1))
         return None
 
 

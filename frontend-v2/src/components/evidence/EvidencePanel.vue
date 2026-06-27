@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import type { ProblemEvidence } from '../../types/evidence'
 import { THRESHOLDS } from '../../constants'
-import { formatPercent, sourceTierLabel } from '../../utils/evidencePresentation'
+import { formatSaturation, sourceTierLabel } from '../../utils/evidencePresentation'
 
 const props = defineProps<{
   evidence: ProblemEvidence | null
@@ -99,7 +99,7 @@ function severityClass(value: number | null | undefined, high: number): string {
             :class="severityClass(evidence.metrics.saturation_rate, THRESHOLDS.saturationHigh)"
           >
             <span class="label">饱和度</span>
-            <span class="value">{{ formatPercent(evidence.metrics.saturation_rate) }}</span>
+            <span class="value">{{ formatSaturation(evidence.metrics.saturation_rate) }}</span>
           </div>
           <div class="metric-card">
             <span class="label">延误指数</span>
@@ -136,7 +136,7 @@ function severityClass(value: number | null | undefined, high: number): string {
                 {{ row.group }}
                 <span v-if="row.focused" class="focus-tag">关注</span>
               </td>
-              <td>{{ formatPercent(row.saturation) }}</td>
+              <td>{{ formatSaturation(row.saturation) }}</td>
               <td>{{ row.avg_queue_m?.toFixed(0) ?? '—' }}m</td>
             </tr>
           </tbody>

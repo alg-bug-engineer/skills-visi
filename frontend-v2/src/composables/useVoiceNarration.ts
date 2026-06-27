@@ -1,5 +1,6 @@
 import { ref, shallowRef } from 'vue'
 import type { VoiceCue } from '../types/voice'
+import { voiceConfig } from '../services/voiceConfig'
 import { PcmStreamPlayer } from '../services/pcmStreamPlayer'
 import { streamVoicePcm, synthesizeVoiceWav } from '../services/ttsClient'
 
@@ -7,6 +8,10 @@ const STORAGE_KEY = 'voice-narration-enabled'
 
 function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'AbortError'
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
 export function useVoiceNarration() {
@@ -18,6 +23,17 @@ export function useVoiceNarration() {
   let sessionEpoch = 0
   let abortController: AbortController | null = null
   let drainPromise: Promise<void> | null = null
+
+  function playbackSettings() {
+    return voiceConfig.playback
+  }
+
+  function ensurePlayer(): PcmStreamPlayer {
+    if (!pcmPlayer) {
+      pcmPlayer = new PcmStreamPlayer()
+    }
+    return pcmPlayer
+  }
 
   function setEnabled(value: boolean) {
     enabled.value = value
@@ -57,7 +73,8 @@ export function useVoiceNarration() {
     if (sameStep >= 0) items.splice(sameStep, 1)
     items.push(cue)
 
-    if (cue.priority >= 2 && playing.value) {
+    const { interruptOnHighPriority } = playbackSettings()
+    if (interruptOnHighPriority && cue.priority >= 2 && playing.value) {
       stopPlayback()
       queue.value = [cue, ...items.filter((item) => item.id !== cue.id)]
     } else {
@@ -70,7 +87,7 @@ export function useVoiceNarration() {
   async function playCueStream(cue: VoiceCue, epoch: number): Promise<boolean> {
     playing.value = true
     abortController = new AbortController()
-    pcmPlayer = new PcmStreamPlayer()
+    const player = ensurePlayer()
     let receivedBytes = 0
 
     try {
@@ -79,27 +96,25 @@ export function useVoiceNarration() {
         (chunk, meta) => {
           if (epoch !== sessionEpoch) return
           receivedBytes += chunk.byteLength
-          void pcmPlayer?.ensureContext(meta.sampleRate).then(() => {
-            pcmPlayer?.scheduleChunk(chunk, meta)
+          void player.ensureContext(meta.sampleRate).then(() => {
+            player.scheduleChunk(chunk, meta)
           })
         },
         cue.id,
         abortController.signal,
       )
       if (epoch !== sessionEpoch) return false
-      await pcmPlayer.drain()
+      await player.drain(playbackSettings().drainTailMs)
       return receivedBytes > 0
     } catch (err) {
       if (epoch !== sessionEpoch || isAbortError(err)) return false
       if (receivedBytes > 0) {
-        await pcmPlayer.drain()
+        await player.drain(playbackSettings().drainTailMs)
         return true
       }
       return false
     } finally {
       if (epoch === sessionEpoch) {
-        pcmPlayer?.close()
-        pcmPlayer = null
         abortController = null
         playing.value = false
       }
@@ -145,10 +160,19 @@ export function useVoiceNarration() {
 
   async function drain() {
     const epoch = sessionEpoch
+    const { cueGapMs } = playbackSettings()
     while (enabled.value && epoch === sessionEpoch && queue.value.length > 0) {
       const [current, ...rest] = queue.value
       queue.value = rest
       await playCue(current, epoch)
+      if (epoch !== sessionEpoch) break
+      if (rest.length > 0 && cueGapMs > 0) {
+        await sleep(cueGapMs)
+      }
+    }
+    if (epoch === sessionEpoch) {
+      pcmPlayer?.close()
+      pcmPlayer = null
     }
   }
 

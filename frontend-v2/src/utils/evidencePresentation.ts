@@ -8,6 +8,12 @@ export function formatPercent(value: number | null | undefined, digits = 0): str
   return `${(value * 100).toFixed(digits)}%`
 }
 
+/** 饱和度统一用小数表示，如 0.92、1.50 */
+export function formatSaturation(value: number | null | undefined, digits = 2): string {
+  if (value == null || Number.isNaN(value)) return '—'
+  return value.toFixed(digits)
+}
+
 export function formatMetricValue(metric: string, value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return '—'
   if (metric.includes('risk') || metric === 'saturation' || metric === 'queue_storage_ratio') {
@@ -85,7 +91,7 @@ export function buildEvidenceDirectionMarkers(
       kind: row.focused ? 'metric' : 'evidence',
       variant: row.focused ? 'saturation' : 'evidence',
       title: group,
-      value: sat != null ? formatPercent(sat) : queue != null ? `${queue.toFixed(0)}m` : '—',
+      value: sat != null ? formatSaturation(sat) : queue != null ? `${queue.toFixed(0)}m` : '—',
       subtitle: row.focused ? '关注方向' : '分向指标',
       severity,
       dir: normalizeDir(link.dir4_label || ''),

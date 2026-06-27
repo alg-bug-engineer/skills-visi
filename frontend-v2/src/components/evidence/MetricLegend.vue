@@ -7,7 +7,7 @@ import { THRESHOLDS } from '../../constants'
     <span class="legend-title">图例</span>
     <div class="legend-item">
       <span class="swatch high" />
-      <span>饱和 ≥ {{ (THRESHOLDS.saturationHigh * 100).toFixed(0) }}%</span>
+      <span>饱和 ≥ {{ THRESHOLDS.saturationHigh.toFixed(2) }}</span>
     </div>
     <div class="legend-item">
       <span class="swatch focus" />

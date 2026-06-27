@@ -36,7 +36,7 @@ from intersection_agent.services.map_presentation_service import (
     pick_narration_step,
 )
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
-from intersection_agent.services.rule_engine import RuleEngine
+from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
 from intersection_agent.services.skill_service import SkillService, SkillUpsertResult
 from intersection_agent.services.skill_matcher import backfill_tags
 from intersection_agent.config import get_settings
@@ -1255,26 +1255,23 @@ class Orchestrator:
                     "user_suggestion": safe_preview(session.nlu.user_suggestion),
                 },
             )
-        suggestion = await self._suggestions.generate(
-            rule,
-            data,
-            user_suggestion=session.nlu.user_suggestion,
-            quantitative_constraints=session.data_payload.get("quantitative_constraints"),
-        )
-        raw_delta = suggestion.delta_seconds
+        raw_delta = evaluate_formula(rule["action"]["formula"], data)
         clipped_delta, clip_note = self._constraints.apply_to_delta(
             raw_delta,
             session.data_payload.get("quantitative_constraints"),
             problem_evidence=session.data_payload.get("problem_evidence"),
         )
-        if clipped_delta != raw_delta:
+        suggestion = await self._suggestions.generate(
+            rule,
+            data,
+            user_suggestion=session.nlu.user_suggestion,
+            quantitative_constraints=session.data_payload.get("quantitative_constraints"),
+            delta_override=clipped_delta,
+        )
+        if clipped_delta != raw_delta and clip_note:
             suggestion = suggestion.model_copy(
-                update={"delta_seconds": clipped_delta},
+                update={"narrative": f"{suggestion.narrative}（{clip_note}）"},
             )
-            if clip_note:
-                suggestion = suggestion.model_copy(
-                    update={"narrative": f"{suggestion.narrative}（{clip_note}）"},
-                )
         session.suggestion = suggestion
         log_event(
             logger,

@@ -1,20 +1,21 @@
-# 项目状态快照 · 干线扫描 + 语音 v2
+# 项目状态快照 · 语音步骤同步 + 饱和度口径
 
-> 日期：2026-06-29  
-> 分支：`main`（自 `feature/tts` 合并）  
-> 单测：backend **118** passed
+> 日期：2026-06-27  
+> 分支：`main`  
+> 单测：backend **119** passed · frontend vitest **24** passed
 
 ---
 
-## 1. 本阶段新增能力
+## 1. 本阶段新增 / 修复
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
+| 语音步骤同步 | ✅ | `voice_narration.json` + `onStepStart` 与理解过程对齐 |
+| 饱和度小数口径 | ✅ | 前后端统一 0.92 格式，语音模板同步 |
+| 约束 delta 裁剪 | ✅ | 先裁剪再生成建议，clip_note 写入 narrative |
 | 干线扫描 | ✅ | 道路级拥堵发现、PG 排名、Top3 引导 |
 | 意图 LLM 分类 | ✅ | 首轮二分类 + 规则兜底，禁 thinking |
-| 路网可视化 | ✅ | link 链化单 polyline，左侧路口列表 |
-| 路口选型 | ✅ | 排名/口语/列表点击 → 单点诊断 |
-| Qwen-TTS Realtime | ✅ | PCM 流式播报，替代阿里云 ISI |
+| Qwen-TTS Realtime | ✅ | PCM 流式 + 源追踪 drain + cue 间隔 |
 
 ---
 
@@ -33,7 +34,8 @@
 
 ```bash
 bash scripts/dev-v2.sh          # 8011 + 5568
-cd backend && pytest -q         # 118 项
+cd backend && pytest -q         # 119 项
+cd frontend-v2 && npm run test  # 24 项
 ```
 
 环境：`backend/.env` 参考 `.env.example`（`MOCK_LLM=0` + PG 可查真实干线）
@@ -42,6 +44,8 @@ cd backend && pytest -q         # 118 项
 
 ## 4. 验证用例
 
-1. 「奥体西路有哪些拥堵路口在早高峰」→ 地图 + 左侧列表  
-2. 「奥体西与经十路」→ 选定经十路路口，追问方向  
-3. 点击左侧 #1 路口 → 自动进入诊断流程  
+1. 开启语音开关 → 理解过程每步首次出现时播放对应引导语（与面板同步）  
+2. 证据卡 / 地图 marker 饱和度显示为 `0.92` 而非 `92%`  
+3. 约束「绿灯增加不能超过 5 秒」→ 建议 delta 被裁剪且 narrative 含说明  
+4. 点「暂不固化」→ 不重启分析流水线，会话重置  
+5. 「奥体西路有哪些拥堵路口在早高峰」→ 干线扫描 + 左侧列表  
