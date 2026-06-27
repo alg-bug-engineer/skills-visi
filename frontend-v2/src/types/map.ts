@@ -112,6 +112,7 @@ export interface MapActionEvent {
   final?: boolean
   evaluation?: Record<string, unknown>
   traffic_flow?: Record<string, unknown>
+  metrics?: Record<string, unknown>
   /** map_scene fields */
   center?: [number, number]
   zoom?: number

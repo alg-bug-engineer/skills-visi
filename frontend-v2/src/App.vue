@@ -7,6 +7,7 @@ import { usePresentation } from './composables/usePresentation'
 import { useUnderstandingProcess } from './composables/useUnderstandingProcess'
 import { useSkillBuildProcess } from './composables/useSkillBuildProcess'
 import { useExperienceAbsorption } from './composables/useExperienceAbsorption'
+import { useVoiceNarration } from './composables/useVoiceNarration'
 import { SKILL_BUILD_STAGES } from './types/skillBuild'
 import type { ChatMessage, MessageResponse, StepRecord } from './types/api'
 import type { ProblemEvidence, QuantitativeConstraints } from './types/evidence'
@@ -16,6 +17,15 @@ import { AnalysisQueue } from './utils/analysisQueue'
 import { highlightDirsForGroup } from './utils/evidencePresentation'
 import { parseHighlightTurn } from './utils/cognitionChannelAdapter'
 import { buildEvidenceListItems } from './utils/channelizationCopy'
+import {
+  buildEvidenceIntroCue,
+  buildEvidenceVoiceCue,
+  buildImbalanceCue,
+  buildRuleCue,
+  buildSaturationCue,
+} from './services/voiceCueExtractors'
+import { VOICE_GUIDE, voiceSuggestion } from './services/voiceCueTemplates'
+import { ABSORPTION_STAGE_VOICE } from './types/voice'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
 import type MapStage from './components/MapStage.vue'
 
@@ -94,6 +104,9 @@ const {
   reset: resetAbsorption,
 } = useExperienceAbsorption()
 
+const voice = useVoiceNarration()
+let cognitionVoiceSent = false
+
 /** 渠化全屏或技能固化/经验吸收演示时隐藏输入框，避免遮挡左侧终端 */
 const hideInputDock = computed(
   () =>
@@ -171,9 +184,38 @@ function handleSkillAbsorptionEvent(event: import('./types/skillAbsorption').Ski
   if (event.type === 'skill_absorption_start') {
     panelLayout.value = 'stacked'
     enqueueProcess(STEP_INDICES.SKILL, '经验吸收追踪已启动…', true, true)
+    voice.enqueue({
+      id: 'step:7:absorption:start',
+      stepIndex: STEP_INDICES.SKILL,
+      phase: 'absorption',
+      kind: 'transition',
+      text: VOICE_GUIDE.absorptionStart,
+      priority: 0,
+    })
+  }
+  if (event.type === 'stage_start') {
+    const line = ABSORPTION_STAGE_VOICE[event.stage]
+    if (line) {
+      voice.enqueue({
+        id: `step:7:absorption:${event.stage}`,
+        stepIndex: STEP_INDICES.SKILL,
+        phase: event.stage,
+        kind: 'guide',
+        text: line,
+        priority: 0,
+      })
+    }
   }
   if (event.type === 'skill_absorption_done') {
     enqueueProcess(STEP_INDICES.SKILL, '经验吸收与技能写入完成。', true, true)
+    voice.enqueue({
+      id: 'step:7:absorption:done',
+      stepIndex: STEP_INDICES.SKILL,
+      phase: 'absorption',
+      kind: 'transition',
+      text: VOICE_GUIDE.absorptionDone,
+      priority: 0,
+    })
   }
 }
 
@@ -186,7 +228,16 @@ function handleSkillBuildEvent(event: import('./types/skillBuild').SkillBuildEve
     case 'drawer_open':
       break
     case 'skill_build_start':
-      if (payload.interleaved) break
+      if (payload.interleaved) {
+        voice.enqueue({
+          id: 'step:7:skill_build:start',
+          stepIndex: STEP_INDICES.SKILL,
+          phase: 'skill_build',
+          kind: 'transition',
+          text: VOICE_GUIDE.skillBuildStart,
+          priority: 0,
+        })
+      }
       break
     case 'stage_start': {
       if (skillBuildState.interleaved && ['understanding', 'planning'].includes(event.stage)) {
@@ -206,6 +257,14 @@ function handleSkillBuildEvent(event: import('./types/skillBuild').SkillBuildEve
         true,
         true,
       )
+      voice.enqueue({
+        id: 'step:7:skill_build:done',
+        stepIndex: STEP_INDICES.SKILL,
+        phase: 'skill_build',
+        kind: 'transition',
+        text: VOICE_GUIDE.skillBuildDone,
+        priority: 0,
+      })
       break
     default:
       break
@@ -436,6 +495,14 @@ function beginAnalysisFlow(userContent: string) {
       : `用户描述：${userContent}`
   conversationTurns.value = []
   enqueueProcess(STEP_INDICES.UNDERSTAND, intro)
+  voice.enqueue({
+    id: 'step:0:understand',
+    stepIndex: STEP_INDICES.UNDERSTAND,
+    phase: 'understand',
+    kind: 'guide',
+    text: VOICE_GUIDE.understand,
+    priority: 0,
+  })
 }
 
 function prepareNewAnalysisRun(userContent: string) {
@@ -447,6 +514,8 @@ function prepareNewAnalysisRun(userContent: string) {
   mapActions.value = []
   pendingNarration = null
   analysisRunKey.value += 1
+  cognitionVoiceSent = false
+  voice.resetSession()
   void workbenchRef.value?.mapStageRef?.prepareNewAnalysisRun()
   lastUserContent = userContent
 }
@@ -480,6 +549,20 @@ function handleNarration(action: MapActionEvent) {
   const text = action.text ?? ''
   if (!text) return
 
+  if (action.phase === 'links' || action.phase === 'channelization' || action.phase === 'locate') {
+    if (!cognitionVoiceSent) {
+      cognitionVoiceSent = true
+      voice.enqueue({
+        id: 'step:2:cognition',
+        stepIndex: STEP_INDICES.COGNITION,
+        phase: 'cognition',
+        kind: 'guide',
+        text: VOICE_GUIDE.cognition,
+        priority: 0,
+      })
+    }
+  }
+
   if (action.phase === 'links' || action.phase === 'channelization') {
     enqueueProcess(STEP_INDICES.COGNITION, text)
     return
@@ -496,6 +579,18 @@ function handleNarration(action: MapActionEvent) {
   ) {
     const prefix = action.title ? `${action.title}：` : ''
     enqueueProcess(STEP_INDICES.DATA_FETCH, `${prefix}${text}`, true)
+    if (action.phase === 'saturation') {
+      const metrics = action.metrics as { saturation?: number } | undefined
+      voice.enqueue(buildSaturationCue(metrics?.saturation ?? null))
+    }
+    if (action.phase === 'imbalance') {
+      const metrics = action.metrics as
+        | { imbalance_index?: number; green_utilization?: number }
+        | undefined
+      voice.enqueue(
+        buildImbalanceCue(metrics?.imbalance_index ?? null, metrics?.green_utilization ?? null),
+      )
+    }
     return
   }
   if (action.phase === 'rule') {
@@ -507,6 +602,15 @@ function handleNarration(action: MapActionEvent) {
     presentation.setPhase('conclusion')
     patchSuggestionPayload(action.suggestion)
     enqueueProcess(STEP_INDICES.SUGGESTION, text)
+    const sug = action.suggestion as { direction?: string; delta_seconds?: number } | undefined
+    voice.enqueue({
+      id: 'step:6:suggestion',
+      stepIndex: STEP_INDICES.SUGGESTION,
+      phase: 'conclusion',
+      kind: 'highlight',
+      text: voiceSuggestion(sug?.direction, sug?.delta_seconds),
+      priority: 1,
+    })
     return
   }
   if (action.phase === 'locate') {
@@ -681,6 +785,8 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
 
 function handleProblemEvidenceStep(data: Record<string, unknown>) {
   const text = formatEvidenceStepText(data)
+  voice.enqueue(buildEvidenceIntroCue())
+  voice.enqueue(buildEvidenceVoiceCue(data))
   analysisQueue.enqueue(async () => {
     enqueueProcess(STEP_INDICES.PROBLEM_EVIDENCE, text)
 
@@ -751,6 +857,14 @@ function handlePipelineStep(
     analysisQueue.enqueue(async () => {
       enqueueProcess(STEP_INDICES.INTERSECTION, `路口匹配：${data.inter_name}`, true, true)
     }, STEP_PAUSE_MS)
+    voice.enqueue({
+      id: 'step:1:intersection',
+      stepIndex: STEP_INDICES.INTERSECTION,
+      phase: 'intersection',
+      kind: 'guide',
+      text: VOICE_GUIDE.intersection(String(data.inter_name)),
+      priority: 0,
+    })
   }
 
   if (event.step === 'problem_evidence') {
@@ -759,6 +873,14 @@ function handlePipelineStep(
   }
 
   if (event.step === 'data_fetch') {
+    voice.enqueue({
+      id: 'step:3:data_fetch',
+      stepIndex: STEP_INDICES.DATA_FETCH,
+      phase: 'data_fetch',
+      kind: 'guide',
+      text: VOICE_GUIDE.dataFetch,
+      priority: 0,
+    })
     const partial = data as {
       timing_profile?: ProblemEvidence['timing_profile']
       corridor_context?: ProblemEvidence['corridor_context']
@@ -789,20 +911,31 @@ function handlePipelineStep(
     return
   }
 
-  if (event.step === 'rule_engine' && data.flow_timing_governance) {
-    presentation.patchFlowTimingGovernance(
-      data.flow_timing_governance as import('./types/evidence').FlowTimingGovernance,
-    )
-    presentation.setPhase('rule')
-    analysisQueue.enqueue(async () => {
-      const gov = data.flow_timing_governance as { summary?: string }
-      enqueueProcess(
-        STEP_INDICES.RULE,
-        gov.summary ?? '四维信控诊断完成',
-        true,
-        true,
+  if (event.step === 'rule_engine') {
+    if (data.flow_timing_governance) {
+      presentation.patchFlowTimingGovernance(
+        data.flow_timing_governance as import('./types/evidence').FlowTimingGovernance,
       )
-    }, STEP_PAUSE_MS)
+      presentation.setPhase('rule')
+      analysisQueue.enqueue(async () => {
+        const gov = data.flow_timing_governance as { summary?: string }
+        enqueueProcess(
+          STEP_INDICES.RULE,
+          gov.summary ?? '四维信控诊断完成',
+          true,
+          true,
+        )
+      }, STEP_PAUSE_MS)
+    }
+    voice.enqueue({
+      id: 'step:5:rule:intro',
+      stepIndex: STEP_INDICES.RULE,
+      phase: 'rule',
+      kind: 'guide',
+      text: VOICE_GUIDE.ruleIntro,
+      priority: 0,
+    })
+    voice.enqueue(buildRuleCue(data))
     return
   }
 
@@ -1057,6 +1190,9 @@ onMounted(async () => {
       :panel-layout="panelLayout"
       :absorption-state="absorptionState"
       :skill-build-state="skillBuildState"
+      :voice-enabled="voice.enabled.value"
+      :voice-playing="voice.playing.value"
+      @toggle-voice="voice.toggleEnabled()"
       @channelization-active="channelizationActive = $event"
       @send="handleSend"
       @input-activity="onInputActivity"

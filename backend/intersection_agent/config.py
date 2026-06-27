@@ -45,7 +45,28 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     public_url: str = ""
 
+    aliyun_nls_appkey: str = ""
+    aliyun_ak_id: str = ""
+    aliyun_ak_secret: str = ""
+    aliyun_nls_region: str = "cn-shanghai"
+    aliyun_nls_voice: str = "zhishuo"
+    aliyun_nls_format: str = "mp3"
+    aliyun_nls_sample_rate: int = 16000
+    aliyun_nls_speech_rate: int = 0
+    tts_enabled: bool = True
+
     rules_dir: Path = _BACKEND_ROOT / "rules"
+
+    @property
+    def aliyun_nls_gateway_host(self) -> str:
+        """NLS gateway host for TTS REST API."""
+        region = self.aliyun_nls_region.strip() or "cn-shanghai"
+        return f"nls-gateway-{region}.aliyuncs.com"
+
+    @property
+    def tts_configured(self) -> bool:
+        """Whether Aliyun TTS credentials are present."""
+        return bool(self.aliyun_nls_appkey and self.aliyun_ak_id and self.aliyun_ak_secret)
 
     @property
     def cors_origin_list(self) -> list[str]:

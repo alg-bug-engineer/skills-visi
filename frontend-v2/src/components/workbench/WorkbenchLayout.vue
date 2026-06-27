@@ -7,6 +7,7 @@ import type { MapActionEvent } from '../../types/map'
 import InsightStack from '../insight/InsightStack.vue'
 import InputDock from '../InputDock.vue'
 import MapStage from '../MapStage.vue'
+import VoiceToggle from '../VoiceToggle.vue'
 import UnderstandingProcessPanel, {
   type ConversationTurn,
 } from '../UnderstandingProcessPanel.vue'
@@ -38,6 +39,8 @@ const props = defineProps<{
   panelLayout?: 'single' | 'stacked'
   absorptionState?: ExperienceAbsorptionState
   skillBuildState?: SkillBuildState
+  voiceEnabled?: boolean
+  voicePlaying?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -49,6 +52,7 @@ const emit = defineEmits<{
   closeTimingRing: []
   toggleCorridorWave: []
   closeCorridorWave: []
+  toggleVoice: []
   confirm: []
   deny: []
   channelizationActive: [active: boolean]
@@ -107,6 +111,11 @@ const insightFloatStyle = computed(() => {
         <div class="stage-toolbar">
           <span class="stage-label">路口 GIS</span>
           <div class="toolbar-actions">
+            <VoiceToggle
+              :enabled="Boolean(voiceEnabled)"
+              :playing="Boolean(voicePlaying)"
+              @toggle="emit('toggleVoice')"
+            />
             <button
               v-if="canToggleTiming"
               type="button"

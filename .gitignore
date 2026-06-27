@@ -33,6 +33,9 @@ frontend-v2/*.local
 # --- 参考原型（不接入主项目）---
 前端可视化技能创建/
 
+# --- 密钥（勿提交）---
+docs/AccessKey.csv
+
 # --- IDE ---
 .idea/
 .vscode/

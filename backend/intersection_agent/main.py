@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from intersection_agent import __version__
 from intersection_agent.api.middleware import RequestLoggingMiddleware
 from intersection_agent.api.routes import router
+from intersection_agent.api.tts_routes import router as tts_router
 from intersection_agent.config import get_settings
 from intersection_agent.db.postgres import PostgresPool
 from intersection_agent.logging_config import setup_logging
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(router, prefix="/api/v1")
+    app.include_router(tts_router, prefix="/api/v1")
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
