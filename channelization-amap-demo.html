@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>路口渠化下钻 · 奥体西路与经十路（真实数据）</title>
+<style>
+  html, body { margin: 0; height: 100%; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #map { position: absolute; inset: 0; background: #0b1118; }
+  .hud {
+    position: absolute; left: 16px; top: 16px; z-index: 20;
+    background: rgba(10, 16, 24, 0.84); color: #e8eef5;
+    border: 1px solid rgba(120, 170, 220, 0.25); border-radius: 10px;
+    padding: 12px 16px; min-width: 238px; backdrop-filter: blur(6px);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+  }
+  .hud h1 { margin: 0 0 2px; font-size: 16px; font-weight: 600; letter-spacing: .3px; }
+  .hud .sub { font-size: 11px; color: #6f879d; margin-bottom: 8px; }
+  .hud .row { display: flex; justify-content: space-between; font-size: 13px; line-height: 1.95; color: #aebfd0; }
+  .hud .row b { color: #ffffff; font-weight: 600; }
+  .hud .lvl { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 12px; }
+  .lvl.l0 { background: #334155; color: #cbd5e1; }
+  .lvl.l1 { background: #1d4ed8; color: #dbeafe; }
+  .lvl.l2 { background: #047857; color: #d1fae5; }
+  .legend { margin-top: 10px; border-top: 1px solid rgba(120,170,220,.18); padding-top: 8px; }
+  .legend .item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #aebfd0; margin: 2px 10px 2px 0; }
+  .legend .sw { width: 14px; height: 8px; border-radius: 2px; display: inline-block; }
+  .hint { margin-top: 9px; font-size: 11px; color: #7e93a8; line-height: 1.6; }
+  #err { position: absolute; left: 50%; top: 40%; transform: translateX(-50%);
+    color: #fca5a5; background: rgba(40,10,10,.9); padding: 16px 22px; border-radius: 10px;
+    font-size: 14px; z-index: 30; display: none; max-width: 70%; }
+  .arm-pop { font-size: 12px; line-height: 1.7; color: #0b1118; }
+  .arm-pop b { color: #0b1f33; }
+  .arm-pop .lane { display: inline-block; padding: 1px 6px; margin: 1px; border-radius: 4px; color: #fff; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="hud">
+  <h1 id="title">路口渠化</h1>
+  <div class="sub" id="meta">inter_id · 真实渠化数据</div>
+  <div class="row"><span>当前层级</span><b><span id="level" class="lvl l0">路网</span></b></div>
+  <div class="row"><span>缩放 zoom</span><b id="zoom">--</b></div>
+  <div class="row"><span>路臂 / 进口车道</span><b id="stat">--</b></div>
+  <div class="legend" id="legend">
+    <div class="item"><span class="sw" style="background:#3b82f6"></span>左转</div>
+    <div class="item"><span class="sw" style="background:#94a3b8"></span>直行</div>
+    <div class="item"><span class="sw" style="background:#22c55e"></span>右转</div>
+    <div class="item"><span class="sw" style="background:#14b8a6"></span>混合</div>
+    <div class="item"><span class="sw" style="background:#a855f7"></span>掉头</div>
+    <div class="item"><span class="sw" style="background:#cbd5e1"></span>出口道</div>
+  </div>
+  <div class="hint">滚轮放大到 <b>18+</b> 逐车道渠化下钻；点击进口道查看车道功能。可拖拽平移。</div>
+</div>
+<div id="err"></div>
+
+<script>
+  // 高德安全密钥（来自 docs/gd-js20.md），JS API v2.0 需在加载脚本前配置
+  window._AMapSecurityConfig = { securityJsCode: 'e03cfd17b7b5e5ce21b844e57b15de67' };
+</script>
+<script src="https://webapi.amap.com/maps?v=2.0&key=d4495f6d908f3b3bd34fb5bf009588d3"></script>
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 真实渠化数据：奥体西路与经十路路口（inter_id=011wwe28ctu00001）
+ * 来源：PostgreSQL road6.dim_inter_info / dwd_tfc_rltn_wide_inter_ft_link / dim_link_info
+ *   center  : 路口中心经纬度
+ *   links[] : 进/出口路段；lane_info 车道功能码(B左 C直 D右 A掉头, 组合如 AB/CD)
+ *             path 为真实道路中心线经纬度序列（进口终点贴近路口、出口起点贴近路口）
+ * ──────────────────────────────────────────────────────────────────────────── */
+const REAL_DATA = {"inter_id":"011wwe28ctu00001","name":"奥体西路与经十路路口","center":[117.111376,36.659469],"links":[{"link_id":"12wwe291ewwe28ct01","link_role":"entrance","dir4_label":"东进口","lane_num":8,"c_lane_num":10,"lane_info":"B|B|B|C|C|C|C|C|C|C","road_name":"经十路(东向西)","road_level":"3","path":[[117.119456,36.659794],[117.116704,36.659682],[117.115212,36.659628],[117.114258,36.659596],[117.113399,36.659564],[117.111474,36.659489]]},{"link_id":"12wwe28fmwwe28ct01","link_role":"entrance","dir4_label":"北进口","lane_num":5,"c_lane_num":5,"lane_info":"B|B|C|C|D","road_name":"奥体西路(北向南)","road_level":"3","path":[[117.11127,36.662986],[117.11127,36.662932],[117.111281,36.661865],[117.111281,36.661377],[117.111286,36.660594],[117.111281,36.659746],[117.111275,36.659671]]},{"link_id":"12wwe28ctwwe28fm01","link_role":"exit","dir4_label":"北出口","lane_num":4,"c_lane_num":4,"lane_info":"B|C|C|D","road_name":"奥体西路(南向北)","road_level":"3","path":[[117.111474,36.659671],[117.111474,36.660594],[117.111474,36.661377],[117.111479,36.661817],[117.111468,36.662927],[117.111468,36.662991]]},{"link_id":"12wwe291ewwe28ct02","link_role":"entrance","dir4_label":"东进口","lane_num":3,"c_lane_num":2,"lane_info":"C|D","road_name":"经十路辅路(东向西)","road_level":"4","path":[[117.119451,36.659982],[117.117911,36.659912],[117.116119,36.659843],[117.114258,36.659773],[117.112439,36.659709],[117.111474,36.659671]]},{"link_id":"12wwe28ctwwe291e01","link_role":"exit","dir4_label":"东出口","lane_num":6,"c_lane_num":7,"lane_info":"C|C|C|C|C|C|C","road_name":"经十路(西向东)","road_level":"3","path":[[117.111484,36.659253],[117.114258,36.659387],[117.11554,36.659429],[117.116425,36.659467],[117.119461,36.659612]]},{"link_id":"12wwe28cnwwe28ct01","link_role":"entrance","dir4_label":"南进口","lane_num":4,"c_lane_num":4,"lane_info":"AB|B|C|CD","road_name":"奥体西路(南向北)","road_level":"3","path":[[117.111833,36.656908],[117.111694,36.657203],[117.111516,36.657852],[117.111484,36.658185],[117.111484,36.659253]]},{"link_id":"12wwe28ctwwe28bx01","link_role":"exit","dir4_label":"南出口","lane_num":4,"c_lane_num":4,"lane_info":"B|B|B|C","road_name":"奥体西路(西北向东南)","road_level":"3","path":[[117.111281,36.659242],[117.111264,36.658636],[117.111345,36.657632],[117.111634,36.656865],[117.112091,36.656141],[117.112675,36.655251],[117.113276,36.654269]]},{"link_id":"12wwe289qwwe28ct01","link_role":"entrance","dir4_label":"西进口","lane_num":9,"c_lane_num":9,"lane_info":"B|B|C|C|C|C|C|D|D","road_name":"经十路(西向东)","road_level":"3","path":[[117.101817,36.65745],[117.103615,36.657944],[117.105197,36.658426],[117.107053,36.658952],[117.108743,36.659194],[117.11054,36.659231],[117.111281,36.659242]]},{"link_id":"12wwe28ctwwe289q01","link_role":"exit","dir4_label":"西出口","lane_num":7,"c_lane_num":7,"lane_info":"B|B|C|C|C|C|C","road_name":"经十路(东向西)","road_level":"3","path":[[117.11127,36.659483],[117.110089,36.659435],[117.108947,36.659387],[117.107407,36.65921],[117.106624,36.659016],[117.103829,36.658217],[117.101748,36.6576]]},{"link_id":"12wwe28ctwwe28cs01","link_role":"exit","dir4_label":"西出口","lane_num":1,"c_lane_num":1,"lane_info":"C","road_name":"经十路辅路(东向西)","road_level":"4","path":[[117.111275,36.659671],[117.110824,36.659655],[117.109784,36.659607]]}]};
+
+/* ── 几何 / 样式参数（参考 channelizationLayer.js） ───────────────────────────── */
+const LANE_W   = 3.3;     // 车道宽(米)
+const ARM_LEN  = 64;      // 渠化绘制长度(米，从路口框向外)
+const MEDIAN_W = 1.2;     // 进出口中央分隔半宽(米)
+const CW_GAP   = 2.0;     // 停止线到斑马线间距
+const CW_LEN   = 6.0;     // 斑马线长度
+
+const MOVE_COLOR = { left:'#3b82f6', straight:'#94a3b8', right:'#22c55e', mixed:'#14b8a6', uturn:'#a855f7', exit:'#cbd5e1' };
+
+/* ── 投影：臂局部坐标(米) → 经纬度 ─────────────────────────────────────────────
+ * u = 沿臂朝外(arm bearing 方向)；v = 面朝外时的右手侧。
+ * 中国右行：进口道在 -v(左侧)，出口道在 +v(右侧)。 */
+const R = 6378137;
+function metersToLngLat(center, u, v, bearingDeg) {
+  const br = bearingDeg * Math.PI / 180;
+  const fE = Math.sin(br), fN = Math.cos(br);   // 朝外单位向量(东,北)
+  const rE = Math.cos(br), rN = -Math.sin(br);  // 右手侧单位向量(东,北)
+  const dE = u * fE + v * rE;
+  const dN = u * fN + v * rN;
+  const lat = center[1] + (dN / R) * (180 / Math.PI);
+  const lng = center[0] + (dE / (R * Math.cos(center[1] * Math.PI / 180))) * (180 / Math.PI);
+  return [lng, lat];
+}
+
+/* ── 两经纬度间的地理方位角(度, 正北=0 顺时针) ─────────────────────────────── */
+function geoBearing(p0, p1) {
+  const dLat = p1[1] - p0[1];
+  const dLon = (p1[0] - p0[0]) * Math.cos((p0[1] + p1[1]) * Math.PI / 360);
+  return (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
+}
+function angleDiff(a, b) { let d = Math.abs((a - b + 360) % 360); return d > 180 ? 360 - d : d; }
+
+/* ── 由真实 geom 求路臂朝外方位角 ───────────────────────────────────────────── */
+function armAngleFromLink(link) {
+  const p = link.path;
+  if (!p || p.length < 2) return 0;
+  // 进口：终点贴近路口 → 由近点指向更外点；出口：起点贴近路口
+  const [near, outer] = link.link_role === 'entrance'
+    ? [p[p.length - 1], p[p.length - 2]]
+    : [p[0], p[1]];
+  return geoBearing(near, outer);
+}
+
+/* ── lane_info 解析 ───────────────────────────────────────────────────────────── */
+function parseLaneInfo(link) {
+  if (link.lane_info && link.lane_info !== 'null') return link.lane_info.split('|').filter(Boolean);
+  return Array(link.c_lane_num || link.lane_num || 1).fill('C');
+}
+
+/* ── 车道功能码 → 配色 ──────────────────────────────────────────────────────── */
+function laneColor(code) {
+  const c = (code || 'C').toUpperCase();
+  const movs = [];
+  if (c.includes('B')) movs.push('left');
+  if (c.includes('C')) movs.push('straight');
+  if (c.includes('D')) movs.push('right');
+  if (c.includes('A')) movs.push('uturn');
+  if (movs.length === 0) return MOVE_COLOR.straight;
+  if (movs.length > 1) return MOVE_COLOR.mixed;
+  return MOVE_COLOR[movs[0]];
+}
+const MOVE_CN = { B:'左转', C:'直行', D:'右转', A:'掉头' };
+function laneLabel(code) {
+  return (code || 'C').toUpperCase().split('').map(ch => MOVE_CN[ch] || '').join('');
+}
+
+/* ── 归组成「臂」：进/出口按方位角(<25°)合并，取最宽 ───────────────────────── */
+function gatherArms(links) {
+  const ins  = links.filter(l => l.link_role === 'entrance');
+  const outs = links.filter(l => l.link_role === 'exit');
+  const arms = [];
+  const find = (angle) => arms.find(a => angleDiff(a.angle, angle) < 25);
+  for (const lk of ins) {
+    const angle = armAngleFromLink(lk);
+    let arm = find(angle);
+    if (!arm) { arm = { angle, inLink: null, outLink: null }; arms.push(arm); }
+    if (!arm.inLink || parseLaneInfo(lk).length > parseLaneInfo(arm.inLink).length) { arm.inLink = lk; arm.angle = angle; }
+  }
+  for (const lk of outs) {
+    const angle = armAngleFromLink(lk);
+    let arm = find(angle);
+    if (!arm) { arm = { angle, inLink: null, outLink: null }; arms.push(arm); }
+    if (!arm.outLink || (lk.c_lane_num || lk.lane_num || 0) > (arm.outLink.c_lane_num || arm.outLink.lane_num || 0)) arm.outLink = lk;
+  }
+  return arms;
+}
+
+/* ── 路口框半径：相邻臂斑马线不重叠 ───────────────────────────────────────── */
+function calcBoxR(arms) {
+  let r = 18;
+  for (const a of arms) {
+    const nI = a.inLink ? parseLaneInfo(a.inLink).length : 0;
+    const nO = a.outLink ? (a.outLink.c_lane_num || a.outLink.lane_num || 0) : 0;
+    r = Math.max(r, (nI + nO) * LANE_W / 2 + CW_GAP + CW_LEN + 1.5);
+  }
+  return Math.min(Math.max(r, 18), 60);
+}
+
+/* ── 转向箭头 SVG（图标朝上=朝向路口；按车道功能码组合绘制） ──────────────── */
+function arrowSvg(code, color) {
+  const c = (code || 'C').toUpperCase();
+  const has = ch => c.includes(ch);
+  const seg = []; // path 段
+  const head = (x, y, dx, dy) => { // 在 (x,y) 处沿(dx,dy)方向画箭头
+    const a = Math.atan2(dy, dx), s = 7;
+    const lx = x - s * Math.cos(a - 0.5), ly = y - s * Math.sin(a - 0.5);
+    const rx = x - s * Math.cos(a + 0.5), ry = y - s * Math.sin(a + 0.5);
+    return `M${lx.toFixed(1)} ${ly.toFixed(1)} L${x} ${y} L${rx.toFixed(1)} ${ry.toFixed(1)}`;
+  };
+  const hasStraight = has('C'), hasLeft = has('B'), hasRight = has('D'), hasU = has('A');
+  const forkY = 38;
+  // 主杆
+  seg.push(`M24 60 L24 ${hasStraight ? 14 : forkY}`);
+  if (hasStraight) seg.push(head(24, 14, 0, -1));
+  if (hasLeft)  { seg.push(`M24 ${forkY} L11 ${forkY - 11}`); seg.push(head(11, forkY - 11, -13, -11)); }
+  if (hasRight) { seg.push(`M24 ${forkY} L37 ${forkY - 11}`); seg.push(head(37, forkY - 11, 13, -11)); }
+  if (hasU) { // 掉头：左上小半环后向下
+    seg.push(`M24 ${forkY} Q12 ${forkY - 14} 12 ${forkY - 2} L12 ${forkY + 9}`);
+    seg.push(head(12, forkY + 9, 0, 1));
+  }
+  const d = seg.join(' ');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="64" viewBox="0 0 48 64">`
+    + `<path d="${d}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+/* ── 渠化图层 ─────────────────────────────────────────────────────────────────── */
+class ChannelizationMap {
+  constructor(map, data) {
+    this.map = map; this.data = data;
+    this.center = data.center;
+    this.overlays = [];          // { lod:'L0'|'L1'|'L2', o:AMapOverlay }
+    this.currentLevel = null;
+    this.arms = gatherArms(data.links);
+    this.boxR = calcBoxR(this.arms);
+  }
+  _add(lod, o) { this.overlays.push({ lod, o }); this.map.add(o); }
+  _poly(uv, opt) { return new AMap.Polygon(Object.assign({ path: uv.map(([u, v]) => metersToLngLat(this.center, u, v, opt.__br)), bubble: true }, opt)); }
+
+  // 真实道路中心线（保留道路信息，L1+ 可见）
+  buildRoads() {
+    for (const lk of this.data.links) {
+      this._add('L1', new AMap.Polyline({
+        path: lk.path, strokeColor: lk.link_role === 'entrance' ? '#4b5b6e' : '#3a4757',
+        strokeWeight: 2, strokeOpacity: 0.55, strokeStyle: 'solid', bubble: true, zIndex: 20,
+      }));
+    }
+  }
+
+  // 路口中心高亮圈（全程可见）
+  buildHalo() {
+    this._add('L0', new AMap.Circle({
+      center: this.center, radius: this.boxR + 8,
+      strokeColor: '#38bdf8', strokeWeight: 2, strokeOpacity: 0.85, strokeStyle: 'dashed',
+      fillColor: '#38bdf8', fillOpacity: 0.05, bubble: true, zIndex: 12,
+    }));
+  }
+
+  buildArm(arm) {
+    const br = arm.angle, c = this.center, boxR = this.boxR;
+    const inLanes = arm.inLink ? parseLaneInfo(arm.inLink) : [];
+    const nIn  = inLanes.length;
+    const nOut = arm.outLink ? (arm.outLink.c_lane_num || arm.outLink.lane_num || 0) : 0;
+    if (nIn + nOut === 0) return;
+    const u0 = boxR, u1 = boxR + ARM_LEN;
+    const ll = (u, v) => metersToLngLat(c, u, v, br);
+    const wIn = nIn * LANE_W, wOut = nOut * LANE_W;
+
+    // —— L1 整体路面多边形 —— (进口 -v 半幅，出口 +v 半幅)
+    this._add('L1', new AMap.Polygon({
+      path: [ll(u0, -wIn - MEDIAN_W), ll(u1, -wIn - MEDIAN_W), ll(u1, wOut + MEDIAN_W), ll(u0, wOut + MEDIAN_W)],
+      strokeColor: '#1f2937', strokeWeight: 1, strokeOpacity: 0.8,
+      fillColor: '#39424f', fillOpacity: 0.5, bubble: true, zIndex: 14,
+    }));
+
+    // —— L2 进口车道面 + 分隔虚线 + 箭头 ——
+    for (let i = 0; i < nIn; i++) {
+      const vIn = -(i * LANE_W), vOut = -((i + 1) * LANE_W);     // 车道占 [vOut, vIn]
+      const code = inLanes[i];
+      const poly = new AMap.Polygon({
+        path: [ll(u0, vOut), ll(u1, vOut), ll(u1, vIn), ll(u0, vIn)],
+        strokeOpacity: 0, fillColor: laneColor(code), fillOpacity: 0.5, bubble: true, zIndex: 16,
+        extData: { dir: arm.inLink.dir4_label, code, road: arm.inLink.road_name, lanes: inLanes },
+      });
+      poly.on('click', (e) => this._showArmPopup(e, arm.inLink, inLanes));
+      this._add('L2', poly);
+      if (i > 0) this._add('L2', new AMap.Polyline({
+        path: [ll(u0, vIn), ll(u1, vIn)], strokeColor: '#e5e7eb', strokeWeight: 1.6,
+        strokeOpacity: 0.8, strokeStyle: 'dashed', strokeDasharray: [9, 9], bubble: true, zIndex: 18,
+      }));
+      // 箭头（紧靠停止线，朝向路口）
+      const ac = ll(u0 + 9, (vIn + vOut) / 2);
+      this._add('L2', new AMap.Marker({
+        position: ac, offset: new AMap.Pixel(-16, -22), bubble: true, zIndex: 30,
+        angle: (br + 180) % 360,
+        icon: new AMap.Icon({ image: arrowSvg(code, '#f8fafc'), size: new AMap.Size(32, 44), imageSize: new AMap.Size(32, 44) }),
+      }));
+    }
+
+    // —— L2 出口车道面 + 分隔虚线 ——
+    for (let j = 0; j < nOut; j++) {
+      const vIn = j * LANE_W, vOut = (j + 1) * LANE_W;
+      this._add('L2', new AMap.Polygon({
+        path: [ll(u0, vIn), ll(u1, vIn), ll(u1, vOut), ll(u0, vOut)],
+        strokeOpacity: 0, fillColor: MOVE_COLOR.exit, fillOpacity: 0.28, bubble: true, zIndex: 15,
+      }));
+      if (j > 0) this._add('L2', new AMap.Polyline({
+        path: [ll(u0, vIn), ll(u1, vIn)], strokeColor: '#cbd5e1', strokeWeight: 1.4,
+        strokeOpacity: 0.6, strokeStyle: 'dashed', strokeDasharray: [9, 9], bubble: true, zIndex: 18,
+      }));
+    }
+
+    // —— L2 中央黄色双实线 ——
+    for (const off of [-MEDIAN_W * 0.45, MEDIAN_W * 0.45]) this._add('L2', new AMap.Polyline({
+      path: [ll(u0, off), ll(u1, off)], strokeColor: '#fbbf24', strokeWeight: 2, strokeOpacity: 0.95, bubble: true, zIndex: 19,
+    }));
+
+    // —— L2 停止线（进口侧，粗白）——
+    if (nIn > 0) this._add('L2', new AMap.Polyline({
+      path: [ll(u0, 0), ll(u0, -wIn)], strokeColor: '#f8fafc', strokeWeight: 5, strokeOpacity: 0.95, bubble: true, zIndex: 20,
+    }));
+
+    // —— L2 人行横道（停止线外侧斑马带，跨进出口全宽）——
+    const total = wIn + wOut + 2 * MEDIAN_W, vS = -wIn - MEDIAN_W;
+    const cu0 = boxR - CW_GAP - CW_LEN, cu1 = boxR - CW_GAP, step = 1.9;
+    for (let v = vS; v < vS + total; v += step) this._add('L2', new AMap.Polygon({
+      path: [ll(cu0, v), ll(cu1, v), ll(cu1, v + step * 0.55), ll(cu0, v + step * 0.55)],
+      strokeOpacity: 0, fillColor: '#e8edf2', fillOpacity: 0.82, bubble: true, zIndex: 17,
+    }));
+  }
+
+  // 相邻臂转角圆弧（白色路缘，模拟转弯半径）—— 二次贝塞尔
+  buildCorners() {
+    const sorted = [...this.arms].sort((a, b) => a.angle - b.angle);
+    const c = this.center;
+    for (let i = 0; i < sorted.length; i++) {
+      const a1 = sorted[i], a2 = sorted[(i + 1) % sorted.length];
+      const nOut1 = a1.outLink ? (a1.outLink.c_lane_num || a1.outLink.lane_num || 0) : 0;
+      const nIn2  = a2.inLink ? parseLaneInfo(a2.inLink).length : 0;
+      // a1 出口外角(+v) 与 a2 进口外角(-v) 在路口框处
+      const p1 = metersToLngLat(c, this.boxR, (nOut1 * LANE_W) + MEDIAN_W, a1.angle);
+      const p2 = metersToLngLat(c, this.boxR, -(nIn2 * LANE_W) - MEDIAN_W, a2.angle);
+      const cp = c; // 控制点取路口中心 → 向内凹的转角曲线
+      const pts = [];
+      for (let k = 0; k <= 16; k++) {
+        const t = k / 16, it = 1 - t;
+        pts.push([
+          it * it * p1[0] + 2 * it * t * cp[0] + t * t * p2[0],
+          it * it * p1[1] + 2 * it * t * cp[1] + t * t * p2[1],
+        ]);
+      }
+      this._add('L2', new AMap.Polyline({ path: pts, strokeColor: '#ffffff', strokeWeight: 2, strokeOpacity: 0.7, bubble: true, zIndex: 18 }));
+    }
+  }
+
+  _showArmPopup(e, link, lanes) {
+    const html = `<div class="arm-pop"><b>${link.dir4_label}</b> · ${link.road_name || ''}<br/>`
+      + `进口 ${lanes.length} 车道：<br/>`
+      + lanes.map(code => `<span class="lane" style="background:${laneColor(code)}">${laneLabel(code)}</span>`).join('')
+      + `</div>`;
+    const info = new AMap.InfoWindow({ content: html, offset: new AMap.Pixel(0, -6) });
+    info.open(this.map, e.lnglat);
+  }
+
+  render() {
+    this.buildHalo();
+    this.buildRoads();
+    this.arms.forEach(a => this.buildArm(a));
+    this.buildCorners();
+    this.applyLOD(this.map.getZoom());
+    document.getElementById('stat').textContent =
+      `${this.arms.length} 臂 / ${this.arms.reduce((s, a) => s + (a.inLink ? parseLaneInfo(a.inLink).length : 0), 0)} 道`;
+  }
+
+  applyLOD(zoom) {
+    let level = zoom < 16 ? 'L0' : zoom < 18 ? 'L1' : 'L2';
+    if (level === this.currentLevel) return;
+    this.currentLevel = level;
+    const showL1 = level === 'L1' || level === 'L2';
+    const showL2 = level === 'L2';
+    for (const { lod, o } of this.overlays) {
+      const vis = lod === 'L0' ? true : lod === 'L1' ? showL1 : showL2;
+      vis ? o.show() : o.hide();
+    }
+    updateHud(level, zoom);
+  }
+}
+
+/* ── HUD ───────────────────────────────────────────────────────────────────────── */
+const LEVEL_TEXT = { L0: ['路网', 'l0'], L1: ['路口轮廓', 'l1'], L2: ['车道渠化', 'l2'] };
+function updateHud(level, zoom) {
+  const [text, cls] = LEVEL_TEXT[level];
+  const el = document.getElementById('level');
+  el.textContent = text; el.className = 'lvl ' + cls;
+  document.getElementById('zoom').textContent = zoom.toFixed(1);
+  document.getElementById('legend').style.display = level === 'L2' ? 'block' : 'none';
+}
+
+/* ── 启动 ──────────────────────────────────────────────────────────────────────── */
+function fail(msg) { const e = document.getElementById('err'); e.textContent = msg; e.style.display = 'block'; }
+
+(function init() {
+  if (typeof AMap === 'undefined') { fail('高德地图脚本加载失败，请检查网络或 key/securityJsCode。'); return; }
+  document.getElementById('title').textContent = REAL_DATA.name;
+  document.getElementById('meta').textContent = `${REAL_DATA.inter_id} · 真实渠化数据`;
+
+  const map = new AMap.Map('map', {
+    zoom: 15, center: REAL_DATA.center, viewMode: '2D',
+    mapStyle: 'amap://styles/grey', showLabel: true,
+    dragEnable: true, scrollWheel: true, doubleClickZoom: true, zooms: [3, 20],
+    backgroundColor: '#0b1118',
+  });
+
+  map.on('complete', () => {
+    const cm = new ChannelizationMap(map, REAL_DATA);
+    cm.render();
+    map.on('zoomend', () => cm.applyLOD(map.getZoom()));
+    map.on('moveend', () => cm.applyLOD(map.getZoom()));
+    updateHud('L0', map.getZoom());
+    AMap.plugin(['AMap.ToolBar', 'AMap.Scale'], () => {
+      map.addControl(new AMap.ToolBar({ position: { right: '16px', bottom: '40px' } }));
+      map.addControl(new AMap.Scale());
+    });
+    setTimeout(() => map.setZoomAndCenter(18.5, REAL_DATA.center, false, 1800), 600);
+  });
+  map.on('error', () => fail('高德地图初始化出错。'));
+})();
+</script>
+</body>
+</html>
