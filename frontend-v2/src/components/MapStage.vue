@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker } from '../types/map'
 import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
 import type { PipelinePhase, HighlightTurn, RuntimeMetrics } from '../types/presentation'
+import type { PresentationLayerGates } from '../composables/usePresentationSequence'
 import ChannelizationStageOverlay from './channelization/ChannelizationStageOverlay.vue'
 import { TA_THEME } from '../theme'
 import {
@@ -15,6 +16,8 @@ import {
 } from '../utils/amap'
 import { isEntrance, linkStrokeColor, markerHtml, mergeSceneMarkers, normalizeDir } from '../utils/mapMarkers'
 import { buildEvidenceDirectionMarkers, buildProtectedDirectionMarkers, highlightDirsForGroup } from '../utils/evidencePresentation'
+import { buildInterItemFromCognition } from '../utils/cognitionChannelAdapter'
+import { createChannelizationController, type ChannelizationController } from '../lib/channelizationController'
 
 const props = defineProps<{
   mapActions: MapActionEvent[]
@@ -38,6 +41,7 @@ const props = defineProps<{
   corridorSelectedInterId?: string | null
   /** 左侧干线列表占用时的视觉中心偏移 */
   visualPanOffsetX?: number
+  presentationLayers?: PresentationLayerGates
 }>()
 
 const emit = defineEmits<{
@@ -109,12 +113,51 @@ const sceneOpts = ref({
 let extraEvidenceMarkers: import('../types/map').MapSceneMarker[] = []
 const chanSceneMarkers = ref<MapSceneMarker[]>([])
 
+/* ── 主图渠化（AMap 覆盖物） ───────────────────────────────────────────────── */
+let chanController: ChannelizationController | null = null
+let chanMountedKey = '' // 已挂载渠化的路口标识（inter_id|arm数），变更时重建
+
+function channelizationPhaseParams() {
+  return {
+    phase: props.pipelinePhase,
+    cognition: effectiveCognition.value,
+    evidence: props.evidence ?? null,
+    runtimeMetrics: props.runtimeMetrics ?? null,
+    highlightTurn: props.highlightTurn ?? null,
+    highlightDirs: channelHighlightDirs.value,
+    protectedDirs: props.protectedDirs ?? [],
+    sceneMarkers: chanSceneMarkers.value,
+  }
+}
+
+function syncChannelizationPhase() {
+  if (chanController?.active()) chanController.syncPhase(channelizationPhaseParams())
+}
+
+function mountChannelization() {
+  if (!map || !AMapLib) return
+  const cog = effectiveCognition.value
+  if (!cog?.arms?.length) return
+  const key = `${cog.intersection?.inter_id ?? ''}|${cog.arms.length}`
+  if (!chanController) chanController = createChannelizationController(AMapLib, map)
+  if (key !== chanMountedKey) {
+    chanController.mount(buildInterItemFromCognition(cog))
+    chanMountedKey = key
+  }
+  chanController.applyLOD(map.getZoom())
+  syncChannelizationPhase()
+}
+
+function disposeChannelization() {
+  chanController?.dispose()
+  chanMountedKey = ''
+}
+
 function syncChanSceneMarkers(action?: MapActionEvent) {
   if (!channelizationLocked.value) return
-  const base = action
-    ? mergeSceneMarkers(action, cognition.value)
-    : chanSceneMarkers.value
-  chanSceneMarkers.value = [...base, ...extraEvidenceMarkers]
+  if (action) {
+    chanSceneMarkers.value = mergeSceneMarkers(action, cognition.value)
+  }
 }
 
 function centerMapOnIntersection(lon: number, lat: number, zoom?: number) {
@@ -343,6 +386,7 @@ async function focusCorridorIntersection(lon: number, lat: number, zoom = CORRID
 
 async function prepareNewAnalysisRun() {
   stopLinkFlash()
+  disposeChannelization()
   channelizationLocked.value = false
   viewMode.value = 'map'
   hud.value = null
@@ -364,6 +408,7 @@ async function prepareNewAnalysisRun() {
 async function resetToCityDefault() {
   if (!map || !AMapLib) return
   stopLinkFlash()
+  disposeChannelization()
   channelizationLocked.value = false
   viewMode.value = 'map'
   cognition.value = null
@@ -385,13 +430,14 @@ async function drillToIntersection(lon: number, lat: number) {
 
 async function enterChannelizationView(lon: number, lat: number) {
   if (!map || !AMapLib) return
-  await flyTo(map, AMapLib, [lon, lat], 18.2, 900)
+  await flyTo(map, AMapLib, [lon, lat], 18.5, 900)
   stopLinkFlash()
   clearMarkers()
   clearOverlays()
   channelizationLocked.value = true
   viewMode.value = 'channelization'
-  centerMapOnIntersection(lon, lat, 18.2)
+  centerMapOnIntersection(lon, lat, 18.5)
+  mountChannelization()
 }
 
 async function focusPoint(lon: number, lat: number, zoom: number) {
@@ -472,6 +518,7 @@ async function handleAction(action: MapActionEvent) {
       const inter = action.intersection
       if (!inter) return
       viewMode.value = 'map'
+      disposeChannelization()
       channelizationLocked.value = false
       stopLinkFlash()
       hud.value = null
@@ -560,6 +607,25 @@ watch(
   { immediate: true },
 )
 
+// 渠化态：阶段/证据/高亮变化时，重建（若换路口）并同步标注
+watch(
+  () => [
+    props.pipelinePhase,
+    props.evidence,
+    props.highlightTurn,
+    props.runtimeMetrics,
+    props.highlightDirs,
+    props.protectedDirs,
+    chanSceneMarkers.value,
+    effectiveCognition.value,
+  ],
+  () => {
+    if (!channelizationLocked.value) return
+    mountChannelization()
+  },
+  { deep: true },
+)
+
 watch(
   () => [props.highlightDirs, props.protectedDirs, props.focusedDirs, props.hudOverride],
   () => {
@@ -603,7 +669,6 @@ function setEvidenceOverlay(
     : []
   extraEvidenceMarkers = [...markers, ...protectedMarkers]
   if (channelizationLocked.value) {
-    syncChanSceneMarkers()
     return
   }
   drawHighlights()
@@ -616,6 +681,11 @@ onMounted(async () => {
     if (!mapContainer.value) return
     map = createDarkMap(mapContainer.value, AMapLib)
     ready.value = true
+
+    // 渠化态随地图缩放下钻（L0 路网 / L1 轮廓 / L2 车道渠化）
+    map.on('zoomend', () => {
+      if (channelizationLocked.value) chanController?.applyLOD(map!.getZoom())
+    })
 
     resizeObs = new ResizeObserver(() => {
       const inter = cognition.value?.intersection
@@ -630,6 +700,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopLinkFlash()
+  disposeChannelization()
   clearMarkers()
   clearOverlays()
   resizeObs?.disconnect()
@@ -705,6 +776,7 @@ watch(
       :scene-markers="chanSceneMarkers"
       :hud="(hudOverride ?? hud) as MapSceneHud | null"
       :run-key="props.analysisRunKey ?? 0"
+      :presentation-layers="presentationLayers"
       @close-timing-ring="emit('closeTimingRing')"
       @close-corridor-wave="emit('closeCorridorWave')"
     />

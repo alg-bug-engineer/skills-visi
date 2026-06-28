@@ -8,13 +8,11 @@ import type {
   RuntimeMetrics,
   GovernanceSuggestionPayload,
 } from '../../types/presentation'
+import type { PresentationLayerGates } from '../../composables/usePresentationSequence'
 import { COGNITION_STRUCTURE_PHASES } from '../../types/presentation'
 import { useChannelFooterLayout } from '../../composables/useChannelFooterLayout'
 import type { FlowTimingGovernance } from '../../types/evidence'
-import ChannelizationCanvas3D from './ChannelizationCanvas3D.vue'
 import ChannelizationLegend from './ChannelizationLegend.vue'
-import ChannelizationMetricStrip from './ChannelizationMetricStrip.vue'
-import ChannelizationImbalanceBanner from './ChannelizationImbalanceBanner.vue'
 import ChannelizationEvidenceNote from './ChannelizationEvidenceNote.vue'
 import ChannelizationSuggestionNote from './ChannelizationSuggestionNote.vue'
 import TimingRingMiniWindow from '../timing/TimingRingMiniWindow.vue'
@@ -40,6 +38,7 @@ const props = defineProps<{
   hud?: MapSceneHud | null
   /** 新一轮分析时递增，用于重置粘性浮层 */
   runKey?: number
+  presentationLayers?: PresentationLayerGates
 }>()
 
 const emit = defineEmits<{
@@ -60,19 +59,21 @@ const phaseLabel = computed(() => {
   return map[props.phase ?? 'links'] ?? '路口渠化'
 })
 
-const {
-  queueArms,
-  showMetricStrip,
-  showImbalanceBanner,
-  imbalance,
-} = useChannelFooterLayout({
+const { queueArms } = useChannelFooterLayout({
   phase: computed(() => props.phase ?? 'idle'),
   cognition: computed(() => props.cognition),
   evidence: computed(() => props.evidence ?? null),
   runtimeMetrics: computed(() => props.runtimeMetrics ?? null),
   fullscreen: computed(() => Boolean(props.fullscreen)),
-  runKey: computed(() => props.runKey ?? 0),
 })
+
+const showDirectionRoles = computed(
+  () =>
+    props.phase === 'direction' &&
+    Boolean(props.highlightDirs?.length || props.protectedDirs?.length),
+)
+
+const showHudBar = computed(() => props.presentationLayers?.hudBar ?? true)
 
 const hasQueue = computed(() => {
   if (COGNITION_STRUCTURE_PHASES.includes(props.phase ?? 'idle')) return false
@@ -203,7 +204,7 @@ watch(
         <span class="phase-tag">{{ phaseLabel }}</span>
       </header>
 
-      <div v-if="fullscreen && hud?.metrics?.length" class="chan-hud-bar">
+      <div v-if="fullscreen && showHudBar && hud?.metrics?.length" class="chan-hud-bar">
         <div class="chan-hud-head">
           <span v-if="hud.icon" class="hud-icon">{{ hud.icon }}</span>
           <span class="hud-title">{{ hud.title }}</span>
@@ -246,39 +247,19 @@ watch(
           class="chan-suggestion-note"
           :suggestion="governanceSuggestion"
         />
-        <ChannelizationCanvas3D
-          :cognition="cognition"
-          :evidence="evidence"
-          :phase="phase"
-          :highlight-dirs="highlightDirs"
-          :protected-dirs="protectedDirs"
-          :highlight-turn="highlightTurn"
-          :runtime-metrics="runtimeMetrics"
-          :scene-markers="sceneMarkers"
-        />
+        <!-- 渠化已下沉到主地图(AMap 覆盖物)渲染，此处仅留透传区让地图显示，
+             图例/证据/建议/迷你窗作为 HUD 浮层叠加 -->
+        <div class="chan-map-passthrough" />
         <ChannelizationLegend
           v-if="fullscreen"
           ref="legendCompRef"
           :phase="phase"
           :show-queue="hasQueue"
-          :show-direction-roles="Boolean(highlightDirs?.length || protectedDirs?.length)"
+          :show-direction-roles="showDirectionRoles"
           :run-key="runKey"
         />
       </div>
 
-      <Transition name="chan-footer-rise">
-        <div v-if="showImbalanceBanner" key="imbalance-banner" class="chan-imbalance-row">
-          <ChannelizationImbalanceBanner :value="imbalance!" />
-        </div>
-      </Transition>
-
-      <Transition name="chan-footer-rise">
-        <ChannelizationMetricStrip
-          v-if="showMetricStrip"
-          key="metric-strip"
-          :queue-arms="queueArms"
-        />
-      </Transition>
     </div>
   </Transition>
 </template>
@@ -414,6 +395,13 @@ watch(
   position: relative;
 }
 
+/* 渠化下沉主图后的透传占位：撑开布局让图例落到底部，并放行地图交互 */
+.chan-map-passthrough {
+  flex: 1 1 auto;
+  min-height: 0;
+  pointer-events: none;
+}
+
 .fullscreen .chan-body {
   display: flex;
   flex-direction: column;
@@ -472,23 +460,6 @@ watch(
   z-index: 6;
 }
 
-.chan-imbalance-row {
-  flex-shrink: 0;
-  padding: 6px 12px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.22);
-}
-
-.chan-imbalance-row :deep(.imbalance-banner) {
-  max-width: calc(100% - 300px);
-}
-
-@media (max-width: 900px) {
-  .chan-imbalance-row :deep(.imbalance-banner) {
-    max-width: 100%;
-  }
-}
-
 .chan-full-enter-active,
 .chan-full-leave-active {
   transition: opacity 0.55s ease, transform 0.55s ease;
@@ -500,25 +471,4 @@ watch(
   transform: scale(1.04);
 }
 
-.chan-footer-rise-enter-active {
-  transition:
-    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.32s ease;
-}
-
-.chan-footer-rise-leave-active {
-  transition: none;
-}
-
-.chan-footer-rise-enter-from,
-.chan-footer-rise-leave-to {
-  opacity: 0;
-  transform: translateY(18px);
-}
-
-.chan-footer-rise-enter-to,
-.chan-footer-rise-leave-from {
-  opacity: 1;
-  transform: translateY(0);
-}
 </style>
