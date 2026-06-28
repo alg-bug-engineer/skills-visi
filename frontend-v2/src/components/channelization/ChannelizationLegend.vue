@@ -5,6 +5,7 @@ import type { PipelinePhase } from '../../types/presentation'
 const props = defineProps<{
   phase?: PipelinePhase
   showQueue?: boolean
+  showDirectionRoles?: boolean
   /** 新一轮分析时递增，用于重置粘性图例块 */
   runKey?: number
 }>()
@@ -43,6 +44,17 @@ watch(
 <template>
   <aside class="chan-legend" aria-label="渠化图图例">
     <h4>图例说明</h4>
+
+    <div v-if="showDirectionRoles" class="legend-block direction-roles">
+      <span class="icon">🧭</span>
+      <div>
+        <strong>方向角色</strong>
+        <ul class="swatches">
+          <li><i class="sw focus" />关注方向</li>
+          <li><i class="sw protect" />保护方向</li>
+        </ul>
+      </div>
+    </div>
 
     <div v-if="queueLegendRevealed" class="legend-block">
       <span class="icon">🚗</span>
@@ -171,5 +183,11 @@ watch(
 }
 .sw.ok {
   background: #338844;
+}
+.sw.focus {
+  background: #ff6b4a;
+}
+.sw.protect {
+  background: #6dffb5;
 }
 </style>

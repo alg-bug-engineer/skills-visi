@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import * as THREE from 'three'
-import type { CognitionPayload } from '../../types/map'
+import type { CognitionPayload, MapSceneMarker } from '../../types/map'
 import type { ProblemEvidence } from '../../types/evidence'
 import type { HighlightTurn, PipelinePhase, RuntimeMetrics } from '../../types/presentation'
 import { COGNITION_STRUCTURE_PHASES } from '../../types/presentation'
@@ -11,6 +11,8 @@ import {
   getChannelizationView,
   applyCheckHighlight,
   applyTurnHighlight,
+  applyDirectionRoleHighlight,
+  applyArmSceneLabels,
   clearCheckHighlight,
 } from '../../lib/channelizationLayer.js'
 import {
@@ -20,14 +22,18 @@ import {
   highlightVerdict,
   turnCodeFromLabel,
 } from '../../utils/cognitionChannelAdapter'
+import { buildArmLabelsFromScene } from '../../utils/channelArmLabels'
+import { highlightDirsForGroup } from '../../utils/evidencePresentation'
 
 const props = defineProps<{
   cognition: CognitionPayload | null
   evidence?: ProblemEvidence | null
   phase?: PipelinePhase
   highlightDirs?: string[]
+  protectedDirs?: string[]
   highlightTurn?: HighlightTurn | null
   runtimeMetrics?: RuntimeMetrics | null
+  sceneMarkers?: MapSceneMarker[]
 }>()
 
 const hostRef = ref<HTMLDivElement | null>(null)
@@ -89,6 +95,27 @@ function applyPhaseHighlight() {
     if (sat == null) return
     applyCheckHighlight(channelGroup, 'saturation', highlightVerdict(sat, 0.85, 0.65), ev)
   }
+
+  applyDirectionRoleHighlightOnArms()
+  applyArmSceneLabels(
+    channelGroup,
+    buildArmLabelsFromScene(props.sceneMarkers ?? [], props.cognition),
+  )
+}
+
+function protectDirKeys(): string[] {
+  return (props.protectedDirs ?? []).flatMap((group) => highlightDirsForGroup(group))
+}
+
+function applyDirectionRoleHighlightOnArms() {
+  if (!channelGroup) return
+  const focus = props.highlightDirs ?? []
+  const protect = protectDirKeys()
+  if (!focus.length && !protect.length) {
+    applyDirectionRoleHighlight(channelGroup, [], [])
+    return
+  }
+  applyDirectionRoleHighlight(channelGroup, focus, protect)
 }
 
 function fitCamera() {
@@ -148,13 +175,13 @@ function initThree() {
   if (!host) return
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x1e2430)
+  scene.background = null
 
   const w = host.clientWidth || 800
   const h = host.clientHeight || 600
   camera = new THREE.PerspectiveCamera(42, w / h, 0.5, 2000)
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(w, h, false)
   host.appendChild(renderer.domElement)
@@ -199,8 +226,10 @@ watch(
     props.evidence,
     props.phase,
     props.highlightDirs,
+    props.protectedDirs,
     props.highlightTurn,
     props.runtimeMetrics,
+    props.sceneMarkers,
   ],
   () => {
     rebuild()

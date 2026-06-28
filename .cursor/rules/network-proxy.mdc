@@ -1,0 +1,43 @@
+---
+description: 终端访问外网（git push、npm、pip、curl 等）前需设置本地代理
+alwaysApply: true
+---
+
+# 网络代理约束
+
+本机访问 GitHub、npm registry、PyPI 等外网资源时，**先在当前 shell 会话设置代理**，再执行网络命令。
+
+## 必做（每个新终端会话）
+
+```bash
+export https_proxy=http://127.0.0.1:7897
+export http_proxy=http://127.0.0.1:7897
+export all_proxy=socks5://127.0.0.1:7897
+```
+
+## 适用场景
+
+- `git push` / `git fetch` / `git clone`
+- `npm install` / `npm ci`
+- `pip install` / `uv sync`
+- `curl` / `gh` / 其他需访问公网的 CLI
+- MCP / 文档拉取等 Agent 终端命令
+
+## Agent 执行规范
+
+1. 遇到 `Connection reset`、`SSL_ERROR_SYSCALL`、`unable to access github.com` 等网络错误时，**先设置上述 proxy 再重试**，不要直接放弃。
+2. 代理仅作用于当前 shell；新开终端需重新 export。
+3. 代理端口以本机 Clash/V2Ray 等工具为准；默认 **7897**，若本地配置不同由开发者自行调整。
+4. **勿**将 proxy 写入 git 仓库内的 `.env` 或提交到远程。
+5. **后端/前端服务不使用代理**：应用启动时会清除继承的 `http_proxy` / `all_proxy` 等变量；代理仅用于 `git` / `npm` / `pip` 等终端命令。
+
+## 可选：写入 shell 配置（开发者本地）
+
+如需长期生效，可自行加入 `~/.zshrc`（不纳入本仓库）：
+
+```bash
+# 路口项目 / 本机开发代理（按需取消注释）
+# export https_proxy=http://127.0.0.1:7897 http_proxy=http://127.0.0.1:7897 all_proxy=socks5://127.0.0.1:7897
+```
+
+详见 [`docs/DEV_CONSTRAINTS.md`](docs/DEV_CONSTRAINTS.md)。

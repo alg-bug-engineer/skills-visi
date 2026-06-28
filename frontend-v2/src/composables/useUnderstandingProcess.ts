@@ -136,7 +136,9 @@ export function useUnderstandingProcess(options: UnderstandingProcessOptions = {
       }
       steps.value.push(step)
       sortSteps()
-      options.onStepStart?.(index)
+      if (!silent) {
+        options.onStepStart?.(index)
+      }
     }
 
     clearTimers()

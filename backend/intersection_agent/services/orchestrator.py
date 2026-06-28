@@ -29,10 +29,10 @@ from intersection_agent.services.intersection_cognition_service import (
 )
 from intersection_agent.services.intersection_resolver import IntersectionResolver
 from intersection_agent.services.map_presentation_service import (
+    build_links_narration_payload,
     build_map_scene,
     build_narration_steps,
     build_understanding_card,
-    links_summary,
     pick_narration_step,
 )
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
@@ -857,11 +857,7 @@ class Orchestrator:
                         "arms": cognition.get("arms") or [],
                     },
                 )
-                link_step = {
-                    "phase": "links",
-                    "title": "关联路段",
-                    "text": links_summary(cognition),
-                }
+                link_step = build_links_narration_payload(cognition)
                 await self._emit_map_sequence(
                     emitter, action="narration", data={**link_step, "index": 0, "total": 6}
                 )

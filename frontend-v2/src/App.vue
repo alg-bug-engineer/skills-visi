@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { checkHealth, createSession, sendMessageStream } from './api/client'
 import WorkbenchLayout from './components/workbench/WorkbenchLayout.vue'
 import { STEP_INDICES, STEP_PAUSE_MS } from './constants'
 import { shouldShowSkillSolidificationStep } from './utils/regressionSkillFlow'
 import { usePresentation } from './composables/usePresentation'
+import { usePresentationPause } from './composables/usePresentationPause'
+import { createPresentationBarrier } from './composables/usePresentationBarrier'
 import { useUnderstandingProcess } from './composables/useUnderstandingProcess'
 import { useSkillBuildProcess } from './composables/useSkillBuildProcess'
 import { useExperienceAbsorption } from './composables/useExperienceAbsorption'
@@ -21,6 +23,14 @@ import { parseHighlightTurn } from './utils/cognitionChannelAdapter'
 import { buildEvidenceListItems } from './utils/channelizationCopy'
 import { VOICE_GUIDE } from './services/voiceCueTemplates'
 import { processStepPhase, resolveProcessStepVoice } from './services/voiceStepSync'
+import {
+  buildCognitionVoiceCue,
+  buildDirectionVoiceCue,
+  buildImbalanceCue,
+  buildNarrationPhaseVoiceCue,
+  buildSaturationCue,
+  type DirectionRoleRow,
+} from './services/voiceCueExtractors'
 import { ABSORPTION_STAGE_VOICE } from './types/voice'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
 import type MapStage from './components/MapStage.vue'
@@ -70,6 +80,8 @@ const missingFields = ref<string[]>([])
 const followUpBubble = ref<string | null>(null)
 
 const voice = useVoiceNarration()
+const analysisQueue = new AnalysisQueue()
+const presentationPause = usePresentationPause(analysisQueue, voice)
 const lastIntersectionName = ref<string | null>(null)
 const voiceSentForStep = new Set<number>()
 
@@ -131,6 +143,12 @@ const {
   reset: resetAbsorption,
 } = useExperienceAbsorption()
 
+const { whenSettled: whenPresentationSettled } = createPresentationBarrier({
+  whenProcessIdle,
+  voice,
+  getAbsorptionState: () => absorptionState,
+})
+
 /** 渠化全屏或技能固化/经验吸收演示时隐藏输入框，避免遮挡左侧终端 */
 const hideInputDock = computed(
   () =>
@@ -143,7 +161,6 @@ const hideInputDock = computed(
       !awaitingSuggestionConfirm.value),
 )
 
-const analysisQueue = new AnalysisQueue()
 let abortController: AbortController | null = null
 let toastTimer: number | null = null
 let suggestionConfirmQueued = false
@@ -329,7 +346,7 @@ function startSuggestionConfirmPause(message: string) {
   confirmMessage.value = message
   docked.value = true
   inputLocked.value = false
-  analysisQueue.pause()
+  presentationPause.pause()
   showMapToast(message)
 }
 
@@ -350,7 +367,7 @@ function stopSuggestionConfirmPause({ resumeQueue = true } = {}) {
   pendingConfirm.value = false
   clearToastTimer()
   mapToast.value = null
-  if (resumeQueue) analysisQueue.resume()
+  if (resumeQueue) presentationPause.resume()
 }
 
 function formatUnderstandingText(
@@ -388,15 +405,15 @@ function pushSkillStep(message: string) {
 }
 
 async function revealSkillStep(message: string) {
-  await whenProcessIdle()
+  await whenPresentationSettled()
   pushSkillStep(message)
-  await whenProcessIdle()
+  await whenPresentationSettled()
 }
 
 async function revealSuggestionStep(message: string) {
-  await whenProcessIdle()
+  await whenPresentationSettled()
   enqueueProcess(STEP_INDICES.SUGGESTION, message, true)
-  await whenProcessIdle()
+  await whenPresentationSettled()
 }
 
 async function finalizeDiagnosisUi(result: MessageResponse) {
@@ -408,7 +425,7 @@ async function finalizeDiagnosisUi(result: MessageResponse) {
   }
 
   await analysisQueue.whenIdle()
-  await whenProcessIdle()
+  await whenPresentationSettled()
 
   if (!hasSkillStep()) {
     const skillAction = result.meta?.skill_action as string | undefined
@@ -438,7 +455,7 @@ async function tryShowConfirm() {
     return
   }
   await analysisQueue.whenIdle()
-  await whenProcessIdle()
+  await whenPresentationSettled()
   if (!pendingConfirm.value || awaitingSuggestionConfirm.value || suggestionConfirmQueued) return
   showConfirm.value = true
   inputLocked.value = false
@@ -580,6 +597,7 @@ function beginAnalysisFlow(userContent: string) {
 
 function prepareNewAnalysisRun(userContent: string) {
   stopSuggestionConfirmPause()
+  presentationPause.reset()
   analysisQueue.reset()
   resetProcess()
   steps.value = []
@@ -601,8 +619,14 @@ function handleNluStep(data: Record<string, unknown>) {
 }
 
 function applySceneHighlight(action: MapActionEvent) {
-  if (action.highlight_dirs?.length) {
+  if (action.focus_groups?.length) {
+    const dirs = action.focus_groups.flatMap((g) => highlightDirsForGroup(g))
+    presentation.setHighlightDirs(dirs)
+  } else if (action.highlight_dirs?.length) {
     presentation.setHighlightDirs(action.highlight_dirs)
+  }
+  if (action.protected_groups?.length) {
+    presentation.setProtectedGroups(action.protected_groups)
   }
   if (action.highlight_turn) {
     presentation.setHighlightTurn(
@@ -619,11 +643,61 @@ function applySceneHighlight(action: MapActionEvent) {
   }
 }
 
+function enqueueLinksVoice(action: MapActionEvent) {
+  if (!voice.enabled.value) return
+  const cue = buildCognitionVoiceCue({
+    speakable: action.speakable,
+    axis_roads: action.axis_roads,
+    intersectionName: lastIntersectionName.value,
+  })
+  if (!cue) return
+  voiceSentForStep.add(STEP_INDICES.COGNITION)
+  voice.enqueue(cue)
+}
+
+const NARRATION_TEXT_VOICE_PHASES = new Set([
+  'traffic',
+  'granularity',
+  'timing',
+  'corridor',
+  'external',
+])
+
+function enqueueNarrationPhaseVoice(action: MapActionEvent) {
+  if (!voice.enabled.value) return
+  const phase = action.phase ?? ''
+  if (!NARRATION_TEXT_VOICE_PHASES.has(phase)) return
+  const cue = buildNarrationPhaseVoiceCue(phase, action.text ?? '', action.title)
+  if (cue) voice.enqueue(cue)
+}
+
+function enqueueSceneVoice(action: MapActionEvent) {
+  if (!voice.enabled.value) return
+  if (action.phase === 'direction' && action.direction_roles?.length) {
+    const cue = buildDirectionVoiceCue(action.direction_roles as DirectionRoleRow[])
+    if (cue) voice.enqueue(cue)
+    return
+  }
+  if (action.phase === 'saturation') {
+    const sat = presentation.state.runtimeMetrics?.saturation_rate ?? null
+    const cue = buildSaturationCue(sat)
+    if (cue) voice.enqueue(cue)
+    return
+  }
+  if (action.phase === 'imbalance') {
+    const imb = presentation.state.runtimeMetrics?.imbalance_index
+    const green = presentation.state.runtimeMetrics?.green_utilization
+    const cue = buildImbalanceCue(imb, green)
+    if (cue) voice.enqueue(cue)
+  }
+}
+
 function handleNarration(action: MapActionEvent) {
   const text = action.text ?? ''
   if (!text) return
 
   if (action.phase === 'links' || action.phase === 'channelization') {
+    enqueueLinksVoice(action)
     enqueueProcess(STEP_INDICES.COGNITION, text)
     return
   }
@@ -639,6 +713,7 @@ function handleNarration(action: MapActionEvent) {
   ) {
     const prefix = action.title ? `${action.title}：` : ''
     enqueueProcess(STEP_INDICES.DATA_FETCH, `${prefix}${text}`, true)
+    enqueueNarrationPhaseVoice(action)
     return
   }
   if (action.phase === 'rule') {
@@ -719,7 +794,7 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       updateCognitionFromAction(action)
       presentation.setHighlightTurn(null)
       presentation.setPhase('links')
-      enqueueProcess(STEP_INDICES.COGNITION, formatLinksText(action.links ?? []))
+      enqueueProcess(STEP_INDICES.COGNITION, formatLinksText(action.links ?? []), false, true)
       pushMapAction(action)
       return
     }
@@ -785,9 +860,8 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
         handleNarration(narration)
       }
       applySceneHighlight(action)
-      if (narration) {
-        await whenProcessIdle()
-      }
+      enqueueSceneVoice(action)
+      await whenPresentationSettled()
       pushMapAction(action)
       return
     }
@@ -859,6 +933,7 @@ function handleProblemEvidenceStep(data: Record<string, unknown>) {
       const dirs = focused.flatMap((d) => highlightDirsForGroup(d.group))
       presentation.setHighlightDirs(dirs)
     }
+    await whenPresentationSettled()
   }, STEP_PAUSE_MS)
 }
 
@@ -950,6 +1025,7 @@ function handlePipelineStep(
           true,
           true,
         )
+        await whenPresentationSettled()
       }, STEP_PAUSE_MS)
     }
     return
@@ -1178,11 +1254,19 @@ function onSkillBuildFinish() {
 async function onDeny() {
   showConfirm.value = false
   pendingConfirm.value = false
+  presentationPause.reset()
   analysisQueue.reset()
   await handleSend('否')
 }
 
+let unbindPresentationPause: (() => void) | null = null
+
 onMounted(async () => {
+  unbindPresentationPause = presentationPause.bindSpaceKey(
+    () => docked.value && (loading.value || analysisQueue.isRunning || presentationPause.paused.value),
+    () => inputLocked.value,
+  )
+
   try {
     await checkHealth()
     await initSession()
@@ -1190,6 +1274,11 @@ onMounted(async () => {
     const msg = err instanceof Error ? err.message : String(err)
     errorBanner.value = `无法连接后端: ${msg}`
   }
+})
+
+onUnmounted(() => {
+  unbindPresentationPause?.()
+  unbindPresentationPause = null
 })
 </script>
 
@@ -1220,6 +1309,7 @@ onMounted(async () => {
       :skill-build-state="skillBuildState"
       :voice-enabled="voice.enabled.value"
       :voice-playing="voice.playing.value"
+      :presentation-paused="presentationPause.paused.value"
       @toggle-voice="voice.toggleEnabled()"
       @channelization-active="channelizationActive = $event"
       @send="handleSend"

@@ -953,3 +953,120 @@ export function applyTurnHighlight(channelGroup, spec) {
 
   channelGroup.add(hlGroup);
 }
+
+function clearDirectionRoleHighlight(channelGroup) {
+  const existing = channelGroup.getObjectByName('direction-role-highlight');
+  if (existing) {
+    channelGroup.remove(existing);
+    existing.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
+  }
+}
+
+/**
+ * 关注 / 保护方向着色：关注橙红、保护绿、其他 dim。
+ */
+export function applyDirectionRoleHighlight(channelGroup, focusDirs = [], protectDirs = []) {
+  clearDirectionRoleHighlight(channelGroup);
+  if (!focusDirs?.length && !protectDirs?.length) return;
+
+  const arms = channelGroup.userData.arms;
+  const boxR = channelGroup.userData.boxR;
+  if (!arms?.length) return;
+
+  const hlGroup = new THREE.Group();
+  hlGroup.name = 'direction-role-highlight';
+
+  for (const arm of arms) {
+    const isFocus = focusDirs.some(d => _armMatchesDir(arm.angle, d));
+    const isProtect = protectDirs.some(d => _armMatchesDir(arm.angle, d));
+    const inLanes = arm.inLink ? parseLaneInfo(arm.inLink) : [];
+    const nIn = inLanes.length;
+    const nOut = arm.outLink ? (arm.outLink.c_lane_num || arm.outLink.lane_num || 0) : 0;
+    if (nIn + nOut === 0) continue;
+
+    const totalW = (nIn + nOut) * LANE_W;
+    const xCenter = (nIn * LANE_W - nOut * LANE_W) / 2;
+    const armGrp = new THREE.Group();
+    armGrp.rotation.y = bearingToRotY(arm.angle);
+
+    let colorNum = 0x4a5568;
+    let opacity = 0.12;
+    if (isFocus) {
+      colorNum = 0xff6b4a;
+      opacity = 0.38;
+    } else if (isProtect) {
+      colorNum = 0x6dffb5;
+      opacity = 0.28;
+    } else if (focusDirs.length || protectDirs.length) {
+      opacity = 0.08;
+    }
+
+    const overlay = new THREE.Mesh(
+      new THREE.PlaneGeometry(totalW, ARM_LEN),
+      new THREE.MeshBasicMaterial({
+        color: colorNum, transparent: true, opacity,
+        side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    overlay.rotation.x = -Math.PI / 2;
+    overlay.position.set(xCenter, BASE_Y + 0.5, boxR + ARM_LEN / 2);
+    overlay.renderOrder = 12;
+    armGrp.add(overlay);
+    hlGroup.add(armGrp);
+  }
+
+  channelGroup.add(hlGroup);
+}
+
+function clearArmSceneLabels(channelGroup) {
+  if (!channelGroup) return;
+  const existing = channelGroup.getObjectByName('arm-scene-labels');
+  if (!existing) return;
+  existing.traverse(o => {
+    o.geometry?.dispose();
+    if (Array.isArray(o.material)) o.material.forEach(m => { m.map?.dispose(); m.dispose(); });
+    else { o.material?.map?.dispose(); o.material?.dispose(); }
+  });
+  channelGroup.remove(existing);
+}
+
+/**
+ * 在各路臂外缘叠加场景标注，替代 AMap HTML Marker。
+ */
+export function applyArmSceneLabels(channelGroup, labels = []) {
+  clearArmSceneLabels(channelGroup);
+  if (!labels?.length) return;
+
+  const arms = channelGroup.userData.arms;
+  const boxR = channelGroup.userData.boxR;
+  if (!arms?.length) return;
+
+  const hlGroup = new THREE.Group();
+  hlGroup.name = 'arm-scene-labels';
+
+  for (const label of labels) {
+    const dir = label.dir;
+    if (!dir) continue;
+    for (const arm of arms) {
+      if (!_armMatchesDir(arm.angle, dir)) continue;
+      const armGrp = new THREE.Group();
+      armGrp.rotation.y = bearingToRotY(arm.angle);
+      const colorHex = label.colorHex || '#00e5ff';
+      const tex = _makeTextTex(label.line1 || '', label.line2 || '', colorHex);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, depthWrite: false,
+      }));
+      sp.position.set(0, 10, boxR + ARM_LEN * 0.94);
+      sp.scale.set(30, 9, 1);
+      sp.renderOrder = 55;
+      armGrp.add(sp);
+      hlGroup.add(armGrp);
+      break;
+    }
+  }
+
+  channelGroup.add(hlGroup);
+}

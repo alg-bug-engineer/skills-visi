@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud } from '../types/map'
+import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker } from '../types/map'
 import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
 import type { PipelinePhase, HighlightTurn, RuntimeMetrics } from '../types/presentation'
 import ChannelizationStageOverlay from './channelization/ChannelizationStageOverlay.vue'
@@ -107,6 +107,32 @@ const sceneOpts = ref({
 })
 
 let extraEvidenceMarkers: import('../types/map').MapSceneMarker[] = []
+const chanSceneMarkers = ref<MapSceneMarker[]>([])
+
+function syncChanSceneMarkers(action?: MapActionEvent) {
+  if (!channelizationLocked.value) return
+  const base = action
+    ? mergeSceneMarkers(action, cognition.value)
+    : chanSceneMarkers.value
+  chanSceneMarkers.value = [...base, ...extraEvidenceMarkers]
+}
+
+function centerMapOnIntersection(lon: number, lat: number, zoom?: number) {
+  if (!map) return
+  if (channelizationLocked.value) {
+    map.setStatus({ animateEnable: false })
+    if (zoom != null) map.setZoom(zoom)
+    map.setCenter([lon, lat])
+    return
+  }
+  if (zoom != null && AMapLib) {
+    void flyTo(map, AMapLib, [lon, lat], zoom, 0).then(() => {
+      panToVisualCenter(map!, [lon, lat], visualPanOffsetX(), 0)
+    })
+    return
+  }
+  panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
+}
 
 let linkFlashTimer: ReturnType<typeof setInterval> | null = null
 
@@ -152,7 +178,7 @@ function boundsFromLinks(links: IntersectionLink[], center: [number, number]) {
 }
 
 function drawHighlights() {
-  if (!map || !AMapLib || !cognition.value?.intersection) return
+  if (!map || !AMapLib || !cognition.value?.intersection || channelizationLocked.value) return
   clearOverlays()
 
   const inter = cognition.value.intersection
@@ -233,7 +259,7 @@ function markerAnchor(dir?: string): string {
 }
 
 function renderMarkers(action: MapActionEvent) {
-  if (!map || !AMapLib) return
+  if (!map || !AMapLib || channelizationLocked.value) return
   clearMarkers()
   const isCorridor = scenePhase.value === 'corridor_scan'
   const selectedId = props.corridorSelectedInterId
@@ -301,7 +327,12 @@ function drawCorridorPaths(action: MapActionEvent) {
 }
 
 function corridorPanOffsetX(): number {
+  if (channelizationLocked.value) return 0
   return props.visualPanOffsetX ?? PANEL_OFFSET_X
+}
+
+function visualPanOffsetX(): number {
+  return corridorPanOffsetX()
 }
 
 async function focusCorridorIntersection(lon: number, lat: number, zoom = CORRIDOR_FOCUS_ZOOM) {
@@ -318,6 +349,7 @@ async function prepareNewAnalysisRun() {
   scenePhase.value = null
   lastCorridorAction = null
   extraEvidenceMarkers = []
+  chanSceneMarkers.value = []
   sceneOpts.value = {
     highlightDirs: [],
     protectedDirs: [],
@@ -348,7 +380,7 @@ async function drillToIntersection(lon: number, lat: number) {
   await flyTo(map, AMapLib, [lon, lat], 14, 850)
   await flyTo(map, AMapLib, [lon, lat], 16.2, 750)
   await flyTo(map, AMapLib, [lon, lat], 17.5, 650)
-  panToVisualCenter(map, [lon, lat], PANEL_OFFSET_X, 0)
+  panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
 }
 
 async function enterChannelizationView(lon: number, lat: number) {
@@ -359,12 +391,13 @@ async function enterChannelizationView(lon: number, lat: number) {
   clearOverlays()
   channelizationLocked.value = true
   viewMode.value = 'channelization'
+  centerMapOnIntersection(lon, lat, 18.2)
 }
 
 async function focusPoint(lon: number, lat: number, zoom: number) {
   if (!map || !AMapLib || channelizationLocked.value) return
   await flyTo(map, AMapLib, [lon, lat], zoom, 900)
-  panToVisualCenter(map, [lon, lat], PANEL_OFFSET_X, 0)
+  panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
 }
 
 async function focusIntersection(lon: number, lat: number, zoom = FOCUS_ZOOM) {
@@ -397,19 +430,27 @@ async function applyMapScene(action: MapActionEvent) {
   scenePhase.value = action.phase ?? null
   hud.value = props.hudOverride ?? action.hud ?? null
 
-  if (!channelizationLocked.value) {
-    sceneOpts.value = {
-      highlightDirs: action.highlight_dirs ?? [],
-      protectedDirs: props.protectedDirs ?? [],
-      pulseIds: action.pulse_link_ids ?? [],
-      flashDirs: [],
-      dimOthers: action.dim_other_links ?? false,
-    }
-    drawHighlights()
-    renderMarkers(action)
+  sceneOpts.value = {
+    highlightDirs: action.highlight_dirs ?? [],
+    protectedDirs: action.protected_groups ?? props.protectedDirs ?? [],
+    pulseIds: action.pulse_link_ids ?? [],
+    flashDirs: [],
+    dimOthers: action.dim_other_links ?? false,
   }
 
-  if (channelizationLocked.value) return
+  if (channelizationLocked.value) {
+    clearMarkers()
+    clearOverlays()
+    syncChanSceneMarkers(action)
+    const inter = cognition.value?.intersection
+    if (inter) {
+      centerMapOnIntersection(inter.lon, inter.lat, action.zoom ?? FOCUS_ZOOM)
+    }
+    return
+  }
+
+  drawHighlights()
+  renderMarkers(action)
 
   const inter = cognition.value?.intersection
   const zoom = action.zoom ?? FOCUS_ZOOM
@@ -465,6 +506,7 @@ async function handleAction(action: MapActionEvent) {
       }
       await nextTick()
       await enterChannelizationView(inter.lon, inter.lat)
+      syncChanSceneMarkers()
       break
     }
     case 'update_metrics': {
@@ -560,6 +602,10 @@ function setEvidenceOverlay(
       )
     : []
   extraEvidenceMarkers = [...markers, ...protectedMarkers]
+  if (channelizationLocked.value) {
+    syncChanSceneMarkers()
+    return
+  }
   drawHighlights()
   renderMarkers({ action: 'map_scene', phase: 'evidence' })
 }
@@ -572,10 +618,9 @@ onMounted(async () => {
     ready.value = true
 
     resizeObs = new ResizeObserver(() => {
-      if (cognition.value?.intersection) {
-        const inter = cognition.value.intersection
-        panToVisualCenter(map!, [inter.lon, inter.lat], PANEL_OFFSET_X, 0)
-      }
+      const inter = cognition.value?.intersection
+      if (!inter || !map) return
+      centerMapOnIntersection(inter.lon, inter.lat)
     })
     resizeObs.observe(mapContainer.value)
   } catch (err) {
@@ -612,10 +657,9 @@ watch(
   <div class="map-stage" :class="{ 'chan-mode': showChanFull }">
     <div v-if="error" class="map-error">{{ error }}</div>
     <div
-      v-show="viewMode === 'map'"
       ref="mapContainer"
       class="map-canvas"
-      :class="{ 'map-fade-out': showChanFull }"
+      :class="{ 'map-blended': showChanFull }"
     />
 
     <Transition name="hud-fade">
@@ -647,6 +691,7 @@ watch(
       :fullscreen="true"
       :cognition="effectiveCognition"
       :highlight-dirs="channelHighlightDirs"
+      :protected-dirs="props.protectedDirs"
       :evidence="evidence"
       :phase="pipelinePhase"
       :highlight-turn="highlightTurn"
@@ -657,30 +702,12 @@ watch(
       :show-governance-note="showGovernanceNote"
       :governance="governance"
       :governance-suggestion="governanceSuggestion"
+      :scene-markers="chanSceneMarkers"
+      :hud="(hudOverride ?? hud) as MapSceneHud | null"
       :run-key="props.analysisRunKey ?? 0"
       @close-timing-ring="emit('closeTimingRing')"
       @close-corridor-wave="emit('closeCorridorWave')"
     />
-
-    <Transition name="hud-fade">
-      <div v-if="(hudOverride ?? hud) && showChanFull" class="map-hud chan-hud">
-        <div class="hud-head">
-          <span v-if="(hudOverride ?? hud)?.icon" class="hud-icon">{{ (hudOverride ?? hud)?.icon }}</span>
-          <span class="hud-title">{{ (hudOverride ?? hud)?.title }}</span>
-        </div>
-        <div class="hud-metrics">
-          <div
-            v-for="(m, i) in (hudOverride ?? hud)?.metrics ?? []"
-            :key="i"
-            class="hud-metric"
-            :class="`sev-${m.severity || 'unknown'}`"
-          >
-            <span class="hud-label">{{ m.label }}</span>
-            <span class="hud-value">{{ m.value }}</span>
-          </div>
-        </div>
-      </div>
-    </Transition>
 
     <div v-if="!ready && !error && viewMode === 'map'" class="map-loading">地图加载中…</div>
   </div>
@@ -696,13 +723,18 @@ watch(
 }
 
 .map-stage.chan-mode {
-  background: #1a2030;
+  background: transparent;
 }
 
 .map-canvas {
   width: 100%;
   height: 100%;
   transition: opacity 0.5s ease;
+}
+
+.map-canvas.map-blended {
+  opacity: 1;
+  visibility: visible;
 }
 
 .map-canvas.map-fade-out {

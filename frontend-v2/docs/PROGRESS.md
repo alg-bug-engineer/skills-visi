@@ -1,5 +1,34 @@
 # frontend-v2 进度记录
 
+## v2.0.5（2026-06-28）— 地图渠化融合 · 语音精简 · 呈现同步栅栏
+
+### 已完成
+
+- [x] 地图 + 3D 渠化融合（R2）：底图可见、overlay 透明、渠化态 pan offset=0
+- [x] **标注分层**：渠化态禁用 AMap Marker/Polyline；`applyArmSceneLabels` 路臂 3D 标签；HUD 迁入 overlay 顶栏
+- [x] 语音：`voiceCueExtractors` 接线（认知轴路名、分向、饱和度、失衡、干线 narration）；`voiceTextSummarize` 关键点播报
+- [x] 空格演示暂停：`usePresentationPause` + `AnalysisQueue.pause`
+- [x] 呈现同步栅栏：`usePresentationBarrier.whenSettled`（理解过程 + TTS + 吸收面板）
+- [x] 方向角色高亮 + 图例；后端 `axis_roads` / `speakable` narration
+- [x] Bug：SOCKS 代理误伤 httpx（后端 `network_env`）；左侧黑条；底图标注杂乱
+
+### 文档
+
+- [docs/RELEASE_v2.0.5.md](../../docs/RELEASE_v2.0.5.md)
+- [docs/PRESENTATION_SYNC_BARRIER.md](../../docs/PRESENTATION_SYNC_BARRIER.md)（强制约束）
+- [docs/地图语音暂停交互增强开发计划.md](../../docs/地图语音暂停交互增强开发计划.md)
+
+### 单测
+
+- vitest **43+** 项（含 `voiceTextSummarize`、`channelArmLabels`、`usePresentationBarrier` 等）
+
+### 待办
+
+- [ ] Playwright：渠化态无 AMap marker、栅栏时序
+- [ ] Phase 2：`AMap.GLCustomLayer` 地理精确对齐 Three
+
+---
+
 ## v2.0.4（2026-06-27）— 语音步骤同步 + 饱和度口径
 
 ### 已完成

@@ -23,6 +23,7 @@ export function useVoiceNarration() {
   let sessionEpoch = 0
   let abortController: AbortController | null = null
   let drainPromise: Promise<void> | null = null
+  let drainPaused = false
 
   function playbackSettings() {
     return voiceConfig.playback
@@ -162,10 +163,12 @@ export function useVoiceNarration() {
     const epoch = sessionEpoch
     const { cueGapMs } = playbackSettings()
     while (enabled.value && epoch === sessionEpoch && queue.value.length > 0) {
+      if (drainPaused) break
       const [current, ...rest] = queue.value
       queue.value = rest
       await playCue(current, epoch)
       if (epoch !== sessionEpoch) break
+      if (drainPaused) break
       if (rest.length > 0 && cueGapMs > 0) {
         await sleep(cueGapMs)
       }
@@ -174,6 +177,15 @@ export function useVoiceNarration() {
       pcmPlayer?.close()
       pcmPlayer = null
     }
+  }
+
+  function pauseDrain() {
+    drainPaused = true
+  }
+
+  function resumeDrain() {
+    drainPaused = false
+    void ensureDrain()
   }
 
   function ensureDrain() {
@@ -185,7 +197,32 @@ export function useVoiceNarration() {
   }
 
   function resetSession() {
+    drainPaused = false
     interrupt()
+  }
+
+  /** 当前队列播完且不在播放中时 resolve（语音关闭时立即 resolve）。 */
+  function whenIdle(): Promise<void> {
+    if (!enabled.value) return Promise.resolve()
+    return new Promise((resolve) => {
+      const check = () => {
+        if (!enabled.value) {
+          resolve()
+          return
+        }
+        const pending = queue.value.length > 0 || playing.value
+        if (!pending && !drainPromise) {
+          resolve()
+          return
+        }
+        const tail = drainPromise ?? Promise.resolve()
+        void tail.finally(() => {
+          if (queue.value.length === 0 && !playing.value) resolve()
+          else window.setTimeout(check, 50)
+        })
+      }
+      void ensureDrain().finally(check)
+    })
   }
 
   return {
@@ -196,5 +233,8 @@ export function useVoiceNarration() {
     enqueue,
     interrupt,
     resetSession,
+    pauseDrain,
+    resumeDrain,
+    whenIdle,
   }
 }

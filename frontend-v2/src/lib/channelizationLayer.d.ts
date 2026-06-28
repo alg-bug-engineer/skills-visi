@@ -28,3 +28,14 @@ export function applyTurnHighlight(
   channelGroup: Group,
   spec: { dir: string; turnCode: string; label?: string; saturation?: number },
 ): void
+
+export function applyDirectionRoleHighlight(
+  channelGroup: Group,
+  focusDirs?: string[],
+  protectDirs?: string[],
+): void
+
+export function applyArmSceneLabels(
+  channelGroup: Group,
+  labels?: Array<{ dir: string; line1: string; line2: string; colorHex?: string }>,
+): void

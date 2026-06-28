@@ -87,7 +87,10 @@ class QwenClient:
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(timeout=self._settings.llm_timeout_s) as client:
+        async with httpx.AsyncClient(
+            timeout=self._settings.llm_timeout_s,
+            trust_env=False,
+        ) as client:
             response = await client.post(url, json=payload, headers=headers)
             if response.status_code >= 400:
                 log_event(

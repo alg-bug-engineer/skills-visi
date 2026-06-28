@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from typing import Any
 
 from intersection_agent.models.domain import DiagnosisResult, NluResult, SuggestionResult
+from intersection_agent.utils.direction_groups import (
+    primary_groups_from_nlu,
+    protected_groups_for_vertical_constraint,
+)
 
 
 def build_understanding_card(
@@ -68,6 +73,8 @@ def build_narration_steps(
     if nlu and nlu.time_period:
         time_label = nlu.time_period.label or f"{nlu.time_period.start}-{nlu.time_period.end}"
 
+    focus_groups, protected_groups = _focus_and_protected_groups(nlu)
+
     steps: list[dict[str, Any]] = [
         {
             "phase": "locate",
@@ -106,7 +113,11 @@ def build_narration_steps(
         }
     )
 
-    dir_lines = _direction_metric_lines(cognition.get("direction_groups") or [])
+    dir_lines = _direction_metric_lines(
+        cognition.get("direction_groups") or [],
+        focus_groups=focus_groups,
+        protected_groups=protected_groups,
+    )
     if dir_lines:
         steps.append(
             {
@@ -237,6 +248,155 @@ def build_narration_steps(
     return steps
 
 
+def _clean_road_name(name: str) -> str:
+    text = str(name or "").strip()
+    if not text:
+        return ""
+    if ":" in text:
+        text = text.split(":")[0].strip()
+    return text
+
+
+def _dir_to_group(dir_label: str) -> str | None:
+    key = _normalize_dir(str(dir_label or ""))
+    for group, dirs in GROUP_TO_DIRS.items():
+        if key in dirs:
+            return group
+    return None
+
+
+def axis_roads_summary(cognition: dict[str, Any]) -> dict[str, str]:
+    """Aggregate dominant road_name per axis group (东西向 / 南北向)."""
+    group_names: dict[str, list[str]] = {"东西向": [], "南北向": []}
+    links = cognition.get("links") or []
+    for link in links:
+        role = str(link.get("link_role") or "")
+        if role not in ("entrance", "进口"):
+            continue
+        group = _dir_to_group(str(link.get("dir4_label") or link.get("dir8_label") or ""))
+        if not group or group not in group_names:
+            continue
+        name = _clean_road_name(str(link.get("road_name") or ""))
+        if name:
+            group_names[group].append(name)
+
+    if not any(group_names.values()):
+        for arm in cognition.get("arms") or []:
+            group = _dir_to_group(str(arm.get("dir4_label") or arm.get("dir8_label") or ""))
+            if not group or group not in group_names:
+                continue
+            name = _clean_road_name(str(arm.get("road_name") or ""))
+            if name:
+                group_names[group].append(name)
+
+    result: dict[str, str] = {}
+    for group, names in group_names.items():
+        if not names:
+            continue
+        result[group] = Counter(names).most_common(1)[0][0]
+    return result
+
+
+def build_axis_roads_speakable(
+    axis_roads: dict[str, str],
+    inter_name: str = "",
+) -> str:
+    segments: list[str] = []
+    if inter_name:
+        segments.append(str(inter_name))
+    axis_parts: list[str] = []
+    for group in ("东西向", "南北向"):
+        road = axis_roads.get(group)
+        if road:
+            axis_parts.append(f"{group}为{road}")
+    if axis_parts:
+        segments.append("，".join(axis_parts))
+    if not segments:
+        return ""
+    return "，".join(segments) + "。"
+
+
+def build_links_narration_payload(cognition: dict[str, Any]) -> dict[str, Any]:
+    """Narration card for links phase with axis road names and TTS speakable."""
+    inter = cognition.get("intersection") or {}
+    axis = axis_roads_summary(cognition)
+    speakable = build_axis_roads_speakable(axis, str(inter.get("name") or ""))
+    body = links_summary(cognition)
+    if axis:
+        header = "，".join(f"{group}为{road}" for group, road in axis.items())
+        text = f"{header}。\n{body}"
+    else:
+        text = body
+    return {
+        "phase": "links",
+        "title": "关联路段",
+        "text": text,
+        "axis_roads": axis,
+        "speakable": speakable or None,
+    }
+
+
+def _focus_and_protected_groups(nlu: NluResult | None) -> tuple[list[str], list[str]]:
+    if not nlu or not nlu.directions:
+        return [], []
+    focus = primary_groups_from_nlu(nlu.directions)
+    protect = protected_groups_for_vertical_constraint(focus)
+    return focus, protect
+
+
+def _build_direction_roles(
+    groups: list[dict[str, Any]],
+    focus_groups: list[str],
+    protected_groups: list[str],
+) -> list[dict[str, Any]]:
+    focus_set = set(focus_groups)
+    protect_set = set(protected_groups)
+    roles: list[dict[str, Any]] = []
+    for group in groups:
+        name = str(group.get("group") or "")
+        if name in focus_set:
+            role = "focus"
+        elif name in protect_set:
+            role = "protect"
+        else:
+            role = "neutral"
+        sat = group.get("saturation_max")
+        if sat is None:
+            sat = group.get("saturation_avg")
+        roles.append({"group": name, "role": role, "saturation": sat})
+    return roles
+
+
+def _direction_metric_lines(
+    groups: list[dict[str, Any]],
+    *,
+    focus_groups: list[str] | None = None,
+    protected_groups: list[str] | None = None,
+) -> list[str]:
+    focus_set = set(focus_groups or [])
+    protect_set = set(protected_groups or [])
+    lines: list[str] = []
+    for g in groups:
+        sat = g.get("saturation_max")
+        if sat is None:
+            sat = g.get("saturation_avg")
+        level = g.get("level", "")
+        level_cn = {"high": "拥堵", "medium": "偏高", "low": "畅通"}.get(level, "")
+        arms = "、".join(g.get("arm_labels") or [])
+        group_name = str(g.get("group") or "")
+        if group_name in focus_set:
+            prefix = "【关注】"
+        elif group_name in protect_set:
+            prefix = "【保护】"
+        else:
+            prefix = ""
+        if sat is not None and float(sat) > 0:
+            lines.append(
+                f"· {prefix}{group_name}（{arms}）饱和度 {float(sat):.2f} {level_cn}"
+            )
+    return lines
+
+
 def links_summary(cognition: dict[str, Any]) -> str:
     """Human-readable summary of intersection links for narration."""
     inter = cognition.get("intersection") or {}
@@ -273,20 +433,6 @@ def _channelization_summary(inter: dict[str, Any], arms: list[dict[str, Any]]) -
         parts.append(f"{label}进口 {lanes} 车道（{turn}）")
     head = f"{inter.get('name', '')} · 总车道 {inter.get('total_lanes', 0)}"
     return head + "\n" + "；".join(parts)
-
-
-def _direction_metric_lines(groups: list[dict[str, Any]]) -> list[str]:
-    lines: list[str] = []
-    for g in groups:
-        sat = g.get("saturation_max")
-        if sat is None:
-            sat = g.get("saturation_avg")
-        level = g.get("level", "")
-        level_cn = {"high": "拥堵", "medium": "偏高", "low": "畅通"}.get(level, "")
-        arms = "、".join(g.get("arm_labels") or [])
-        if sat is not None and float(sat) > 0:
-            lines.append(f"· {g.get('group')}（{arms}）饱和度 {float(sat):.2f} {level_cn}")
-    return lines
 
 
 GROUP_TO_DIRS: dict[str, list[str]] = {
@@ -495,6 +641,14 @@ def build_map_scene(
     if not worst_dirs and worst:
         worst_dirs = [_normalize_dir(x) for x in (worst.get("arm_labels") or [])]
 
+    focus_groups, protected_groups = _focus_and_protected_groups(nlu)
+    focus_dirs: list[str] = []
+    for group in focus_groups:
+        focus_dirs.extend(GROUP_TO_DIRS.get(group, []))
+    protect_dirs: list[str] = []
+    for group in protected_groups:
+        protect_dirs.extend(GROUP_TO_DIRS.get(group, []))
+
     base: dict[str, Any] = {
         "action": "map_scene",
         "phase": phase,
@@ -506,6 +660,9 @@ def build_map_scene(
         "markers": [],
         "hud": None,
         "focus": None,
+        "focus_groups": focus_groups,
+        "protected_groups": protected_groups,
+        "direction_roles": _build_direction_roles(groups, focus_groups, protected_groups),
     }
 
     if phase == "traffic":
@@ -554,10 +711,15 @@ def build_map_scene(
         return base
 
     if phase == "direction":
-        highlight_dirs = worst_dirs or []
-        worst_sat_raw = worst.get("saturation_max") if worst else None
+        highlight_dirs = focus_dirs if focus_dirs else (worst_dirs or [])
+        role_group = focus_groups[0] if focus_groups else (str(worst.get("group") or "") if worst else "")
+        worst_sat_raw = None
+        for group in groups:
+            if str(group.get("group") or "") == role_group:
+                worst_sat_raw = group.get("saturation_max") or group.get("saturation_avg")
+                break
         if worst_sat_raw is None and worst:
-            worst_sat_raw = worst.get("saturation_avg")
+            worst_sat_raw = worst.get("saturation_max") or worst.get("saturation_avg")
         worst_sat = float(worst_sat_raw) if worst_sat_raw is not None else None
         if worst_sat is None and saturation is not None:
             worst_sat = float(saturation)
@@ -567,12 +729,13 @@ def build_map_scene(
             m["variant"] = "direction"
             m["value"] = f"{worst_sat:.0%}" if worst_sat is not None else "—"
             m["severity"] = _severity(worst_sat)
-            m["title"] = f"{worst.get('group') if worst else ''}"
+            m["title"] = role_group or f"{worst.get('group') if worst else ''}"
         focus = markers[0] if markers else None
         base.update(
             {
                 "zoom": 18.2,
                 "highlight_dirs": highlight_dirs,
+                "protected_link_dirs": protect_dirs,
                 "pulse_link_ids": [
                     str(lk.get("link_id"))
                     for lk in links
@@ -598,14 +761,16 @@ def build_map_scene(
 
     if phase == "saturation":
         sat_val = float(saturation) if saturation is not None else None
+        sat_highlight = focus_dirs if focus_dirs else worst_dirs
         base.update(
             {
                 "zoom": 17.9,
-                "highlight_dirs": worst_dirs,
+                "highlight_dirs": sat_highlight,
+                "protected_link_dirs": protect_dirs,
                 "pulse_link_ids": [
                     str(lk.get("link_id"))
                     for lk in links
-                    if _normalize_dir(str(lk.get("dir4_label") or "")) in worst_dirs
+                    if _normalize_dir(str(lk.get("dir4_label") or "")) in sat_highlight
                 ],
                 "dim_other_links": True,
                 "markers": [

@@ -256,6 +256,10 @@ export function usePresentation() {
     state.highlightDirs = [...dirs]
   }
 
+  function setProtectedGroups(groups: string[]) {
+    state.protectedDirs = [...groups]
+  }
+
   function setHighlightTurn(turn: HighlightTurn | null) {
     state.highlightTurn = turn
   }
@@ -380,6 +384,7 @@ export function usePresentation() {
     setCognition,
     setHud,
     setHighlightDirs,
+    setProtectedGroups,
     setHighlightTurn,
     patchRuntimeMetrics,
     openTimingRingMini,

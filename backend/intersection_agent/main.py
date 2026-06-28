@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from intersection_agent.network_env import disable_shell_proxy_env
+
+disable_shell_proxy_env()
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request

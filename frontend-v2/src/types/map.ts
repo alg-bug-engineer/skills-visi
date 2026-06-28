@@ -125,6 +125,11 @@ export interface MapActionEvent {
   highlight_dirs?: string[]
   pulse_link_ids?: string[]
   dim_other_links?: boolean
+  focus_groups?: string[]
+  protected_groups?: string[]
+  direction_roles?: Array<{ group: string; role: string; saturation?: number | null }>
+  axis_roads?: Record<string, string>
+  speakable?: string | null
   markers?: MapSceneMarker[]
   hud?: MapSceneHud | null
   focus?: { lon: number; lat: number } | null

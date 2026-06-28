@@ -1,5 +1,25 @@
 # 变更日志
 
+## v2.0.5 · 地图 narration · 运行时网络 (2026-06-28)
+
+### 地图呈现（backend + frontend 联调）
+
+- `map_presentation_service`：`axis_roads_summary`、links phase `speakable` / `axis_roads`；方向角色与 narration 节拍扩展。
+- 单测 `test_map_presentation.py` 覆盖轴路名与 speakable 字段。
+
+### 运行时网络（backend）
+
+- 新增 `network_env.disable_shell_proxy_env()`：应用启动时清除 shell 继承的 `http_proxy` / `all_proxy` 等，避免 httpx 走 SOCKS 报 `socksio` 缺失。
+- `QwenClient`：`httpx.AsyncClient(trust_env=False)`。
+- **说明**：仅影响 Python 进程内 HTTP；终端 git/npm 代理见 `docs/DEV_CONSTRAINTS.md`。
+
+### 前端 v2.0.5（详见 `docs/RELEASE_v2.0.5.md`）
+
+- 地图渠化融合、标注分层、语音摘要、呈现同步栅栏、演示空格暂停。
+- 新增 `PRESENTATION_SYNC_BARRIER.md` 开发约束。
+
+---
+
 ## 语音旁白步骤同步 + 饱和度口径 + 约束裁剪 (2026-06-27)
 
 ### 语音旁白（frontend-v2）

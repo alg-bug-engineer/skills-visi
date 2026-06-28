@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { ProblemEvidence } from '../../types/evidence'
-import type { CognitionPayload } from '../../types/map'
+import type { CognitionPayload, MapSceneHud, MapSceneMarker } from '../../types/map'
 import type {
   HighlightTurn,
   PipelinePhase,
@@ -25,6 +25,7 @@ const props = defineProps<{
   fullscreen?: boolean
   cognition: CognitionPayload | null
   highlightDirs?: string[]
+  protectedDirs?: string[]
   evidence?: ProblemEvidence | null
   phase?: PipelinePhase
   highlightTurn?: HighlightTurn | null
@@ -35,6 +36,8 @@ const props = defineProps<{
   showGovernanceNote?: boolean
   governance?: FlowTimingGovernance | null
   governanceSuggestion?: GovernanceSuggestionPayload | null
+  sceneMarkers?: MapSceneMarker[]
+  hud?: MapSceneHud | null
   /** 新一轮分析时递增，用于重置粘性浮层 */
   runKey?: number
 }>()
@@ -200,6 +203,24 @@ watch(
         <span class="phase-tag">{{ phaseLabel }}</span>
       </header>
 
+      <div v-if="fullscreen && hud?.metrics?.length" class="chan-hud-bar">
+        <div class="chan-hud-head">
+          <span v-if="hud.icon" class="hud-icon">{{ hud.icon }}</span>
+          <span class="hud-title">{{ hud.title }}</span>
+        </div>
+        <div class="chan-hud-metrics">
+          <div
+            v-for="(m, i) in hud.metrics"
+            :key="i"
+            class="chan-hud-metric"
+            :class="`sev-${m.severity || 'unknown'}`"
+          >
+            <span class="metric-label">{{ m.label }}</span>
+            <span class="metric-value">{{ m.value }}</span>
+          </div>
+        </div>
+      </div>
+
       <div ref="chanBodyRef" class="chan-body">
         <div v-if="fullscreen" class="chan-minis">
           <TimingRingMiniWindow
@@ -230,14 +251,17 @@ watch(
           :evidence="evidence"
           :phase="phase"
           :highlight-dirs="highlightDirs"
+          :protected-dirs="protectedDirs"
           :highlight-turn="highlightTurn"
           :runtime-metrics="runtimeMetrics"
+          :scene-markers="sceneMarkers"
         />
         <ChannelizationLegend
           v-if="fullscreen"
           ref="legendCompRef"
           :phase="phase"
           :show-queue="hasQueue"
+          :show-direction-roles="Boolean(highlightDirs?.length || protectedDirs?.length)"
           :run-key="runKey"
         />
       </div>
@@ -272,12 +296,12 @@ watch(
 }
 
 .chan-stage.fullscreen {
-  pointer-events: auto;
+  pointer-events: none;
   flex-direction: column;
   align-items: stretch;
   justify-content: stretch;
   padding: 0;
-  background: #1a2030;
+  background: transparent;
 }
 
 .chan-head {
@@ -323,6 +347,65 @@ watch(
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #e8edf5;
   background: rgba(255, 255, 255, 0.06);
+}
+
+.chan-hud-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(0, 212, 240, 0.15);
+  background: rgba(0, 8, 18, 0.72);
+  pointer-events: none;
+}
+
+.chan-hud-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.chan-hud-head .hud-icon {
+  font-size: 14px;
+}
+
+.chan-hud-head .hud-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(220, 240, 255, 0.95);
+}
+
+.chan-hud-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-left: auto;
+}
+
+.chan-hud-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.chan-hud-metric .metric-label {
+  color: rgba(180, 200, 220, 0.75);
+}
+
+.chan-hud-metric .metric-value {
+  color: #00e5ff;
+  font-weight: 600;
+}
+
+.chan-hud-metric.sev-high .metric-value {
+  color: #ff8a80;
+}
+
+.chan-hud-metric.sev-medium .metric-value {
+  color: #ffcc66;
 }
 
 .chan-body {

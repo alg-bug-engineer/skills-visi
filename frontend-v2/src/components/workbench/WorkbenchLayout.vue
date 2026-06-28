@@ -42,6 +42,7 @@ const props = defineProps<{
   skillBuildState?: SkillBuildState
   voiceEnabled?: boolean
   voicePlaying?: boolean
+  presentationPaused?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -196,6 +197,12 @@ const insightFloatStyle = computed(() => {
             :active="processActive"
           />
         </div>
+
+        <Transition name="toast-fade">
+          <div v-if="presentationPaused" class="pause-toast" data-testid="presentation-pause">
+            已暂停 · 按空格继续
+          </div>
+        </Transition>
 
         <Transition name="toast-fade">
           <div v-if="mapToast" class="map-toast">{{ mapToast }}</div>
@@ -423,12 +430,24 @@ const insightFloatStyle = computed(() => {
 }
 
 .map-toast,
+.pause-toast,
 .follow-up-bubble,
 .confirm-bubble {
   position: absolute;
   z-index: 14;
   left: 50%;
   transform: translateX(-50%);
+}
+
+.pause-toast {
+  top: 16px;
+  padding: 8px 14px;
+  background: rgba(20, 24, 32, 0.92);
+  border: 1px solid rgba(255, 180, 80, 0.55);
+  color: rgba(255, 230, 200, 0.96);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  pointer-events: none;
 }
 
 .map-toast {

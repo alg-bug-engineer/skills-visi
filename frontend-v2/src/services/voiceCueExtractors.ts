@@ -1,6 +1,7 @@
 import type { ProblemEvidence } from '../types/evidence'
 import type { VoiceCue } from '../types/voice'
 import { STEP_INDICES } from '../constants'
+import { summarizeNarrationForVoice } from '../utils/voiceTextSummarize'
 import {
   imbalanceTailLabel,
   saturationStateLabel,
@@ -151,4 +152,84 @@ export function buildRuleCue(data: Record<string, unknown>): VoiceCue | null {
     ? voiceTemplate('ruleHit', { ruleName, conclusion: conclusion.slice(0, 36) })
     : voiceTemplate('ruleHitFallback', { ruleName })
   return cue('step:5:rule', STEP_INDICES.RULE, 'rule', text, 'highlight', 1)
+}
+
+export interface AxisRoadsPayload {
+  speakable?: string | null
+  axis_roads?: Record<string, string>
+  intersectionName?: string | null
+}
+
+/** TTS for links/cognition phase with axis road names. */
+export function buildCognitionVoiceCue(payload: AxisRoadsPayload): VoiceCue | null {
+  const axis = payload.axis_roads ?? {}
+  const ew = axis['东西向']
+  const ns = axis['南北向']
+  const interName = payload.intersectionName ?? ''
+  let text = payload.speakable?.trim() ?? ''
+  if (!text && (ew || ns)) {
+    text = voiceTemplate('axisRoads', {
+      interName: interName || '该路口',
+      ewRoad: ew || '—',
+      nsRoad: ns || '—',
+    })
+  }
+  if (!text) return null
+  return cue('step:2:cognition:roads', STEP_INDICES.COGNITION, 'links', text, 'highlight', 1)
+}
+
+export interface DirectionRoleRow {
+  group: string
+  role: 'focus' | 'protect' | 'neutral'
+  saturation?: number | null
+}
+
+/** TTS for data-fetch narration beats (corridor / timing / external / traffic / granularity). */
+export function buildNarrationPhaseVoiceCue(
+  phase: string,
+  text: string,
+  title?: string | null,
+): VoiceCue | null {
+  const spoken = summarizeNarrationForVoice(phase, text, title)
+  if (!spoken) return null
+  return cue(
+    `step:3:narration:${phase}`,
+    STEP_INDICES.DATA_FETCH,
+    phase,
+    spoken,
+    'highlight',
+    1,
+  )
+}
+
+export function buildDirectionVoiceCue(roles: DirectionRoleRow[]): VoiceCue | null {
+  const focus = roles.find((r) => r.role === 'focus')
+  const protect = roles.find((r) => r.role === 'protect')
+  const parts: string[] = []
+  if (focus?.saturation != null) {
+    parts.push(
+      voiceTemplate('directionFocus', {
+        focusGroup: focus.group,
+        value: Number(focus.saturation).toFixed(2),
+        state: saturationStateLabel(Number(focus.saturation)),
+      }),
+    )
+  }
+  if (protect?.saturation != null) {
+    parts.push(
+      voiceTemplate('directionProtected', {
+        protectGroup: protect.group,
+        value: Number(protect.saturation).toFixed(2),
+      }),
+    )
+  }
+  if (!parts.length) return null
+  return cue(
+    'step:3:direction:roles',
+    STEP_INDICES.DATA_FETCH,
+    'direction',
+    parts.join(''),
+    'highlight',
+    1,
+  )
 }
