@@ -11,7 +11,6 @@ from intersection_agent.db.postgres import PostgresPool
 from intersection_agent.models.domain import NluResult
 from intersection_agent.utils.data_window import build_data_window
 from intersection_agent.utils.demo_config import resolve_reference_date
-from intersection_agent.utils.saturation_cap import cap_saturation
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +222,7 @@ class IntersectionCognitionService:
 
         result: list[dict[str, Any]] = []
         for row in rows:
-            sat = cap_saturation(_float_or(row, "saturation_max") or _float_or(row, "saturation"))
+            sat = _float_or(row, "saturation_max") or _float_or(row, "saturation")
             result.append(
                 {
                     "link_id": str(row["link_id"]),

@@ -62,10 +62,10 @@ watch(
         <strong>排队车辆</strong>
         <p>停车线后方色块，每辆约 6–8 米。颜色越深表示饱和度越高。</p>
         <ul class="swatches">
-          <li><i class="sw high" />过饱和 ≥85%</li>
-          <li><i class="sw med" />偏高 70–85%</li>
-          <li><i class="sw low" />缓行 50–70%</li>
-          <li><i class="sw ok" />畅通 &lt;50%</li>
+          <li><i class="sw high" />过饱和 ≥0.85</li>
+          <li><i class="sw med" />偏高 0.70–0.85</li>
+          <li><i class="sw low" />缓行 0.50–0.70</li>
+          <li><i class="sw ok" />畅通 &lt;0.50</li>
         </ul>
       </div>
     </div>

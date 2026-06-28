@@ -17,7 +17,6 @@ from intersection_agent.utils.direction_groups import (
 )
 from intersection_agent.utils.dow_parser import dow_label, extract_explicit_dow
 from intersection_agent.utils.demo_config import resolve_reference_date
-from intersection_agent.utils.saturation_cap import cap_saturation
 from intersection_agent.utils.thresholds_loader import load_thresholds, threshold_value
 
 logger = logging.getLogger(__name__)
@@ -413,8 +412,6 @@ class ProblemEvidenceService:
         sat_rate = traffic.get("saturation_rate") or (
             _float(saturation_row.get("saturation_max")) if saturation_row else None
         )
-        sat_rate = cap_saturation(sat_rate)
-
         return {
             "avg_delay_s": round(avg_stop, 1) if avg_stop is not None else None,
             "delay_index": eval_metrics.get("delay_index"),

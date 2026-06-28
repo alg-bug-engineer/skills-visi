@@ -28,7 +28,7 @@ const props = defineProps<{
   runtimeMetrics?: RuntimeMetrics | null
   timingRingVisible?: boolean
   corridorWaveVisible?: boolean
-  // 问题验证 / 治理建议已迁入右上角叙事卡（IntersectionNarrativeStack），此处保留 prop 以兼容绑定
+  // 问题验证 / 治理建议已迁入右侧叙事卡（IntersectionNarrativeStack），此处保留 prop 以兼容绑定
   showEvidenceNote?: boolean
   showGovernanceNote?: boolean
   governance?: FlowTimingGovernance | null
@@ -144,7 +144,7 @@ const totalLanes = computed(() =>
           />
         </div>
         <!-- 渠化已下沉到主地图(AMap 覆盖物)渲染，此处仅留透传区让地图显示，
-             图例/迷你窗作为 HUD 浮层叠加；问题验证/治理建议见右上角叙事卡 -->
+             图例/迷你窗作为 HUD 浮层叠加；问题验证/治理建议见右侧叙事卡 -->
         <div class="chan-map-passthrough" />
         <ChannelizationLegend
           v-if="fullscreen"

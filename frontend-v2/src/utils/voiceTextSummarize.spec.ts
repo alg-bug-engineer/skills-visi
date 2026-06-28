@@ -24,18 +24,24 @@ describe('summarizeNarrationForVoice', () => {
     expect(out).not.toContain('不匹配')
   })
 
-  it('falls back to first clause', () => {
+  it('traffic: speaks delay only, not saturation (saturation uses dedicated cue)', () => {
     const out = summarizeNarrationForVoice('traffic', '晚高峰整体饱和度1.50；延误指数1.89。')
-    expect(out).toContain('1.50')
+    expect(out).toContain('1.89')
+    expect(out).not.toContain('1.50')
   })
 
-  it('granularity: avoids duplicate 饱和度 in TTS', () => {
+  it('granularity: turn label without saturation value', () => {
     const out = summarizeNarrationForVoice(
       'granularity',
       '转向级：东左转 饱和度 1.50；进口级：4 条进口道已纳入评价',
       '多粒度画像',
     )
-    expect(out).toBe('东左转，1.50')
-    expect(out).not.toMatch(/饱和度饱和度/)
+    expect(out).toContain('东左转')
+    expect(out).not.toContain('1.50')
+  })
+
+  it('saturation phase defers to buildSaturationCue', () => {
+    const out = summarizeNarrationForVoice('saturation', '路口饱和度 1.50，已达过饱和。')
+    expect(out).toBe('')
   })
 })

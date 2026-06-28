@@ -14,7 +14,6 @@ from intersection_agent.logging.helpers import log_event
 from intersection_agent.models.domain import NluResult
 from intersection_agent.utils.data_window import DataWindow, build_data_window, slot_times
 from intersection_agent.utils.demo_config import resolve_reference_date
-from intersection_agent.utils.saturation_cap import cap_saturation
 from intersection_agent.utils.traffic_labels import LOS_LABELS, TURN_DIR_LABELS, turn_label
 
 logger = logging.getLogger(__name__)
@@ -173,8 +172,8 @@ class DataFetcher:
             if dws_sat
             else _float(dws_eval, "saturation_max")
         )
-        saturation = cap_saturation(saturation_raw)
-        turn_sat_max = cap_saturation(_float(dws_sat, "turn_saturation"))
+        saturation = saturation_raw
+        turn_sat_max = _float(dws_sat, "turn_saturation")
         turn_spread = _float(dws_sat, "turn_saturation_spread", 0.0)
         delay_index = (
             float(dwd_delay)
@@ -190,7 +189,7 @@ class DataFetcher:
         )
 
         los_code = str(dws_eval.get("level_of_service") or "C") if dws_eval else "C"
-        lane_sat_max = cap_saturation(_max_metric(by_lane, "lane_saturation"))
+        lane_sat_max = _max_metric(by_lane, "lane_saturation")
         lane_capacity_min = _min_positive_metric(by_lane, "lane_capacity")
 
         return {

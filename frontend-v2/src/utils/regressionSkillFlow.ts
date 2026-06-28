@@ -44,3 +44,13 @@ export function shouldEnqueueAbsorptionVoice(eventType: string): boolean {
 export function shouldEnqueueSkillBuildVoice(eventType: string): boolean {
   return eventType === 'skill_build_start' || eventType === 'skill_build_done'
 }
+
+/** 空格暂停是否应视为「演示进行中」（含经验吸收与技能固化） */
+export function isSkillPresentationActive(
+  absorptionActive: boolean,
+  skillBuildVisible: boolean,
+  skillBuildStatus: string,
+): boolean {
+  if (absorptionActive) return true
+  return skillBuildVisible && skillBuildStatus === 'running'
+}

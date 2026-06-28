@@ -1,5 +1,28 @@
 # frontend-v2 进度记录
 
+## v3.0.1（2026-06-28）— 吸收/固化空格暂停 · 叙事分栏 · 饱和度小数
+
+### 已完成
+
+- [x] 经验吸收 / 技能固化接入空格暂停（`skillPresentationDispatch` + pause gate）
+- [x] 修复流式打字机：delta 同步 apply，禁止 start 事件上全量 settle
+- [x] 叙事卡左右分栏：左路口态势 / 右问题验证与治理建议
+- [x] 技能终端展开时隐藏左侧叙事卡（`hideLeftPanel`）
+- [x] 问题验证卡默认展开，取消自动折叠
+- [x] 饱和度展示统一为小数（图例、地图 marker、TTS 摘要调整）
+- [x] `data_fetch` running 时提前展示步骤 3
+
+### 文档
+
+- [docs/plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md](../../docs/plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md)
+- [docs/PRESENTATION_SYNC_BARRIER.md](../../docs/PRESENTATION_SYNC_BARRIER.md) §7
+
+### 单测
+
+- vitest **105** 项（含 `skillPresentationDispatch.spec` · RT-PAUSE-ABS）
+
+---
+
 ## v3.0（2026-06-28）— 渠化 AMap 迁移 · 叙事卡栈 · TTS 鉴权
 
 ### 已完成

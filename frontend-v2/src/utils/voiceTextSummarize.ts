@@ -57,23 +57,23 @@ export function summarizeNarrationForVoice(
   }
 
   if (phase === 'traffic') {
-    const sat = body.match(/饱和度[^0-9]*([0-9.]+)/)?.[1]
     const delay = body.match(/延误[^0-9]*([0-9.]+)/)?.[1]
-    const parts: string[] = []
-    if (sat) parts.push(`饱和度${sat}`)
-    if (delay) parts.push(`延误${delay}`)
-    if (parts.length) return parts.join('，').slice(0, maxLen)
+    if (delay) return `延误指数${delay}`.slice(0, maxLen)
+    return ''
   }
 
   if (phase === 'granularity') {
     const turn =
       body.match(/转向级[：:]\s*([东南西北][^\s，,。；]+)/)?.[1]?.trim() ??
       body.match(/([东南西北][^\s，,。；]*(?:左|直|右|调))/)?.[1]?.trim()
-    const sat = body.match(/饱和度[^0-9]*([0-9.]+)/)?.[1]
-    if (turn && sat) {
+    if (turn) {
       const cleanTurn = turn.replace(/\s*饱和度\s*$/, '').trim()
-      return `${cleanTurn}，${sat}`.slice(0, maxLen)
+      return `${cleanTurn}转向已纳入评价`.slice(0, maxLen)
     }
+  }
+
+  if (phase === 'saturation') {
+    return ''
   }
 
   const clause = firstClause(body)

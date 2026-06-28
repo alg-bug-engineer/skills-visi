@@ -1,5 +1,18 @@
 # 变更日志
 
+## v3.0.1 · 饱和度小数 · 地图 marker 格式 (2026-06-28)
+
+### 饱和度口径
+
+- 移除 `cap_saturation`：`data_fetcher` / `intersection_cognition_service` / `problem_evidence_service` 保留原始饱和度。
+- `map_presentation_service._fmt_sat()`：地图 HUD / marker 以小数两位展示（如 `0.92`），不再使用 `%`。
+
+### 文档
+
+- 联调说明见 [`docs/plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md`](../../docs/plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md) §5。
+
+---
+
 ## v3.0 · 渠化 AMap 迁移 · 领导演示叙事 · TTS 鉴权 (2026-06-28)
 
 ### 渠化 AMap 全量迁移

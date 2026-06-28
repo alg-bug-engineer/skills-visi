@@ -595,7 +595,7 @@ export class ChannelizationAmapLayer {
         }),
       )
       const label = spec.label || `${spec.dir}向转向`
-      const satText = spec.saturation != null ? `饱和度 ${(spec.saturation * 100).toFixed(0)}%` : '重点关注'
+      const satText = spec.saturation != null ? `饱和度 ${Number(spec.saturation).toFixed(2)}` : '重点关注'
       this.addCheck(this.makeTextMarker(this.center, label, satText, '#ffcc00', -40))
       break
     }

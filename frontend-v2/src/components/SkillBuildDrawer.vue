@@ -158,7 +158,7 @@ function onDownloadClick() {
   bottom: 14px;
   width: min(78%, 780px);
   min-width: 420px;
-  z-index: 16;
+  z-index: 22;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(0, 229, 255, 0.28);

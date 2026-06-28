@@ -100,3 +100,46 @@ pushMapAction(action)
 | `voiceStepSync.spec.ts` | 步骤引导语与 config 一致 |
 
 合并前：`bash scripts/regression.sh` 全绿。
+
+---
+
+## 7. 经验吸收 / 技能固化流水线（2026-06-28 增补）
+
+与地图 `map_scene` 不同，吸收 / 固化含 **SSE 流式 delta**，禁止把每个 delta 塞进 `AnalysisQueue` 并在 start 事件上 `whenSettled`。
+
+### 7.1 规则
+
+| 事件 | 处理方式 |
+|------|----------|
+| `thought_delta` / `evidence` / `file_delta` 等 | **同步 apply**（SSE 顺序即呈现顺序） |
+| `stage_done`（吸收） | apply 后 enqueue pause gate → `whenPresentationSettled()` |
+| `stage_done` / `file_done`（固化） | apply 后 enqueue pause gate → `whenProcessAndVoiceSettled()` |
+| 暂停态 | 事件进 buffer；恢复后 `rAF` 逐帧回放流式项 |
+
+### 7.2 禁止写法
+
+```typescript
+// ❌ stage_start 后 whenSettled — 吸收 running 行永不 idle，死锁
+analysisQueue.enqueue(async () => {
+  apply({ type: 'stage_start' })
+  await whenPresentationSettled()
+})
+
+// ❌ 全部 SSE 进队列 + start 上 settle — delta 堆积，打字机失效
+analysisQueue.enqueue(async () => {
+  apply({ type: 'thought_delta' })
+})
+```
+
+### 7.3 实现入口
+
+- `frontend-v2/src/utils/skillPresentationDispatch.ts`
+- `App.vue` · `dispatchSkillAbsorptionEvent` / `dispatchSkillBuildEvent`
+- 详见 [2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md](./plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md)
+
+### 7.4 相关测试
+
+| 文件 | 覆盖 |
+|------|------|
+| `skillPresentationDispatch.spec.ts` | RT-PAUSE-ABS |
+| `usePresentationBarrier.spec.ts` | `whenProcessAndVoiceSettled` |

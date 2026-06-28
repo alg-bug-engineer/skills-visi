@@ -49,4 +49,24 @@ describe('createPresentationBarrier', () => {
     })
     await expect(barrier.whenSettled()).resolves.toBeUndefined()
   })
+
+  it('whenProcessAndVoiceSettled ignores mid-stage absorption running lines', async () => {
+    const state = createInitialAbsorptionState()
+    state.active = true
+    state.lines.push({
+      seq: 1,
+      stage: 'recap',
+      kind: 'monologue',
+      status: 'running',
+      text: '> scanning',
+    })
+
+    const barrier = createPresentationBarrier({
+      whenProcessIdle: async () => {},
+      voice: { enabled: ref(false), whenIdle: async () => {} },
+      getAbsorptionState: () => state,
+    })
+
+    await expect(barrier.whenProcessAndVoiceSettled()).resolves.toBeUndefined()
+  })
 })

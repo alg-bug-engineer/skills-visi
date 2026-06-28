@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isSkillPresentationActive,
   shouldEnqueueAbsorptionVoice,
   shouldEnqueueSkillBuildVoice,
   shouldShowSkillSolidificationStep,
@@ -37,5 +38,14 @@ describe('regressionSkillFlow RT-UI-07 / RT-VOICE-16', () => {
     expect(shouldEnqueueSkillBuildVoice('skill_build_start')).toBe(true)
     expect(shouldEnqueueSkillBuildVoice('skill_build_done')).toBe(true)
     expect(shouldEnqueueSkillBuildVoice('skill_absorption_start')).toBe(false)
+  })
+})
+
+describe('regressionSkillFlow RT-PAUSE-ABS', () => {
+  it('treats absorption and running skill build as presentation active', () => {
+    expect(isSkillPresentationActive(true, false, 'idle')).toBe(true)
+    expect(isSkillPresentationActive(false, true, 'running')).toBe(true)
+    expect(isSkillPresentationActive(false, true, 'completed')).toBe(false)
+    expect(isSkillPresentationActive(false, false, 'idle')).toBe(false)
   })
 })

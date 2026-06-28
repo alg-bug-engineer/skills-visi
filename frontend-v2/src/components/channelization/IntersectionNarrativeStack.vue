@@ -27,6 +27,8 @@ const props = defineProps<{
   lod?: 'L0' | 'L1' | 'L2' | null
   /** 新一轮分析递增，重置粘性揭示 */
   runKey?: number
+  /** 技能写入终端展开时隐藏左侧路口信息卡 */
+  hideLeftPanel?: boolean
 }>()
 
 /* ── 认知头 ─────────────────────────────────────────────────────────────── */
@@ -67,7 +69,7 @@ const runtimeItems = computed(() =>
 )
 const showRuntime = computed(() => runtimeRevealed.value && runtimeItems.value.length > 0)
 
-/* ── 问题验证（出现后自动折叠）──────────────────────────────────────────── */
+/* ── 问题验证（默认展开，可手动折叠）──────────────────────────────────────── */
 const evidenceRevealed = ref(false)
 const evidenceCollapsed = ref(false)
 const evidenceItems = computed(() =>
@@ -75,14 +77,6 @@ const evidenceItems = computed(() =>
 )
 const showEvidence = computed(() => evidenceRevealed.value && evidenceItems.value.length > 0)
 const evidenceSummary = computed(() => evidenceItems.value[0] ?? '问题已印证')
-
-let collapseTimer: ReturnType<typeof setTimeout> | null = null
-function scheduleEvidenceCollapse() {
-  if (collapseTimer) clearTimeout(collapseTimer)
-  collapseTimer = setTimeout(() => {
-    evidenceCollapsed.value = true
-  }, 2600)
-}
 
 /* ── 治理建议 ───────────────────────────────────────────────────────────── */
 const suggestionRevealed = ref(false)
@@ -97,14 +91,10 @@ watch(
   (idx) => {
     if (idx >= STEP_INDICES.DATA_FETCH) runtimeRevealed.value = true
     if (idx >= STEP_INDICES.PROBLEM_EVIDENCE) {
-      if (!evidenceRevealed.value) {
-        evidenceRevealed.value = true
-        scheduleEvidenceCollapse()
-      }
+      evidenceRevealed.value = true
     }
     if (idx >= STEP_INDICES.SUGGESTION) {
       suggestionRevealed.value = true
-      evidenceCollapsed.value = true // 进入治理建议时，问题验证收起为条目
     }
   },
   { immediate: true },
@@ -117,7 +107,6 @@ watch(
     evidenceRevealed.value = false
     evidenceCollapsed.value = false
     suggestionRevealed.value = false
-    if (collapseTimer) clearTimeout(collapseTimer)
   },
 )
 
@@ -132,81 +121,105 @@ function sevClass(sev?: string): string {
 
 <template>
   <Transition name="narrative-fade">
-    <aside
-      v-if="visible && intersection"
-      class="narrative-stack"
-      aria-label="路口认知与运行数据"
-    >
-      <!-- 认知头 -->
-      <header class="head">
-        <h3>{{ intersection.name }}</h3>
-        <p class="sub">
-          <span v-if="intersection.inter_id" class="id">{{ intersection.inter_id }}</span>
-          <span class="dot">·</span>真实渠化数据
-        </p>
-        <div class="meta-grid">
-          <div class="meta">
-            <span class="k">当前层级</span><span class="v">{{ lodLabel }}</span>
+    <div v-if="visible && intersection" class="narrative-wrap">
+      <!-- 左侧：路口身份与运行数据 -->
+      <aside
+        v-if="!hideLeftPanel"
+        class="narrative-stack narrative-stack--left"
+        aria-label="路口认知与运行数据"
+      >
+        <header class="head">
+          <h3>{{ intersection.name }}</h3>
+          <p class="sub">
+            <span v-if="intersection.inter_id" class="id">{{ intersection.inter_id }}</span>
+            <span class="dot">·</span>真实渠化数据
+          </p>
+          <div class="meta-grid">
+            <div class="meta">
+              <span class="k">当前层级</span><span class="v">{{ lodLabel }}</span>
+            </div>
+            <div class="meta">
+              <span class="k">缩放 zoom</span><span class="v">{{ zoomLabel }}</span>
+            </div>
+            <div class="meta wide">
+              <span class="k">路臂 / 进口车道</span>
+              <span class="v">{{ armCount }} 臂 / {{ laneCount }} 道</span>
+            </div>
           </div>
-          <div class="meta">
-            <span class="k">缩放 zoom</span><span class="v">{{ zoomLabel }}</span>
+          <div v-if="focusRole || protectRole" class="roles">
+            <span v-if="focusRole" class="role focus">关注 {{ focusRole }}</span>
+            <span v-if="protectRole" class="role protect">保护 {{ protectRole }}</span>
           </div>
-          <div class="meta wide">
-            <span class="k">路臂 / 进口车道</span>
-            <span class="v">{{ armCount }} 臂 / {{ laneCount }} 道</span>
-          </div>
-        </div>
-        <div v-if="focusRole || protectRole" class="roles">
-          <span v-if="focusRole" class="role focus">关注 {{ focusRole }}</span>
-          <span v-if="protectRole" class="role protect">保护 {{ protectRole }}</span>
-        </div>
-        <p class="hint">滚轮放大到 18+ 逐车道渠化下钻 · 点击进口道查看转向 · 可拖拽平移</p>
-      </header>
+          <p class="hint">滚轮放大到 18+ 逐车道渠化下钻 · 点击进口道查看转向 · 可拖拽平移</p>
+        </header>
 
-      <!-- 运行数据：逐项 ✓ 追加 -->
-      <section v-if="showRuntime" class="block runtime">
-        <span class="block-title">运行数据</span>
-        <TransitionGroup name="item-in" tag="ul" class="list">
-          <li v-for="item in runtimeItems" :key="item.id" class="row" :class="sevClass(item.severity)">
-            <span class="tick">✓</span>
-            <span class="label">{{ item.label }}</span>
-            <span class="value">{{ item.value }}</span>
-          </li>
-        </TransitionGroup>
-      </section>
+        <section v-if="showRuntime" class="block runtime">
+          <span class="block-title">运行数据</span>
+          <TransitionGroup name="item-in" tag="ul" class="list">
+            <li v-for="item in runtimeItems" :key="item.id" class="row" :class="sevClass(item.severity)">
+              <span class="tick">✓</span>
+              <span class="label">{{ item.label }}</span>
+              <span class="value">{{ item.value }}</span>
+            </li>
+          </TransitionGroup>
+        </section>
+      </aside>
 
-      <!-- 问题验证：出现后自动折叠 -->
-      <section v-if="showEvidence" class="block evidence" :class="{ collapsed: evidenceCollapsed }">
-        <button type="button" class="block-title toggle" @click="toggleEvidence">
-          <span class="caret">{{ evidenceCollapsed ? '▸' : '▾' }}</span>
-          问题验证
-          <span v-if="evidenceCollapsed" class="collapsed-sum">{{ evidenceSummary }}</span>
-        </button>
-        <ul v-show="!evidenceCollapsed" class="list">
-          <li v-for="(item, i) in evidenceItems" :key="i" class="row plain">
-            <span class="tick">✓</span><span class="text">{{ item }}</span>
-          </li>
-        </ul>
-      </section>
+      <!-- 右侧：问题验证、治理建议各为独立卡片（治理建议在验证下方） -->
+      <div
+        v-if="showEvidence || showSuggestion"
+        class="narrative-right-column"
+        aria-label="问题验证与治理建议"
+      >
+        <aside
+          v-if="showEvidence"
+          class="narrative-stack narrative-card evidence-card"
+          aria-label="问题验证"
+        >
+          <section class="block evidence" :class="{ collapsed: evidenceCollapsed }">
+            <button type="button" class="block-title toggle" @click="toggleEvidence">
+              <span class="caret">{{ evidenceCollapsed ? '▸' : '▾' }}</span>
+              问题验证
+              <span v-if="evidenceCollapsed" class="collapsed-sum">{{ evidenceSummary }}</span>
+            </button>
+            <ul v-show="!evidenceCollapsed" class="list">
+              <li v-for="(item, i) in evidenceItems" :key="i" class="row plain">
+                <span class="tick">✓</span><span class="text">{{ item }}</span>
+              </li>
+            </ul>
+          </section>
+        </aside>
 
-      <!-- 治理建议：折叠条目下方 -->
-      <section v-if="showSuggestion" class="block suggestion">
-        <span class="block-title accent">治理建议</span>
-        <ul class="list">
-          <li v-for="(item, i) in suggestionItems" :key="i" class="row plain accent">
-            <span class="tick">→</span><span class="text">{{ item }}</span>
-          </li>
-        </ul>
-      </section>
-    </aside>
+        <aside
+          v-if="showSuggestion"
+          class="narrative-stack narrative-card suggestion-card"
+          aria-label="治理建议"
+        >
+          <section class="block suggestion">
+            <span class="block-title accent">治理建议</span>
+            <ul class="list">
+              <li v-for="(item, i) in suggestionItems" :key="i" class="row plain accent">
+                <span class="tick">→</span><span class="text">{{ item }}</span>
+              </li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </div>
   </Transition>
 </template>
 
 <style scoped>
+.narrative-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 16;
+  pointer-events: none;
+}
+
 .narrative-stack {
   position: absolute;
   top: 12px;
-  left: 12px;
   z-index: 16;
   width: min(300px, 40vw);
   max-height: calc(100% - 24px);
@@ -224,6 +237,45 @@ function sevClass(sev?: string): string {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 212, 240, 0.3) transparent;
   font-family: 'Inter', system-ui, sans-serif;
+}
+
+.narrative-stack--left {
+  left: 12px;
+}
+
+.narrative-right-column {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 16;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  pointer-events: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 212, 240, 0.3) transparent;
+}
+
+.narrative-right-column::-webkit-scrollbar {
+  width: 4px;
+}
+.narrative-right-column::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: rgba(0, 212, 240, 0.3);
+}
+
+.narrative-right-column .narrative-stack {
+  position: relative;
+  top: auto;
+  right: auto;
+  max-height: none;
+  flex-shrink: 0;
+}
+
+.suggestion-card {
+  border-color: rgba(109, 255, 181, 0.28);
 }
 
 .narrative-stack::-webkit-scrollbar {

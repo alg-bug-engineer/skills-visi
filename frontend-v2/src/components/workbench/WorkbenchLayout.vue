@@ -76,12 +76,17 @@ function onMapView(view: { zoom: number; lod: 'L0' | 'L1' | 'L2' }) {
   mapView.value = view
 }
 
-/** 右上角叙事卡：定位路口后出现（干线扫描态不显示） */
+/** 地图叙事卡：左侧路口信息 + 右侧问题验证/治理建议（干线扫描态不显示） */
 const showNarrativeStack = computed(
   () =>
     Boolean(props.presentation.cognition?.intersection) &&
     props.presentation.phase !== 'corridor_scan' &&
     props.presentation.phase !== 'idle',
+)
+
+/** 技能写入终端展开时隐藏左侧路口态势面板，避免与终端重叠 */
+const hideLeftNarrative = computed(
+  () => Boolean(props.skillBuildState?.visible && !props.skillBuildState?.exiting),
 )
 
 const showTimingMini = computed(() => {
@@ -208,6 +213,7 @@ const canToggleCorridor = computed(
 
           <IntersectionNarrativeStack
             :visible="showNarrativeStack"
+            :hide-left-panel="hideLeftNarrative"
             :cognition="presentation.cognition"
             :highlight-dirs="presentation.highlightDirs"
             :protected-dirs="presentation.protectedDirs"

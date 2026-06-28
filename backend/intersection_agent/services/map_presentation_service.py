@@ -686,6 +686,11 @@ def _markers_for_traffic_phase(
     return markers
 
 
+def _fmt_sat(value: float | None) -> str:
+    """饱和度展示为小数（如 0.92、1.50），不用百分号。"""
+    return f"{value:.2f}" if value is not None else "—"
+
+
 def _severity(sat: float | None) -> str:
     if sat is None:
         return "unknown"
@@ -964,7 +969,7 @@ def build_map_scene(
                         "lat": center_lat,
                         "kind": "alert",
                         "title": "过饱和" if sat_val and sat_val >= 0.85 else "偏高",
-                        "value": f"{sat_val:.0%}" if sat_val is not None else "—",
+                        "value": _fmt_sat(sat_val),
                         "severity": _severity(sat_val),
                     }
                 ],
@@ -974,7 +979,7 @@ def build_map_scene(
                     "metrics": [
                         {
                             "label": "路口饱和度",
-                            "value": f"{sat_val:.0%}" if sat_val is not None else "—",
+                            "value": _fmt_sat(sat_val),
                             "severity": _severity(sat_val),
                         }
                     ],
@@ -1035,7 +1040,7 @@ def build_map_scene(
                     "lat": focus[0]["lat"],
                     "kind": "evidence",
                     "title": "饱和度证据",
-                    "value": f"{sat_val:.0%}",
+                    "value": _fmt_sat(sat_val),
                     "subtitle": worst.get("group") if worst else "",
                     "severity": _severity(sat_val),
                     "dir": focus[0].get("dir"),
@@ -1085,7 +1090,7 @@ def build_map_scene(
                     "metrics": [
                         {
                             "label": "饱和度",
-                            "value": f"{sat_val:.0%}" if sat_val is not None else "—",
+                            "value": _fmt_sat(sat_val),
                             "severity": _severity(sat_val),
                         },
                         {
@@ -1127,7 +1132,7 @@ def build_map_scene(
                     "lat": focus_markers[0]["lat"],
                     "kind": "evidence",
                     "title": "饱和度",
-                    "value": f"{sat_val:.0%}",
+                    "value": _fmt_sat(sat_val),
                     "subtitle": "证据 ①",
                     "severity": _severity(sat_val),
                     "dir": focus_markers[0].get("dir"),
@@ -1197,7 +1202,7 @@ def build_map_scene(
                         {
                             "label": "证据链",
                             "value": (
-                                f"饱和{sat_val:.0%} + 失衡{imb_val:.2f}"
+                                f"饱和{_fmt_sat(sat_val)} + 失衡{imb_val:.2f}"
                                 if sat_val is not None and imb_val is not None
                                 else "见地图标注"
                             ),
@@ -1248,7 +1253,7 @@ def build_map_scene(
             m["kind"] = "metric"
             m["variant"] = "turn"
             m["title"] = label[:8] if label else "转向"
-            m["value"] = f"{sat_val:.0%}" if sat_val is not None else "—"
+            m["value"] = _fmt_sat(sat_val)
             m["severity"] = _severity(sat_val)
         base.update(
             {
@@ -1263,7 +1268,7 @@ def build_map_scene(
                     "metrics": [
                         {
                             "label": label[:10] if label else "关键转向",
-                            "value": f"{sat_val:.0%}" if sat_val is not None else "—",
+                            "value": _fmt_sat(sat_val),
                             "severity": _severity(sat_val),
                         }
                     ],

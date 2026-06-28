@@ -33,10 +33,15 @@ export function createPresentationBarrier(deps: PresentationBarrierDeps) {
     await deps.voice.whenIdle()
   }
 
+  /** 理解过程 + 语音（技能固化流水线用；勿等待吸收 running 行，避免与 stage_start 死锁）。 */
+  async function whenProcessAndVoiceSettled(): Promise<void> {
+    await Promise.all([deps.whenProcessIdle(), whenVoiceIdle()])
+  }
+
   /** 步骤切换栅栏：任一呈现流未完成则阻塞 AnalysisQueue 下一步。 */
   async function whenSettled(): Promise<void> {
     await Promise.all([deps.whenProcessIdle(), whenVoiceIdle(), whenAbsorptionIdle()])
   }
 
-  return { whenSettled, whenAbsorptionIdle, whenVoiceIdle }
+  return { whenSettled, whenProcessAndVoiceSettled, whenAbsorptionIdle, whenVoiceIdle }
 }

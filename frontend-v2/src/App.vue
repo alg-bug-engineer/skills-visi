@@ -3,7 +3,17 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { checkHealth, createSession, sendMessageStream } from './api/client'
 import WorkbenchLayout from './components/workbench/WorkbenchLayout.vue'
 import { STEP_INDICES, STEP_PAUSE_MS } from './constants'
-import { shouldShowSkillSolidificationStep } from './utils/regressionSkillFlow'
+import {
+  isSkillPresentationActive,
+  shouldShowSkillSolidificationStep,
+} from './utils/regressionSkillFlow'
+import {
+  frameYield,
+  isSkillStreamBufferedEvent,
+  shouldEnqueueAbsorptionPauseGate,
+  shouldEnqueueSkillBuildPauseGate,
+  type SkillBufferedEvent,
+} from './utils/skillPresentationDispatch'
 import { usePresentation } from './composables/usePresentation'
 import { usePresentationPause } from './composables/usePresentationPause'
 import { usePresentationSequence } from './composables/usePresentationSequence'
@@ -135,7 +145,7 @@ const {
 
 const {
   state: skillBuildState,
-  applyEvent: applySkillBuildEvent,
+  applyEvent: applySkillBuildEventRaw,
   beginExit: beginSkillBuildExit,
   close: closeSkillBuild,
   selectFile: selectSkillFile,
@@ -152,11 +162,12 @@ const {
   reset: resetAbsorption,
 } = useExperienceAbsorption()
 
-const { whenSettled: whenPresentationSettled } = createPresentationBarrier({
-  whenProcessIdle,
-  voice,
-  getAbsorptionState: () => absorptionState,
-})
+const { whenSettled: whenPresentationSettled, whenProcessAndVoiceSettled } =
+  createPresentationBarrier({
+    whenProcessIdle,
+    voice,
+    getAbsorptionState: () => absorptionState,
+  })
 
 /** 渠化全屏或技能固化/经验吸收演示时隐藏输入框，避免遮挡左侧终端 */
 const hideInputDock = computed(
@@ -229,7 +240,7 @@ function skillStageLabel(stage: string): string | null {
   return SKILL_BUILD_STAGES.find((s) => s.key === stage)?.label ?? null
 }
 
-function handleSkillAbsorptionEvent(event: import('./types/skillAbsorption').SkillAbsorptionEvent) {
+function applySkillAbsorptionEvent(event: import('./types/skillAbsorption').SkillAbsorptionEvent) {
   applyAbsorptionEvent(event)
   if (event.type === 'skill_absorption_start') {
     panelLayout.value = 'stacked'
@@ -269,8 +280,8 @@ function handleSkillAbsorptionEvent(event: import('./types/skillAbsorption').Ski
   }
 }
 
-function handleSkillBuildEvent(event: import('./types/skillBuild').SkillBuildEvent) {
-  applySkillBuildEvent(event)
+function applySkillBuildEvent(event: import('./types/skillBuild').SkillBuildEvent) {
+  applySkillBuildEventRaw(event)
   if (panelMode.value !== 'analysis') return
 
   const payload = event.payload
@@ -319,6 +330,86 @@ function handleSkillBuildEvent(event: import('./types/skillBuild').SkillBuildEve
     default:
       break
   }
+}
+
+const skillEventBuffer: SkillBufferedEvent[] = []
+let skillBufferFlushing = false
+
+function resetSkillEventBuffer() {
+  skillEventBuffer.length = 0
+  skillBufferFlushing = false
+}
+
+function enqueueSkillPauseGate(settle: () => Promise<void>) {
+  analysisQueue.enqueue(async () => {
+    await settle()
+  }, STEP_PAUSE_MS)
+}
+
+function applySkillBufferedEvent(item: SkillBufferedEvent) {
+  if (item.domain === 'absorption') {
+    applySkillAbsorptionEvent(item.event)
+    if (shouldEnqueueAbsorptionPauseGate(item.event.type)) {
+      enqueueSkillPauseGate(() => whenPresentationSettled())
+    }
+    return
+  }
+  applySkillBuildEvent(item.event)
+  if (shouldEnqueueSkillBuildPauseGate(item.event.type)) {
+    enqueueSkillPauseGate(() => whenProcessAndVoiceSettled())
+  }
+}
+
+async function flushSkillEventBuffer() {
+  if (skillBufferFlushing || skillEventBuffer.length === 0) return
+  skillBufferFlushing = true
+  try {
+    while (skillEventBuffer.length > 0) {
+      const item = skillEventBuffer.shift()!
+      applySkillBufferedEvent(item)
+      if (isSkillStreamBufferedEvent(item)) {
+        await frameYield()
+      }
+    }
+  } finally {
+    skillBufferFlushing = false
+  }
+}
+
+function dispatchSkillAbsorptionEvent(event: import('./types/skillAbsorption').SkillAbsorptionEvent) {
+  if (presentationPause.paused.value) {
+    skillEventBuffer.push({ domain: 'absorption', event })
+    return
+  }
+  applySkillBufferedEvent({ domain: 'absorption', event })
+}
+
+function dispatchSkillBuildEvent(event: import('./types/skillBuild').SkillBuildEvent) {
+  if (presentationPause.paused.value) {
+    skillEventBuffer.push({ domain: 'build', event })
+    return
+  }
+  applySkillBufferedEvent({ domain: 'build', event })
+}
+
+watch(
+  () => presentationPause.paused.value,
+  (paused, wasPaused) => {
+    if (wasPaused && !paused) void flushSkillEventBuffer()
+  },
+)
+
+function isPresentationPauseActive(): boolean {
+  return (
+    loading.value ||
+    analysisQueue.isRunning ||
+    presentationPause.paused.value ||
+    isSkillPresentationActive(
+      absorptionState.active,
+      skillBuildState.visible,
+      skillBuildState.status,
+    )
+  )
 }
 
 function pushMapAction(action: MapActionEvent) {
@@ -635,6 +726,7 @@ function prepareNewAnalysisRun(userContent: string) {
   stopSuggestionConfirmPause()
   presentationPause.reset()
   analysisQueue.reset()
+  resetSkillEventBuffer()
   resetProcess()
   steps.value = []
   presentation.prepareNewAnalysisRun()
@@ -1031,6 +1123,18 @@ function handlePipelineStep(
   },
   currentContent: string,
 ) {
+  if (event.step === 'data_fetch' && event.status === 'running') {
+    if (!processSteps.value.some((s) => s.index === STEP_INDICES.DATA_FETCH)) {
+      analysisQueue.enqueue(async () => {
+        enqueueProcess(STEP_INDICES.DATA_FETCH, '正在拉取路口运行数据…', false, false, {
+          summary: '正在获取运行数据',
+        })
+        presentationSequence.syncFromStepIndex(STEP_INDICES.DATA_FETCH)
+      }, 0)
+    }
+    return
+  }
+
   if (event.status !== 'completed' || !event.step) return
   const data = event.data ?? {}
 
@@ -1147,7 +1251,9 @@ function handlePipelineStep(
 async function initSession() {
   abortController?.abort()
   stopSuggestionConfirmPause()
+  presentationPause.reset()
   analysisQueue.reset()
+  resetSkillEventBuffer()
   resetProcess()
   resetSkillBuild()
   resetAbsorption()
@@ -1243,10 +1349,10 @@ async function handleSend(content: string) {
           }
         },
         onSkillBuild: (event) => {
-          handleSkillBuildEvent(event)
+          dispatchSkillBuildEvent(event)
         },
         onSkillAbsorption: (event) => {
-          handleSkillAbsorptionEvent(event)
+          dispatchSkillAbsorptionEvent(event)
         },
         onResult: (result) => {
           sessionState.value = result.state
@@ -1364,6 +1470,7 @@ async function onDeny() {
   pendingConfirm.value = false
   presentationPause.reset()
   analysisQueue.reset()
+  resetSkillEventBuffer()
   await handleSend('否')
 }
 
@@ -1371,7 +1478,7 @@ let unbindPresentationPause: (() => void) | null = null
 
 onMounted(async () => {
   unbindPresentationPause = presentationPause.bindSpaceKey(
-    () => docked.value && (loading.value || analysisQueue.isRunning || presentationPause.paused.value),
+    () => docked.value && isPresentationPauseActive(),
     () => inputLocked.value,
   )
 

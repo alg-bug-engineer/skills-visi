@@ -335,6 +335,20 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 
 ---
 
+## 13b. RT-PAUSE-ABS · 经验吸收 / 固化暂停与流式呈现（2026-06-28）
+
+| TC-ID | 优先级 | 场景 | 断言 | 现有测试 |
+|-------|--------|------|------|---------|
+| RT-PAUSE-ABS-01 | P0 | 流式事件分类 | `thought_delta`/`file_delta` 为 stream | skillPresentationDispatch.spec |
+| RT-PAUSE-ABS-02 | P0 | pause gate 边界 | 仅 `stage_done`/`file_done` 入队 gate | skillPresentationDispatch.spec |
+| RT-PAUSE-ABS-03 | P1 | 演示进行中判定 | `isSkillPresentationActive` | regressionSkillFlow.spec |
+| RT-PAUSE-ABS-04 | P1 | 固化 gate 不等吸收 | `whenProcessAndVoiceSettled` | usePresentationBarrier.spec |
+| RT-PAUSE-ABS-05 | P2 | 手工 | 吸收 trace 逐字 + 空格阶段暂停 | 彩排 |
+
+详见 [2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md](./plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md)
+
+---
+
 ## 14. RT-PRES · 汇报向呈现（2026-06-28）
 
 | TC-ID | 优先级 | 场景 | 断言 | 现有测试 |
