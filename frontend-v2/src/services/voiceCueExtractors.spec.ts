@@ -37,6 +37,14 @@ describe('voiceCueExtractors', () => {
     expect(cue?.text).toContain('南北向为奥体西路')
   })
 
+  it('rejects cognition speakable with runtime metrics', () => {
+    const cue = buildCognitionVoiceCue({
+      speakable: '晚高峰饱和度1.50，东西向为经十路',
+      axis_roads: { 东西向: '经十路' },
+    })
+    expect(cue).toBeNull()
+  })
+
   it('builds corridor narration cue with key points only', () => {
     const cue = buildNarrationPhaseVoiceCue(
       'corridor',

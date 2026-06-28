@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { ProcessStepState } from '../composables/useUnderstandingProcess'
 import { parseTerminalLine, splitTerminalLines } from '../utils/terminalLines'
+import { DETAIL_COLLAPSE_LABEL, DETAIL_TOGGLE_LABEL } from '../config/presentationCopy'
 
 export interface ConversationTurn {
   role: 'user' | 'assistant'
@@ -23,6 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   toggle: [index: number]
+  toggleDetails: [index: number]
 }>()
 
 const panelExpanded = ref(true)
@@ -145,24 +147,38 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
               <span v-else class="status-indicator done" title="已完成">✓</span>
             </button>
 
-            <div v-show="!step.collapsed" class="step-body terminal-body">
-              <p
-                v-for="(line, lineIdx) in displayedLines(step)"
-                :key="lineIdx"
-                class="terminal-line"
+            <div v-show="!step.collapsed" class="step-body">
+              <p v-if="step.leadingSummary" class="step-summary">{{ step.leadingSummary }}</p>
+              <button
+                v-if="step.leadingSummary && step.fullText"
+                type="button"
+                class="detail-toggle"
+                @click.stop="emit('toggleDetails', step.index)"
               >
-                <span v-if="terminalLineParts(line).prompt" class="terminal-prompt">{{
-                  terminalLineParts(line).prompt
-                }}</span>
-                <span class="terminal-text">{{ terminalLineParts(line).body }}</span>
-                <span
-                  v-if="step.status === 'typing' && lineIdx === displayedLines(step).length - 1"
-                  class="cursor"
-                >|</span>
-              </p>
-              <p v-if="step.status === 'typing' && !displayedLines(step).length" class="terminal-line">
-                <span class="cursor">|</span>
-              </p>
+                {{ step.detailsExpanded ? DETAIL_COLLAPSE_LABEL : DETAIL_TOGGLE_LABEL }}
+              </button>
+              <div
+                v-show="!step.leadingSummary || step.detailsExpanded"
+                class="terminal-body"
+              >
+                <p
+                  v-for="(line, lineIdx) in displayedLines(step)"
+                  :key="lineIdx"
+                  class="terminal-line"
+                >
+                  <span v-if="terminalLineParts(line).prompt" class="terminal-prompt">{{
+                    terminalLineParts(line).prompt
+                  }}</span>
+                  <span class="terminal-text">{{ terminalLineParts(line).body }}</span>
+                  <span
+                    v-if="step.status === 'typing' && lineIdx === displayedLines(step).length - 1"
+                    class="cursor"
+                  >|</span>
+                </p>
+                <p v-if="step.status === 'typing' && !displayedLines(step).length" class="terminal-line">
+                  <span class="cursor">|</span>
+                </p>
+              </div>
             </div>
           </div>
         </li>
@@ -455,6 +471,33 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
 
 .step-body {
   margin-left: 4px;
+}
+
+.step-summary {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: rgba(224, 242, 254, 0.95);
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+}
+
+.detail-toggle {
+  margin: 0 0 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgba(125, 211, 252, 0.85);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.detail-toggle:hover {
+  color: #7dd3fc;
 }
 
 .terminal-body {

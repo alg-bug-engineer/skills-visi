@@ -13,7 +13,7 @@ import { createInitialPresentation } from '../types/presentation'
 describe('constants', () => {
   it('has 8 analysis steps including problem evidence', () => {
     expect(ANALYSIS_STEP_LABELS).toHaveLength(8)
-    expect(ANALYSIS_STEP_LABELS[STEP_INDICES.PROBLEM_EVIDENCE]).toBe('问题验证')
+    expect(ANALYSIS_STEP_LABELS[STEP_INDICES.PROBLEM_EVIDENCE]).toBe('问题印证')
   })
 
   it('aligns thresholds with backend yaml', () => {

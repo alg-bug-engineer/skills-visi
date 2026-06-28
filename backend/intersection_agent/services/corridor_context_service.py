@@ -191,13 +191,7 @@ class CorridorContextService:
         )
 
         narrative_parts: list[str] = []
-        if line_rows:
-            names = sorted({str(r.get("line_name") or "") for r in line_rows if r.get("line_name")})
-            narrative_parts.append(f"路口位于 {'、'.join(names[:2])} 等干线路网上")
-        else:
-            narrative_parts.append("未关联到已知干线走廊，按单点场景分析")
         if in_corridor:
-            pos = ""
             if inter_id in inter_ids_ordered:
                 idx = inter_ids_ordered.index(inter_id)
                 narrative_parts.append(
@@ -207,14 +201,13 @@ class CorridorContextService:
             else:
                 narrative_parts.append(f"处于协调走廊「{corridor_name}」")
             if green_wave_break_risk:
-                narrative_parts.append("协调方向停车次数偏高，存在绿波断裂风险，不宜仅做单点加绿灯")
-        elif line_metrics:
-            worst = max(line_metrics, key=lambda m: m.get("delay_index") or 0)
-            if (worst.get("delay_index") or 0) >= 1.5:
                 narrative_parts.append(
-                    f"所属干线「{worst.get('line_name')}」拥堵延时指数 "
-                    f"{worst.get('delay_index', 0):.2f}，需关注上下游传导"
+                    "协调方向停车次数偏高，存在绿波断裂风险，不宜仅做单点加绿灯"
                 )
+        elif line_rows:
+            narrative_parts.append("未纳入干线协调组，按单点场景分析")
+        else:
+            narrative_parts.append("未关联到已知干线走廊，按单点场景分析")
 
         return {
             "in_corridor": in_corridor,
@@ -341,8 +334,8 @@ class CorridorContextService:
             "avg_coord_stop_times": 1.6,
             "green_wave_break_risk": True,
             "narrative": (
-                f"路口位于经十路干线路网上；处于协调走廊第 3/5 个节点，"
-                f"协调方向停车次数偏高，存在绿波断裂风险"
+                "处于协调走廊「经十路协调走廊（示例）」第 3/5 个节点，组内周期 120.0s；"
+                "协调方向停车次数偏高，存在绿波断裂风险，不宜仅做单点加绿灯"
             ),
             "query_trace": [],
         }

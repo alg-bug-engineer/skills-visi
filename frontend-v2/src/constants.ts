@@ -4,14 +4,14 @@ export const DEFAULT_PROMPT =
 
 /** 分析流水线步骤标签（含 0625 问题验证） */
 export const ANALYSIS_STEP_LABELS = [
-  '理解问题',
-  '匹配路口',
-  '路口认知',
-  '获取数据',
-  '问题验证',
-  '规则诊断',
-  '生成建议',
-  '技能固化',
+  '理解描述',
+  '锁定路口',
+  '路口结构',
+  '运行数据',
+  '问题印证',
+  '原因诊断',
+  '治理建议',
+  '经验固化',
 ] as const
 
 export const STEP_INDICES = {

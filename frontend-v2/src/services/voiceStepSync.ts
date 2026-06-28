@@ -42,7 +42,7 @@ export function resolveProcessStepVoice(
         ? VOICE_GUIDE.intersection(context.intersectionName)
         : null
     case STEP_INDICES.COGNITION:
-      return VOICE_GUIDE.cognition
+      return null
     case STEP_INDICES.DATA_FETCH:
       return VOICE_GUIDE.dataFetch
     case STEP_INDICES.PROBLEM_EVIDENCE:

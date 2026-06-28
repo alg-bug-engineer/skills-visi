@@ -130,6 +130,8 @@ export interface MapActionEvent {
   direction_roles?: Array<{ group: string; role: string; saturation?: number | null }>
   axis_roads?: Record<string, string>
   speakable?: string | null
+  step_summary?: string
+  focus_step_index?: number
   markers?: MapSceneMarker[]
   hud?: MapSceneHud | null
   focus?: { lon: number; lat: number } | null

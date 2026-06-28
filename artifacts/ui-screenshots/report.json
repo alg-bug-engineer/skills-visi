@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "id": "RT-UI-BLEND-map-canvas",
+      "pass": true
+    },
+    {
+      "id": "RT-PAUSE-KEY",
+      "pass": true
+    },
+    {
+      "id": "RT-PAUSE-RESUME",
+      "pass": true
+    },
+    {
+      "id": "RT-UI-BLEND-map-visible",
+      "pass": true
+    },
+    {
+      "id": "RT-VOICE-AXIS-panel-text",
+      "pass": true,
+      "detail": "ANALYSIS\n理解过程\n智能体推理\n收起\n理解问题\n✓\n匹配路口\n✓\n\n📚 发现沉淀技能：奥体西路与经十路路口 · 晚高峰 · 南北向\n\nSkill ID：`skill_011wwe28ctu00001_congestion_晚高峰`\n\n历史约束：垂直方向不能溢出\n\n将基于历史经验辅助本次诊断。\n\n路口匹配：奥体西路与经十路路口\n\n已定位路口：奥体西路与经十路路口"
+    }
+  ],
+  "screenshots": [
+    "/Users/zhangqilai/shensi/code/路口问题诊断以及固化技能/artifacts/ui-screenshots/01-initial.png",
+    "/Users/zhangqilai/shensi/code/路口问题诊断以及固化技能/artifacts/ui-screenshots/04-paused.png",
+    "/Users/zhangqilai/shensi/code/路口问题诊断以及固化技能/artifacts/ui-screenshots/02-analysis-running.png",
+    "/Users/zhangqilai/shensi/code/路口问题诊断以及固化技能/artifacts/ui-screenshots/05-analysis-progress.png"
+  ]
+}

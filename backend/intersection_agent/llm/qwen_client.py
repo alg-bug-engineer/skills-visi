@@ -15,6 +15,24 @@ from intersection_agent.logging.helpers import log_event, safe_preview
 logger = logging.getLogger(__name__)
 
 
+def _dashscope_error_message(response: httpx.Response) -> str | None:
+    """Extract user-facing message from DashScope error body."""
+    try:
+        body = response.json()
+    except json.JSONDecodeError:
+        return None
+    err = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(err, dict):
+        return None
+    code = str(err.get("code") or err.get("type") or "")
+    message = str(err.get("message") or "").strip()
+    if code == "Arrearage":
+        return "百炼账户欠费或停服，请登录阿里云控制台充值后再试。"
+    if message:
+        return f"百炼 API 错误 ({code or response.status_code}): {message}"
+    return None
+
+
 class QwenClient:
     """Async client for Qwen chat completions."""
 
@@ -93,6 +111,7 @@ class QwenClient:
         ) as client:
             response = await client.post(url, json=payload, headers=headers)
             if response.status_code >= 400:
+                api_message = _dashscope_error_message(response)
                 log_event(
                     logger,
                     logging.ERROR,
@@ -100,6 +119,8 @@ class QwenClient:
                     status=response.status_code,
                     body=safe_preview(response.text, 400),
                 )
+                if api_message:
+                    raise RuntimeError(api_message)
             response.raise_for_status()
             data = response.json()
 

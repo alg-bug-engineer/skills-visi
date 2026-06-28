@@ -6,6 +6,7 @@ import { STEP_INDICES, STEP_PAUSE_MS } from './constants'
 import { shouldShowSkillSolidificationStep } from './utils/regressionSkillFlow'
 import { usePresentation } from './composables/usePresentation'
 import { usePresentationPause } from './composables/usePresentationPause'
+import { usePresentationSequence } from './composables/usePresentationSequence'
 import { createPresentationBarrier } from './composables/usePresentationBarrier'
 import { useUnderstandingProcess } from './composables/useUnderstandingProcess'
 import { useSkillBuildProcess } from './composables/useSkillBuildProcess'
@@ -16,7 +17,7 @@ import type { ChatMessage, MessageResponse, StepRecord } from './types/api'
 import type { ProblemEvidence, QuantitativeConstraints } from './types/evidence'
 import type { CognitionPayload, IntersectionLink, MapActionEvent } from './types/map'
 import type { CorridorIntersectionItem } from './types/corridor'
-import type { GovernanceSuggestionPayload } from './types/presentation'
+import type { GovernanceSuggestionPayload, PipelinePhase } from './types/presentation'
 import { AnalysisQueue } from './utils/analysisQueue'
 import { highlightDirsForGroup } from './utils/evidencePresentation'
 import { parseHighlightTurn } from './utils/cognitionChannelAdapter'
@@ -32,6 +33,12 @@ import {
   type DirectionRoleRow,
 } from './services/voiceCueExtractors'
 import { ABSORPTION_STAGE_VOICE } from './types/voice'
+import {
+  formatIntersectionMatchSummary,
+  formatLocatedIntersectionSummary,
+  formatSkillReuseLines,
+} from './config/presentationCopy'
+import { voiceTemplate } from './services/voiceConfig'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
 import type MapStage from './components/MapStage.vue'
 
@@ -82,6 +89,7 @@ const followUpBubble = ref<string | null>(null)
 const voice = useVoiceNarration()
 const analysisQueue = new AnalysisQueue()
 const presentationPause = usePresentationPause(analysisQueue, voice)
+const presentationSequence = usePresentationSequence()
 const lastIntersectionName = ref<string | null>(null)
 const voiceSentForStep = new Set<number>()
 
@@ -114,6 +122,7 @@ const {
   enqueue: enqueueProcess,
   reset: resetProcess,
   toggleStep,
+  toggleDetails,
   whenIdle: whenProcessIdle,
 } = useUnderstandingProcess({
   onStepStart(stepIndex) {
@@ -370,6 +379,32 @@ function stopSuggestionConfirmPause({ resumeQueue = true } = {}) {
   if (resumeQueue) presentationPause.resume()
 }
 
+function syncPresentationFromAction(action?: Pick<MapActionEvent, 'phase' | 'focus_step_index'>) {
+  if (action?.focus_step_index != null) {
+    presentationSequence.syncFromStepIndex(action.focus_step_index)
+  }
+  if (action?.phase) {
+    presentationSequence.syncFromPhase(action.phase as PipelinePhase)
+  }
+}
+
+function enqueueWithPresentation(
+  index: number,
+  text: string,
+  append = false,
+  silent = false,
+  action?: Pick<MapActionEvent, 'step_summary' | 'focus_step_index' | 'phase'>,
+) {
+  presentationSequence.syncFromStepIndex(index)
+  syncPresentationFromAction(action)
+  const summary = action?.step_summary?.trim()
+  if (summary) {
+    enqueueProcess(index, text, append, silent, { summary, detail: text })
+  } else {
+    enqueueProcess(index, text, append, silent)
+  }
+}
+
 function formatUnderstandingText(
   fields: Array<{ key: string; label: string; value: string }>,
 ): string {
@@ -592,6 +627,7 @@ function beginAnalysisFlow(userContent: string) {
       ? formatConversationSummary()
       : `用户描述：${userContent}`
   conversationTurns.value = []
+  presentationSequence.syncFromStepIndex(STEP_INDICES.UNDERSTAND)
   enqueueProcess(STEP_INDICES.UNDERSTAND, intro)
 }
 
@@ -607,6 +643,7 @@ function prepareNewAnalysisRun(userContent: string) {
   analysisRunKey.value += 1
   lastIntersectionName.value = null
   voiceSentForStep.clear()
+  presentationSequence.reset()
   voice.resetSession()
   void workbenchRef.value?.mapStageRef?.prepareNewAnalysisRun()
   lastUserContent = userContent
@@ -636,7 +673,9 @@ function applySceneHighlight(action: MapActionEvent) {
     presentation.setHighlightTurn(null)
   }
   if (action.phase) {
-    presentation.setPhase(action.phase as import('./types/presentation').PipelinePhase)
+    const phase = action.phase as PipelinePhase
+    presentation.setPhase(phase)
+    presentationSequence.syncFromPhase(phase)
   }
   if (action.hud) {
     presentation.setHud(action.hud)
@@ -665,6 +704,7 @@ const NARRATION_TEXT_VOICE_PHASES = new Set([
 
 function enqueueNarrationPhaseVoice(action: MapActionEvent) {
   if (!voice.enabled.value) return
+  if (presentationSequence.focusStepIndex.value < STEP_INDICES.DATA_FETCH) return
   const phase = action.phase ?? ''
   if (!NARRATION_TEXT_VOICE_PHASES.has(phase)) return
   const cue = buildNarrationPhaseVoiceCue(phase, action.text ?? '', action.title)
@@ -673,6 +713,7 @@ function enqueueNarrationPhaseVoice(action: MapActionEvent) {
 
 function enqueueSceneVoice(action: MapActionEvent) {
   if (!voice.enabled.value) return
+  if (presentationSequence.focusStepIndex.value < STEP_INDICES.DATA_FETCH) return
   if (action.phase === 'direction' && action.direction_roles?.length) {
     const cue = buildDirectionVoiceCue(action.direction_roles as DirectionRoleRow[])
     if (cue) voice.enqueue(cue)
@@ -694,11 +735,13 @@ function enqueueSceneVoice(action: MapActionEvent) {
 
 function handleNarration(action: MapActionEvent) {
   const text = action.text ?? ''
-  if (!text) return
+  if (!text && !action.step_summary) return
+
+  const narrOpts = action
 
   if (action.phase === 'links' || action.phase === 'channelization') {
     enqueueLinksVoice(action)
-    enqueueProcess(STEP_INDICES.COGNITION, text)
+    enqueueWithPresentation(STEP_INDICES.COGNITION, text, false, false, narrOpts)
     return
   }
   if (
@@ -712,23 +755,33 @@ function handleNarration(action: MapActionEvent) {
     action.phase === 'imbalance'
   ) {
     const prefix = action.title ? `${action.title}：` : ''
-    enqueueProcess(STEP_INDICES.DATA_FETCH, `${prefix}${text}`, true)
+    enqueueWithPresentation(
+      STEP_INDICES.DATA_FETCH,
+      `${prefix}${text}`,
+      true,
+      false,
+      narrOpts,
+    )
     enqueueNarrationPhaseVoice(action)
     return
   }
   if (action.phase === 'rule') {
     presentation.setPhase('rule')
-    enqueueProcess(STEP_INDICES.RULE, text)
+    presentationSequence.syncFromPhase('rule')
+    presentationSequence.syncFromStepIndex(STEP_INDICES.RULE)
+    enqueueWithPresentation(STEP_INDICES.RULE, text, false, false, narrOpts)
     return
   }
   if (action.phase === 'conclusion') {
     presentation.setPhase('conclusion')
+    presentationSequence.syncFromPhase('conclusion')
+    presentationSequence.syncFromStepIndex(STEP_INDICES.SUGGESTION)
     patchSuggestionPayload(action.suggestion)
-    enqueueProcess(STEP_INDICES.SUGGESTION, text)
+    enqueueWithPresentation(STEP_INDICES.SUGGESTION, text, false, false, narrOpts)
     return
   }
   if (action.phase === 'locate') {
-    enqueueProcess(STEP_INDICES.INTERSECTION, text, true)
+    enqueueWithPresentation(STEP_INDICES.INTERSECTION, text, true, false, narrOpts)
   }
 }
 
@@ -782,9 +835,20 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       const inter = action.intersection
       if (inter?.name) {
         rememberIntersectionName(inter.name)
-        enqueueProcess(STEP_INDICES.INTERSECTION, `已定位路口：${inter.name}`, true, true)
+        enqueueProcess(
+          STEP_INDICES.INTERSECTION,
+          `已定位路口：${inter.name}`,
+          true,
+          true,
+          {
+            summary: formatLocatedIntersectionSummary(inter.name),
+            detail: `已定位路口：${inter.name}`,
+          },
+        )
       }
       presentation.setPhase('locate')
+      presentationSequence.syncFromPhase('locate')
+      presentationSequence.syncFromStepIndex(STEP_INDICES.COGNITION)
       updateCognitionFromAction(action)
       pushMapAction(action)
       return
@@ -794,7 +858,16 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       updateCognitionFromAction(action)
       presentation.setHighlightTurn(null)
       presentation.setPhase('links')
-      enqueueProcess(STEP_INDICES.COGNITION, formatLinksText(action.links ?? []), false, true)
+      presentationSequence.syncFromPhase('links')
+      presentationSequence.syncFromStepIndex(STEP_INDICES.COGNITION)
+      const linksDetail = formatLinksText(action.links ?? [])
+      const linkCount = action.links?.length ?? 0
+      enqueueProcess(STEP_INDICES.COGNITION, linksDetail, false, true, {
+        summary: linkCount
+          ? `共 ${linkCount} 条关联路段，已在地图高亮。`
+          : '正在检索路口关联路段。',
+        detail: linksDetail,
+      })
       pushMapAction(action)
       return
     }
@@ -902,11 +975,24 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
 function handleProblemEvidenceStep(data: Record<string, unknown>) {
   const text = formatEvidenceStepText(data)
   analysisQueue.enqueue(async () => {
-    enqueueProcess(STEP_INDICES.PROBLEM_EVIDENCE, text)
-
     const partial = data as unknown as ProblemEvidence & {
       quantitative_constraints?: QuantitativeConstraints
     }
+    const chronic = partial.chronic
+    let summary: string | undefined
+    if (chronic?.is_chronic && chronic.window_days != null && chronic.congested_days != null) {
+      summary = `近 ${chronic.window_days} 天中 ${chronic.congested_days} 天超标，问题成立。`
+    } else if (partial.summary) {
+      summary =
+        partial.summary.length > 40 ? `${partial.summary.slice(0, 39)}…` : partial.summary
+    }
+    if (summary) {
+      enqueueProcess(STEP_INDICES.PROBLEM_EVIDENCE, text, false, false, { summary, detail: text })
+    } else {
+      enqueueProcess(STEP_INDICES.PROBLEM_EVIDENCE, text)
+    }
+    presentationSequence.syncFromStepIndex(STEP_INDICES.PROBLEM_EVIDENCE)
+    presentationSequence.syncFromPhase('evidence')
     presentation.patchEvidence({
       ...(presentation.state.evidence ?? {}),
       ...partial,
@@ -961,8 +1047,24 @@ function handlePipelineStep(
     const notice = String(data.reuse_notice ?? '')
     if (notice) {
       analysisQueue.enqueue(async () => {
-        const prefix = data.matched ? '📚 ' : 'ℹ️ '
-        enqueueProcess(STEP_INDICES.INTERSECTION, `${prefix}${notice}`, true, true)
+        const matched = Boolean(data.matched)
+        const { summary, detail } = formatSkillReuseLines(notice, matched)
+        enqueueProcess(STEP_INDICES.INTERSECTION, detail, true, true, { summary, detail })
+        presentationSequence.syncFromStepIndex(STEP_INDICES.INTERSECTION)
+        if (matched && voice.enabled.value) {
+          const constraintMatch = notice.match(/历史约束[：:]\s*(.+?)(?:\n|$)/)
+          const constraint = constraintMatch?.[1]?.trim()
+          if (constraint) {
+            voice.enqueue({
+              id: 'step:1:skill-reuse',
+              stepIndex: STEP_INDICES.INTERSECTION,
+              phase: 'intersection',
+              kind: 'guide',
+              text: voiceTemplate('skillReuseHint', { constraint: `「${constraint}」` }),
+              priority: 0,
+            })
+          }
+        }
       }, STEP_PAUSE_MS)
     }
     return
@@ -971,7 +1073,12 @@ function handlePipelineStep(
   if (event.step === 'intersection' && data.inter_name) {
     rememberIntersectionName(String(data.inter_name))
     analysisQueue.enqueue(async () => {
-      enqueueProcess(STEP_INDICES.INTERSECTION, `路口匹配：${data.inter_name}`, true, true)
+      const name = String(data.inter_name)
+      enqueueProcess(STEP_INDICES.INTERSECTION, `路口匹配：${name}`, true, true, {
+        summary: formatIntersectionMatchSummary(name),
+        detail: `路口匹配：${name}`,
+      })
+      presentationSequence.syncFromStepIndex(STEP_INDICES.INTERSECTION)
     }, STEP_PAUSE_MS)
   }
 
@@ -1059,6 +1166,7 @@ async function initSession() {
   suggestionConfirmQueued = false
   lastIntersectionName.value = null
   voiceSentForStep.clear()
+  presentationSequence.reset()
   panelMode.value = 'idle'
   sessionState.value = 'idle'
   conversationTurns.value = []
@@ -1310,11 +1418,14 @@ onUnmounted(() => {
       :voice-enabled="voice.enabled.value"
       :voice-playing="voice.playing.value"
       :presentation-paused="presentationPause.paused.value"
+      :presentation-layers="presentationSequence.layers.value"
+      :focus-step-index="presentationSequence.focusStepIndex.value"
       @toggle-voice="voice.toggleEnabled()"
       @channelization-active="channelizationActive = $event"
       @send="handleSend"
       @input-activity="onInputActivity"
       @toggle-step="toggleStep"
+      @toggle-details="toggleDetails"
       @toggle-process="presentation.toggleProcessPanel()"
       @toggle-timing-ring="presentation.toggleTimingRingMini()"
       @close-timing-ring="presentation.closeTimingRingMini()"

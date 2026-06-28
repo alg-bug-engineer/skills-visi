@@ -1,5 +1,29 @@
 # frontend-v2 进度记录
 
+## v2.0.6（2026-06-28）— 汇报向叙事 · 地图呈现时序
+
+### 已完成
+
+- [x] 理解过程 8 步业务化标签（理解描述 → 经验固化）
+- [x] 每步 `leadingSummary` + 「查看详情」折叠明细（link / Skill ID 等）
+- [x] 后端 narration `step_summary` + `focus_step_index`（RT-PRES-SUMMARY）
+- [x] `usePresentationSequence`：MetricStrip / InsightStack / 证据 note / HUD / 配时环错峰揭示
+- [x] Skill 复用：锁定路口步内摘要 + `skillReuseHint` TTS
+- [x] 暂停 toast：「分析暂停 · 空格继续」
+- [x] 语音引导语业务化（`voice_narration.json`）
+
+### 文档
+
+- [docs/plans/2026-06-28-领导演示叙事与地图呈现重构-需求理解.md](../../docs/plans/2026-06-28-领导演示叙事与地图呈现重构-需求理解.md)
+- [docs/plans/2026-06-28-领导演示叙事与地图呈现重构-开发方案.md](../../docs/plans/2026-06-28-领导演示叙事与地图呈现重构-开发方案.md)
+- [docs/plans/2026-06-28-领导演示叙事与地图呈现重构-UI交互.md](../../docs/plans/2026-06-28-领导演示叙事与地图呈现重构-UI交互.md)
+
+### 单测
+
+- vitest 新增 `usePresentationSequence.spec`、`presentationCopy.spec`
+
+---
+
 ## v2.0.5（2026-06-28）— 地图渠化融合 · 语音精简 · 呈现同步栅栏
 
 ### 已完成

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed } from 'vue'
 import type { ProblemEvidence } from '../../types/evidence'
 import type { CognitionPayload, MapSceneHud, MapSceneMarker } from '../../types/map'
 import type {
@@ -13,8 +13,6 @@ import { COGNITION_STRUCTURE_PHASES } from '../../types/presentation'
 import { useChannelFooterLayout } from '../../composables/useChannelFooterLayout'
 import type { FlowTimingGovernance } from '../../types/evidence'
 import ChannelizationLegend from './ChannelizationLegend.vue'
-import ChannelizationEvidenceNote from './ChannelizationEvidenceNote.vue'
-import ChannelizationSuggestionNote from './ChannelizationSuggestionNote.vue'
 import TimingRingMiniWindow from '../timing/TimingRingMiniWindow.vue'
 import CorridorWaveMiniWindow from '../corridor/CorridorWaveMiniWindow.vue'
 
@@ -30,6 +28,7 @@ const props = defineProps<{
   runtimeMetrics?: RuntimeMetrics | null
   timingRingVisible?: boolean
   corridorWaveVisible?: boolean
+  // 问题验证 / 治理建议已迁入右上角叙事卡（IntersectionNarrativeStack），此处保留 prop 以兼容绑定
   showEvidenceNote?: boolean
   showGovernanceNote?: boolean
   governance?: FlowTimingGovernance | null
@@ -86,99 +85,6 @@ const totalLanes = computed(() =>
     0,
   ),
 )
-
-const evidenceNoteRevealed = ref(false)
-const governanceNoteRevealed = ref(false)
-
-const chanBodyRef = ref<HTMLElement | null>(null)
-const legendCompRef = ref<InstanceType<typeof ChannelizationLegend> | null>(null)
-const evidenceNoteMaxPx = ref<number | null>(null)
-
-const EVIDENCE_NOTE_TOP = 12
-const LEGEND_BOTTOM = 12
-const EVIDENCE_LEGEND_GAP = 12
-
-function legendEl(): HTMLElement | null {
-  const el = legendCompRef.value?.$el
-  return el instanceof HTMLElement ? el : null
-}
-
-function measureEvidenceNoteMax() {
-  const body = chanBodyRef.value
-  if (!body) return
-  const bodyH = body.clientHeight
-  if (bodyH <= 0) return
-
-  const legendH = legendEl()?.offsetHeight ?? 0
-  const maxByRatio = bodyH * (2 / 3)
-  const maxByLegend =
-    bodyH - EVIDENCE_NOTE_TOP - EVIDENCE_LEGEND_GAP - legendH - LEGEND_BOTTOM
-
-  evidenceNoteMaxPx.value = Math.max(96, Math.min(maxByRatio, maxByLegend))
-}
-
-const evidenceNoteStyle = computed(() =>
-  evidenceNoteMaxPx.value != null
-    ? { maxHeight: `${evidenceNoteMaxPx.value}px` }
-    : undefined,
-)
-
-let resizeObs: ResizeObserver | null = null
-
-function bindResizeObserver() {
-  resizeObs?.disconnect()
-  resizeObs = new ResizeObserver(() => measureEvidenceNoteMax())
-  if (chanBodyRef.value) resizeObs.observe(chanBodyRef.value)
-  const legend = legendEl()
-  if (legend) resizeObs.observe(legend)
-  measureEvidenceNoteMax()
-}
-
-onMounted(() => {
-  void nextTick(bindResizeObserver)
-})
-
-onUnmounted(() => {
-  resizeObs?.disconnect()
-  resizeObs = null
-})
-
-watch(
-  () => props.showEvidenceNote,
-  (v) => {
-    if (v) evidenceNoteRevealed.value = true
-  },
-  { immediate: true },
-)
-
-watch(
-  () => props.showGovernanceNote,
-  (v) => {
-    if (v) governanceNoteRevealed.value = true
-  },
-  { immediate: true },
-)
-
-watch(
-  () => props.runKey,
-  () => {
-    evidenceNoteRevealed.value = false
-    governanceNoteRevealed.value = false
-  },
-)
-
-watch(
-  [
-    () => props.visible,
-    () => props.fullscreen,
-    evidenceNoteRevealed,
-    hasQueue,
-    () => props.phase,
-  ],
-  () => {
-    void nextTick(bindResizeObserver)
-  },
-)
 </script>
 
 <template>
@@ -222,7 +128,7 @@ watch(
         </div>
       </div>
 
-      <div ref="chanBodyRef" class="chan-body">
+      <div class="chan-body">
         <div v-if="fullscreen" class="chan-minis">
           <TimingRingMiniWindow
             :visible="Boolean(timingRingVisible)"
@@ -235,24 +141,11 @@ watch(
             @close="emit('closeCorridorWave')"
           />
         </div>
-        <div
-          v-if="fullscreen && evidenceNoteRevealed && evidence"
-          class="chan-evidence-note"
-          :style="evidenceNoteStyle"
-        >
-          <ChannelizationEvidenceNote :evidence="evidence" />
-        </div>
-        <ChannelizationSuggestionNote
-          v-if="fullscreen && governanceNoteRevealed"
-          class="chan-suggestion-note"
-          :suggestion="governanceSuggestion"
-        />
         <!-- 渠化已下沉到主地图(AMap 覆盖物)渲染，此处仅留透传区让地图显示，
-             图例/证据/建议/迷你窗作为 HUD 浮层叠加 -->
+             图例/迷你窗作为 HUD 浮层叠加；问题验证/治理建议见右上角叙事卡 -->
         <div class="chan-map-passthrough" />
         <ChannelizationLegend
           v-if="fullscreen"
-          ref="legendCompRef"
           :phase="phase"
           :show-queue="hasQueue"
           :show-direction-roles="showDirectionRoles"
@@ -410,13 +303,14 @@ watch(
 }
 
 .chan-minis {
+  /* 右上角已被叙事卡占用，迷你窗靠左排布，避免遮挡 */
   position: absolute;
   top: 8px;
   left: 0;
   right: 0;
   z-index: 5;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
   gap: 12px;
   padding: 0 12px;
@@ -434,32 +328,6 @@ watch(
   pointer-events: auto;
 }
 
-.chan-evidence-note {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 6;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  pointer-events: auto;
-}
-
-.chan-evidence-note :deep(.evidence-note) {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: 100%;
-  overflow-y: auto;
-}
-
-.chan-suggestion-note {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 6;
-}
-
 .chan-full-enter-active,
 .chan-full-leave-active {
   transition: opacity 0.55s ease, transform 0.55s ease;
@@ -470,5 +338,4 @@ watch(
   opacity: 0;
   transform: scale(1.04);
 }
-
 </style>

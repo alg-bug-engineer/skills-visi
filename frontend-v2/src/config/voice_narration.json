@@ -1,17 +1,17 @@
 {
   "_comment": "语音播报文案配置。固定引导语直接修改 guide/absorption；带数据的句子用 templates 占位符。TTS 仅合成此处文案，不由大模型生成。",
   "guide": {
-    "understand": "已理解您描述的路口问题，开始分析。",
+    "understand": "已理解您描述的路口情况，开始分析。",
     "cognition": "正在加载路口渠化，请关注地图车道与转向。",
     "cognitionWithRoads": "正在加载路口渠化，{axisSummary}。",
-    "dataFetch": "开始获取运行数据。",
-    "evidenceIntro": "进入问题验证，核对指标与常发规律。",
-    "ruleIntro": "进入规则诊断。",
+    "dataFetch": "开始拉取路口运行数据。",
+    "evidenceIntro": "核对运行指标与常发规律，印证问题。",
+    "ruleIntro": "结合专家规则分析拥堵原因。",
     "suggestionConfirm": "诊断完成，请查看治理建议。",
-    "absorptionStart": "开始吸收本次诊断经验。",
-    "absorptionDone": "经验吸收与技能写入完成。",
-    "skillBuildStart": "开始固化路口技能包。",
-    "skillBuildDone": "技能包已生成。"
+    "absorptionStart": "开始整理并写入本次诊断经验。",
+    "absorptionDone": "经验整理与技能写入完成。",
+    "skillBuildStart": "正在写入路口技能包。",
+    "skillBuildDone": "技能包已写入，可供后续复用。"
   },
   "absorption": {
     "recap": "回顾本次诊断的关键约束与经验。",
@@ -22,6 +22,7 @@
   },
   "templates": {
     "intersection": "已匹配到路口{name}。",
+    "skillReuseHint": "发现历史经验，约束{constraint}将纳入本次方案。",
     "axisRoads": "{interName}，东西向为{ewRoad}，南北向为{nsRoad}。",
     "directionFocus": "关注{focusGroup}，饱和度{value}，{state}。",
     "directionProtected": "{protectGroup}为保护方向，饱和度{value}。",
@@ -32,11 +33,11 @@
     "evidenceDow": "每逢周{label}更容易出现这个问题{rateSuffix}。",
     "evidenceDowRateSuffix": "，约 {rate}% 的周会中招",
     "evidenceSaturation": "整体饱和度 {value}，已过饱和，问题成立。",
-    "evidenceFallback": "运行数据与描述基本一致，请查看左侧证据卡。",
+    "evidenceFallback": "运行数据与描述基本一致，请查看证据说明。",
     "ruleHit": "命中{ruleName}，{conclusion}。",
     "ruleHitFallback": "命中{ruleName}，请查看规则诊断结论。",
     "suggestion": "建议{direction}主要方向绿灯约 {delta} 秒。",
-    "suggestionFallback": "已生成治理建议，请查看右侧说明。"
+    "suggestionFallback": "已生成治理建议，请查看说明。"
   },
   "states": {
     "saturationNormal": "总体可控",

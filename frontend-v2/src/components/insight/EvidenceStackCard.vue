@@ -66,7 +66,7 @@ const dowRate = computed(() => {
     </ul>
 
     <p v-if="!evidence.diagnosis_story?.length" class="hint">
-      运行饱和度、延误等量化指标见「运行数据」卡；分进口排队与饱和度见渠化图底部。
+      运行饱和度、延误等量化指标见「运行数据」卡。
     </p>
   </article>
 </template>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildArmLabelsFromScene } from './channelArmLabels'
+import { buildArmLabelsFromScene, buildArmLabelsFromDirectionGroups, buildArmLabelsFromEntranceLinks } from './channelArmLabels'
 import type { CognitionPayload, MapSceneMarker } from '../types/map'
 
 describe('buildArmLabelsFromScene', () => {
@@ -22,14 +22,53 @@ describe('buildArmLabelsFromScene', () => {
     expect(labels[0].line2).toContain('129')
   })
 
-  it('falls back to metrics_by_arm', () => {
+  it('fills metrics_by_arm when explicitly enabled', () => {
     const cognition = {
       intersection: { inter_id: '1', name: '测试', lon: 117, lat: 36 },
       arms: [],
       metrics_by_arm: [{ link_id: 'l1', dir4_label: '南', saturation: 0.92 }],
     } as CognitionPayload
-    const labels = buildArmLabelsFromScene([], cognition)
+    const labels = buildArmLabelsFromScene([], cognition, { fillFromCognition: true })
     expect(labels[0].dir).toBe('南')
     expect(labels[0].line2).toContain('0.92')
+  })
+
+  it('does not backfill from cognition by default', () => {
+    const cognition = {
+      intersection: { inter_id: '1', name: '测试', lon: 117, lat: 36 },
+      arms: [],
+      metrics_by_arm: [{ link_id: 'l1', dir4_label: '南', saturation: 0.92 }],
+    } as CognitionPayload
+    expect(buildArmLabelsFromScene([], cognition)).toHaveLength(0)
+  })
+
+  it('builds all direction groups for channelization labels', () => {
+    const cognition = {
+      intersection: { inter_id: '1', name: '测试', lon: 117, lat: 36 },
+      arms: [],
+      direction_groups: [
+        { group: '东西向', saturation_max: 1.5, arm_labels: ['东', '西'] },
+        { group: '南北向', saturation_max: 1.2, arm_labels: ['南', '北'] },
+      ],
+    } as CognitionPayload
+    const labels = buildArmLabelsFromDirectionGroups(cognition)
+    expect(labels.map((l) => l.dir).sort()).toEqual(['东', '北', '南', '西'])
+    expect(labels.find((l) => l.dir === '南')?.line2).toBe('1.20')
+  })
+
+  it('fills missing entrance dirs with placeholder labels', () => {
+    const cognition = {
+      intersection: { inter_id: '1', name: '测试', lon: 117, lat: 36 },
+      arms: [],
+      links: [
+        { link_id: 'e1', link_role: 'entrance', dir4_label: '东进口', path: [[117.1, 36.6]] },
+        { link_id: 'w1', link_role: 'entrance', dir4_label: '西进口', path: [[117.0, 36.6]] },
+        { link_id: 's1', link_role: 'entrance', dir4_label: '南进口', path: [[117.05, 36.59]] },
+        { link_id: 'n1', link_role: 'entrance', dir4_label: '北进口', path: [[117.05, 36.61]] },
+      ],
+    } as CognitionPayload
+    const labels = buildArmLabelsFromEntranceLinks(cognition, new Set(['东', '西']))
+    expect(labels.map((l) => l.dir).sort()).toEqual(['北', '南'])
+    expect(labels[0].line2).toBe('—')
   })
 })

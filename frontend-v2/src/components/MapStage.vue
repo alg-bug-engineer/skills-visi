@@ -18,6 +18,7 @@ import { isEntrance, linkStrokeColor, markerHtml, mergeSceneMarkers, normalizeDi
 import { buildEvidenceDirectionMarkers, buildProtectedDirectionMarkers, highlightDirsForGroup } from '../utils/evidencePresentation'
 import { buildInterItemFromCognition } from '../utils/cognitionChannelAdapter'
 import { createChannelizationController, type ChannelizationController } from '../lib/channelizationController'
+import { LOD_THRESHOLDS } from '../lib/channelizationGeometry'
 
 const props = defineProps<{
   mapActions: MapActionEvent[]
@@ -49,7 +50,42 @@ const emit = defineEmits<{
   closeTimingRing: []
   closeCorridorWave: []
   corridorIntersectionSelect: [interId: string]
+  viewChange: [view: { zoom: number; lod: 'L0' | 'L1' | 'L2' }]
 }>()
+
+/** 程序化镜头移动期间为 true，用于区分"用户手动操作"与"系统下钻" */
+let programmaticMove = false
+/** 用户一旦手动拖拽/缩放，后续步骤不再强制 recenter，保留其视角 */
+const userInteracted = ref(false)
+
+function lodForZoom(zoom: number): 'L0' | 'L1' | 'L2' {
+  return zoom < LOD_THRESHOLDS.L1 ? 'L0' : zoom < LOD_THRESHOLDS.L2 ? 'L1' : 'L2'
+}
+
+function emitView() {
+  if (!map) return
+  const zoom = map.getZoom()
+  emit('viewChange', { zoom, lod: lodForZoom(zoom) })
+}
+
+/** 分析推进只前进不回退：目标 zoom 不低于当前 zoom（reset 城市视图除外） */
+function clampZoomUp(target: number): number {
+  if (!map) return target
+  return Math.max(target, map.getZoom())
+}
+
+let programmaticDepth = 0
+/** 程序化镜头操作包裹器：期间 zoomend 不计为"用户操作" */
+async function withProgrammatic(fn: () => Promise<void> | void) {
+  programmaticDepth++
+  programmaticMove = true
+  try {
+    await fn()
+  } finally {
+    programmaticDepth--
+    if (programmaticDepth === 0) programmaticMove = false
+  }
+}
 
 const mapContainer = ref<HTMLElement | null>(null)
 const ready = ref(false)
@@ -163,8 +199,10 @@ function syncChanSceneMarkers(action?: MapActionEvent) {
 function centerMapOnIntersection(lon: number, lat: number, zoom?: number) {
   if (!map) return
   if (channelizationLocked.value) {
+    // 用户已手动操作时不再强制回拉视角
+    if (userInteracted.value) return
     map.setStatus({ animateEnable: false })
-    if (zoom != null) map.setZoom(zoom)
+    if (zoom != null) map.setZoom(clampZoomUp(zoom))
     map.setCenter([lon, lat])
     return
   }
@@ -380,13 +418,16 @@ function visualPanOffsetX(): number {
 
 async function focusCorridorIntersection(lon: number, lat: number, zoom = CORRIDOR_FOCUS_ZOOM) {
   if (!map || !AMapLib || channelizationLocked.value) return
-  await flyTo(map, AMapLib, [lon, lat], zoom, 750)
-  panToVisualCenter(map, [lon, lat], corridorPanOffsetX(), 0)
+  await withProgrammatic(async () => {
+    await flyTo(map!, AMapLib!, [lon, lat], zoom, 750)
+    panToVisualCenter(map!, [lon, lat], corridorPanOffsetX(), 0)
+  })
 }
 
 async function prepareNewAnalysisRun() {
   stopLinkFlash()
   disposeChannelization()
+  userInteracted.value = false
   channelizationLocked.value = false
   viewMode.value = 'map'
   hud.value = null
@@ -409,6 +450,7 @@ async function resetToCityDefault() {
   if (!map || !AMapLib) return
   stopLinkFlash()
   disposeChannelization()
+  userInteracted.value = false
   channelizationLocked.value = false
   viewMode.value = 'map'
   cognition.value = null
@@ -422,27 +464,39 @@ async function resetToCityDefault() {
 
 async function drillToIntersection(lon: number, lat: number) {
   if (!map || !AMapLib) return
-  await flyTo(map, AMapLib, [lon, lat], 14, 850)
-  await flyTo(map, AMapLib, [lon, lat], 16.2, 750)
-  await flyTo(map, AMapLib, [lon, lat], 17.5, 650)
+  if (userInteracted.value) {
+    // 用户已自行设定视角：只平移到路口，不强制重新下钻
+    panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
+    return
+  }
+  // 单调递增、连续下钻：从当前 zoom 起只放大不回退
+  const steps = [14, 16.2, 17.5].map((z) => clampZoomUp(z))
+  for (const z of steps) {
+    await flyTo(map, AMapLib, [lon, lat], z, 700)
+  }
   panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
 }
 
 async function enterChannelizationView(lon: number, lat: number) {
   if (!map || !AMapLib) return
-  await flyTo(map, AMapLib, [lon, lat], 18.5, 900)
+  // 续接当前镜头，平滑放大到车道级；不打断、不回跳
+  if (!userInteracted.value) {
+    await flyTo(map, AMapLib, [lon, lat], clampZoomUp(18.5), 800)
+  }
   stopLinkFlash()
   clearMarkers()
   clearOverlays()
   channelizationLocked.value = true
   viewMode.value = 'channelization'
-  centerMapOnIntersection(lon, lat, 18.5)
+  // 已在目标位姿，无需再 setZoom 造成跳变；仅在用户未介入时对齐中心
+  if (!userInteracted.value) panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
   mountChannelization()
 }
 
 async function focusPoint(lon: number, lat: number, zoom: number) {
   if (!map || !AMapLib || channelizationLocked.value) return
-  await flyTo(map, AMapLib, [lon, lat], zoom, 900)
+  if (userInteracted.value) return
+  await flyTo(map, AMapLib, [lon, lat], clampZoomUp(zoom), 900)
   panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
 }
 
@@ -595,7 +649,7 @@ watch(
   () => props.mapActions.length,
   async (len, prev) => {
     if (len <= (prev ?? 0)) return
-    await handleAction(props.mapActions[len - 1])
+    await withProgrammatic(() => handleAction(props.mapActions[len - 1]))
   },
 )
 
@@ -685,7 +739,14 @@ onMounted(async () => {
     // 渠化态随地图缩放下钻（L0 路网 / L1 轮廓 / L2 车道渠化）
     map.on('zoomend', () => {
       if (channelizationLocked.value) chanController?.applyLOD(map!.getZoom())
+      if (!programmaticMove) userInteracted.value = true
+      emitView()
     })
+    // 用户手动拖拽后，后续步骤不再强制回拉视角
+    map.on('dragend', () => {
+      userInteracted.value = true
+    })
+    emitView()
 
     resizeObs = new ResizeObserver(() => {
       const inter = cognition.value?.intersection

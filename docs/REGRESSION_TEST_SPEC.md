@@ -307,19 +307,19 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 
 | 步骤 | index | SSE 触发 | 证据揭示 | TC-ID |
 |------|-------|---------|---------|-------|
-| 理解问题 | 0 | nlu complete → beginAnalysisFlow | — | RT-UI-01 |
-| 匹配路口 | 1 | intersection / skill_match notice | — | RT-UI-02 |
-| 路口认知 | 2 | cognition + narration links | — | RT-UI-03 |
-| 获取数据 | 3 | data_fetch + map narration | onStepComplete(3) 揭示运行数据 | RT-UI-04 |
-| 问题验证 | 4 | problem_evidence | onStepComplete(4) 揭示验证卡 | RT-UI-05 |
-| 规则诊断 | 5 | rule_engine + flow_timing | onStepComplete(5) 揭示规则卡 | RT-UI-06 |
-| 生成建议 | 6 | suggestion / confirm_bubble | — | RT-UI-07 |
-| 技能固化 | 7 | skill_absorption + skill_build | 仅路径 B/C 有 D2 | RT-UI-08 |
+| 理解描述 | 0 | nlu complete → beginAnalysisFlow | — | RT-UI-01 |
+| 锁定路口 | 1 | intersection / skill_match notice | 摘要+查看详情 | RT-UI-02 |
+| 路口结构 | 2 | cognition + narration links | link 明细折叠 | RT-UI-03 |
+| 运行数据 | 3 | data_fetch + map narration | step_summary；MetricStrip 错峰 | RT-UI-04 |
+| 问题印证 | 4 | problem_evidence | InsightStack 同步揭示 | RT-UI-05 |
+| 原因诊断 | 5 | rule_engine + flow_timing | 配时环/绿波 auto 延后 | RT-UI-06 |
+| 治理建议 | 6 | suggestion / confirm_bubble | — | RT-UI-07 |
+| 经验固化 | 7 | skill_absorption + skill_build | 仅路径 B/C 有 D2 | RT-UI-08 |
 
 | TC-ID | 优先级 | 场景 | 断言 | 现有测试 |
 |-------|--------|------|------|---------|
 | RT-UI-01 | P1 | NLU complete 才 beginAnalysisFlow | panelMode=analysis | — |
-| RT-UI-02 | P1 | skill_match notice 前缀 | 📚 matched / ℹ️ mismatch | App.vue |
+| RT-UI-02 | P1 | skill_match 经验命中 | summary 含历史约束；detail 含 Skill 明细 | presentationCopy.spec |
 | RT-UI-03 | P1 | AnalysisQueue STEP_PAUSE_MS=2200 | 不抢跑 | constants |
 | RT-UI-04 | P0 | 证据 buffer 延迟揭示 | patchEvidence vs reveal | card-timing-sync-plan |
 | RT-UI-05 | P1 | 追问模式 | panelMode=conversation | — |
@@ -330,23 +330,35 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 | RT-UI-10 | P2 | prepareNewAnalysisRun | analysisRunKey++ | — |
 | RT-UI-11 | P1 | onStepStart 仅首次 | 同 step append 不重复 | useUnderstandingProcess.spec |
 | RT-UI-12 | P2 | 饱和度小数展示 | formatSaturation 0.92 | — |
+| RT-UI-13 | P1 | 呈现时序 gates | usePresentationSequence.spec | usePresentationSequence.spec |
+| RT-UI-14 | P1 | 暂停 toast | 「分析暂停 · 空格继续」 | WorkbenchLayout |
 
 ---
 
-## 14. RT-VOICE · 语音播报与理解过程同步
+## 14. RT-PRES · 汇报向呈现（2026-06-28）
+
+| TC-ID | 优先级 | 场景 | 断言 | 现有测试 |
+|-------|--------|------|------|---------|
+| RT-PRES-SUMMARY | P1 | narration SSE | step_summary ≤40 字 + focus_step_index | test_map_presentation.py |
+| RT-PRES-SEQ | P1 | MetricStrip 错峰 | direction 步不揭示 strip | usePresentationSequence.spec |
+| RT-PRES-COPY | P1 | Skill 复用文案 | formatSkillReuseLines | presentationCopy.spec |
+
+---
+
+## 15. RT-VOICE · 语音播报与理解过程同步
 
 ### 14.1 步骤 ↔ 文案映射（必须与 voice_narration.json 一致）
 
 | stepIndex | 理解过程标签 | configKey | 触发时机 | TC-ID |
 |-----------|-------------|-----------|---------|-------|
-| 0 | 理解问题 | guide.understand | onStepStart(0) | RT-VOICE-01 |
-| 1 | 匹配路口 | templates.intersection | onStepStart(1)，**需 intersectionName** | RT-VOICE-02 |
-| 2 | 路口认知 | guide.cognition | onStepStart(2) | RT-VOICE-03 |
-| 3 | 获取数据 | guide.dataFetch | onStepStart(3) | RT-VOICE-04 |
-| 4 | 问题验证 | guide.evidenceIntro | onStepStart(4) | RT-VOICE-05 |
-| 5 | 规则诊断 | guide.ruleIntro | onStepStart(5) | RT-VOICE-06 |
-| 6 | 生成建议 | guide.suggestionConfirm | onStepStart(6) | RT-VOICE-07 |
-| 7 | 技能固化 | **无 guide**（null） | 见 absorption/build | RT-VOICE-08 |
+| 0 | 理解描述 | guide.understand | onStepStart(0) | RT-VOICE-01 |
+| 1 | 锁定路口 | templates.intersection | onStepStart(1)，**需 intersectionName** | RT-VOICE-02 |
+| 2 | 路口结构 | guide.cognition | onStepStart(2) | RT-VOICE-03 |
+| 3 | 运行数据 | guide.dataFetch | onStepStart(3) | RT-VOICE-04 |
+| 4 | 问题印证 | guide.evidenceIntro | onStepStart(4) | RT-VOICE-05 |
+| 5 | 原因诊断 | guide.ruleIntro | onStepStart(5) | RT-VOICE-06 |
+| 6 | 治理建议 | guide.suggestionConfirm | onStepStart(6) | RT-VOICE-07 |
+| 7 | 经验固化 | **无 guide**（null） | 见 absorption/build | RT-VOICE-08 |
 
 | TC-ID | 优先级 | 场景 | 断言 | 现有测试 |
 |-------|--------|------|------|---------|

@@ -42,10 +42,10 @@ export function summarizeNarrationForVoice(
 
   if (phase === 'timing') {
     const cycle = body.match(/周期[^0-9]*(\d+)/)?.[1]
-    const bad = /不匹配|偏短|偏长|不足|过长/.test(body)
+    const period = body.match(/时段[^0-9]*(\d+)/)?.[1]
     const parts: string[] = [title?.trim() || '配时']
     if (cycle) parts.push(`周期${cycle}秒`)
-    if (bad) parts.push('与流量不匹配')
+    if (period) parts.push(`${period}个时段`)
     return parts.join('，').slice(0, maxLen)
   }
 
@@ -66,9 +66,14 @@ export function summarizeNarrationForVoice(
   }
 
   if (phase === 'granularity') {
-    const turn = body.match(/([东南西北][^，,。]{0,8}(?:左|直|右|调)[^，,。]{0,6})/)?.[1]
+    const turn =
+      body.match(/转向级[：:]\s*([东南西北][^\s，,。；]+)/)?.[1]?.trim() ??
+      body.match(/([东南西北][^\s，,。；]*(?:左|直|右|调))/)?.[1]?.trim()
     const sat = body.match(/饱和度[^0-9]*([0-9.]+)/)?.[1]
-    if (turn && sat) return `${turn}饱和度${sat}`.slice(0, maxLen)
+    if (turn && sat) {
+      const cleanTurn = turn.replace(/\s*饱和度\s*$/, '').trim()
+      return `${cleanTurn}，${sat}`.slice(0, maxLen)
+    }
   }
 
   const clause = firstClause(body)

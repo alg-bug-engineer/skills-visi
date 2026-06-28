@@ -13,6 +13,7 @@
 | 现象 | 可能原因 | 处理 |
 |------|----------|------|
 | 401 Unauthorized | API Key 错误 | 检查 `DASHSCOPE_API_KEY` |
+| 400 Arrearage | 账户欠费/停服 | 登录[阿里云百炼控制台](https://bailian.console.aliyun.com/)充值；日志 `code=Arrearage` |
 | 404 model not found | 模型名错误 | 确认 `QWEN_MODEL=qwen3.6-flash-2026-04-16` |
 | Timeout | 网络或限流 | 增大 `LLM_TIMEOUT_S`；检查百炼控制台配额 |
 | JSON 解析失败 | 模型输出非纯 JSON | 查看日志中 `raw_response`；NLU prompt 已约束仅 JSON |

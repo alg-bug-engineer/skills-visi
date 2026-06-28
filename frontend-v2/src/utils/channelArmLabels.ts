@@ -25,10 +25,62 @@ function severityColor(sev?: string): string {
   return '#00e5ff'
 }
 
-/** 将 map_scene markers 转为渠化路臂 3D 标签（不再画在 AMap 上）。 */
+/** 从 direction_groups 补全四向饱和度标签（metrics_by_arm 缺项时）。 */
+export function buildArmLabelsFromDirectionGroups(
+  cognition: CognitionPayload | null,
+): ArmSceneLabel[] {
+  const labels: ArmSceneLabel[] = []
+  for (const group of cognition?.direction_groups ?? []) {
+    const groupName = group.group ?? ''
+    const satRaw = group.saturation_max ?? group.saturation_avg
+    if (satRaw == null || !groupName) continue
+    const sat = Number(satRaw)
+    const dirs =
+      groupName === '东西向'
+        ? ['东', '西']
+        : groupName === '南北向'
+          ? ['南', '北']
+          : (group.arm_labels ?? [])
+              .map((a) => dirKeyFromLabel(a))
+              .filter((d): d is string => Boolean(d))
+    for (const dir of dirs) {
+      labels.push({
+        dir,
+        line1: groupName,
+        line2: sat.toFixed(2),
+        colorHex: sat >= 0.85 ? '#ff6b4a' : sat >= 0.65 ? '#ffaa44' : '#00e5ff',
+      })
+    }
+  }
+  return labels
+}
+
+/** 为渠化 3D 补全无运行数据的进口方向（显示 —）。 */
+export function buildArmLabelsFromEntranceLinks(
+  cognition: CognitionPayload | null,
+  coveredDirs: Set<string>,
+): ArmSceneLabel[] {
+  const labels: ArmSceneLabel[] = []
+  const seen = new Set<string>()
+  for (const link of cognition?.links ?? []) {
+    const role = link.link_role || ''
+    if (role !== 'entrance' && role !== '进口') continue
+    const dir = dirKeyFromLabel(link.dir4_label || link.dir8_label)
+    if (!dir || seen.has(dir) || coveredDirs.has(dir)) continue
+    seen.add(dir)
+    labels.push({
+      dir,
+      line1: `${dir}进口`,
+      line2: '—',
+      colorHex: severityColor('unknown'),
+    })
+  }
+  return labels
+}
 export function buildArmLabelsFromScene(
   markers: MapSceneMarker[],
   cognition: CognitionPayload | null,
+  options?: { fillFromCognition?: boolean },
 ): ArmSceneLabel[] {
   const byDir = new Map<string, ArmSceneLabel>()
 
@@ -47,17 +99,19 @@ export function buildArmLabelsFromScene(
     })
   }
 
-  for (const arm of cognition?.metrics_by_arm ?? []) {
-    const dir = dirKeyFromLabel(arm.dir4_label)
-    if (!dir || byDir.has(dir)) continue
-    if (arm.saturation == null) continue
-    const sat = Number(arm.saturation)
-    byDir.set(dir, {
-      dir,
-      line1: arm.dir4_label,
-      line2: `饱和度 ${sat.toFixed(2)}`,
-      colorHex: sat >= 0.85 ? '#ff6b4a' : sat >= 0.65 ? '#ffaa44' : '#00e5ff',
-    })
+  if (options?.fillFromCognition) {
+    for (const arm of cognition?.metrics_by_arm ?? []) {
+      const dir = dirKeyFromLabel(arm.dir4_label)
+      if (!dir || byDir.has(dir)) continue
+      if (arm.saturation == null) continue
+      const sat = Number(arm.saturation)
+      byDir.set(dir, {
+        dir,
+        line1: arm.dir4_label,
+        line2: `饱和度 ${sat.toFixed(2)}`,
+        colorHex: sat >= 0.85 ? '#ff6b4a' : sat >= 0.65 ? '#ffaa44' : '#00e5ff',
+      })
+    }
   }
 
   return [...byDir.values()]

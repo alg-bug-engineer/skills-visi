@@ -85,26 +85,56 @@ export function buildLinkCognitionMarkers(cognition: CognitionPayload | null): M
   return markers
 }
 
+const DIR4_TO_GROUP: Record<string, string> = {
+  东: '东西向',
+  西: '东西向',
+  南: '南北向',
+  北: '南北向',
+  东南: '东南向',
+  西南: '西南向',
+  东北: '东北向',
+  西北: '西北向',
+}
+
+function saturationForDir(
+  dir: string,
+  metrics: CognitionPayload['metrics_by_arm'],
+  groups: CognitionPayload['direction_groups'],
+): number | null {
+  for (const metric of metrics ?? []) {
+    if (normalizeDir(metric.dir4_label || '') !== dir) continue
+    const sat = metric.saturation
+    if (sat != null && Number(sat) > 0) return Number(sat)
+  }
+  const groupName = DIR4_TO_GROUP[dir]
+  if (!groupName) return null
+  for (const group of groups ?? []) {
+    if (group.group !== groupName) continue
+    const raw = group.saturation_max ?? group.saturation_avg
+    if (raw != null && Number(raw) > 0) return Number(raw)
+  }
+  return null
+}
+
 export function buildArmMetricMarkers(cognition: CognitionPayload | null): MapSceneMarker[] {
   if (!cognition?.intersection) return []
   const center: [number, number] = [cognition.intersection.lon, cognition.intersection.lat]
   const links = cognition.links ?? []
   const metrics = cognition.metrics_by_arm ?? []
+  const groups = cognition.direction_groups ?? []
   const markers: MapSceneMarker[] = []
+  const seen = new Set<string>()
 
-  for (const metric of metrics) {
-    const dir = normalizeDir(metric.dir4_label || '')
-    const link =
-      links.find((l) => l.link_id === metric.link_id) ||
-      links.find(
-        (l) => isEntrance(l.link_role) && normalizeDir(l.dir4_label || '') === dir,
-      )
-    if (!link || !isEntrance(link.link_role) || metric.saturation == null) continue
+  for (const link of links) {
+    if (!isEntrance(link.link_role) || !link.path?.length) continue
+    const dir = normalizeDir(link.dir4_label || link.dir8_label || '')
+    if (!dir || seen.has(dir)) continue
+    seen.add(dir)
+    const sat = saturationForDir(dir, metrics, groups)
     const [lon, lat] = linkSegmentAnchor(link, center)
-    const sat = Number(metric.saturation)
     const severity =
-      metric.level === 'high' || metric.level === 'medium' || metric.level === 'low'
-        ? metric.level
+      sat == null
+        ? 'unknown'
         : sat >= 0.85
           ? 'high'
           : sat >= 0.65
@@ -117,8 +147,8 @@ export function buildArmMetricMarkers(cognition: CognitionPayload | null): MapSc
       kind: 'metric',
       variant: 'saturation',
       title: `${dir}进口`,
-      value: sat.toFixed(2),
-      subtitle: '饱和度',
+      value: sat != null ? sat.toFixed(2) : '—',
+      subtitle: sat != null ? '饱和度' : '无数据',
       severity,
       dir,
       link_id: link.link_id,

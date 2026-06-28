@@ -204,24 +204,9 @@ class TimingProfileService:
 
         plan_granularity_low = period_count > 0 and period_count <= min_plans
 
-        narrative_parts: list[str] = []
-        narrative_parts.append(
+        narrative_parts: list[str] = [
             f"当前方案周期约 {cycle_length:.0f}s，日计划时段 {period_count or '—'} 个"
-        )
-        if cycle_issue == "too_long":
-            narrative_parts.append(f"周期偏长（>{cycle_max}s），行人等待与协调弹性受限")
-        elif cycle_issue == "too_short":
-            narrative_parts.append(f"周期偏短（<{cycle_min}s），清空与相位切换可能不足")
-        if deficit_turns:
-            top = deficit_turns[0]
-            narrative_parts.append(
-                f"{top['label']}计划绿灯 {top['green_time_plan']}s 低于理论最小绿 "
-                f"{top['min_green_time']}s，存在配时不足风险"
-            )
-        if flow_green.get("verdict") == "mismatch":
-            narrative_parts.append(str(flow_green.get("narrative")))
-        if plan_granularity_low:
-            narrative_parts.append("时段方案划分较粗，高峰/平峰可能共用同一套配时")
+        ]
 
         return {
             "cycle_length": round(cycle_length, 1),
@@ -289,10 +274,7 @@ class TimingProfileService:
                 "narrative": "流量与绿信比存在一定偏差，东直行高流量但绿灯占比偏低",
                 "items": [],
             },
-            "narrative": (
-                f"当前方案周期约 {cycle:.0f}s，日计划时段 4 个；"
-                "东直行计划绿灯低于理论最小绿，存在配时不足风险"
-            ),
+            "narrative": f"当前方案周期约 {cycle:.0f}s，日计划时段 4 个",
             "query_trace": [],
         }
 

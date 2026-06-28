@@ -1,12 +1,22 @@
 import { onUnmounted, ref } from 'vue'
 import { ANALYSIS_STEP_LABELS } from '../constants'
 
+export interface ProcessEnqueueOptions {
+  /** 首行业务结论，默认可见 */
+  summary?: string
+  /** 明细正文；缺省时使用 text 参数 */
+  detail?: string
+}
+
 export interface ProcessStepState {
   index: number
   label: string
+  /** 首行结论（不参与打字动画） */
+  leadingSummary: string
   fullText: string
   displayedLength: number
   collapsed: boolean
+  detailsExpanded: boolean
   status: 'typing' | 'done'
 }
 
@@ -22,7 +32,13 @@ export interface UnderstandingProcessOptions {
 export function useUnderstandingProcess(options: UnderstandingProcessOptions = {}) {
   const steps = ref<ProcessStepState[]>([])
   let timer: ReturnType<typeof setInterval> | null = null
-  const pending: Array<{ index: number; text: string; append: boolean; silent: boolean }> = []
+  const pending: Array<{
+    index: number
+    text: string
+    append: boolean
+    silent: boolean
+    options?: ProcessEnqueueOptions
+  }> = []
   let busy = false
 
   function clearTimers() {
@@ -74,39 +90,76 @@ export function useUnderstandingProcess(options: UnderstandingProcessOptions = {
   function pumpQueue() {
     if (busy || pending.length === 0) return
     const next = pending.shift()!
-    runStep(next.index, next.text, next.append, next.silent)
+    runStep(next.index, next.text, next.append, next.silent, next.options)
   }
 
-  function enqueue(index: number, text: string, append = false, silent = false) {
+  function enqueue(
+    index: number,
+    text: string,
+    append = false,
+    silent = false,
+    enqueueOptions?: ProcessEnqueueOptions,
+  ) {
     const trimmed = text.trim()
-    if (!trimmed) return
-    pending.push({ index, text: trimmed, append, silent })
+    if (!trimmed && !enqueueOptions?.summary?.trim()) return
+    pending.push({
+      index,
+      text: trimmed || enqueueOptions?.detail?.trim() || '',
+      append,
+      silent,
+      options: enqueueOptions,
+    })
     pumpQueue()
   }
 
-  function runStep(index: number, text: string, append: boolean, silent: boolean) {
+  function toggleDetails(index: number) {
+    const step = findStep(index)
+    if (step && step.fullText) {
+      step.detailsExpanded = !step.detailsExpanded
+    }
+  }
+
+  function runStep(
+    index: number,
+    text: string,
+    append: boolean,
+    silent: boolean,
+    enqueueOptions?: ProcessEnqueueOptions,
+  ) {
     busy = true
     finalizeOtherTypingSteps(index)
     let step = findStep(index)
 
+    const detailText = (enqueueOptions?.detail ?? text).trim()
+    const summaryText = enqueueOptions?.summary?.trim() ?? ''
+
     if (step) {
+      if (summaryText) {
+        step.leadingSummary = append && step.leadingSummary
+          ? `${step.leadingSummary}\n${summaryText}`
+          : summaryText
+        step.detailsExpanded = false
+      }
+
       const nextText = append
         ? step.fullText
-          ? `${step.fullText}\n${text}`
-          : text
-        : text.length > step.fullText.length
-          ? text
+          ? `${step.fullText}\n${detailText}`
+          : detailText
+        : detailText.length > step.fullText.length || !step.fullText
+          ? detailText
           : step.fullText
 
       if (silent && step.status === 'typing') {
-        step.fullText = append ? nextText : text
+        step.fullText = append ? nextText : detailText
+        if (summaryText) step.leadingSummary = summaryText
         busy = false
         pumpQueue()
         return
       }
 
       if (silent && step.status === 'done') {
-        step.fullText = append ? nextText : text
+        step.fullText = append ? nextText : detailText
+        if (summaryText) step.leadingSummary = summaryText
         step.displayedLength = step.fullText.length
         busy = false
         pumpQueue()
@@ -115,8 +168,8 @@ export function useUnderstandingProcess(options: UnderstandingProcessOptions = {
 
       if (append) {
         step.fullText = nextText
-      } else if (text.length > step.fullText.length) {
-        step.fullText = text
+      } else if (detailText.length > step.fullText.length || !step.fullText) {
+        step.fullText = detailText
       } else {
         busy = false
         pumpQueue()
@@ -129,9 +182,11 @@ export function useUnderstandingProcess(options: UnderstandingProcessOptions = {
       step = {
         index,
         label: ANALYSIS_STEP_LABELS[index] ?? `步骤 ${index + 1}`,
-        fullText: text,
+        leadingSummary: summaryText,
+        fullText: detailText,
         displayedLength: 0,
         collapsed: false,
+        detailsExpanded: !summaryText && detailText.length > 0,
         status: 'typing',
       }
       steps.value.push(step)
@@ -139,6 +194,13 @@ export function useUnderstandingProcess(options: UnderstandingProcessOptions = {
       if (!silent) {
         options.onStepStart?.(index)
       }
+    }
+
+    if (!step.fullText) {
+      step.status = 'done'
+      busy = false
+      pumpQueue()
+      return
     }
 
     clearTimers()
@@ -179,5 +241,5 @@ export function useUnderstandingProcess(options: UnderstandingProcessOptions = {
     })
   }
 
-  return { steps, enqueue, reset, toggleStep, whenIdle }
+  return { steps, enqueue, reset, toggleStep, toggleDetails, whenIdle }
 }

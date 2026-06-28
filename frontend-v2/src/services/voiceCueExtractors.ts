@@ -160,6 +160,15 @@ export interface AxisRoadsPayload {
   intersectionName?: string | null
 }
 
+const DATA_DEPENDENT_VOICE_RE =
+  /饱和度|延误|失衡|过饱和|排队|绿灯利用率|最小绿|不匹配|常发|投诉|绿波|周期约/
+
+function isStructureOnlyVoice(text: string): boolean {
+  const body = text.trim()
+  if (!body) return false
+  return !DATA_DEPENDENT_VOICE_RE.test(body)
+}
+
 /** TTS for links/cognition phase with axis road names. */
 export function buildCognitionVoiceCue(payload: AxisRoadsPayload): VoiceCue | null {
   const axis = payload.axis_roads ?? {}
@@ -174,7 +183,7 @@ export function buildCognitionVoiceCue(payload: AxisRoadsPayload): VoiceCue | nu
       nsRoad: ns || '—',
     })
   }
-  if (!text) return null
+  if (!text || !isStructureOnlyVoice(text)) return null
   return cue('step:2:cognition:roads', STEP_INDICES.COGNITION, 'links', text, 'highlight', 1)
 }
 

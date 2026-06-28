@@ -145,12 +145,13 @@ def build_narration_steps(
         )
 
     timing_profile = data.get("timing_profile") or {}
-    if timing_profile.get("narrative"):
+    timing_text = _timing_step_text(timing_profile)
+    if timing_text:
         steps.append(
             {
                 "phase": "timing",
                 "title": "配时适配性",
-                "text": str(timing_profile["narrative"]),
+                "text": timing_text,
             }
         )
 
@@ -245,7 +246,80 @@ def build_narration_steps(
             }
         )
 
-    return steps
+    return [enrich_narration_step(s) for s in steps]
+
+
+_PHASE_FOCUS_STEP: dict[str, int] = {
+    "locate": 1,
+    "links": 2,
+    "channelization": 2,
+    "traffic": 3,
+    "direction": 3,
+    "granularity": 3,
+    "timing": 3,
+    "corridor": 3,
+    "external": 3,
+    "saturation": 3,
+    "imbalance": 3,
+    "rule": 5,
+    "conclusion": 6,
+}
+
+
+def _clamp_summary(text: str, max_len: int = 40) -> str:
+    compact = re.sub(r"\s+", " ", str(text or "").strip())
+    if not compact:
+        return ""
+    if len(compact) <= max_len:
+        return compact
+    return compact[: max_len - 1].rstrip() + "…"
+
+
+def _summary_for_narration_step(step: dict[str, Any]) -> str:
+    """One-line business summary for leadership-facing UI (≤40 chars)."""
+    phase = str(step.get("phase") or "")
+    text = str(step.get("text") or "")
+    first_line = text.split("\n", 1)[0].strip()
+    first_line = first_line.replace("【关注】", "关注").replace("【保护】", "保护")
+
+    if phase == "locate":
+        match = re.search(r"已锁定[「\"](.+?)[」\"]", first_line)
+        if match:
+            return _clamp_summary(f"已锁定{match.group(1)}。")
+    if phase in ("links", "channelization"):
+        axis = step.get("axis_roads") or {}
+        if axis:
+            parts = [f"{group}为{road}" for group, road in axis.items()]
+            return _clamp_summary("，".join(parts) + "。")
+    if phase == "traffic":
+        return _clamp_summary(first_line.split("，")[0] + "。" if "，" in first_line else first_line)
+    if phase in ("direction", "saturation", "imbalance"):
+        return _clamp_summary(first_line.split("；")[0] if "；" in first_line else first_line)
+    if phase == "rule":
+        return _clamp_summary(first_line)
+    if phase == "conclusion":
+        narrative = str((step.get("suggestion") or {}).get("narrative") or "")
+        if narrative:
+            return _clamp_summary(narrative)
+        for line in text.split("\n"):
+            if line.strip() and not line.strip().startswith("证据链"):
+                return _clamp_summary(line.strip())
+    if phase in ("granularity", "timing", "corridor", "external"):
+        return _clamp_summary(first_line)
+
+    title = str(step.get("title") or "")
+    return _clamp_summary(first_line or title)
+
+
+def enrich_narration_step(step: dict[str, Any]) -> dict[str, Any]:
+    """Attach step_summary and focus_step_index for frontend presentation."""
+    phase = str(step.get("phase") or "")
+    out = dict(step)
+    summary = _summary_for_narration_step(step)
+    if summary:
+        out["step_summary"] = summary
+    out["focus_step_index"] = _PHASE_FOCUS_STEP.get(phase, 3)
+    return out
 
 
 def _clean_road_name(name: str) -> str:
@@ -327,13 +401,18 @@ def build_links_narration_payload(cognition: dict[str, Any]) -> dict[str, Any]:
         text = f"{header}。\n{body}"
     else:
         text = body
-    return {
+    payload = {
         "phase": "links",
         "title": "关联路段",
         "text": text,
         "axis_roads": axis,
         "speakable": speakable or None,
     }
+    if axis:
+        parts = [f"{group}为{road}" for group, road in axis.items()]
+        payload["step_summary"] = _clamp_summary("，".join(parts) + "。")
+    payload["focus_step_index"] = _PHASE_FOCUS_STEP["links"]
+    return enrich_narration_step(payload)
 
 
 def _focus_and_protected_groups(nlu: NluResult | None) -> tuple[list[str], list[str]]:
@@ -365,6 +444,17 @@ def _build_direction_roles(
             sat = group.get("saturation_avg")
         roles.append({"group": name, "role": role, "saturation": sat})
     return roles
+
+
+def _timing_step_text(timing_profile: dict[str, Any]) -> str:
+    """配时适配性步骤仅播报周期与时段数量，不下适配/不匹配结论。"""
+    cycle = timing_profile.get("cycle_length")
+    period_count = timing_profile.get("period_count")
+    if cycle is None and not period_count:
+        return ""
+    cycle_text = f"{float(cycle):.0f}s" if cycle is not None else "—"
+    period_text = str(period_count) if period_count is not None else "—"
+    return f"当前方案周期约 {cycle_text}，日计划时段 {period_text} 个。"
 
 
 def _direction_metric_lines(
@@ -442,6 +532,10 @@ GROUP_TO_DIRS: dict[str, list[str]] = {
     "西南向": ["西南"],
     "东北向": ["东北"],
     "西北向": ["西北"],
+}
+
+DIR4_TO_GROUP: dict[str, str] = {
+    d: group for group, dirs in GROUP_TO_DIRS.items() for d in dirs
 }
 
 
@@ -529,43 +623,66 @@ def _link_anchor(
     return anchor
 
 
-def _markers_for_entrance_metrics(
+def _saturation_for_dir(
+    dir_key: str,
+    metrics_by_arm: list[dict[str, Any]],
+    groups: list[dict[str, Any]],
+) -> float | None:
+    """Per-arm saturation first, then direction-group aggregate for missing arms."""
+    for metric in metrics_by_arm:
+        if _normalize_dir(str(metric.get("dir4_label") or "")) != dir_key:
+            continue
+        sat = metric.get("saturation")
+        if sat is not None and float(sat) > 0:
+            return float(sat)
+    group_name = DIR4_TO_GROUP.get(dir_key)
+    if not group_name:
+        return None
+    for group in groups:
+        if str(group.get("group") or "") != group_name:
+            continue
+        sat_raw = group.get("saturation_max")
+        if sat_raw is None:
+            sat_raw = group.get("saturation_avg")
+        if sat_raw is not None and float(sat_raw) > 0:
+            return float(sat_raw)
+    return None
+
+
+def _markers_for_traffic_phase(
     links: list[dict[str, Any]],
     center_lon: float,
     center_lat: float,
     metrics_by_arm: list[dict[str, Any]],
+    groups: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Per-entrance saturation markers on link segments."""
+    """One saturation marker per entrance arm; missing data shows as —."""
     markers: list[dict[str, Any]] = []
-    for metric in metrics_by_arm:
-        dir_key = _normalize_dir(str(metric.get("dir4_label") or ""))
-        sat = metric.get("saturation")
-        if sat is None or float(sat) <= 0:
+    seen_dirs: set[str] = set()
+    for link in links:
+        if str(link.get("link_role") or "") not in ("entrance", "进口"):
             continue
-        for link in links:
-            link_dir = _normalize_dir(str(link.get("dir4_label") or link.get("dir8_label") or ""))
-            if link_dir != dir_key:
-                continue
-            if str(link.get("link_role") or "") not in ("entrance", "进口"):
-                continue
-            lon, lat = _link_anchor(link, center_lon, center_lat)
-            sat_f = float(sat)
-            markers.append(
-                {
-                    "id": f"arm-{link.get('link_id')}",
-                    "lon": lon,
-                    "lat": lat,
-                    "dir": dir_key,
-                    "link_id": link.get("link_id"),
-                    "kind": "metric",
-                    "variant": "saturation",
-                    "title": f"{dir_key}进口",
-                    "subtitle": "饱和度",
-                    "value": f"{sat_f:.0%}",
-                    "severity": _severity(sat_f),
-                }
-            )
-            break
+        dir_key = _normalize_dir(str(link.get("dir4_label") or link.get("dir8_label") or ""))
+        if not dir_key or dir_key in seen_dirs:
+            continue
+        seen_dirs.add(dir_key)
+        sat = _saturation_for_dir(dir_key, metrics_by_arm, groups)
+        lon, lat = _link_anchor(link, center_lon, center_lat)
+        markers.append(
+            {
+                "id": f"traffic-{link.get('link_id')}-{dir_key}",
+                "lon": lon,
+                "lat": lat,
+                "dir": dir_key,
+                "link_id": link.get("link_id"),
+                "kind": "metric",
+                "variant": "saturation",
+                "title": f"{dir_key}进口",
+                "subtitle": "饱和度" if sat is not None else "无数据",
+                "value": f"{sat:.2f}" if sat is not None else "—",
+                "severity": _severity(sat),
+            }
+        )
     return markers
 
 
@@ -577,6 +694,69 @@ def _severity(sat: float | None) -> str:
     if sat >= 0.65:
         return "medium"
     return "low"
+
+
+def _markers_for_direction_groups(
+    groups: list[dict[str, Any]],
+    links: list[dict[str, Any]],
+    center_lon: float,
+    center_lat: float,
+    *,
+    focus_groups: list[str] | None = None,
+    protected_groups: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """为每个分向组生成渠化/地图标注，与理解过程分向饱和度列表一致。"""
+    focus_set = set(focus_groups or [])
+    protect_set = set(protected_groups or [])
+    markers: list[dict[str, Any]] = []
+    seen_dirs: set[str] = set()
+
+    for group in groups:
+        group_name = str(group.get("group") or "")
+        if not group_name:
+            continue
+        sat_raw = group.get("saturation_max")
+        if sat_raw is None:
+            sat_raw = group.get("saturation_avg")
+        sat_f = float(sat_raw) if sat_raw is not None else None
+        dirs = GROUP_TO_DIRS.get(group_name)
+        if not dirs:
+            dirs = [_normalize_dir(str(a)) for a in (group.get("arm_labels") or [])]
+        if group_name in focus_set:
+            title = f"关注·{group_name}"
+        elif group_name in protect_set:
+            title = f"保护·{group_name}"
+        else:
+            title = group_name
+        for dir_key in dirs:
+            norm = _normalize_dir(dir_key)
+            if not norm or norm in seen_dirs:
+                continue
+            seen_dirs.add(norm)
+            for link in links:
+                link_dir = _normalize_dir(str(link.get("dir4_label") or link.get("dir8_label") or ""))
+                if link_dir != norm:
+                    continue
+                role = str(link.get("link_role") or "")
+                if role not in ("entrance", "进口"):
+                    continue
+                lon, lat = _link_anchor(link, center_lon, center_lat)
+                markers.append(
+                    {
+                        "id": f"dir-group-{group_name}-{norm}",
+                        "lon": lon,
+                        "lat": lat,
+                        "dir": norm,
+                        "link_id": link.get("link_id"),
+                        "kind": "metric",
+                        "variant": "direction",
+                        "title": title,
+                        "value": f"{sat_f:.2f}" if sat_f is not None else "—",
+                        "severity": _severity(sat_f),
+                    }
+                )
+                break
+    return markers
 
 
 def _markers_for_dirs(
@@ -672,8 +852,8 @@ def build_map_scene(
         if nlu and nlu.time_period:
             time_label = nlu.time_period.label or ""
         arm_metrics = cognition.get("metrics_by_arm") or []
-        entrance_markers = _markers_for_entrance_metrics(
-            links, center_lon, center_lat, arm_metrics
+        entrance_markers = _markers_for_traffic_phase(
+            links, center_lon, center_lat, arm_metrics, groups
         )
         if not entrance_markers and saturation is not None:
             entrance_markers = _markers_for_dirs(links, center_lon, center_lat, worst_dirs)
@@ -723,14 +903,18 @@ def build_map_scene(
         worst_sat = float(worst_sat_raw) if worst_sat_raw is not None else None
         if worst_sat is None and saturation is not None:
             worst_sat = float(saturation)
-        markers = _markers_for_dirs(links, center_lon, center_lat, highlight_dirs)
-        for m in markers:
-            m["kind"] = "metric"
-            m["variant"] = "direction"
-            m["value"] = f"{worst_sat:.0%}" if worst_sat is not None else "—"
-            m["severity"] = _severity(worst_sat)
-            m["title"] = role_group or f"{worst.get('group') if worst else ''}"
-        focus = markers[0] if markers else None
+        markers = _markers_for_direction_groups(
+            groups,
+            links,
+            center_lon,
+            center_lat,
+            focus_groups=focus_groups,
+            protected_groups=protected_groups,
+        )
+        focus = next(
+            (m for m in markers if role_group and role_group in str(m.get("title") or "")),
+            markers[0] if markers else None,
+        )
         base.update(
             {
                 "zoom": 18.2,
@@ -750,7 +934,7 @@ def build_map_scene(
                     "metrics": [
                         {
                             "label": worst.get("group", "关键方向") if worst else "方向",
-                            "value": f"{worst_sat:.0%}" if worst_sat is not None else "—",
+                            "value": f"{worst_sat:.2f}" if worst_sat is not None else "—",
                             "severity": _severity(worst_sat),
                         }
                     ],
@@ -1092,25 +1276,12 @@ def build_map_scene(
         timing = data.get("timing_profile") or {}
         cycle = timing.get("cycle_length")
         period_count = timing.get("period_count")
-        deficit_turns = timing.get("deficit_turns") or []
-        deficit_dirs: list[str] = []
-        for turn in deficit_turns[:3]:
-            label = str(turn.get("label") or "")
-            for key in ("东", "西", "南", "北"):
-                if key in label and key not in deficit_dirs:
-                    deficit_dirs.append(key)
-        markers = _markers_for_dirs(links, center_lon, center_lat, deficit_dirs or worst_dirs)
-        for m in markers:
-            m["kind"] = "timing"
-            m["variant"] = "deficit"
-            m["title"] = "配时不足"
-            m["severity"] = "high"
         base.update(
             {
                 "zoom": 17.9,
-                "highlight_dirs": deficit_dirs or worst_dirs,
-                "dim_other_links": bool(deficit_dirs),
-                "markers": markers,
+                "highlight_dirs": [],
+                "dim_other_links": False,
+                "markers": [],
                 "hud": {
                     "title": "配时画像",
                     "icon": "⏱",
@@ -1124,15 +1295,6 @@ def build_map_scene(
                             "label": "日计划时段",
                             "value": str(period_count) if period_count is not None else "—",
                             "severity": "low",
-                        },
-                        {
-                            "label": "最小绿缺口",
-                            "value": (
-                                str(deficit_turns[0].get("label"))
-                                if deficit_turns
-                                else "无"
-                            )[:10],
-                            "severity": "high" if deficit_turns else "low",
                         },
                     ],
                 },

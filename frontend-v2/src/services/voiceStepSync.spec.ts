@@ -21,7 +21,7 @@ describe('voiceStepSync', () => {
 
   it('returns stage guides aligned with understanding process labels', () => {
     expect(resolveProcessStepVoice(STEP_INDICES.UNDERSTAND)).toBe(voiceConfig.guide.understand)
-    expect(resolveProcessStepVoice(STEP_INDICES.COGNITION)).toBe(voiceConfig.guide.cognition)
+    expect(resolveProcessStepVoice(STEP_INDICES.COGNITION)).toBeNull()
     expect(resolveProcessStepVoice(STEP_INDICES.DATA_FETCH)).toBe(voiceConfig.guide.dataFetch)
     expect(resolveProcessStepVoice(STEP_INDICES.PROBLEM_EVIDENCE)).toBe(
       voiceConfig.guide.evidenceIntro,

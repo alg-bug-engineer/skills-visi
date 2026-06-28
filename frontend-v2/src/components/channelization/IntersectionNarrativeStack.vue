@@ -1,0 +1,437 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import type { CognitionPayload } from '../../types/map'
+import type { ProblemEvidence } from '../../types/evidence'
+import type {
+  GovernanceSuggestionPayload,
+  PipelinePhase,
+  RuntimeMetrics,
+} from '../../types/presentation'
+import type { DataInsight } from '../../types/insight'
+import { STEP_INDICES } from '../../constants'
+import { buildNarrativeRuntimeItems } from '../../utils/narrativeStack'
+import { buildEvidenceListItems, buildSuggestionListItems } from '../../utils/channelizationCopy'
+
+const props = defineProps<{
+  visible: boolean
+  cognition: CognitionPayload | null
+  highlightDirs?: string[]
+  protectedDirs?: string[]
+  runtimeMetrics?: RuntimeMetrics | null
+  dataInsight?: DataInsight | null
+  evidence?: ProblemEvidence | null
+  governanceSuggestion?: GovernanceSuggestionPayload | null
+  focusStepIndex: number
+  phase?: PipelinePhase
+  zoom?: number | null
+  lod?: 'L0' | 'L1' | 'L2' | null
+  /** 新一轮分析递增，重置粘性揭示 */
+  runKey?: number
+}>()
+
+/* ── 认知头 ─────────────────────────────────────────────────────────────── */
+const intersection = computed(() => props.cognition?.intersection ?? null)
+const armCount = computed(() => props.cognition?.arms?.length ?? 0)
+const laneCount = computed(() =>
+  (props.cognition?.arms ?? []).reduce((s, a) => s + (a.lane_num || a.lanes?.length || 0), 0),
+)
+const lodLabel = computed(() => {
+  switch (props.lod) {
+    case 'L2':
+      return '逐车道渠化'
+    case 'L1':
+      return '路口轮廓'
+    default:
+      return '路网'
+  }
+})
+const zoomLabel = computed(() => (props.zoom != null ? props.zoom.toFixed(1) : '—'))
+
+function formatDirRoles(dirs?: string[]): string {
+  if (!dirs?.length) return ''
+  return dirs
+    .map((d) => (d.endsWith('向') ? d : `${d}向`))
+    .join('、')
+}
+const focusRole = computed(() => formatDirRoles(props.highlightDirs))
+const protectRole = computed(() => formatDirRoles(props.protectedDirs))
+
+/* ── 运行数据（逐项追加）────────────────────────────────────────────────── */
+const runtimeRevealed = ref(false)
+const runtimeItems = computed(() =>
+  buildNarrativeRuntimeItems({
+    runtimeMetrics: props.runtimeMetrics,
+    dataInsight: props.dataInsight,
+    evidence: props.evidence,
+  }),
+)
+const showRuntime = computed(() => runtimeRevealed.value && runtimeItems.value.length > 0)
+
+/* ── 问题验证（出现后自动折叠）──────────────────────────────────────────── */
+const evidenceRevealed = ref(false)
+const evidenceCollapsed = ref(false)
+const evidenceItems = computed(() =>
+  props.evidence ? buildEvidenceListItems(props.evidence) : [],
+)
+const showEvidence = computed(() => evidenceRevealed.value && evidenceItems.value.length > 0)
+const evidenceSummary = computed(() => evidenceItems.value[0] ?? '问题已印证')
+
+let collapseTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleEvidenceCollapse() {
+  if (collapseTimer) clearTimeout(collapseTimer)
+  collapseTimer = setTimeout(() => {
+    evidenceCollapsed.value = true
+  }, 2600)
+}
+
+/* ── 治理建议 ───────────────────────────────────────────────────────────── */
+const suggestionRevealed = ref(false)
+const suggestionItems = computed(() => buildSuggestionListItems(props.governanceSuggestion))
+const showSuggestion = computed(
+  () => suggestionRevealed.value && suggestionItems.value.length > 0,
+)
+
+/* ── 粘性揭示（只增不减，避免阶段切换闪烁）──────────────────────────────── */
+watch(
+  () => props.focusStepIndex,
+  (idx) => {
+    if (idx >= STEP_INDICES.DATA_FETCH) runtimeRevealed.value = true
+    if (idx >= STEP_INDICES.PROBLEM_EVIDENCE) {
+      if (!evidenceRevealed.value) {
+        evidenceRevealed.value = true
+        scheduleEvidenceCollapse()
+      }
+    }
+    if (idx >= STEP_INDICES.SUGGESTION) {
+      suggestionRevealed.value = true
+      evidenceCollapsed.value = true // 进入治理建议时，问题验证收起为条目
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.runKey,
+  () => {
+    runtimeRevealed.value = false
+    evidenceRevealed.value = false
+    evidenceCollapsed.value = false
+    suggestionRevealed.value = false
+    if (collapseTimer) clearTimeout(collapseTimer)
+  },
+)
+
+function toggleEvidence() {
+  evidenceCollapsed.value = !evidenceCollapsed.value
+}
+
+function sevClass(sev?: string): string {
+  return sev ? `sev-${sev}` : ''
+}
+</script>
+
+<template>
+  <Transition name="narrative-fade">
+    <aside
+      v-if="visible && intersection"
+      class="narrative-stack"
+      aria-label="路口认知与运行数据"
+    >
+      <!-- 认知头 -->
+      <header class="head">
+        <h3>{{ intersection.name }}</h3>
+        <p class="sub">
+          <span v-if="intersection.inter_id" class="id">{{ intersection.inter_id }}</span>
+          <span class="dot">·</span>真实渠化数据
+        </p>
+        <div class="meta-grid">
+          <div class="meta">
+            <span class="k">当前层级</span><span class="v">{{ lodLabel }}</span>
+          </div>
+          <div class="meta">
+            <span class="k">缩放 zoom</span><span class="v">{{ zoomLabel }}</span>
+          </div>
+          <div class="meta wide">
+            <span class="k">路臂 / 进口车道</span>
+            <span class="v">{{ armCount }} 臂 / {{ laneCount }} 道</span>
+          </div>
+        </div>
+        <div v-if="focusRole || protectRole" class="roles">
+          <span v-if="focusRole" class="role focus">关注 {{ focusRole }}</span>
+          <span v-if="protectRole" class="role protect">保护 {{ protectRole }}</span>
+        </div>
+        <p class="hint">滚轮放大到 18+ 逐车道渠化下钻 · 点击进口道查看转向 · 可拖拽平移</p>
+      </header>
+
+      <!-- 运行数据：逐项 ✓ 追加 -->
+      <section v-if="showRuntime" class="block runtime">
+        <span class="block-title">运行数据</span>
+        <TransitionGroup name="item-in" tag="ul" class="list">
+          <li v-for="item in runtimeItems" :key="item.id" class="row" :class="sevClass(item.severity)">
+            <span class="tick">✓</span>
+            <span class="label">{{ item.label }}</span>
+            <span class="value">{{ item.value }}</span>
+          </li>
+        </TransitionGroup>
+      </section>
+
+      <!-- 问题验证：出现后自动折叠 -->
+      <section v-if="showEvidence" class="block evidence" :class="{ collapsed: evidenceCollapsed }">
+        <button type="button" class="block-title toggle" @click="toggleEvidence">
+          <span class="caret">{{ evidenceCollapsed ? '▸' : '▾' }}</span>
+          问题验证
+          <span v-if="evidenceCollapsed" class="collapsed-sum">{{ evidenceSummary }}</span>
+        </button>
+        <ul v-show="!evidenceCollapsed" class="list">
+          <li v-for="(item, i) in evidenceItems" :key="i" class="row plain">
+            <span class="tick">✓</span><span class="text">{{ item }}</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- 治理建议：折叠条目下方 -->
+      <section v-if="showSuggestion" class="block suggestion">
+        <span class="block-title accent">治理建议</span>
+        <ul class="list">
+          <li v-for="(item, i) in suggestionItems" :key="i" class="row plain accent">
+            <span class="tick">→</span><span class="text">{{ item }}</span>
+          </li>
+        </ul>
+      </section>
+    </aside>
+  </Transition>
+</template>
+
+<style scoped>
+.narrative-stack {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 16;
+  width: min(300px, 40vw);
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  border-radius: 6px;
+  background: rgba(6, 12, 22, 0.92);
+  border: 1px solid rgba(0, 212, 240, 0.22);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 212, 240, 0.3) transparent;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.narrative-stack::-webkit-scrollbar {
+  width: 4px;
+}
+.narrative-stack::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: rgba(0, 212, 240, 0.3);
+}
+
+/* 认知头 */
+.head {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f0f8ff;
+  letter-spacing: 0.3px;
+}
+.sub {
+  margin: 3px 0 0;
+  font-size: 10px;
+  color: rgba(180, 200, 220, 0.65);
+}
+.sub .id {
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.4px;
+}
+.sub .dot {
+  margin: 0 4px;
+}
+.meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: rgba(0, 16, 32, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.meta.wide {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.meta .k {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: rgba(180, 205, 225, 0.55);
+}
+.meta .v {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: #00e5ff;
+}
+.roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.role {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.role.focus {
+  color: #ff8a6b;
+  border-color: rgba(255, 107, 74, 0.45);
+  background: rgba(255, 107, 74, 0.1);
+}
+.role.protect {
+  color: #6dffb5;
+  border-color: rgba(109, 255, 181, 0.4);
+  background: rgba(109, 255, 181, 0.08);
+}
+.hint {
+  margin: 10px 0 0;
+  font-size: 9px;
+  line-height: 1.5;
+  color: rgba(170, 195, 215, 0.5);
+}
+
+/* 通用块 */
+.block {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.block:last-child {
+  border-bottom: none;
+}
+.block-title {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: rgba(0, 229, 255, 0.7);
+  margin-bottom: 8px;
+}
+.block-title.accent {
+  color: #6dffb5;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(226, 246, 255, 0.92);
+}
+.row .tick {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #00e5ff;
+}
+.row.accent .tick {
+  color: #6dffb5;
+}
+.row .label {
+  flex-shrink: 0;
+  color: rgba(200, 222, 240, 0.7);
+}
+.row .value {
+  margin-left: auto;
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  color: #e8f6ff;
+  text-align: right;
+}
+.row.sev-high .value {
+  color: #ff7b7b;
+}
+.row.sev-medium .value {
+  color: #ffc266;
+}
+.row.sev-low .value {
+  color: #6dffb5;
+}
+.row.plain .text {
+  color: rgba(226, 246, 255, 0.9);
+}
+
+/* 问题验证折叠 */
+.evidence .toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.evidence .caret {
+  font-size: 9px;
+}
+.evidence .collapsed-sum {
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0;
+  color: rgba(200, 222, 240, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.evidence.collapsed {
+  background: rgba(0, 16, 32, 0.3);
+}
+
+/* 动效 */
+.item-in-enter-active {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.item-in-enter-from {
+  opacity: 0;
+  transform: translateX(10px);
+}
+.item-in-move {
+  transition: transform 0.3s ease;
+}
+.narrative-fade-enter-active,
+.narrative-fade-leave-active {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.narrative-fade-enter-from,
+.narrative-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+</style>

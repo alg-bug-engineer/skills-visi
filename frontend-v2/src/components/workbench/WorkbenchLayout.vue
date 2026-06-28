@@ -2,11 +2,10 @@
 import { computed, ref } from 'vue'
 import type { PresentationState } from '../../types/presentation'
 import { shouldShowCorridorWaveMini, shouldShowTimingRingMini } from '../../types/presentation'
-import { useChannelFooterLayout } from '../../composables/useChannelFooterLayout'
 import type { MapActionEvent } from '../../types/map'
-import InsightStack from '../insight/InsightStack.vue'
 import InputDock from '../InputDock.vue'
 import MapStage from '../MapStage.vue'
+import IntersectionNarrativeStack from '../channelization/IntersectionNarrativeStack.vue'
 import CorridorScanSidebar from '../corridor/CorridorScanSidebar.vue'
 import VoiceToggle from '../VoiceToggle.vue'
 import UnderstandingProcessPanel, {
@@ -17,6 +16,7 @@ import SkillBuildDrawer from '../SkillBuildDrawer.vue'
 import type { ProcessStepState } from '../../composables/useUnderstandingProcess'
 import type { ExperienceAbsorptionState } from '../../types/skillAbsorption'
 import type { SkillBuildState } from '../../types/skillBuild'
+import type { PresentationLayerGates } from '../../composables/usePresentationSequence'
 
 const props = defineProps<{
   presentation: PresentationState
@@ -43,12 +43,15 @@ const props = defineProps<{
   voiceEnabled?: boolean
   voicePlaying?: boolean
   presentationPaused?: boolean
+  presentationLayers?: PresentationLayerGates
+  focusStepIndex?: number
 }>()
 
 const emit = defineEmits<{
   send: [content: string]
   inputActivity: [value: string]
   toggleStep: [index: number]
+  toggleDetails: [index: number]
   toggleProcess: []
   toggleTimingRing: []
   closeTimingRing: []
@@ -67,9 +70,25 @@ const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
 
 defineExpose({ mapStageRef })
 
-const showTimingMini = computed(() =>
-  shouldShowTimingRingMini(props.presentation.phase, props.presentation),
+/** 地图实时缩放 / LOD 层级（右上角叙事卡显示用） */
+const mapView = ref<{ zoom: number; lod: 'L0' | 'L1' | 'L2' }>({ zoom: 0, lod: 'L0' })
+function onMapView(view: { zoom: number; lod: 'L0' | 'L1' | 'L2' }) {
+  mapView.value = view
+}
+
+/** 右上角叙事卡：定位路口后出现（干线扫描态不显示） */
+const showNarrativeStack = computed(
+  () =>
+    Boolean(props.presentation.cognition?.intersection) &&
+    props.presentation.phase !== 'corridor_scan' &&
+    props.presentation.phase !== 'idle',
 )
+
+const showTimingMini = computed(() => {
+  const layers = props.presentationLayers
+  const autoOk = layers ? layers.timingRingAuto : true
+  return autoOk && shouldShowTimingRingMini(props.presentation.phase, props.presentation)
+})
 
 const showCorridorSidebar = computed(
   () => props.presentation.phase === 'corridor_scan' && Boolean(props.presentation.corridorScan),
@@ -77,8 +96,16 @@ const showCorridorSidebar = computed(
 
 const corridorPanOffsetX = computed(() => (showCorridorSidebar.value ? 90 : -120))
 
-const showCorridorMini = computed(() =>
-  shouldShowCorridorWaveMini(props.presentation.phase, props.presentation),
+const showCorridorMini = computed(() => {
+  const layers = props.presentationLayers
+  const autoOk = layers ? layers.corridorWaveAuto : true
+  return autoOk && shouldShowCorridorWaveMini(props.presentation.phase, props.presentation)
+})
+
+const showEvidenceOnMap = computed(
+  () =>
+    props.presentation.revealedInsightSteps.evidence &&
+    (props.presentationLayers?.evidenceNote ?? true),
 )
 
 const canToggleTiming = computed(
@@ -91,19 +118,6 @@ const canToggleCorridor = computed(
     (props.presentation.evidence?.corridor_context?.corridor_nodes?.length ?? 0) > 0,
 )
 
-const footerLayout = useChannelFooterLayout({
-  phase: computed(() => props.presentation.phase),
-  cognition: computed(() => props.presentation.cognition),
-  evidence: computed(() => props.presentation.evidence),
-  runtimeMetrics: computed(() => props.presentation.runtimeMetrics),
-  active: computed(() => Boolean(props.channelizationActive)),
-  runKey: computed(() => props.analysisRunKey ?? 0),
-})
-
-const insightFloatStyle = computed(() => {
-  if (!props.channelizationActive) return {}
-  return footerLayout.floatingBottomStyle.value
-})
 </script>
 
 <template>
@@ -176,7 +190,8 @@ const insightFloatStyle = computed(() => {
             :runtime-metrics="presentation.runtimeMetrics"
             :timing-ring-visible="showTimingMini"
             :corridor-wave-visible="showCorridorMini"
-            :show-evidence-note="presentation.revealedInsightSteps.evidence"
+            :show-evidence-note="showEvidenceOnMap"
+            :presentation-layers="presentationLayers ?? undefined"
             :show-governance-note="presentation.revealedInsightSteps.suggestionNote"
             :governance="presentation.flowTimingGovernance"
             :governance-suggestion="presentation.governanceSuggestion"
@@ -187,20 +202,29 @@ const insightFloatStyle = computed(() => {
             @close-timing-ring="emit('closeTimingRing')"
             @close-corridor-wave="emit('closeCorridorWave')"
             @corridor-intersection-select="emit('corridorSelect', $event)"
+            @view-change="onMapView"
           />
 
-          <InsightStack
-            v-if="panelMode === 'analysis'"
-            class="insight-float"
-            :style="insightFloatStyle"
-            :cards="presentation.insightCards"
-            :active="processActive"
+          <IntersectionNarrativeStack
+            :visible="showNarrativeStack"
+            :cognition="presentation.cognition"
+            :highlight-dirs="presentation.highlightDirs"
+            :protected-dirs="presentation.protectedDirs"
+            :runtime-metrics="presentation.runtimeMetrics"
+            :data-insight="presentation.dataInsightBuffer"
+            :evidence="presentation.evidence"
+            :governance-suggestion="presentation.governanceSuggestion"
+            :focus-step-index="focusStepIndex ?? -1"
+            :phase="presentation.phase"
+            :zoom="mapView.zoom"
+            :lod="mapView.lod"
+            :run-key="analysisRunKey ?? 0"
           />
         </div>
 
         <Transition name="toast-fade">
           <div v-if="presentationPaused" class="pause-toast" data-testid="presentation-pause">
-            已暂停 · 按空格继续
+            分析暂停 · 空格继续
           </div>
         </Transition>
 
@@ -242,6 +266,7 @@ const insightFloatStyle = computed(() => {
           :active="processActive"
           :stack-summary-mode="panelLayout === 'stacked'"
           @toggle="emit('toggleStep', $event)"
+          @toggle-details="emit('toggleDetails', $event)"
         />
         <ExperienceAbsorptionPanel
           v-if="panelLayout === 'stacked' && absorptionState"
@@ -370,17 +395,6 @@ const insightFloatStyle = computed(() => {
   flex: 1;
   min-height: 0;
   position: relative;
-}
-
-.insight-float {
-  position: absolute;
-  right: 12px;
-  bottom: 96px;
-  left: auto;
-  z-index: 18;
-  max-width: min(280px, 38vw);
-  pointer-events: none;
-  transition: bottom 0.35s ease;
 }
 
 .process-column {

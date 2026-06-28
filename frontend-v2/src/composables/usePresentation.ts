@@ -106,6 +106,9 @@ export function usePresentation() {
 
   function setPhase(phase: PipelinePhase) {
     state.phase = phase
+    if (phase !== 'direction') {
+      state.protectedDirs = []
+    }
 
     if (TIMING_RING_AUTO_PHASES.includes(phase)) {
       if (
@@ -223,9 +226,6 @@ export function usePresentation() {
 
   function patchConstraints(constraints: QuantitativeConstraints | null) {
     state.constraints = constraints
-    if (constraints?.protected_directions?.length) {
-      state.protectedDirs = [...constraints.protected_directions]
-    }
   }
 
   function revealConstraintsCard() {
