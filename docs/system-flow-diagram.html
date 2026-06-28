@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>路口问题诊断 · 系统全流程图</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --border: #2d3f56;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3b82f6;
+      --accent2: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --purple: #a78bfa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15,20,25,.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+    }
+    header h1 { font-size: 1.35rem; font-weight: 600; }
+    header p { color: var(--muted); font-size: .875rem; margin-top: .25rem; }
+    .layout { display: flex; min-height: calc(100vh - 72px); }
+    nav {
+      width: 240px; flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1rem 0;
+      position: sticky; top: 72px; height: calc(100vh - 72px);
+      overflow-y: auto;
+    }
+    nav a {
+      display: block; padding: .5rem 1.25rem;
+      color: var(--muted); text-decoration: none; font-size: .875rem;
+      border-left: 3px solid transparent;
+      transition: all .15s;
+    }
+    nav a:hover, nav a.active {
+      color: var(--text); background: var(--surface2);
+      border-left-color: var(--accent);
+    }
+    main { flex: 1; padding: 1.5rem 2rem 3rem; max-width: 1400px; }
+    section { margin-bottom: 3rem; scroll-margin-top: 90px; }
+    section h2 {
+      font-size: 1.25rem; margin-bottom: .5rem;
+      padding-bottom: .5rem; border-bottom: 1px solid var(--border);
+    }
+    section .desc { color: var(--muted); font-size: .875rem; margin-bottom: 1rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      overflow-x: auto;
+    }
+    .mermaid { display: flex; justify-content: center; }
+    table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
+    th, td {
+      border: 1px solid var(--border);
+      padding: .5rem .75rem; text-align: left;
+    }
+    th { background: var(--surface2); color: var(--muted); font-weight: 500; }
+    tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+    .tag {
+      display: inline-block; padding: .15rem .5rem;
+      border-radius: 4px; font-size: .75rem; margin: .1rem;
+    }
+    .tag-blue { background: rgba(59,130,246,.2); color: #93c5fd; }
+    .tag-green { background: rgba(16,185,129,.2); color: #6ee7b7; }
+    .tag-yellow { background: rgba(245,158,11,.2); color: #fcd34d; }
+    .tag-purple { background: rgba(167,139,250,.2); color: #c4b5fd; }
+    .tag-red { background: rgba(239,68,68,.2); color: #fca5a5; }
+    .legend { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 900px) {
+      .layout { flex-direction: column; }
+      nav { width: 100%; height: auto; position: static; display: flex; flex-wrap: wrap; padding: .5rem; }
+      nav a { padding: .4rem .75rem; border-left: none; border-bottom: 2px solid transparent; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>交通智能体 · 路口问题诊断与技能固化 — 系统全流程图</h1>
+    <p>版本 2026-06-28 · 涵盖干线扫描、单点诊断、追问、二次确认、技能沉淀、语音播报等全部功能点</p>
+  </header>
+
+  <div class="layout">
+    <nav id="nav">
+      <a href="#overview" class="active">① 系统总览</a>
+      <a href="#features">② 功能清单</a>
+      <a href="#state-machine">③ 状态机</a>
+      <a href="#swimlane">④ 主泳道图</a>
+      <a href="#corridor">⑤ 干线扫描</a>
+      <a href="#diagnosis">⑥ 单点诊断流水线</a>
+      <a href="#followup">⑦ 追问分支</a>
+      <a href="#confirm">⑧ 二次确认</a>
+      <a href="#skill">⑨ 技能沉淀</a>
+      <a href="#frontend">⑩ 前端 8 步 UI</a>
+      <a href="#voice">⑪ 语音播报</a>
+      <a href="#sse">⑫ SSE 事件</a>
+      <a href="#edge">⑬ 边界情况</a>
+    </nav>
+
+    <main>
+      <!-- 1. Overview -->
+      <section id="overview">
+        <h2>① 系统总览</h2>
+        <p class="desc">Monorepo 架构：FastAPI 后端 + Vue3 三栏工作台，SSE 驱动流水线，LLM 负责理解/表达，YAML 规则 + PostgreSQL 负责确定性诊断。</p>
+        <div class="card">
+          <div class="mermaid">
+flowchart LR
+  subgraph User["👤 交警用户"]
+    U1[自然语言输入]
+    U2[回答追问]
+    U3[二次确认 是/否]
+    U4[干线选型]
+  end
+
+  subgraph Frontend["🖥️ frontend-v2 :5568"]
+    F1[三栏工作台]
+    F2[AnalysisQueue 时序编排]
+    F3[高德地图 + 3D渠化]
+    F4[理解过程 8 步]
+    F5[语音播报 PCM]
+  end
+
+  subgraph Backend["⚙️ backend :8011"]
+    B1[Orchestrator 状态机]
+    B2[NLU / 意图分类]
+    B3[规则引擎 YAML]
+    B4[Skill 匹配/固化]
+    B5[SSE ExecutionEmitter]
+  end
+
+  subgraph External["🔗 外部依赖"]
+    E1[(PostgreSQL<br/>road6 + xianchang)]
+    E2[Qwen LLM<br/>百炼 API]
+    E3[(Skill 文件库<br/>data/skills/)]
+    E4[Qwen-TTS<br/>WebSocket]
+  end
+
+  U1 --> F1
+  F1 -->|POST /messages/stream| B1
+  B1 --> B5
+  B5 -->|SSE step/result/skill_*| F2
+  B2 --> E2
+  B3 --> E1
+  B4 --> E3
+  F5 -->|POST /tts/synthesize/stream| E4
+          </div>
+        </div>
+
+        <div class="legend">
+          <span class="tag tag-blue">入口 A：直接单点诊断</span>
+          <span class="tag tag-green">入口 B：干线扫描 → 选型 → 单点诊断</span>
+          <span class="tag tag-yellow">两段二次确认：建议生成 + Skill 固化</span>
+          <span class="tag tag-purple">Skill 快路径：命中历史包跳过部分流程</span>
+        </div>
+      </section>
+
+      <!-- 2. Features -->
+      <section id="features">
+        <h2>② 完整功能清单（F1–F18 + UI）</h2>
+        <p class="desc">所有已实现功能点，确保流程图无遗漏。</p>
+        <div class="card">
+          <table>
+            <thead>
+              <tr><th>#</th><th>功能</th><th>模块/文件</th><th>流程位置</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>F1</td><td>单点路口诊断</td><td>orchestrator._diagnose</td><td>主流程</td></tr>
+              <tr><td>F2</td><td>干线扫描（道路级拥堵发现）</td><td>corridor_scan_service</td><td>入口 B</td></tr>
+              <tr><td>F3</td><td>多轮 NLU 追问（路口/时段/方向单字段）</td><td>follow_up_service</td><td>追问</td></tr>
+              <tr><td>F4</td><td>路口三级匹配（精确→变体→候选）</td><td>intersection_resolver</td><td>步骤 1</td></tr>
+              <tr><td>F5</td><td>Skill 快路径匹配</td><td>skill_matcher</td><td>NLU 后</td></tr>
+              <tr><td>F6</td><td>问题验证证据（常发性/星期/分向画像）</td><td>problem_evidence_service</td><td>步骤 4</td></tr>
+              <tr><td>F7</td><td>约束量化（垂直方向不能溢出→边界裁剪）</td><td>constraint_resolver_service</td><td>确认后</td></tr>
+              <tr><td>F8</td><td>四类信控问题（饱和/失衡/空放/溢出）</td><td>flow_timing_governance_service</td><td>步骤 5</td></tr>
+              <tr><td>F9</td><td>治理建议（公式 delta + LLM narrative）</td><td>suggestion_service</td><td>步骤 6</td></tr>
+              <tr><td>F10</td><td>二次确认（建议生成 + Skill 固化）</td><td>orchestrator + intent_detector</td><td>确认</td></tr>
+              <tr><td>F11</td><td>Skill 固化（SKILL.md + scripts + meta）</td><td>package_builder</td><td>步骤 7</td></tr>
+              <tr><td>F12</td><td>经验吸收演示（6 阶段 SSE）</td><td>experience_absorption</td><td>步骤 7</td></tr>
+              <tr><td>F13</td><td>地图叙事（fly_to/渠化/HUD/分阶段 narration）</td><td>map_presentation_service</td><td>全程</td></tr>
+              <tr><td>F14</td><td>渠化 3D 小窗（配时环/失衡横幅）</td><td>ChannelizationMiniWindow</td><td>前端</td></tr>
+              <tr><td>F15</td><td>语音播报 v2（Qwen-TTS PCM 流式）</td><td>useVoiceNarration + tts_routes</td><td>播报</td></tr>
+              <tr><td>F16</td><td>演示模式 DEMO_MODE=1</td><td>demo_config + demo_intersections.yaml</td><td>配置</td></tr>
+              <tr><td>F17</td><td>Skill ZIP 下载</td><td>GET /skills/{id}/download</td><td>固化后</td></tr>
+              <tr><td>F18</td><td>Skill 列表/过滤</td><td>GET /skills?intersection=</td><td>API</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>前端 UI 组件</th><th>职责</th></tr></thead>
+            <tbody>
+              <tr><td>WorkbenchLayout</td><td>三栏布局：GIS | 推理证据 | 理解过程</td></tr>
+              <tr><td>InsightStack + 证据卡群</td><td>GranularityCard / ChronicHeatmap / FlowTimingGovernance / ConstraintStack 等</td></tr>
+              <tr><td>UnderstandingProcessPanel</td><td>8 步时间轴 + 对话轮次</td></tr>
+              <tr><td>CorridorScanSidebar</td><td>干线 Top3 列表 + 地图 pin 联动</td></tr>
+              <tr><td>ExperienceAbsorptionPanel</td><td>右栏经验吸收追踪</td></tr>
+              <tr><td>SkillBuildDrawer</td><td>左抽屉 L3 交错落盘动画</td></tr>
+              <tr><td>InputDock</td><td>输入框 + 治理建议确认 toast + Skill 确认气泡</td></tr>
+              <tr><td>AnalysisQueue</td><td>地图动作/旁白/确认气泡串行化（STEP_PAUSE_MS=2200）</td></tr>
+              <tr><td>VoiceToggle</td><td>语音开关 localStorage</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. State Machine -->
+      <section id="state-machine">
+        <h2>③ 会话状态机（SessionState）</h2>
+        <p class="desc">Orchestrator 驱动的核心状态流转。确认子状态存于 pending_suggestion_action / pending_skill_action 字段。</p>
+        <div class="card">
+          <div class="mermaid">
+stateDiagram-v2
+  [*] --> idle
+
+  idle --> corridor_scanning: 首轮意图=corridor_scan
+  idle --> processing: 首轮意图=intersection_diagnosis\n且 NLU 完整
+  idle --> nlu_incomplete: 单点 NLU 缺字段
+  idle --> corridor_nlu_incomplete: 干线 NLU 缺字段
+
+  corridor_nlu_incomplete --> corridor_scanning: 字段补齐
+  corridor_scanning --> awaiting_corridor_pick: 扫描完成 Top3
+
+  awaiting_corridor_pick --> nlu_incomplete: 选型成功但缺方向
+  awaiting_corridor_pick --> processing: 选型成功且方向已有
+  awaiting_corridor_pick --> awaiting_corridor_pick: 选型失败→追问
+
+  nlu_incomplete --> intersection_ambiguous: NLU 完整但路口多候选
+  nlu_incomplete --> processing: NLU 完整且路口唯一
+  intersection_ambiguous --> processing: 用户选定路口
+
+  processing --> awaiting_confirm: 诊断成立\n需确认生成建议
+  processing --> done: 诊断不成立\n或无规则/无数据
+  processing --> done: 首轮已有 user_suggestion\n直接生成建议
+
+  awaiting_confirm --> processing: 确认生成建议\n(带约束)
+  awaiting_confirm --> done: 拒绝/仅「是」无约束\nskipped_no_persist
+  awaiting_confirm --> awaiting_confirm: 确认 Skill 固化\n(第二段)
+  awaiting_confirm --> done: Skill 固化完成/拒绝
+
+  done --> idle: initSession 重置
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Main Swimlane -->
+      <section id="swimlane">
+        <h2>④ 主泳道图（端到端）</h2>
+        <p class="desc">从用户输入到 Skill 固化的完整跨角色协作流程。</p>
+        <div class="card">
+          <div class="mermaid">
+flowchart TB
+  subgraph L1["👤 用户（交警）"]
+    A1[输入自然语言描述]
+    A2{回答追问?}
+    A3{确认生成建议?}
+    A4{确认固化 Skill?}
+    A5[查看诊断/建议/下载 Skill]
+  end
+
+  subgraph L2["🖥️ 前端 App.vue"]
+    B1[createSession]
+    B2[POST /messages/stream SSE]
+    B3[AnalysisQueue 串行编排]
+    B4[UnderstandingProcess 8步]
+    B5[InsightStack 证据卡]
+    B6[MapStage 地图/渠化]
+    B7[InputDock 确认气泡]
+    B8[SkillBuildDrawer 落盘]
+    B9[useVoiceNarration 播报]
+  end
+
+  subgraph L3["⚙️ Orchestrator"]
+    C1[handle_message]
+    C2[IntentClassifier 意图路由]
+    C3[NLU 提取/追问]
+    C4[SkillMatcher 快路径]
+    C5[IntersectionResolver 三级匹配]
+    C6[_diagnose 诊断流水线]
+    C7[SuggestionService 治理建议]
+    C8[SkillService 固化]
+  end
+
+  subgraph L4["🧠 Qwen LLM"]
+    D1[意图二分类]
+    D2[NLU JSON 提取]
+    D3[追问话术生成]
+    D4[路口变体/候选]
+    D5[治理建议 narrative]
+  end
+
+  subgraph L5["📊 数据 & 规则"]
+    E1[(PostgreSQL 路网/运行)]
+    E2[YAML 规则引擎]
+    E3[(Skill 文件库)]
+  end
+
+  A1 --> B1 --> B2 --> C1
+  C1 --> C2 --> D1
+  C2 -->|corridor_scan| C3
+  C2 -->|intersection| C3
+  C3 --> D2
+  C3 -->|缺字段| A2
+  A2 --> B2
+  C3 --> C4 --> E3
+  C4 --> C5 --> D4
+  C5 -->|ambiguous| A2
+  C5 --> C6
+  C6 --> E1 --> E2
+  C6 -->|SSE steps| B3
+  B3 --> B4 & B5 & B6 & B9
+  C6 -->|诊断成立无约束| A3
+  A3 --> B7 --> C7
+  C7 --> D5
+  C7 -->|有 user_suggestion| A4
+  A4 --> C8 --> E3
+  C8 -->|skill_absorption + skill_build SSE| B8
+  C8 --> A5
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. Corridor -->
+      <section id="corridor">
+        <h2>⑤ 干线扫描流程（入口 B）</h2>
+        <p class="desc">道路级拥堵发现 → Top3 排名 → 用户选型 → 注入单点 NLU → 进入标准诊断流水线。文档：docs/plans/2026-06-27-干线扫描与路口发现.md</p>
+        <div class="card">
+          <div class="mermaid">
+flowchart TD
+  START([用户: 奥体西晚高峰哪些路口堵]) --> IC[IntentClassifier\nLLM + 规则兜底]
+  IC -->|corridor_scan| CSNLU[CorridorScanNluService\n提取 corridor + time_period\n不问具体路口名]
+
+  CSNLU -->|缺字段| FU1[corridor_nlu_incomplete\nFollowUpService.for_corridor_scan]
+  FU1 -->|用户补充| CSNLU
+
+  CSNLU -->|完整| LR[LineResolver\n口语→正式路名\ndim_line_info / road_intersections]
+  LR -->|多候选| FU2[追问选择干线]
+  FU2 --> LR
+
+  LR -->|唯一| SCAN[CorridorScanService\n批量查 dws_inter_evaluation_5min_mm\ncongestion_score 排名]
+  SCAN --> NAR[CorridorNarrativeService\nTop3 文字解说\n不自动选 Top1]
+  NAR --> SCENE[build_corridor_scan_scene\npolyline + 路口 pin]
+  SCENE --> SSE1[SSE: corridor_scan completed\ncorridor_scan_scene 地图]
+  SSE1 --> WAIT[awaiting_corridor_pick\nCorridorScanSidebar 展示]
+
+  WAIT --> PICK{用户选型}
+  PICK -->|点击列表/pin| AUTO[自动 handleSend 路口名]
+  PICK -->|口语: 最堵的/第二个| CPR[CorridorPickResolver 匹配]
+  PICK -->|失败| FU3[FollowUpService.for_corridor_pick]
+
+  AUTO --> INJECT[注入单点 NLU\n路口+时段已有]
+  CPR --> INJECT
+  INJECT -->|缺 directions| FU4[nlu_incomplete 只追问方向]
+  INJECT -->|完整| DIAG([进入 _diagnose 单点流水线])
+  FU4 --> DIAG
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. Diagnosis Pipeline -->
+      <section id="diagnosis">
+        <h2>⑥ 单点诊断流水线（_diagnose）</h2>
+        <p class="desc">NLU 完整后的确定性诊断链路，每步对应 SSE step 事件。</p>
+        <div class="card">
+          <div class="mermaid">
+flowchart LR
+  S0[orchestrator.start] --> S1[nlu completed]
+  S1 --> S2[skill_match\n快路径检索]
+  S2 -->|命中+约束一致| FP[快路径\nresolution_source=skill_fast_path]
+  S2 -->|未命中/约束不一致| S3[intersection\n三级匹配 L1/L2/L3]
+  S3 --> S4[intersection_cognition\n渠化/link/arms]
+  S4 --> S5[map_action\nfly_to + highlight_links]
+  S5 --> S6[data_fetch\n7日滚动窗 DWD/DWS]
+  S6 --> S7[problem_evidence\n常发性/星期/分向画像]
+  S7 --> S8[rule_engine\ncomprehensive 诊断]
+  S8 --> S9[flow_timing_governance\n四类信控问题]
+  S9 --> DEC{诊断成立?}
+
+  DEC -->|否: no_rule_matched\nmissing_dws_coverage| END1[done + 文案]
+  DEC -->|是 + 无 user_suggestion| CONF1[awaiting_confirm\nconfirm_bubble generate]
+  DEC -->|是 + 有 user_suggestion| S10[suggestion 直接生成]
+  CONF1 --> S10
+  S10 --> CONF2[awaiting_confirm\nSkill 固化确认]
+  CONF2 --> S11[skill_create + 经验吸收]
+  S11 --> S12[complete]
+
+  FP --> DEC
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:.75rem;font-size:1rem;">诊断子模块详情</h3>
+          <table>
+            <thead><tr><th>步骤</th><th>服务</th><th>输出</th><th>数据源</th></tr></thead>
+            <tbody>
+              <tr><td>路口认知</td><td>intersection_cognition_service</td><td>渠化/link/arms 结构</td><td>road6.dim_inter_info, dwd_tfc_rltn</td></tr>
+              <tr><td>数据抓取</td><td>data_fetcher</td><td>饱和度/失衡/配时/投诉</td><td>xianchang DWS/DWD 5min 表</td></tr>
+              <tr><td>配时画像</td><td>timing_profile</td><td>绿灯利用率/周期</td><td>dwd_ctl_inter_plan_cfg</td></tr>
+              <tr><td>干线上下文</td><td>corridor_context_service</td><td>上下游协调</td><td>dim_line_inter_rltn</td></tr>
+              <tr><td>问题验证</td><td>problem_evidence_service</td><td>常发/星期/分向证据</td><td>7日 DataWindow</td></tr>
+              <tr><td>约束量化</td><td>constraint_resolver_service</td><td>正交方向边界</td><td>user_suggestion 文本</td></tr>
+              <tr><td>规则诊断</td><td>rule_engine</td><td>matched_rules, reason_code</td><td>traffic_rules.yaml</td></tr>
+              <tr><td>流量配时</td><td>flow_timing_governance</td><td>四类问题标签</td><td>thresholds.yaml</td></tr>
+              <tr><td>治理建议</td><td>suggestion_service</td><td>delta_seconds + narrative</td><td>公式 + Qwen</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 7. Follow-up -->
+      <section id="followup">
+        <h2>⑦ 追问分支（Follow-up）</h2>
+        <p class="desc">每轮用户消息后 raw_user_context = 全部 user 消息拼接，NLU 全量重提取。前端 panelMode=conversation。</p>
+        <div class="card">
+          <div class="mermaid">
+flowchart TD
+  MSG[用户新消息] --> MERGE[合并 raw_user_context\n全量重提取 NLU]
+  MERGE --> ROUTE{当前 state?}
+
+  ROUTE -->|nlu_incomplete| F1[FollowUpService.for_nlu\n优先级: 路口 > 时段 > 方向\n单字段追问]
+  ROUTE -->|intersection_ambiguous| F2[for_intersection_candidates\n展示候选列表]
+  ROUTE -->|路口未找到| F3[for_intersection_not_found\n引导重述]
+  ROUTE -->|corridor_nlu_incomplete| F4[for_corridor_scan\n干线名/时段]
+  ROUTE -->|awaiting_corridor_pick 失败| F5[for_corridor_pick\n引导选路口]
+  ROUTE -->|awaiting_confirm 建议模糊| F6[固定模板追问 是/否]
+  ROUTE -->|awaiting_confirm Skill模糊| F7[for_skill_confirm\n澄清固化意图]
+
+  F1 & F2 & F3 & F4 & F5 & F6 & F7 --> REPLY[reply.type=follow_up\n前端 conversation 模式\nUnderstandingProcess 显示对话轮次]
+  REPLY --> WAIT[等待用户下一轮输入]
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. Confirmation -->
+      <section id="confirm">
+        <h2>⑧ 二次确认（两段确认）</h2>
+        <p class="desc">产品核心约束：诊断成立后先确认是否生成建议，有 user_suggestion 后再确认是否固化 Skill。</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3 style="margin-bottom:.75rem;">D1 — 治理建议生成确认</h3>
+            <div class="mermaid">
+flowchart TD
+  T1[规则诊断成立\n且首轮无 user_suggestion] --> S1[state=awaiting_confirm\npending_suggestion_action=generate]
+  S1 --> UI1[地图 confirm_bubble\n前端 toast\nAnalysisQueue.pause]
+  UI1 --> U1{用户回复}
+
+  U1 -->|是 无额外文本| G1[生成建议\nskill_action=skipped_no_persist]
+  G1 --> END1[done 不沉淀 Skill]
+
+  U1 -->|是 + 约束文本| G2[extract_user_suggestion\nConstraintResolver 量化]
+  G2 --> G3[生成建议 + 展示]
+  G3 --> D2[进入 D2 Skill 确认]
+
+  U1 -->|否| DCL[suggestion_action=declined]
+  DCL --> END2[done]
+
+  U1 -->|意图模糊| FU[FollowUp 澄清]
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom:.75rem;">D2 — Skill 固化确认</h3>
+            <div class="mermaid">
+flowchart TD
+  T2[已展示治理建议\n且存在 user_suggestion] --> S2[state=awaiting_confirm\npending_skill_action=create]
+  S2 --> UI2[InputDock Skill 确认气泡]
+  UI2 --> U2{用户回复}
+
+  U2 -->|是| ABS[经验吸收 6 阶段 SSE\nrecap→decompose→retrieve\n→compare→value→blueprint]
+  ABS --> BUILD[L3 交错落盘\nskill_build SSE\ndrawer_open→file_chunk→close]
+  BUILD --> DONE[skill_created/updated\ninitSession 重置]
+
+  U2 -->|否| SKIP[declined_create\n保留建议不固化]
+  SKIP --> END3[done + initSession]
+
+  U2 -->|意图模糊| FU2[for_skill_confirm]
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:.75rem;">快路径特殊分支</h3>
+          <div class="mermaid">
+flowchart LR
+  FP[Skill 快路径命中] --> C1{结论一致?}
+  C1 -->|是| V[skill_action=verified\n无需更新]
+  C1 -->|否| U[awaiting_update]
+  FP --> C2{有 user_suggestion?}
+  C2 -->|否| CONF[仍确认是否生成建议\nreused_no_persist]
+  C2 -->|是| NORM[正常 Skill 固化确认]
+          </div>
+        </div>
+      </section>
+
+      <!-- 9. Skill -->
+      <section id="skill">
+        <h2>⑨ 技能沉淀（Skill Solidification）</h2>
+        <p class="desc">标准 Agent Skill 包结构 + 三层标签 + 经验吸收 + L3 交错落盘可视化。</p>
+        <div class="card">
+          <div class="mermaid">
+flowchart TB
+  subgraph Package["Skill 包结构 data/skills/congestion-{inter_id}-{period}/"]
+    P1[SKILL.md]
+    P2[skill.meta.json]
+    P3[reference.md]
+    P4[scripts/fetch_traffic_data.py/.sql]
+  end
+
+  subgraph Tags["三层标签 skill_matcher"]
+    T1[match: inter_id, time_period, directions, keywords]
+    T2[content: rule_ids, constraint_intent, issue_codes, formula_hash]
+    T3[meta: version, absorbed_at, library_count]
+  end
+
+  subgraph Match["匹配逻辑 AND"]
+    M1[inter_id 一致]
+    M2[problem_type 一致]
+    M3[time_period_label 一致]
+    M4[directions 兼容]
+    M5[约束一致]
+  end
+
+  subgraph Absorption["经验吸收 skill_absorption SSE"]
+    A1[recap 回顾约束]
+    A2[decompose 分解经验]
+    A3[retrieve 检索技能库]
+    A4[compare 比对差异]
+    A5[value 提炼要点]
+    A6[blueprint 写入蓝图]
+  end
+
+  subgraph Persist["L3 交错落盘 skill_build SSE"]
+    B1[drawer_open 左抽屉打开]
+    B2[skill_build_file_chunk 逐文件写入]
+    B3[drawer_close 关闭]
+    B4[skill_build_done + download_url]
+  end
+
+  TRIGGER[用户确认固化] --> Absorption
+  Absorption --> Persist
+  Persist --> Package
+  Match -->|命中| FAST[快路径跳过部分流程]
+  Package --> Tags
+          </div>
+        </div>
+      </section>
+
+      <!-- 10. Frontend -->
+      <section id="frontend">
+        <h2>⑩ 前端 8 步 UI 流水线</h2>
+        <p class="desc">SSE 只 patchEvidence 到 buffer，onStepComplete 时才揭示证据卡（防抢跑）。AnalysisQueue 间隔 STEP_PAUSE_MS=2200ms。</p>
+        <div class="card">
+          <div class="mermaid">
+flowchart LR
+  subgraph Steps["理解过程 8 步 constants.ts"]
+    I0["0 理解问题"]
+    I1["1 匹配路口"]
+    I2["2 路口认知"]
+    I3["3 获取数据"]
+    I4["4 问题验证"]
+    I5["5 规则诊断"]
+    I6["6 生成建议"]
+    I7["7 技能固化"]
+  end
+
+  subgraph SSE_Trigger["SSE 触发"]
+    E0[nlu complete]
+    E1[intersection + fly_to]
+    E2[cognition + highlight_links]
+    E3[data_fetch + map_scene narration]
+    E4[problem_evidence]
+    E5[rule_engine + flow_timing_governance]
+    E6[suggestion + confirm_bubble]
+    E7[skill_absorption + skill_build]
+  end
+
+  subgraph Reveal["证据揭示时机"]
+    R3[onStepComplete 3 → 运行数据卡]
+    R4[onStepComplete 4 → 问题验证 + 治理边界卡]
+    R5[onStepComplete 5 → 规则诊断卡]
+  end
+
+  E0 --> I0 --> E1 --> I1 --> E2 --> I2 --> E3 --> I3
+  I3 --> R3 --> E4 --> I4 --> R4 --> E5 --> I5 --> R5
+  I5 --> E6 --> I6 --> E7 --> I7
+          </div>
+        </div>
+
+        <div class="card">
+          <table>
+            <thead><tr><th>三栏布局</th><th>内容</th><th>关键组件</th></tr></thead>
+            <tbody>
+              <tr><td>左栏 GIS</td><td>高德地图 + 3D 渠化小窗 + 干线 polyline</td><td>MapStage, ChannelizationMiniWindow</td></tr>
+              <tr><td>中栏 推理证据</td><td>证据卡栈 + 约束卡 + 流量配时治理卡</td><td>InsightStack, FlowTimingGovernanceCard</td></tr>
+              <tr><td>右栏 理解过程</td><td>8 步时间轴 + 经验吸收 + 干线侧栏</td><td>UnderstandingProcessPanel, ExperienceAbsorptionPanel</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 11. Voice -->
+      <section id="voice">
+        <h2>⑪ 语音播报（Voice Narration）</h2>
+        <p class="desc">可选增强层，关闭不影响核心诊断。文案外置 voice_narration.json，不由 LLM 生成。</p>
+        <div class="card">
+          <div class="mermaid">
+sequenceDiagram
+  participant U as 用户
+  participant FE as frontend-v2
+  participant TTS as useVoiceNarration
+  participant API as POST /tts/synthesize/stream
+  participant WS as Qwen-TTS WebSocket
+
+  Note over FE: VoiceToggle 开关<br/>localStorage voice-narration-enabled
+
+  FE->>TTS: onStepStart 步骤引导语<br/>resolveProcessStepVoice
+  TTS->>API: 请求 PCM 流
+  API->>WS: 代理 DashScope Realtime
+  WS-->>API: PCM chunks
+  API-->>TTS: streamVoicePcm
+  TTS->>FE: PcmStreamPlayer 播放
+
+  FE->>TTS: 经验吸收阶段<br/>ABSORPTION_STAGE_VOICE
+  FE->>TTS: 模板化数据播报<br/>saturation/imbalance/evidence/ruleHit/suggestion
+
+  Note over TTS: cueGapMs=350<br/>drainTailMs=220
+          </div>
+        </div>
+
+        <div class="card">
+          <table>
+            <thead><tr><th>播报类型</th><th>触发时机</th><th>配置键</th></tr></thead>
+            <tbody>
+              <tr><td>步骤引导语</td><td>理解过程 onStepStart</td><td>guide.understand / cognition / dataFetch / evidenceIntro / ruleIntro</td></tr>
+              <tr><td>确认引导</td><td>治理建议展示</td><td>guide.suggestionConfirm</td></tr>
+              <tr><td>经验吸收</td><td>skill_absorption 各 stage</td><td>absorption.recap / retrieve / compare / value / blueprint</td></tr>
+              <tr><td>技能落盘</td><td>skill_build 开始/完成</td><td>guide.skillBuildStart / skillBuildDone</td></tr>
+              <tr><td>数据模板</td><td>证据/规则/建议揭示</td><td>templates.saturation / imbalance / evidenceChronic / ruleHit / suggestion</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 12. SSE -->
+      <section id="sse">
+        <h2>⑫ SSE 事件协议</h2>
+        <p class="desc">主通信通道 POST /api/v1/sessions/{id}/messages/stream，Content-Type: text/event-stream。</p>
+        <div class="card">
+          <div class="mermaid">
+flowchart TB
+  REQ[POST /messages/stream] --> ORCH[Orchestrator.handle_message]
+
+  ORCH --> E1[event: step\norchestrator.start → complete]
+  ORCH --> E2[event: result\nMessageResponse]
+  ORCH --> E3[event: error]
+  ORCH --> E4[event: done]
+  ORCH --> E5[event: skill_build\ndrawer_open/file_chunk/done]
+  ORCH --> E6[event: skill_absorption\nstage_start/thought_delta/evidence/stage_done]
+
+  subgraph StepTypes["step 类型扩展"]
+    S1[corridor_scan_nlu]
+    S2[line_resolve]
+    S3[corridor_scan]
+    S4[problem_evidence]
+    S5[flow_timing_governance]
+    S6[confirm_intent]
+    S7[map_action 含 map_scene/narration]
+  end
+
+  E1 --> StepTypes
+  E1 --> FE[App.vue 消费]
+  E5 --> FE
+  E6 --> FE
+  FE --> AQ[AnalysisQueue 串行]
+  FE --> UP[useUnderstandingProcess]
+  FE --> AP[usePresentation patchEvidence]
+          </div>
+        </div>
+
+        <div class="card">
+          <table>
+            <thead><tr><th>API 端点</th><th>方法</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td>/health</td><td>GET</td><td>健康检查 mock_llm/mock_db/version</td></tr>
+              <tr><td>/sessions</td><td>POST</td><td>创建会话 → session_id, state=idle</td></tr>
+              <tr><td>/sessions/{id}</td><td>GET</td><td>查询会话状态/NLU/meta</td></tr>
+              <tr><td>/sessions/{id}/messages/stream</td><td>POST</td><td>主路径 SSE 流式</td></tr>
+              <tr><td>/skills</td><td>GET</td><td>列出 Skill ?intersection= 过滤</td></tr>
+              <tr><td>/skills/{id}/download</td><td>GET</td><td>ZIP 下载</td></tr>
+              <tr><td>/tts/synthesize/stream</td><td>POST</td><td>PCM 流式 TTS（首选）</td></tr>
+              <tr><td>/tts/synthesize</td><td>POST</td><td>整段 WAV（回退）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 13. Edge Cases -->
+      <section id="edge">
+        <h2>⑬ 边界情况矩阵</h2>
+        <p class="desc">所有已知边缘流程与系统行为。</p>
+        <div class="card">
+          <table>
+            <thead><tr><th>场景</th><th>状态/行为</th><th>用户可见</th></tr></thead>
+            <tbody>
+              <tr><td>NLU JSON 解析失败</td><td>reply.type=error, done</td><td>错误提示</td></tr>
+              <tr><td>DWS 无覆盖</td><td>missing_dws_coverage</td><td>无法诊断文案</td></tr>
+              <tr><td>规则未命中</td><td>no_rule_matched</td><td>饱和度快照</td></tr>
+              <tr><td>路口多候选</td><td>intersection_ambiguous</td><td>候选列表追问</td></tr>
+              <tr><td>路口未找到</td><td>done + error</td><td>引导重述</td></tr>
+              <tr><td>干线选型口语失败</td><td>awaiting_corridor_pick</td><td>follow_up 引导</td></tr>
+              <tr><td>Skill 快路径 + 无约束</td><td>reused_no_persist</td><td>确认后不生成的建议</td></tr>
+              <tr><td>Skill 快路径 + 有约束</td><td>正常固化确认</td><td>完整 D2 流程</td></tr>
+              <tr><td>Skill 已是最新</td><td>unchanged</td><td>吸收阶段缩短</td></tr>
+              <tr><td>用户拒绝固化</td><td>declined_create</td><td>initSession 重置</td></tr>
+              <tr><td>SSE 连接断开</td><td>error event</td><td>errorBanner</td></tr>
+              <tr><td>同页二次分析</td><td>prepareNewAnalysisRun</td><td>清空证据/地图</td></tr>
+              <tr><td>渠化全屏</td><td>hideInputDock</td><td>隐藏输入防遮挡</td></tr>
+              <tr><td>MOCK 模式</td><td>MOCK_LLM=1 MOCK_DB=1</td><td>pytest 119 项</td></tr>
+              <tr><td>DEMO_MODE=1</td><td>固定 TOP3 路口</td><td>演示锚定日</td></tr>
+              <tr><td>约束 delta 裁剪</td><td>ConstraintResolver 边界</td><td>治理建议被裁剪</td></tr>
+              <tr><td>确认仅「是」无文本</td><td>skipped_no_user_suggestion</td><td>有建议但不沉淀</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:.75rem;">Agent 调用链总览</h3>
+          <div class="mermaid">
+flowchart TD
+  IN[用户消息] --> IC[IntentClassifier LLM+规则]
+  IC -->|corridor| CS[CorridorScanNlu → LineResolver → CorridorScan → Narrative → Scene]
+  IC -->|intersection| NLU[NluService Qwen JSON]
+  NLU --> SM[SkillMatcher 文件库]
+  SM --> IR[IntersectionResolver PG+Qwen]
+  IR --> COG[IntersectionCognition 渠化]
+  COG --> DF[DataFetcher PG 聚合]
+  DF --> TP[TimingProfile + CorridorContext + ContextTags]
+  TP --> PE[ProblemEvidence]
+  PE --> CR[ConstraintResolver 若有约束]
+  CR --> RE[RuleEngine.comprehensive]
+  RE --> FTG[FlowTimingGovernance 四类问题]
+  FTG --> CF{确认}
+  CF --> SG[SuggestionService 公式+Qwen]
+  SG --> SK[SkillService.upsert_from_session_visual]
+  SK --> EA[ExperienceAbsorptionReport]
+  EA --> IV[InterleavedSkillPersistVisualizer]
+  IV --> PB[SkillPackageBuilder.write]
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        primaryColor: '#1e3a5f',
+        primaryTextColor: '#e8edf4',
+        primaryBorderColor: '#3b82f6',
+        lineColor: '#4b6a8a',
+        secondaryColor: '#1a2332',
+        tertiaryColor: '#243044',
+        fontFamily: 'PingFang SC, Microsoft YaHei, system-ui, sans-serif',
+      },
+      flowchart: { htmlLabels: true, curve: 'basis' },
+      stateDiagram: { htmlLabels: true },
+    });
+
+    const nav = document.getElementById('nav');
+    const links = nav.querySelectorAll('a');
+    const sections = document.querySelectorAll('section');
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const active = nav.querySelector(`a[href="#${entry.target.id}"]`);
+          if (active) active.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-80px 0px -60% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

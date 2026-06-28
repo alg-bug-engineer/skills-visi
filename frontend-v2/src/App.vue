@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { checkHealth, createSession, sendMessageStream } from './api/client'
 import WorkbenchLayout from './components/workbench/WorkbenchLayout.vue'
 import { STEP_INDICES, STEP_PAUSE_MS } from './constants'
+import { shouldShowSkillSolidificationStep } from './utils/regressionSkillFlow'
 import { usePresentation } from './composables/usePresentation'
 import { useUnderstandingProcess } from './composables/useUnderstandingProcess'
 import { useSkillBuildProcess } from './composables/useSkillBuildProcess'
@@ -411,13 +412,11 @@ async function finalizeDiagnosisUi(result: MessageResponse) {
 
   if (!hasSkillStep()) {
     const skillAction = result.meta?.skill_action as string | undefined
-    if (result.state === 'awaiting_confirm') {
+    if (shouldShowSkillSolidificationStep(skillAction, result.state)) {
       await revealSkillStep(
         confirmMessage.value ||
           '是否将此诊断固化为路口 Skill？回复「是」确认固化，「否」结束本次会话。',
       )
-    } else if (skillAction === 'verified') {
-      await revealSkillStep('Skill 校验通过：历史技能包与本次诊断结论一致，无需更新。')
     }
   }
 
@@ -818,14 +817,6 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       )
       pendingConfirm.value = true
       showConfirm.value = true
-      inputLocked.value = false
-      return
-    }
-
-    if (action.action === 'skill_verify') {
-      await revealSkillStep(
-        action.message ?? 'Skill 校验通过：历史技能包与本次诊断结论一致，无需更新。',
-      )
       inputLocked.value = false
       return
     }

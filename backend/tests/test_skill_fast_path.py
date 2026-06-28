@@ -175,3 +175,89 @@ async def test_first_diagnosis_awaits_suggestion_generation(client):
     assert body["state"] == "awaiting_confirm"
     assert body["meta"].get("suggestion_action") == "awaiting_generate"
     assert "生成治理建议" in body["reply"]["content"]
+
+
+async def _persist_sample_skill(client) -> None:
+    """RT-Persist helper: one full persist with user constraint."""
+    create = await client.post("/api/v1/sessions")
+    sid = create.json()["session_id"]
+    first = await client.post(
+        f"/api/v1/sessions/{sid}/messages",
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向经常拥堵，绿灯应更长"},
+    )
+    assert first.json()["state"] == "awaiting_confirm"
+    created = await client.post(
+        f"/api/v1/sessions/{sid}/messages",
+        json={"content": "确认固化"},
+    )
+    assert created.json()["reply"]["type"] == "skill_created"
+
+
+@pytest.mark.asyncio
+async def test_fast_path_injects_historical_constraint_on_confirm_yes(client):
+    """RT-REUSE-07: Skill 有约束、用户无；确认「是」后建议沿用历史约束。"""
+    await _persist_sample_skill(client)
+
+    second_session = await client.post("/api/v1/sessions")
+    sid2 = second_session.json()["session_id"]
+    second = await client.post(
+        f"/api/v1/sessions/{sid2}/messages",
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向经常拥堵"},
+    )
+    body = second.json()
+    assert body["meta"].get("resolution_source") == "skill_fast_path"
+
+    confirm = await client.post(
+        f"/api/v1/sessions/{sid2}/messages",
+        json={"content": "是"},
+    )
+    confirmed = confirm.json()
+    assert confirmed["state"] == "done"
+    assert confirmed["meta"].get("skill_action") == "reused_no_persist"
+    assert confirmed["suggestion"] is not None
+    assert confirmed["nlu"]["user_suggestion"] == "绿灯应更长"
+    narrative = confirmed["suggestion"].get("narrative") or ""
+    assert "绿灯" in narrative or "更长" in narrative
+
+
+@pytest.mark.asyncio
+async def test_fast_path_with_same_constraint_still_awaits_d1(client):
+    """RT-REUSE-08: 快路径首轮带与 Skill 相同约束，仍走 D1（与普通路径不对称）。"""
+    await _persist_sample_skill(client)
+
+    second_session = await client.post("/api/v1/sessions")
+    sid2 = second_session.json()["session_id"]
+    second = await client.post(
+        f"/api/v1/sessions/{sid2}/messages",
+        json={
+            "content": "奥体西路与经十路交叉口，下午四点南北向经常拥堵，绿灯应更长",
+        },
+    )
+    body = second.json()
+    assert body["meta"].get("resolution_source") == "skill_fast_path"
+    assert body["state"] == "awaiting_confirm"
+    assert body["meta"].get("suggestion_action") == "awaiting_generate"
+    assert body["meta"].get("skill_action") != "awaiting_create"
+    assert body["suggestion"] is None
+    assert body["reply"]["type"] == "follow_up"
+
+
+@pytest.mark.asyncio
+async def test_fast_path_deny_suggestion_declines(client):
+    """RT-REUSE-06 / RT-CONF-D1-06: 快路径拒绝生成建议。"""
+    await _persist_sample_skill(client)
+
+    second_session = await client.post("/api/v1/sessions")
+    sid2 = second_session.json()["session_id"]
+    await client.post(
+        f"/api/v1/sessions/{sid2}/messages",
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向经常拥堵"},
+    )
+    deny = await client.post(
+        f"/api/v1/sessions/{sid2}/messages",
+        json={"content": "否"},
+    )
+    body = deny.json()
+    assert body["state"] == "done"
+    assert body["meta"].get("suggestion_action") == "declined"
+    assert body["suggestion"] is None

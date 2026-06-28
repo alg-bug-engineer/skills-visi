@@ -20,6 +20,7 @@
 
 ```bash
 bash scripts/dev-v2.sh   # 推荐：v2 工作台 5568 + 后端 8011
+bash scripts/regression.sh  # 合并前：backend pytest + frontend vitest
 bash scripts/dev.sh      # v1 前端 5567（需 frontend/ 独立仓库）
 ```
 
@@ -59,6 +60,8 @@ bash scripts/prod-dev.sh
 | 文档 | 说明 |
 |------|------|
 | [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | **项目总览**（进度、变更、部署） |
+| [docs/REGRESSION_POLICY.md](docs/REGRESSION_POLICY.md) | **回归测试约束**（合并前必跑） |
+| [docs/REGRESSION_TEST_SPEC.md](docs/REGRESSION_TEST_SPEC.md) | 全量回归测试点 |
 | [backend/README.md](backend/README.md) | 后端快速开始 |
 | [backend/docs/PROJECT_LOGIC.md](backend/docs/PROJECT_LOGIC.md) | 架构与亮点 |
 | [backend/docs/API.md](backend/docs/API.md) | API / SSE |

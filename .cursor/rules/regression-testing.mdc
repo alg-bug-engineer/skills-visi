@@ -1,0 +1,27 @@
+---
+description: 回归测试强制约束 — 新增/改动功能时必须保证测试正确性与 Skill 路径一致性
+alwaysApply: true
+---
+
+# 回归测试约束
+
+合并或交付前必须满足 [`docs/REGRESSION_POLICY.md`](docs/REGRESSION_POLICY.md)。
+
+## 必做
+
+1. 运行 `bash scripts/regression.sh`（backend pytest + frontend vitest）。
+2. 改动 `orchestrator.py` / `skill_matcher.py` 时额外跑 `tests/test_skill_fast_path.py` 与 `tests/test_skill_matcher.py`。
+3. 新用户路径：先在 [`docs/REGRESSION_TEST_SPEC.md`](docs/REGRESSION_TEST_SPEC.md) 添加 TC-ID，再写测试。
+4. 同步 API 与 SSE 的 `state`、`reply.type`、关键 `meta`（如 `skill_action`、`resolution_source`）必须一致。
+
+## Skill 路径（勿混淆）
+
+- **初次沉淀**：首轮带 `user_suggestion` 可跳过 D1，直接 `awaiting_create` → 固化。
+- **复用快路径**：命中 Skill 后**始终** D1（`awaiting_generate`）；仅「是」→ `reused_no_persist`；D1 补充新约束 → `awaiting_create`。
+- 不存在 `verified` / `awaiting_update` 分支（已删除死代码）。
+
+## 禁止
+
+- 不可达代码（定义但从未调用的流程函数）。
+- 无测试覆盖的 orchestrator 状态转换或 `meta.skill_action` 新取值。
+- 修改 `voice_narration.json` 或 `voiceStepSync.ts` 而不更新 `voiceStepSync.spec.ts`。

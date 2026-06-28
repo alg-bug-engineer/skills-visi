@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>自动化测试 · 全场景流程图</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg:#0c1017; --surface:#151c28; --surface2:#1e2838; --border:#2a3848;
+      --text:#e4eaf2; --muted:#8494a7; --accent:#3b82f6; --green:#10b981;
+      --yellow:#f59e0b; --red:#ef4444; --purple:#a78bfa;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+    header{position:sticky;top:0;z-index:100;background:rgba(12,16,23,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:.9rem 1.25rem}
+    header h1{font-size:1.2rem}
+    header p{color:var(--muted);font-size:.8rem;margin-top:.2rem}
+    .warn-banner{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fca5a5;padding:.6rem 1rem;margin:.75rem 1.25rem 0;border-radius:8px;font-size:.82rem}
+    .layout{display:flex;min-height:calc(100vh - 60px)}
+    nav{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:.75rem 0;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto}
+    nav a{display:block;padding:.4rem 1rem;color:var(--muted);text-decoration:none;font-size:.8rem;border-left:3px solid transparent}
+    nav a:hover,nav a.active{color:var(--text);background:var(--surface2);border-left-color:var(--accent)}
+    main{flex:1;padding:1rem 1.5rem 2.5rem;max-width:1300px}
+    section{margin-bottom:2.5rem;scroll-margin-top:70px}
+    h2{font-size:1.1rem;margin-bottom:.4rem;padding-bottom:.35rem;border-bottom:1px solid var(--border)}
+    .desc{color:var(--muted);font-size:.78rem;margin-bottom:.75rem}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.75rem;overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.75rem}
+    th,td{border:1px solid var(--border);padding:.35rem .55rem;text-align:left;vertical-align:top}
+    th{background:var(--surface2);color:var(--muted)}
+    tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+    .tc{font-family:monospace;color:var(--green);white-space:nowrap}
+    .bug{color:var(--red);font-weight:600}
+    .ok{color:var(--green)}
+    .tag{display:inline-block;padding:.1rem .4rem;border-radius:3px;font-size:.7rem;margin:.05rem}
+    .tag-p0{background:rgba(239,68,68,.2);color:#fca5a5}
+    .tag-p1{background:rgba(245,158,11,.2);color:#fcd34d}
+    .tag-dead{background:rgba(167,139,250,.2);color:#c4b5fd}
+    .mermaid{display:flex;justify-content:center}
+    @media(max-width:860px){.layout{flex-direction:column}nav{width:100%;height:auto;position:static;display:flex;flex-wrap:wrap}}
+  </style>
+</head>
+<body>
+<header>
+  <h1>自动化测试 · 全场景流程图</h1>
+  <p>面向 E2E/集成测试 · 含 Skill 快路径完整分支 · 配套 TEST_SCENARIO_MATRIX.md</p>
+</header>
+
+<div class="warn-banner">
+  ⚠️ 代码审查发现：<code>_finish_fast_path_diagnosis()</code> 已定义但<strong>从未被调用</strong>，
+  导致 <code>skill_action=verified</code> / <code>awaiting_update</code> 路径<strong>不可达</strong>（图中以虚线标注）。
+  快路径与普通路径在「首轮带 user_suggestion」时行为<strong>不一致</strong>。
+</div>
+
+<div class="layout">
+<nav id="nav">
+  <a href="#router" class="active">① 消息路由</a>
+  <a href="#skill-match">② Skill 匹配</a>
+  <a href="#diagnose">③ _diagnose 出口</a>
+  <a href="#fast-path">④ 快路径详图</a>
+  <a href="#confirm-d1">⑤ D1 确认</a>
+  <a href="#confirm-d2">⑥ D2 确认</a>
+  <a href="#corridor">⑦ 干线扫描</a>
+  <a href="#nlu">⑧ NLU 追问</a>
+  <a href="#normal">⑨ 普通单点</a>
+  <a href="#matrix">⑩ 用例矩阵</a>
+  <a href="#dead">⑪ 死代码路径</a>
+</nav>
+
+<main>
+
+<!-- 1 Router -->
+<section id="router">
+<h2>① handle_message 消息路由（每条消息）</h2>
+<p class="desc">按 session.state 优先级路由，与 LLM 意图无关。测试时先断言 state 再发消息。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  START([POST /messages]) --> APPEND[追加消息\nraw_user_context 合并]
+  APPEND --> R{session.state?}
+
+  R -->|awaiting_confirm| CONF[_handle_confirmation]
+  R -->|intersection_ambiguous| PICK[_handle_candidate_pick]
+  R -->|awaiting_corridor_pick| CPICK[_handle_corridor_pick]
+  R -->|corridor_nlu_incomplete| CCONT[_continue_corridor_scan]
+  R -->|nlu_incomplete| NCONT[_continue_nlu → _run_pipeline]
+  R -->|idle / done| IDLE{首轮意图?}
+
+  IDLE -->|corridor_scan| CORR[_run_corridor_pipeline]
+  IDLE -->|intersection_diagnosis| PIPE[_run_pipeline]
+
+  CONF --> D1CHK{pending_suggestion\n_action=generate?}
+  D1CHK -->|是| D1[_handle_suggestion_confirmation]
+  D1CHK -->|否| D2[Skill create/update 确认]
+
+  PICK -->|成功| DIAG[_diagnose]
+  PICK -->|失败| PIPE
+  CPICK -->|成功| DIAG
+  CPICK -->|失败| FU_C[follow_up corridor_pick]
+  NCONT --> PIPE
+  PIPE --> NLU{NLU 结果}
+  NLU -->|complete| RUNNLU[_run_nlu]
+  NLU -->|incomplete| FU_N[state=nlu_incomplete]
+  NLU -->|error| ERR[state=done ERROR]
+</div></div>
+</section>
+
+<!-- 2 Skill Match -->
+<section id="skill-match">
+<h2>② Skill 匹配决策树（_run_nlu 内）</h2>
+<p class="desc">TC 前缀 SM-xx。constraint_mismatch 立即返回，不继续遍历。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  NLUOK[NLU complete] --> PRE[resolve_with_context 预解析 inter_id]
+  PRE --> FIND[find_match_result]
+  FIND --> CAND{candidates\ninter_id+type+period}
+
+  CAND -->|空| NSM["SM: no_skill\n→ 普通路口解析"]
+  CAND -->|有| LOOP[遍历 skill 最新优先]
+
+  LOOP --> DIR{directions\n兼容?}
+  DIR -->|否| LOOP
+  DIR -->|是| CON{constraints\n兼容?}
+  CON -->|否| CM["SM-04/05: constraint_mismatch\nmatched=false\n→ 普通路口解析"]
+  CON -->|是| KW{keywords\n兼容?}
+  KW -->|否| LOOP
+  KW -->|是| HIT["SM-01~03: matched=true\n→ 快路径 _diagnose"]
+
+  LOOP -->|遍历完| DM{有 nlu.directions?}
+  DM -->|是| DMIS["SM-06: direction_mismatch"]
+  DM -->|否| NSM2[no_skill]
+</div></div>
+
+<div class="card">
+<table>
+<thead><tr><th>TC-ID</th><th>用户约束</th><th>Skill 约束</th><th>matched</th><th>reason</th><th>测试文件</th></tr></thead>
+<tbody>
+<tr><td class="tc">SM-01</td><td>无</td><td>无</td><td class="ok">✅</td><td>matched</td><td>test_skill_matcher</td></tr>
+<tr><td class="tc">SM-02</td><td>无</td><td>有</td><td class="ok">✅</td><td>matched</td><td>test_skill_matcher</td></tr>
+<tr><td class="tc">SM-03</td><td>相同</td><td>相同</td><td class="ok">✅</td><td>matched</td><td>test_skill_matcher</td></tr>
+<tr><td class="tc">SM-04</td><td>不同</td><td>有</td><td class="bug">❌</td><td>constraint_mismatch</td><td>test_skill_fast_path</td></tr>
+<tr><td class="tc">SM-05</td><td>新增</td><td>无</td><td class="bug">❌</td><td>constraint_mismatch</td><td>test_skill_matcher</td></tr>
+<tr><td class="tc">SM-06</td><td>东西向</td><td>南北向</td><td class="bug">❌</td><td>direction_mismatch</td><td>test_skill_matcher</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<!-- 3 Diagnose exit -->
+<section id="diagnose">
+<h2>③ _diagnose 出口决策（诊断成立后）</h2>
+<p class="desc">三条互斥出口。快路径<strong>永远</strong>走 D1，即使首轮已有 user_suggestion。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  DIAG[_diagnose 完成] --> OK{diagnosed &&\nmatched_rules?}
+
+  OK -->|否| FAIL["A-09/10\nstate=done\nreason_code"]
+  OK -->|是| REUSE{skill_reuse_mode?}
+
+  REUSE -->|是| INJ[注入 skill 历史约束\n若 nlu 无 user_suggestion]
+  INJ --> FILTER[_filter_skill_rules]
+  FILTER --> FP_OUT["C-xx 快路径出口\nstate=awaiting_confirm\npending_suggestion=generate\nreply=FOLLOW_UP\nskill_reused=true"]
+
+  REUSE -->|否| USG{nlu.user_suggestion?}
+  USG -->|有| DIRECT["A-03 普通·带约束\n直接生成建议\nstate=awaiting_confirm\nskill_action=awaiting_create\nreply=DIAGNOSIS"]
+  USG -->|无| STD["A-01 普通·标准\nstate=awaiting_confirm\nsuggestion_action=awaiting_generate\nreply=FOLLOW_UP"]
+</div></div>
+</section>
+
+<!-- 4 Fast path detail -->
+<section id="fast-path">
+<h2>④ Skill 快路径 · 完整时序 <span class="tag tag-p0">P0 回归</span></h2>
+<p class="desc">从第二次同路口提问到结束的完整消息序列与断言点。</p>
+<div class="card"><div class="mermaid">
+sequenceDiagram
+  participant U as 用户
+  participant API as POST /messages
+  participant O as Orchestrator
+  participant M as SkillMatcher
+
+  Note over U,M: 前置：同路口 Skill 已固化（第一次完整流程）
+
+  U->>API: 第2次：同路口同时段同方向（无约束）
+  API->>O: handle_message idle
+  O->>M: find_match_result
+  M-->>O: matched=true
+  O->>O: skill_reuse_mode=true\nresolution_source=skill_fast_path
+  O->>O: _diagnose（仍查数+规则）
+  O-->>API: state=awaiting_confirm\nsuggestion_action=awaiting_generate\nskill_reused=true\nsuggestion=null
+
+  alt C-01: 用户「是」（无补充）
+    U->>API: 「是」
+    API->>O: _handle_suggestion_confirmation
+    O->>O: _generate_suggestion_content
+    O-->>API: state=done\nskill_action=reused_no_persist\nsuggestion 有值
+  else C-02: 用户「否」
+    U->>API: 「否」
+    O-->>API: state=done\nsuggestion_action=declined
+  else C-03: 用户「是，垂直方向不能溢出」
+    U->>API: 带约束文本
+    O->>O: nlu.user_suggestion 写入\n_generate_suggestion
+    O-->>API: state=awaiting_confirm\nskill_action=awaiting_create
+    U->>API: 「确认固化」
+    O-->>API: state=done\nreply=skill_created
+  end
+</div></div>
+
+<div class="card"><div class="mermaid">
+flowchart LR
+  subgraph 快路径 C-06 疑似 Bug
+    A[第2次提问\n首轮含相同约束] --> B[match=true]
+    B --> C[仍 awaiting_generate\n非直接出建议]
+  end
+  subgraph 普通路径对比
+    D[第1次提问\n首轮含约束] --> E[match=false]
+    E --> F[直接 DIAGNOSIS\n+ awaiting_create]
+  end
+  C -.->|行为不一致| F
+</div></div>
+</section>
+
+<!-- 5 D1 -->
+<section id="confirm-d1">
+<h2>⑤ D1 · 治理建议生成确认</h2>
+<p class="desc">pending_suggestion_action=generate。extract_user_suggestion_text 优先于 intent 检测。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  D1IN([awaiting_confirm\ngenerate]) --> EXT{extract_user_suggestion_text\n有约束文本?}
+
+  EXT -->|有| CONF1[intent=confirm]
+  EXT -->|无| DET[detect_confirmation_intent]
+
+  DET -->|deny| DCL["D1-01\nstate=done\nsuggestion_action=declined"]
+  DET -->|模糊| FU["D1-06\nFOLLOW_UP 澄清"]
+  DET -->|confirm| CONF1
+  CONF1 --> GEN[_generate_suggestion_content]
+
+  GEN --> WAS{此前 skill_reuse_mode?\n入口时已读}
+
+  WAS -->|是 + 无 suggestion_text| RNP["D1-04 / C-01\nstate=done\nreused_no_persist"]
+  WAS -->|是 + 有 suggestion_text| AC1["D1-05 / C-03\nawaiting_create"]
+  WAS -->|否 + 无 suggestion_text| SKIP["D1-02\nskipped_no_user_suggestion"]
+  WAS -->|否 + 有 suggestion_text| AC2["D1-03\nawaiting_create"]
+</div></div>
+</section>
+
+<!-- 6 D2 -->
+<section id="confirm-d2">
+<h2>⑥ D2 · Skill 固化确认</h2>
+<p class="desc">pending_skill_action=create|update。update 路径当前不可达。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  D2IN([awaiting_confirm\ncreate/update]) --> INT[detect_confirmation_intent]
+
+  INT -->|confirm| UPS[upsert_from_session_visual]
+  UPS --> R{result.action?}
+  R -->|created| CR["D2-01\nskill_created"]
+  R -->|updated| UP["D2-04 ⚠️不可达"]
+  R -->|unchanged| UN["D2-06\nunchanged"]
+
+  INT -->|deny| DEC{pending=update?}
+  DEC -->|是| DU["D2-05 ⚠️不可达\ndeclined_update"]
+  DEC -->|否| DC["D2-02\ndeclined_create"]
+
+  INT -->|模糊| FU["D2-03\nfor_skill_confirm"]
+</div></div>
+</section>
+
+<!-- 7 Corridor -->
+<section id="corridor">
+<h2>⑦ 干线扫描全路径</h2>
+<p class="desc">TC 前缀 B-xx。入口意图 corridor_scan，不问具体路口名。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  BSTART([idle + corridor_scan 意图]) --> CSNLU[CorridorScanNluService]
+
+  CSNLU -->|error| BERR[state=done ERROR]
+  CSNLU -->|incomplete| B01["B-01\ncorridor_nlu_incomplete\nfollow_up"]
+  CSNLU -->|complete| LINE[LineResolver]
+
+  LINE -->|多候选| B06["B-06\nfollow_up line_candidates"]
+  LINE -->|未找到| BNF[state=done ERROR]
+  LINE -->|唯一| SCAN[CorridorScanService\nTop3 排名]
+
+  SCAN --> B02["B-02\nawaiting_corridor_pick\ncorridor_scan"]
+
+  B02 --> PICK{resolve_corridor_pick}
+  PICK -->|失败| B03["B-03\nfollow_up"]
+  PICK -->|成功| INJ[注入 nlu\n路口+时段]
+  INJ --> DIR{directions?}
+  DIR -->|缺| B04["B-04\nnlu_incomplete"]
+  DIR -->|有| B05["B-05\n→ _diagnose"]
+</div></div>
+</section>
+
+<!-- 8 NLU -->
+<section id="nlu">
+<h2>⑧ NLU 追问路径</h2>
+<p class="desc">缺字段优先级：路口 &gt; 时段 &gt; 方向。每轮全量重提取。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  PIPE[_run_pipeline] --> NLU[NluService.extract]
+  NLU -->|error| E[state=done ERROR]
+  NLU -->|incomplete| INC[state=nlu_incomplete]
+
+  INC --> MF{missing_fields}
+  MF -->|intersection| F1[follow_up 路口]
+  MF -->|time_period| F2[follow_up 时段]
+  MF -->|directions| F3[follow_up 方向]
+
+  F1 & F2 & F3 --> WAIT[reply=follow_up\npanelMode=conversation]
+  WAIT --> NEXT[用户补充 → _continue_nlu]
+  NEXT --> PIPE
+
+  NLU -->|complete| RES[_run_nlu]
+  RES --> AMB{路口解析}
+  AMB -->|candidates| IA[state=intersection_ambiguous]
+  AMB -->|not_found| NF[state=done ERROR]
+  AMB -->|resolved| RESOLVE[_diagnose]
+</div></div>
+</section>
+
+<!-- 9 Normal path -->
+<section id="normal">
+<h2>⑨ 普通单点诊断 · 标准端到端</h2>
+<p class="desc">无 Skill 命中时的完整 happy path 与分支。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  START([完整 NLU 输入]) --> MATCH[skill_match: no_skill]
+  MATCH --> RES[intersection 三级匹配]
+  RES --> COG[intersection_cognition]
+  COG --> DATA[data_fetch 7日窗]
+  DATA --> PE[problem_evidence]
+  PE --> RE[rule_engine]
+  RE --> FTG[flow_timing_governance]
+  FTG --> D{诊断成立?}
+
+  D -->|否| END1[A-09 done]
+  D -->|是| USG{user_suggestion?}
+
+  USG -->|无| D1W["A-01\nawaiting_generate\nFOLLOW_UP"]
+  D1W --> D1Y{用户}
+  D1Y -->|是| D1G["A-02\nskipped_no_persist"]
+  D1Y -->|否| D1N[declined]
+  D1Y -->|+约束| D2W[awaiting_create]
+
+  USG -->|有| SG["A-03\n直接建议\nawaiting_create DIAGNOSIS"]
+  SG --> D2Y{固化?}
+  D2Y -->|是| SK[A-04 skill_created]
+  D2Y -->|否| SKN[declined_create]
+</div></div>
+</section>
+
+<!-- 10 Matrix -->
+<section id="matrix">
+<h2>⑩ 完整用例矩阵（可映射 pytest）</h2>
+<p class="desc">复制 TC-ID 作为测试函数 docstring 或 @pytest.mark.parametrize id。</p>
+<div class="card">
+<table>
+<thead>
+<tr><th>TC-ID</th><th>优先级</th><th>场景</th><th>消息序列（摘要）</th><th>最终 state</th><th>关键 meta</th><th>现有测试</th></tr>
+</thead>
+<tbody>
+<tr><td class="tc">A-01</td><td><span class="tag tag-p1">P1</span></td><td>普通·无约束首轮</td><td>完整描述</td><td>awaiting_confirm</td><td>awaiting_generate</td><td>test_first_diagnosis_awaits</td></tr>
+<tr><td class="tc">A-02</td><td>P1</td><td>普通·确认生成</td><td>A-01 +「是」</td><td>done</td><td>skipped_no_user_suggestion</td><td>—</td></tr>
+<tr><td class="tc">A-03</td><td>P1</td><td>普通·首轮带约束</td><td>含 user_suggestion</td><td>awaiting_confirm</td><td>awaiting_create</td><td>test_full_flow</td></tr>
+<tr><td class="tc">A-04</td><td>P1</td><td>普通·固化</td><td>A-03 +「确认」</td><td>done</td><td>created</td><td>test_full_flow</td></tr>
+<tr><td class="tc">A-05</td><td>P2</td><td>NLU 缺时段</td><td>2轮补充</td><td>→ A-01</td><td>—</td><td>test_nlu_follow_up</td></tr>
+<tr><td class="tc">C-01</td><td><span class="tag tag-p0">P0</span></td><td>快路径·确认是</td><td>第2次 +「是」</td><td>done</td><td>reused_no_persist</td><td>test_fast_path_reuses</td></tr>
+<tr><td class="tc">C-03</td><td>P0</td><td>快路径·补充约束</td><td>第2次 +「是，约束」</td><td>awaiting_confirm</td><td>awaiting_create</td><td>test_fast_path_supplement</td></tr>
+<tr><td class="tc">C-04</td><td>P0</td><td>约束冲突</td><td>不同约束</td><td>非 fast_path</td><td>—</td><td>test_constraint_mismatch</td></tr>
+<tr><td class="tc">C-06</td><td>P0</td><td>快路径·首轮带约束</td><td>第2次含相同约束</td><td>awaiting_generate ⚠️</td><td>非直接建议</td><td><strong>缺失</strong></td></tr>
+<tr><td class="tc">C-07</td><td>P0</td><td>快路径·注入历史约束</td><td>Skill有约束用户无</td><td>→ C-01</td><td>建议含历史约束</td><td><strong>缺失</strong></td></tr>
+<tr><td class="tc">B-01</td><td>P2</td><td>干线缺时段</td><td>「奥体西最堵」</td><td>corridor_nlu_incomplete</td><td>intent=corridor_scan</td><td>test_corridor_scan_asks</td></tr>
+<tr><td class="tc">B-02</td><td>P2</td><td>干线完整</td><td>含时段</td><td>awaiting_corridor_pick</td><td>corridor_scan</td><td>test_corridor_scan_list</td></tr>
+<tr><td class="tc">D1-01</td><td>P1</td><td>拒绝生成建议</td><td>「否」</td><td>done</td><td>declined</td><td>test_deny_suggestion</td></tr>
+<tr><td class="tc">V-01</td><td><span class="tag tag-dead">死代码</span></td><td>Skill 校验通过</td><td>—</td><td>done</td><td>verified</td><td><strong>不可达</strong></td></tr>
+<tr><td class="tc">V-02</td><td><span class="tag tag-dead">死代码</span></td><td>Skill 需更新</td><td>—</td><td>awaiting_confirm</td><td>awaiting_update</td><td><strong>不可达</strong></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<!-- 11 Dead code -->
+<section id="dead">
+<h2>⑪ 死代码 / 不可达路径 <span class="tag tag-dead">待修复</span></h2>
+<p class="desc">orchestrator.py L1436 _finish_fast_path_diagnosis — grep 仅 1 处定义，0 处调用。</p>
+<div class="card"><div class="mermaid">
+flowchart TD
+  DEAD["_finish_fast_path_diagnosis\n⚠️ 从未被调用"]
+
+  DEAD --> S1{skill 存在?}
+  S1 -->|否| AC["awaiting_create\n历史 Skill 不可用"]
+  S1 -->|是| DIFF{diff.has_material_diff?}
+
+  DIFF -->|否| VER["V-01\nskill_action=verified\nSSE skill_verify"]
+  DIFF -->|是| UPD["V-02\nskill_action=awaiting_update\nD2 update 分支"]
+
+  style DEAD fill:#3b1f1f,stroke:#ef4444
+  style VER fill:#1f2b1f,stroke:#10b981,stroke-dasharray: 5 5
+  style UPD fill:#1f2b1f,stroke:#10b981,stroke-dasharray: 5 5
+</div></div>
+
+<div class="card">
+<h3 style="font-size:.9rem;margin-bottom:.5rem">修复建议（供测试前先对齐产品）</h3>
+<table>
+<thead><tr><th>选项</th><th>行为</th><th>影响测试</th></tr></thead>
+<tbody>
+<tr><td>A. 恢复 verified 路径</td><td>快路径诊断后在 _diagnose 末尾调用 _finish_fast_path_diagnosis（diff 无差异则跳过 D1）</td><td>重写 C-01 系列断言</td></tr>
+<tr><td>B. 删除死代码</td><td>移除 _finish_fast_path_diagnosis，文档明确「快路径始终 D1」</td><td>补 C-06 不对称测试</td></tr>
+<tr><td>C. 对齐 asymmetry</td><td>快路径首轮有 user_suggestion 时跳过 D1，同普通路径</td><td>新增 C-06 回归</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+</main>
+</div>
+
+<script>
+mermaid.initialize({
+  startOnLoad:true, theme:'dark',
+  themeVariables:{
+    primaryColor:'#1a2744', primaryTextColor:'#e4eaf2', primaryBorderColor:'#3b82f6',
+    lineColor:'#4a6080', secondaryColor:'#151c28', tertiaryColor:'#1e2838',
+    fontFamily:'PingFang SC, Microsoft YaHei, system-ui, sans-serif'
+  },
+  flowchart:{htmlLabels:true,curve:'basis'},
+  sequence:{diagramMarginX:20,diagramMarginY:10}
+});
+const nav=document.getElementById('nav'),links=nav.querySelectorAll('a');
+const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));const a=nav.querySelector(`a[href="#${e.target.id}"]`);if(a)a.classList.add('active')}})},{rootMargin:'-70px 0 -55% 0'});
+document.querySelectorAll('section').forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>

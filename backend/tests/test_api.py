@@ -185,6 +185,27 @@ async def test_confirmation_with_constraint_generates_suggestion_then_awaits_ski
 
 
 @pytest.mark.asyncio
+async def test_declined_skill_create(client):
+    """RT-CONF-D2-02: 拒绝 Skill 固化。"""
+    create = await client.post("/api/v1/sessions")
+    sid = create.json()["session_id"]
+    first = await client.post(
+        f"/api/v1/sessions/{sid}/messages",
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向经常拥堵，绿灯应更长"},
+    )
+    assert first.json()["meta"].get("skill_action") == "awaiting_create"
+
+    deny = await client.post(
+        f"/api/v1/sessions/{sid}/messages",
+        json={"content": "否"},
+    )
+    body = deny.json()
+    assert body["state"] == "done"
+    assert body["meta"].get("skill_action") == "declined_create"
+    assert "未固化" in body["reply"]["content"]
+
+
+@pytest.mark.asyncio
 async def test_constraint_is_reflected_in_suggestion_and_persisted_skill(client, skill_dir_path):
     create = await client.post("/api/v1/sessions")
     sid = create.json()["session_id"]
