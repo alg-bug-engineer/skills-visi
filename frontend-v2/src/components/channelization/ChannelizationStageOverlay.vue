@@ -38,6 +38,8 @@ const props = defineProps<{
   /** 新一轮分析时递增，用于重置粘性浮层 */
   runKey?: number
   presentationLayers?: PresentationLayerGates
+  /** 路口信息卡(IntersectionNarrativeStack)已承载身份与运行指标时，抑制重复的顶部身份/HUD 条 */
+  suppressHud?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -96,7 +98,7 @@ const totalLanes = computed(() =>
       role="main"
       aria-label="路口渠化视图"
     >
-      <header class="chan-head">
+      <header v-if="!suppressHud" class="chan-head">
         <div>
           <span class="eyebrow">INTERSECTION</span>
           <h3>{{ cognition.intersection.name }}</h3>
@@ -110,7 +112,7 @@ const totalLanes = computed(() =>
         <span class="phase-tag">{{ phaseLabel }}</span>
       </header>
 
-      <div v-if="fullscreen && showHudBar && hud?.metrics?.length" class="chan-hud-bar">
+      <div v-if="fullscreen && showHudBar && !suppressHud && hud?.metrics?.length" class="chan-hud-bar">
         <div class="chan-hud-head">
           <span v-if="hud.icon" class="hud-icon">{{ hud.icon }}</span>
           <span class="hud-title">{{ hud.title }}</span>
@@ -303,14 +305,14 @@ const totalLanes = computed(() =>
 }
 
 .chan-minis {
-  /* 右上角已被叙事卡占用，迷你窗靠左排布，避免遮挡 */
+  /* 路口信息卡占用左侧，迷你窗靠右排布，避免遮挡 */
   position: absolute;
   top: 8px;
   left: 0;
   right: 0;
   z-index: 5;
   display: flex;
-  justify-content: flex-start;
+  justify-content: flex-end;
   align-items: flex-start;
   gap: 12px;
   padding: 0 12px;

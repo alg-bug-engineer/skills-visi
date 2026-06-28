@@ -142,8 +142,9 @@ export function useVoiceNarration() {
         playing.value = true
         void fallbackAudio.play().catch(reject)
       })
-    } catch {
-      /* silent degrade */
+    } catch (err) {
+      // 降级失败时至少留痕，避免“完全静默”掩盖后端 TTS 故障
+      console.warn('[voice] TTS 合成失败，本条语音已跳过：', err)
     } finally {
       if (epoch === sessionEpoch) {
         playing.value = false

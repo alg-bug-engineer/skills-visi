@@ -1,5 +1,28 @@
 # frontend-v2 进度记录
 
+## v3.0（2026-06-28）— 渠化 AMap 迁移 · 叙事卡栈 · TTS 鉴权
+
+### 已完成
+
+- [x] 渠化从 THREE/D3 迁移至 AMap 矢量覆盖物（`channelizationGeometry` / `channelizationAmap` / `channelizationPhase` / `channelizationController`）
+- [x] 渠化下沉主图 + `zoomend` 分级下钻；移除 `three`/`d3` 依赖
+- [x] 左上角 `IntersectionNarrativeStack` 生长卡栈；图例右下；`suppressStageHud` 去重
+- [x] 移除 `buildCorners` 转角圆弧（横穿人行横道）
+- [x] TTS workspace 与 LLM 分离；合成失败 `console.warn` 留痕
+
+### 文档
+
+- [docs/RELEASE_v3.0.md](../../docs/RELEASE_v3.0.md)
+- [docs/bugs/BUG_REGISTRY.md](../../docs/bugs/BUG_REGISTRY.md)
+- [docs/plans/2026-06-28-渠化AMap迁移与主图下钻.md](../../docs/plans/2026-06-28-渠化AMap迁移与主图下钻.md)
+- [docs/plans/2026-06-28-叙事卡栈重构-复盘.md](../../docs/plans/2026-06-28-叙事卡栈重构-复盘.md)
+
+### 单测
+
+- vitest **99** 项（含渠化 41 项新增）
+
+---
+
 ## v2.0.6（2026-06-28）— 汇报向叙事 · 地图呈现时序
 
 ### 已完成

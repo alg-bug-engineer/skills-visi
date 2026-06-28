@@ -206,7 +206,7 @@ function sevClass(sev?: string): string {
 .narrative-stack {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   z-index: 16;
   width: min(300px, 40vw);
   max-height: calc(100% - 24px);

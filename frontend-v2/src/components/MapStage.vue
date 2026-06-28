@@ -43,6 +43,8 @@ const props = defineProps<{
   /** 左侧干线列表占用时的视觉中心偏移 */
   visualPanOffsetX?: number
   presentationLayers?: PresentationLayerGates
+  /** 路口信息卡激活时，抑制渠化舞台重复的顶部身份/HUD 条 */
+  suppressStageHud?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -838,6 +840,7 @@ watch(
       :hud="(hudOverride ?? hud) as MapSceneHud | null"
       :run-key="props.analysisRunKey ?? 0"
       :presentation-layers="presentationLayers"
+      :suppress-hud="suppressStageHud"
       @close-timing-ring="emit('closeTimingRing')"
       @close-corridor-wave="emit('closeCorridorWave')"
     />

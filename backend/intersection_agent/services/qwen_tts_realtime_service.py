@@ -155,7 +155,8 @@ class QwenTtsRealtimeService:
             model=self._settings.qwen_tts_model,
             callback=callback,
             url=self._settings.qwen_tts_ws_url,
-            workspace=self._settings.dashscope_workspace_id or None,
+            # 不复用 LLM 的 workspace（对 TTS Realtime WS 可能被拒：Workspace access denied）
+            workspace=self._settings.tts_workspace,
         )
         client.connect()
         client.update_session(**self._session_kwargs())

@@ -1,5 +1,31 @@
 # 变更日志
 
+## v3.0 · 渠化 AMap 迁移 · 领导演示叙事 · TTS 鉴权 (2026-06-28)
+
+### 渠化 AMap 全量迁移
+
+- 新增 `channelizationGeometry` / `channelizationAmap` / `channelizationPhase` / `channelizationController` 纯函数库与单测（41 项新增）。
+- 渠化下沉 `MapStage` 主图 + zoom 分级下钻；移除 THREE.js/D3 旧实现与依赖。
+- 移除转角贝塞尔 `buildCorners`（弧线横穿人行横道）。
+
+### 领导演示叙事
+
+- 左上角 `IntersectionNarrativeStack` 生长卡栈；问题验证自动折叠、治理建议层级。
+- 镜头单调 zoom，手动拖动后不回跳；`suppressStageHud` 避免与渠化 header 重复。
+
+### TTS Realtime 鉴权
+
+- `qwen_tts_workspace_id` 与 LLM workspace 分离；`tts_configured` 仅需 API Key。
+- 前端 TTS 失败 `console.warn` 留痕；`test_tts_config.py` 4 项。
+
+### 文档
+
+- [`docs/RELEASE_v3.0.md`](../../docs/RELEASE_v3.0.md)、[`docs/bugs/BUG_REGISTRY.md`](../../docs/bugs/BUG_REGISTRY.md)。
+
+- 后端单测 **141** 项；前端 vitest **99** 项。
+
+---
+
 ## v2.0.5 · 地图 narration · 运行时网络 (2026-06-28)
 
 ### 地图呈现（backend + frontend 联调）

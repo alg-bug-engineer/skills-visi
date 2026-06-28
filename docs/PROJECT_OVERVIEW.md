@@ -1,6 +1,6 @@
 # 项目总览 · 路口问题诊断以及固化技能
 
-> 版本：2026-06-28  
+> 版本：2026-06-28 · **v3.0**
 > 本文档汇总开发内容、计划进度、主要变更与部署方式，作为根仓库的权威索引。
 
 ---
@@ -14,7 +14,7 @@
 | 层级 | 技术 |
 |------|------|
 | 后端 | FastAPI · Qwen（百炼）· PostgreSQL · YAML 规则引擎 |
-| 前端 v2（主） | Vue 3 · Vite · 高德地图 · Three.js 渠化 · SSE 流水线 |
+| 前端 v2（主） | Vue 3 · Vite · 高德地图 · AMap 渠化 · SSE 流水线 |
 | 前端 v1（遗留） | Vue 3，独立仓库，本 monorepo **不纳入** |
 | 信控引擎参考 | `signal_optimization_engine-main/`，外部参考，本 monorepo **不纳入** |
 
@@ -64,6 +64,9 @@
 | **饱和度口径** | **2026-06-27** | 全链路小数展示（0.92）；约束 delta 裁剪顺序修复 |
 | **地图渠化融合 v2.0.5** | **2026-06-28** | 底图融合、标注分层、语音摘要、呈现同步栅栏、空格暂停 |
 | **运行时网络** | **2026-06-28** | 清除 shell 代理对 httpx 的误伤（`network_env`） |
+| **v3.0 渠化 AMap** | **2026-06-28** | THREE/D3 → AMap 矢量覆盖物、主图 zoom 下钻、移除旧依赖 |
+| **v3.0 领导演示叙事** | **2026-06-28** | 左上生长卡栈、镜头连贯、问题验证/治理建议层级 |
+| **v3.0 TTS 鉴权** | **2026-06-28** | TTS workspace 与 LLM 分离、无声 Bug 修复 |
 
 ### 3.2 前端 v2 能力演进
 
@@ -77,6 +80,7 @@
 | 语音步骤同步 | 2026-06-27 | `voice_narration.json` + `voiceStepSync` + PCM drain 改进 |
 | 饱和度小数 | 2026-06-27 | `formatSaturation` 统一证据卡/地图/渠化/语音 |
 | **v2.0.5 地图渠化融合** | **2026-06-28** | 标注分层、TTS 摘要、`whenPresentationSettled`、空格暂停 |
+| **v3.0 渠化 AMap** | **2026-06-28** | AMap 渲染器、主图下钻、叙事卡栈左上、TTS workspace 修复 |
 
 ### 3.3 文档与技能包
 
@@ -87,6 +91,8 @@
 | `docs/intersection/*/SKILL.md` | 场景认知、问题诊断等 Agent Skill 定义 |
 | `docs/路口四维筛选与演示路口清单.md` | 演示路口筛选结果 |
 | [`docs/RELEASE_v2.0.5.md`](RELEASE_v2.0.5.md) | v2.0.5 发布说明（融合视图、标注、语音、Bug） |
+| [`docs/RELEASE_v3.0.md`](RELEASE_v3.0.md) | **v3.0** 发布说明（AMap 渠化、叙事、TTS） |
+| [`docs/bugs/BUG_REGISTRY.md`](bugs/BUG_REGISTRY.md) | Bug 登记与截图索引 |
 | [`docs/PRESENTATION_SYNC_BARRIER.md`](PRESENTATION_SYNC_BARRIER.md) | 呈现同步栅栏（强制） |
 | [`docs/DEV_CONSTRAINTS.md`](DEV_CONSTRAINTS.md) | 开发环境约束（终端代理 vs 应用运行时） |
 | [`docs/地图语音暂停交互增强开发计划.md`](地图语音暂停交互增强开发计划.md) | R1–R4 设计与验收 |
@@ -107,6 +113,8 @@
 | [经验吸收与技能固化演示](plans/2026-06-28-经验吸收与技能固化演示开发计划.md) | ✅ skill_absorption SSE + 右栏叠层 UI |
 | [干线扫描与路口发现](plans/2026-06-27-干线扫描与路口发现.md) | ✅ 意图 LLM+规则、PG 排名、地图沿路高亮、选型接单点 |
 | [地图语音暂停交互增强](地图语音暂停交互增强开发计划.md) | ✅ R1–R4 交付；见 RELEASE_v2.0.5 |
+| [渠化 AMap 迁移](plans/2026-06-28-渠化AMap迁移与主图下钻.md) | ✅ 全量实现；见 RELEASE_v3.0 |
+| [领导演示叙事重构](plans/2026-06-28-领导演示叙事与地图呈现重构-开发方案.md) | ✅ 叙事卡栈 + 镜头连贯；见 RELEASE_v3.0 |
 | [frontend-v2 开发计划](../frontend-v2/docs/DEVELOPMENT_PLAN.md) | ✅ P0–P2.1；P3 待办 |
 
 ### 4.2 待办
@@ -142,7 +150,8 @@
 | 2026-06-27 | **饱和度口径**：前后端统一小数；约束「不能超过 N 秒」解析扩展 |
 | 2026-06-27 | **交互修复**：暂不固化不误开新分析；delta 裁剪写入建议 narrative |
 | 2026-06-28 | **v2.0.5**：地图渠化融合、标注分层、TTS 摘要、呈现同步栅栏、空格暂停 |
-| 2026-06-28 | **Bug**：shell SOCKS 代理误伤 httpx；左侧黑条；底图 HTML 标注迁移至 3D 路臂 |
+| 2026-06-28 | **v3.0**：渠化 AMap 迁移、左上叙事卡栈、TTS workspace 分离、转角圆弧移除 |
+| 2026-06-28 | **Bug 登记**：[`bugs/BUG_REGISTRY.md`](bugs/BUG_REGISTRY.md) |
 
 ---
 
@@ -214,10 +223,10 @@ bash scripts/dev.sh       # v1 前端 5567（需 frontend/ 独立仓库）
 
 ```bash
 # 后端单测（需 Python 3.11+，推荐 backend/.venv）
-cd backend && MOCK_LLM=1 MOCK_DB=1 .venv/bin/pytest -q   # 119 项
+cd backend && MOCK_LLM=1 MOCK_DB=1 .venv/bin/pytest -q   # 141 项
 
 # 前端单测
-cd frontend-v2 && npm run test   # 24 项
+cd frontend-v2 && npm run test   # 99 项
 
 # 联调冒烟
 bash scripts/e2e-v2.sh

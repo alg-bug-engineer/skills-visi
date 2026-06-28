@@ -1,8 +1,8 @@
-# 项目状态快照 · 语音步骤同步 + 饱和度口径
+# 项目状态快照 · v3.0 渠化 AMap + 领导演示叙事
 
-> 日期：2026-06-27  
-> 分支：`main`  
-> 单测：backend **119** passed · frontend vitest **24** passed
+> 日期：2026-06-28  
+> 分支：`main` · 标签：`v3.0`  
+> 单测：backend **141** passed · frontend vitest **99** passed
 
 ---
 
@@ -10,6 +10,9 @@
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
+| 渠化 AMap 迁移 | ✅ | 几何库 + 渲染器 + 阶段调度；主图 zoom 下钻；移除 THREE/D3 |
+| 领导演示叙事 | ✅ | 左上生长卡栈、镜头连贯、问题验证/治理建议层级 |
+| TTS workspace 分离 | ✅ | 不复用 LLM workspace；失败 warn 留痕 |
 | 语音步骤同步 | ✅ | `voice_narration.json` + `onStepStart` 与理解过程对齐 |
 | 饱和度小数口径 | ✅ | 前后端统一 0.92 格式，语音模板同步 |
 | 约束 delta 裁剪 | ✅ | 先裁剪再生成建议，clip_note 写入 narrative |
@@ -23,6 +26,10 @@
 
 | 文档 | 内容 |
 |------|------|
+| [RELEASE_v3.0.md](../../docs/RELEASE_v3.0.md) | v3.0 发布说明 |
+| [BUG_REGISTRY.md](../../docs/bugs/BUG_REGISTRY.md) | Bug 登记与截图索引 |
+| [渠化 AMap 迁移计划](../../docs/plans/2026-06-28-渠化AMap迁移与主图下钻.md) | 执行结果与偏差 |
+| [叙事卡栈复盘](../../docs/plans/2026-06-28-叙事卡栈重构-复盘.md) | 文案/播报/地图一致性 |
 | [干线扫描功能说明](../../docs/plans/2026-06-27-干线扫描与路口发现.md) | 流程、状态机、模块索引 |
 | [CHANGELOG.md](CHANGELOG.md) | 变更记录 |
 | [PROJECT_LOGIC.md](PROJECT_LOGIC.md) | 总体逻辑（含干线分支） |
@@ -34,8 +41,8 @@
 
 ```bash
 bash scripts/dev-v2.sh          # 8011 + 5568
-cd backend && pytest -q         # 119 项
-cd frontend-v2 && npm run test  # 24 项
+cd backend && pytest -q         # 141 项
+cd frontend-v2 && npm run test  # 99 项
 ```
 
 环境：`backend/.env` 参考 `.env.example`（`MOCK_LLM=0` + PG 可查真实干线）

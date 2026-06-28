@@ -186,7 +186,8 @@ export class ChannelizationAmapLayer {
     this.buildHalo()
     this.buildRoadCenterlines()
     for (const arm of this.arms) this.buildArm(arm)
-    this.buildCorners()
+    // 转角圆弧已移除：旧实现以路口中心为贝塞尔控制点，使弧线向路口内部弯曲、
+    // 横穿人行横道，形成"多余的曲线"。清晰度优先，去掉该装饰层。
     this.applyLOD(this.map.getZoom())
   }
 
@@ -393,32 +394,6 @@ export class ChannelizationAmapLayer {
           bubble: true,
           zIndex: 17,
         }),
-      )
-    }
-  }
-
-  private buildCorners() {
-    const sorted = [...this.arms].sort((a, b) => a.angle - b.angle)
-    const c = this.center
-    for (let i = 0; i < sorted.length; i++) {
-      const a1 = sorted[i]
-      const a2 = sorted[(i + 1) % sorted.length]
-      const nOut1 = a1.outLink ? a1.outLink.c_lane_num || a1.outLink.lane_num || 0 : 0
-      const nIn2 = a2.inLink ? parseLaneInfo(a2.inLink).length : 0
-      const p1 = metersToLngLat(c, this.boxR, nOut1 * LANE_W + MEDIAN_W, a1.angle)
-      const p2 = metersToLngLat(c, this.boxR, -(nIn2 * LANE_W) - MEDIAN_W, a2.angle)
-      const pts: LonLat[] = []
-      for (let k = 0; k <= 16; k++) {
-        const t = k / 16
-        const it = 1 - t
-        pts.push([
-          it * it * p1[0] + 2 * it * t * c[0] + t * t * p2[0],
-          it * it * p1[1] + 2 * it * t * c[1] + t * t * p2[1],
-        ])
-      }
-      this.addBase(
-        'L2',
-        new this.amap.Polyline({ path: pts, strokeColor: '#ffffff', strokeWeight: 2, strokeOpacity: 0.7, bubble: true, zIndex: 18 }),
       )
     }
   }

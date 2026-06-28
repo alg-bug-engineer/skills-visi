@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     qwen_tts_mode: str = "commit"
     qwen_tts_sample_rate: int = 24000
     tts_enabled: bool = True
+    # TTS Realtime 专用 workspace：默认留空（按 API Key 默认工作空间鉴权）。
+    # LLM 的 DASHSCOPE_WORKSPACE_ID 对 TTS Realtime WS 可能无访问权（Workspace access denied），
+    # 故 TTS 不复用 LLM workspace；仅当确有 TTS 可用的 workspace 时再单独设置。
+    qwen_tts_workspace_id: str = ""
 
     rules_dir: Path = _BACKEND_ROOT / "rules"
 
@@ -64,8 +68,16 @@ class Settings(BaseSettings):
 
     @property
     def tts_configured(self) -> bool:
-        """Whether Qwen TTS Realtime credentials are present."""
-        return bool(self.dashscope_api_key and self.dashscope_workspace_id)
+        """Whether Qwen TTS Realtime credentials are present.
+
+        TTS Realtime 仅需 API Key；workspace 可选（见 ``qwen_tts_workspace_id``）。
+        """
+        return bool(self.dashscope_api_key)
+
+    @property
+    def tts_workspace(self) -> str | None:
+        """Workspace 传给 TTS Realtime 客户端（默认不传，按 Key 默认空间鉴权）。"""
+        return self.qwen_tts_workspace_id or None
 
     @property
     def cors_origin_list(self) -> list[str]:

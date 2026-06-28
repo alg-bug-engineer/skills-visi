@@ -98,8 +98,9 @@ watch(
 
 <style scoped>
 .chan-legend {
+  /* 路口信息卡占用左侧，图例移至右下角 */
   position: absolute;
-  left: 12px;
+  right: 12px;
   bottom: 12px;
   z-index: 4;
   max-width: 280px;

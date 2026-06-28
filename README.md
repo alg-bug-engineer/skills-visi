@@ -46,20 +46,24 @@ bash scripts/prod-dev.sh
 
 局域网调试：`BIND_HOST=0.0.0.0 bash scripts/dev-v2.sh`
 
-## 发布标签（backend 历史）
+## 发布标签
 
 | 标签 | 说明 |
 |------|------|
+| `v1.0.0` | 后端基线 + 回归测试基线 |
 | `tag2` | 后端完成 + 前端简单验证（对话 UI + SSE） |
-| **`新增-Skills-可视化`** | Skills 固化全屏可视化 + 地图主舞台 + 进口道指标 + 方向必填 |
+| `v2.0.5` | 地图渠化融合、呈现栅栏、语音摘要 |
+| **`v3.0`** | **渠化 AMap 迁移、领导演示叙事、TTS 鉴权修复** |
 
-详见 [backend/docs/RELEASE_新增Skills可视化.md](backend/docs/RELEASE_新增Skills可视化.md)。
+详见 [docs/RELEASE_v3.0.md](docs/RELEASE_v3.0.md)、[docs/bugs/BUG_REGISTRY.md](docs/bugs/BUG_REGISTRY.md)。
 
 ## 文档索引
 
 | 文档 | 说明 |
 |------|------|
 | [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | **项目总览**（进度、变更、部署） |
+| [docs/RELEASE_v3.0.md](docs/RELEASE_v3.0.md) | **v3.0 发布说明** |
+| [docs/bugs/BUG_REGISTRY.md](docs/bugs/BUG_REGISTRY.md) | Bug 登记与截图 |
 | [docs/REGRESSION_POLICY.md](docs/REGRESSION_POLICY.md) | **回归测试约束**（合并前必跑） |
 | [docs/REGRESSION_TEST_SPEC.md](docs/REGRESSION_TEST_SPEC.md) | 全量回归测试点 |
 | [backend/README.md](backend/README.md) | 后端快速开始 |
