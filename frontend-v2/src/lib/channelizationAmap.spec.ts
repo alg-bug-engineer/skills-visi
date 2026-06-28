@@ -4,7 +4,12 @@ import { ChannelizationAmapLayer, armMatchesDir, type ChannelInterItem } from '.
 /* ── AMap stub ─────────────────────────────────────────────────────────────── */
 class StubOverlay {
   shown = true
-  constructor(public type: string, public opt: any) {}
+  type: string
+  opt: any
+  constructor(type: string, opt: any) {
+    this.type = type
+    this.opt = opt
+  }
   show() {
     this.shown = true
   }

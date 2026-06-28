@@ -124,8 +124,10 @@ export class ChannelizationAmapLayer {
   boxR: number
   /** 静态渠化覆盖物，按 LOD 显隐 */
   private base: Array<{ lod: 'L0' | 'L1' | 'L2'; o: Overlay }> = []
-  /** 阶段标注覆盖物，整组清除 */
-  private highlight: Overlay[] = []
+  /** 三套独立标注池（复刻原 check-highlight / direction-role / arm-scene-labels 分组语义，可共存） */
+  private checkPool: Overlay[] = []
+  private rolePool: Overlay[] = []
+  private labelPool: Overlay[] = []
   private currentLevel: string | null = null
 
   constructor(amap: AMapNS, map: AMapMap, interItem: ChannelInterItem) {
@@ -146,9 +148,32 @@ export class ChannelizationAmapLayer {
     this.base.push({ lod, o })
     this.map.add(o)
   }
-  private addHl(o: Overlay) {
-    this.highlight.push(o)
+  private addCheck(o: Overlay) {
+    this.checkPool.push(o)
     this.map.add(o)
+  }
+  private addRole(o: Overlay) {
+    this.rolePool.push(o)
+    this.map.add(o)
+  }
+  private addLabel(o: Overlay) {
+    this.labelPool.push(o)
+    this.map.add(o)
+  }
+  private clearPool(pool: Overlay[]) {
+    if (pool.length) {
+      this.map.remove(pool.slice())
+      pool.length = 0
+    }
+  }
+  clearCheck() {
+    this.clearPool(this.checkPool)
+  }
+  clearRole() {
+    this.clearPool(this.rolePool)
+  }
+  clearLabels() {
+    this.clearPool(this.labelPool)
   }
   /** 臂局部矩形 [u0,u1]×[v0,v1] → 经纬度多边形路径 */
   private rect(arm: ChannelArm, u0: number, u1: number, v0: number, v1: number): LonLat[] {
@@ -416,7 +441,7 @@ export class ChannelizationAmapLayer {
   }
 
   /* ── 文本框（复刻 _makeTextTex：圆角深底 + 彩色边框 + 双行） ────────────── */
-  private addTextMarker(pos: LonLat, line1: string, line2: string, colorHex: string, offsetY = -28) {
+  private makeTextMarker(pos: LonLat, line1: string, line2: string, colorHex: string, offsetY = -28): Overlay {
     const content =
       `<div style="transform:translate(-50%,${offsetY}px);min-width:120px;padding:6px 12px;` +
       `background:rgba(0,4,14,0.82);border:2px solid ${colorHex};border-radius:10px;` +
@@ -425,27 +450,19 @@ export class ChannelizationAmapLayer {
       `<div style="font-weight:700;font-size:14px;color:${colorHex};line-height:1.4;">${line1}</div>` +
       (line2 ? `<div style="font-size:11px;color:rgba(220,240,255,0.85);line-height:1.4;">${line2}</div>` : '') +
       `</div>`
-    this.addHl(
-      new this.amap.Marker({
-        position: pos,
-        content,
-        offset: new this.amap.Pixel(0, 0),
-        bubble: true,
-        zIndex: 60,
-      }),
-    )
+    return new this.amap.Marker({ position: pos, content, offset: new this.amap.Pixel(0, 0), bubble: true, zIndex: 60 })
   }
 
+  /** 清除所有阶段标注（rebuild / dispose 用） */
   clearHighlight() {
-    if (this.highlight.length) {
-      this.map.remove(this.highlight)
-      this.highlight = []
-    }
+    this.clearCheck()
+    this.clearRole()
+    this.clearLabels()
   }
 
   /* ── applyCheckHighlight（饱和度/失衡/信控 强调面 + 色带 + 文本框） ──────── */
   applyCheckHighlight(indicatorId: string, verdict: string, evidence: HighlightEvidence) {
-    this.clearHighlight()
+    this.clearCheck()
     if (!this.arms.length) return
     const id = indicatorId || ''
     const ev = evidence || {}
@@ -467,7 +484,7 @@ export class ChannelizationAmapLayer {
       const wOut = nOut * LANE_W
 
       // 路面彩色强调面
-      this.addHl(
+      this.addCheck(
         new this.amap.Polygon({
           path: this.rect(arm, u0, u1, -wIn - MEDIAN_W, wOut + MEDIAN_W),
           strokeOpacity: 0,
@@ -487,7 +504,7 @@ export class ChannelizationAmapLayer {
         const fillLen = ARM_LEN * 0.88 * Math.min(satVal / 1.0, 1.0)
         if (fillLen > 1) {
           const flowColor = satVal >= 1.0 ? '#ff1100' : satVal >= 0.85 ? '#ff5500' : '#ffaa00'
-          this.addHl(
+          this.addCheck(
             new this.amap.Polygon({
               path: this.rect(arm, u0, u0 + fillLen, -wIn, 0),
               strokeOpacity: 0,
@@ -497,7 +514,7 @@ export class ChannelizationAmapLayer {
               zIndex: 42,
             }),
           )
-          this.addHl(
+          this.addCheck(
             new this.amap.Polyline({
               path: [this.ll(u0 + fillLen, 0, arm.angle), this.ll(u0 + fillLen, -wIn, arm.angle)],
               strokeColor: '#ff2200',
@@ -515,7 +532,7 @@ export class ChannelizationAmapLayer {
         const ratio = Math.min(Number(ev.avg_green_ratio ?? 0.5), 1.0)
         const greenW = wIn * ratio
         if (greenW > 0.2) {
-          this.addHl(
+          this.addCheck(
             new this.amap.Polygon({
               path: this.rect(arm, u0, u0 + 3, -greenW, 0),
               strokeOpacity: 0,
@@ -527,7 +544,7 @@ export class ChannelizationAmapLayer {
           )
         }
         if (wIn - greenW > 0.2) {
-          this.addHl(
+          this.addCheck(
             new this.amap.Polygon({
               path: this.rect(arm, u0, u0 + 3, -wIn, -greenW),
               strokeOpacity: 0,
@@ -545,7 +562,7 @@ export class ChannelizationAmapLayer {
         const idx = Number(ev.unbalance_index ?? ev.turn_imbalance_ratio ?? 0.2)
         const scale = Math.min(idx / 0.5, 1.0)
         const inW = wIn * (0.7 + scale * 0.25)
-        this.addHl(
+        this.addCheck(
           new this.amap.Polygon({
             path: this.rect(arm, u0, u0 + ARM_LEN * 0.65, -inW, 0),
             strokeOpacity: 0,
@@ -561,13 +578,13 @@ export class ChannelizationAmapLayer {
     // 浮空文本框
     const text = metricLabel(id, ev)
     if (text) {
-      this.addTextMarker(this.center, text, VERDICT_TEXT[verdict] ?? '', colorHex, -40)
+      this.addCheck(this.makeTextMarker(this.center, text, VERDICT_TEXT[verdict] ?? '', colorHex, -40))
     }
   }
 
   /* ── applyTurnHighlight（指定进口转向：车道色带 + 黄环 + 文本框） ───────── */
   applyTurnHighlight(spec: TurnHighlightSpec) {
-    this.clearHighlight()
+    this.clearCheck()
     if (!this.arms.length || !spec?.dir || !spec?.turnCode) return
     for (const arm of this.arms) {
       if (!armMatchesDir(arm.angle, spec.dir)) continue
@@ -579,7 +596,7 @@ export class ChannelizationAmapLayer {
       const vOut = -((laneIdx + 1) * LANE_W)
       const sat = spec.saturation != null ? Number(spec.saturation) : 1.0
       const flowColor = sat >= 1.0 ? '#ff1100' : sat >= 0.85 ? '#ff5500' : '#ffaa00'
-      this.addHl(
+      this.addCheck(
         new this.amap.Polygon({
           path: this.rect(arm, u0, u0 + ARM_LEN * 0.75, vOut, vIn),
           strokeOpacity: 0,
@@ -590,7 +607,7 @@ export class ChannelizationAmapLayer {
         }),
       )
       const ringPos = this.ll(u0 + ARM_LEN * 0.28, (vIn + vOut) / 2, arm.angle)
-      this.addHl(
+      this.addCheck(
         new this.amap.CircleMarker({
           center: ringPos,
           radius: 12,
@@ -604,14 +621,14 @@ export class ChannelizationAmapLayer {
       )
       const label = spec.label || `${spec.dir}向转向`
       const satText = spec.saturation != null ? `饱和度 ${(spec.saturation * 100).toFixed(0)}%` : '重点关注'
-      this.addTextMarker(this.center, label, satText, '#ffcc00', -40)
+      this.addCheck(this.makeTextMarker(this.center, label, satText, '#ffcc00', -40))
       break
     }
   }
 
   /* ── applyDirectionRoleHighlight（关注橙红/保护绿/其他 dim） ────────────── */
   applyDirectionRoleHighlight(focusDirs: string[] = [], protectDirs: string[] = []) {
-    this.clearHighlight()
+    this.clearRole()
     if (!focusDirs.length && !protectDirs.length) return
     for (const arm of this.arms) {
       const isFocus = focusDirs.some((d) => armMatchesDir(arm.angle, d))
@@ -635,7 +652,7 @@ export class ChannelizationAmapLayer {
       } else {
         opacity = 0.1
       }
-      this.addHl(
+      this.addRole(
         new this.amap.Polygon({
           path: this.rect(arm, u0, u1, -wIn - MEDIAN_W, wOut + MEDIAN_W),
           strokeOpacity: 0,
@@ -650,14 +667,14 @@ export class ChannelizationAmapLayer {
 
   /* ── applyArmSceneLabels（臂外缘文本框） ──────────────────────────────────── */
   applyArmSceneLabels(labels: ArmSceneLabel[] = []) {
-    // 臂标签与强调可叠加，这里单独清除上一批臂标签（用同一 highlight 池，调用方负责顺序）
+    this.clearLabels()
     if (!labels.length) return
     for (const label of labels) {
       if (!label.dir) continue
       const arm = this.arms.find((a) => armMatchesDir(a.angle, label.dir))
       if (!arm) continue
       const pos = this.ll(this.boxR + ARM_LEN * 0.94, 0, arm.angle)
-      this.addTextMarker(pos, label.line1 || '', label.line2 || '', label.colorHex || '#00e5ff', -10)
+      this.addLabel(this.makeTextMarker(pos, label.line1 || '', label.line2 || '', label.colorHex || '#00e5ff', -10))
     }
   }
 
