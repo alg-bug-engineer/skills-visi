@@ -35,6 +35,7 @@ from intersection_agent.services.map_presentation_service import (
     build_understanding_card,
     pick_narration_step,
 )
+from intersection_agent.services.case_library_service import CaseLibraryService
 from intersection_agent.services.dimension_pack_service import DimensionPackService
 from intersection_agent.services.experience_reuse_service import ExperienceReuseService
 from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
@@ -117,6 +118,7 @@ class Orchestrator:
         self._sustained = sustained or SustainedMetricsService()
         self._profile_store = profile_store or IntersectionProfileStore()
         self._experience_reuse = ExperienceReuseService(self._profile_store)
+        self._case_library = CaseLibraryService()
         self._settings = get_settings()
 
     async def handle_message(
@@ -1352,6 +1354,17 @@ class Orchestrator:
                     "user_suggestion": safe_preview(session.nlu.user_suggestion),
                 },
             )
+        # knowledge_qa 轻量匹配：按问题类型 + 路口形态注入 Top-K 范例
+        problem_types = session.nlu.problem_types or ["congestion"]
+        shape_tags = [
+            tag
+            for tag in ("短间距", "相邻", "左转", "快速路", "匝道", "溢出")
+            if tag in str(cognition)
+        ]
+        case_examples = self._case_library.match(problem_types, shape_tags, k=3)
+        if case_examples:
+            session.data_payload["case_examples"] = case_examples
+
         raw_delta = evaluate_formula(rule["action"]["formula"], data)
         flow_gov = data.get("flow_timing_governance") or {}
         action_plan = flow_gov.get("action_plan") or {}
@@ -1681,6 +1694,9 @@ class Orchestrator:
             reused_experience = session.data_payload.get("reused_experience")
             if reused_experience:
                 meta["reused_experience"] = reused_experience
+            case_examples = session.data_payload.get("case_examples")
+            if case_examples:
+                meta["case_examples"] = case_examples
         if extra:
             meta.update(extra)
 
