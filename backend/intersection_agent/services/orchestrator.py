@@ -35,6 +35,7 @@ from intersection_agent.services.map_presentation_service import (
     build_understanding_card,
     pick_narration_step,
 )
+from intersection_agent.services.dimension_pack_service import DimensionPackService
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
 from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
 from intersection_agent.services.skill_service import SkillService, SkillUpsertResult
@@ -95,6 +96,7 @@ class Orchestrator:
         self._fetcher = fetcher or DataFetcher()
         self._cognition = cognition or IntersectionCognitionService()
         self._rules = rules or RuleEngine()
+        self._dimension_packs = DimensionPackService()
         self._suggestions = suggestions or SuggestionService()
         self._skills = skills or SkillService()
         self._follow_ups = follow_ups or FollowUpService()
@@ -1059,13 +1061,26 @@ class Orchestrator:
 
         data = session.data_payload
 
+        problem_types = list(session.nlu.problem_types) if session.nlu else []
+        focus_categories = (
+            self._dimension_packs.focus_categories(problem_types)
+            if problem_types
+            else []
+        )
         if emitter:
             await emitter.emit(
                 "rule_engine",
                 "running",
-                data={"problem_type": session.nlu.problem_type},
+                data={
+                    "problem_type": session.nlu.problem_type,
+                    "problem_types": problem_types,
+                    "focus_categories": focus_categories,
+                },
             )
-        diagnosis = self._rules.diagnose_comprehensive(data)
+        if focus_categories:
+            diagnosis = self._rules.diagnose_focused(focus_categories, data)
+        else:
+            diagnosis = self._rules.diagnose_comprehensive(data)
         if diagnosis.diagnosed and diagnosis.metrics_snapshot is not None:
             diagnosis.metrics_snapshot["matched_rule_count"] = len(diagnosis.matched_rules)
 
