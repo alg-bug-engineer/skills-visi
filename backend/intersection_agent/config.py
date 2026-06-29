@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     log_max_bytes: int = 10_485_760
     log_backup_count: int = 5
     skill_dir_path: str = "data/skills"
+    profile_dir_path: str = "data/profiles"
     mock_llm: bool = False
     mock_db: bool = False
     evidence_debug: bool = False
