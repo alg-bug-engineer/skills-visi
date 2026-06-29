@@ -28,6 +28,8 @@ export interface MessageMeta {
   quantitative_constraints?: QuantitativeConstraints
   suggestion_action?: string
   skill_action?: string
+  reused_experience?: string[]
+  case_experience?: import('./experience').CaseScenario[]
   [key: string]: unknown
 }
 

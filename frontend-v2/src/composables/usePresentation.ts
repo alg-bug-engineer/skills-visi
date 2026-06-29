@@ -2,6 +2,7 @@ import { reactive } from 'vue'
 import type { FlowTimingGovernance, ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
 import type { CognitionPayload, MapSceneHud } from '../types/map'
 import type { CorridorIntersectionItem } from '../types/corridor'
+import type { CaseScenario, ExperienceSedimentItem } from '../types/experience'
 import type { DataInsight, DataInsightMetric, InsightCardEntry } from '../types/insight'
 import { STEP_INDICES } from '../constants'
 import { shouldSkipRuntimeMetric } from '../utils/narrativeStack'
@@ -76,6 +77,9 @@ export function usePresentation() {
     state.runtimeMetrics = null
     state.highlightTurn = null
     state.corridorScan = null
+    state.experienceSediment = []
+    state.reusedExperience = []
+    state.caseExperience = []
     state.focusedDirs = []
     state.protectedDirs = []
     state.revealedInsightSteps = {
@@ -367,6 +371,25 @@ export function usePresentation() {
     state.corridorScan = null
   }
 
+  function setReusedExperience(badges: string[]) {
+    state.reusedExperience = badges
+  }
+
+  function setCaseExperience(scenarios: CaseScenario[]) {
+    state.caseExperience = scenarios
+  }
+
+  function addExperienceSediment(item: ExperienceSedimentItem) {
+    if (state.experienceSediment.some((e) => e.level === item.level && e.text === item.text)) {
+      return
+    }
+    state.experienceSediment.push(item)
+  }
+
+  function clearExperienceSediment() {
+    state.experienceSediment = []
+  }
+
   return {
     state,
     clearInsights,
@@ -400,6 +423,10 @@ export function usePresentation() {
     setCorridorScan,
     selectCorridorIntersection,
     clearCorridorScan,
+    setReusedExperience,
+    setCaseExperience,
+    addExperienceSediment,
+    clearExperienceSediment,
   }
 }
 

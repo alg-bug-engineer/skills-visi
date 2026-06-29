@@ -287,6 +287,14 @@ function applyMetaEvidence(meta: MessageResponse['meta'], options?: { setConclus
       presentation.setPhase('conclusion')
     }
   }
+  if (Array.isArray(meta?.reused_experience)) {
+    presentation.setReusedExperience(meta.reused_experience as string[])
+  }
+  if (Array.isArray(meta?.case_experience)) {
+    presentation.setCaseExperience(
+      meta.case_experience as import('./types/experience').CaseScenario[],
+    )
+  }
 }
 
 function formatEvidenceStepText(data: Record<string, unknown>): string {
@@ -756,6 +764,20 @@ function upsertStep(event: {
   timestamp?: string
 }) {
   if (!event.step) return
+  if (event.step.startsWith('experience_') && event.status === 'completed') {
+    const level = event.step.replace('experience_', '') as
+      | 'cognition'
+      | 'diagnosis'
+      | 'solution'
+    const d = event.data ?? {}
+    const text =
+      (d.text as string) ||
+      (d.cause as string) ||
+      (d.quantified as string) ||
+      (d.skill_id as string) ||
+      ''
+    if (text) presentation.addExperienceSediment({ level, text })
+  }
   const idx = steps.value.findIndex((s) => s.step === event.step && s.status === 'running')
   const record: StepRecord = {
     step: event.step,

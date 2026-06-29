@@ -1,6 +1,7 @@
 import type { FlowTimingGovernance, ProblemEvidence, QuantitativeConstraints } from './evidence'
 import type { CognitionPayload, MapSceneHud } from './map'
 import type { CorridorScanState } from './corridor'
+import type { CaseScenario, ExperienceSedimentItem } from './experience'
 import type { InsightCardEntry } from './insight'
 import { createInsightCards as mkCards } from './insight'
 
@@ -107,6 +108,12 @@ export interface PresentationState {
   highlightTurn: HighlightTurn | null
   /** 干线扫描：左侧路口列表与选中态 */
   corridorScan: CorridorScanState | null
+  /** 三级经验逐步沉淀（认知/诊断/方案），每步落库后点亮 */
+  experienceSediment: ExperienceSedimentItem[]
+  /** 本轮复用的历史经验高亮 badge */
+  reusedExperience: string[]
+  /** 同类场景专家治理经验 */
+  caseExperience: CaseScenario[]
 }
 
 export interface RuntimeMetrics {
@@ -155,6 +162,9 @@ export function createInitialPresentation(): PresentationState {
     runtimeMetrics: null,
     highlightTurn: null,
     corridorScan: null,
+    experienceSediment: [],
+    reusedExperience: [],
+    caseExperience: [],
   }
 }
 
