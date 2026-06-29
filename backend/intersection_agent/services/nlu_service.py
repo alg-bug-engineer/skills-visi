@@ -19,18 +19,23 @@ from intersection_agent.utils.place_name_normalize import (
 logger = logging.getLogger(__name__)
 
 NLU_SYSTEM_PROMPT = """
-你是「交通智能体」，专门做路口拥堵诊断。从用户描述中提取结构化信息，只输出 JSON，不要解释。
+你是「交通智能体」，专门做路口问题诊断。从用户描述中提取结构化信息，只输出 JSON，不要解释。
 
 必须严格使用以下字段名：
 {
   "intersection": "路口全称或 null",
   "time_period": {"start":"HH:MM","end":"HH:MM","label":"早高峰|午高峰|晚高峰|平峰|夜间"} 或 null,
+  "problem_types": [],
   "directions": [],
   "user_suggestion": "用户对治理的初步想法或 null"
 }
 
 说明：
-- 本智能体只做拥堵诊断，不要提取渠化、信号配时等其他问题类型
+- problem_types: 判定用户描述的问题类型，可多选，取值只能来自集合
+  {congestion, spillback, empty_green, conflict}：
+  congestion=拥堵(排队长、通行慢)，spillback=溢出(排队外溢到上游/下游路口)，
+  empty_green=空放(绿灯放空、无车却放行)，conflict=相位/渠化冲突(相序、机非冲突、左转混行)。
+  无法判断时输出 ["congestion"]。
 - intersection: 标准化为"X路与Y路交叉口"或"X路与Y路路口"
 - directions: 必填。用户须说明拥堵进口方向，如「东西向」「南北向」，
   或具体进口（东进口、西进口）；无法判断时输出 [] 由系统追问
@@ -165,9 +170,23 @@ class NluService:
             intersection=intersection,
             time_period=time_period,
             problem_type=DEFAULT_PROBLEM_TYPE,
+            problem_types=self._parse_problem_types(raw.get("problem_types")),
             directions=[str(d) for d in directions],
             user_suggestion=suggestion,
         )
+
+    @staticmethod
+    def _parse_problem_types(raw: Any) -> list[str]:
+        """Normalize problem_types to the allowed four-class set, default congestion."""
+        allowed = {"congestion", "spillback", "empty_green", "conflict"}
+        if not isinstance(raw, list):
+            return ["congestion"]
+        types: list[str] = []
+        for item in raw:
+            value = str(item).strip()
+            if value in allowed and value not in types:
+                types.append(value)
+        return types or ["congestion"]
 
     @staticmethod
     def _fill_directions_from_context(nlu: NluResult, text: str) -> NluResult:
@@ -196,6 +215,7 @@ class NluService:
             intersection=nlu.intersection,
             time_period=nlu.time_period,
             problem_type=nlu.problem_type,
+            problem_types=nlu.problem_types,
             directions=inferred,
             user_suggestion=nlu.user_suggestion,
         )
@@ -212,6 +232,7 @@ class NluService:
             intersection=nlu.intersection,
             time_period=nlu.time_period,
             problem_type=nlu.problem_type,
+            problem_types=nlu.problem_types,
             directions=nlu.directions,
             user_suggestion=suggestion,
         )

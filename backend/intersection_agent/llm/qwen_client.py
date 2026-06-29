@@ -204,6 +204,7 @@ class QwenClient:
             result: dict[str, Any] = {
                 "intersection": None,
                 "time_period": None,
+                "problem_types": self._mock_problem_types(user),
                 "directions": [],
                 "user_suggestion": None,
             }
@@ -301,6 +302,20 @@ class QwenClient:
             return json.dumps(mock_narrative_from_facts(facts), ensure_ascii=False)
 
         return "好的。"
+
+    @staticmethod
+    def _mock_problem_types(user: str) -> list[str]:
+        """Keyword-based four-class classification for offline NLU tests."""
+        ptypes: list[str] = []
+        if "堵" in user or "拥堵" in user:
+            ptypes.append("congestion")
+        if "溢出" in user:
+            ptypes.append("spillback")
+        if "空放" in user:
+            ptypes.append("empty_green")
+        if "冲突" in user or "相位" in user or "相序" in user:
+            ptypes.append("conflict")
+        return ptypes or ["congestion"]
 
     @staticmethod
     def _mock_intent_classifier_json(user: str) -> str:

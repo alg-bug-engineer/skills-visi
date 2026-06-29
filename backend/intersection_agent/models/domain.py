@@ -56,6 +56,7 @@ class NluResult(BaseModel):
     intersection: str | None = None
     time_period: TimePeriod | None = None
     problem_type: str | None = None
+    problem_types: list[str] = Field(default_factory=lambda: ["congestion"])
     directions: list[str] = Field(default_factory=list)
     user_suggestion: str | None = None
 
