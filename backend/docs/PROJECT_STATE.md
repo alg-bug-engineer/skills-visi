@@ -1,8 +1,8 @@
-# 项目状态快照 · v3.0 渠化 AMap + 领导演示叙事
+# 项目状态快照 · v3.0.1 吸收/固化暂停 · 叙事分栏
 
-> 日期：2026-06-28  
-> 分支：`main` · 标签：`v3.0`  
-> 单测：backend **141** passed · frontend vitest **99** passed
+> 日期：2026-06-29  
+> 分支：`main` · 标签：`v3.0.1`  
+> 单测：backend **141** passed · frontend vitest **105** passed
 
 ---
 
@@ -17,7 +17,10 @@
 | 饱和度小数口径 | ✅ | 前后端统一 0.92 格式，语音模板同步 |
 | 约束 delta 裁剪 | ✅ | 先裁剪再生成建议，clip_note 写入 narrative |
 | 干线扫描 | ✅ | 道路级拥堵发现、PG 排名、Top3 引导 |
-| 意图 LLM 分类 | ✅ | 首轮二分类 + 规则兜底，禁 thinking |
+| 意图 LLM 分类 | ✅ | 首轮二分类 + 规则兜底 |
+| Qwen LLM 调用 | ✅ | 统一 `enable_thinking=False`（JSON Mode 兼容） |
+| 吸收/固化空格暂停 | ✅ | `skillPresentationDispatch` · RT-PAUSE-ABS |
+| 叙事卡左右分栏 | ✅ | 左态势 / 右验证+建议；终端时隐藏左栏 |
 | Qwen-TTS Realtime | ✅ | PCM 流式 + 源追踪 drain + cue 间隔 |
 
 ---
@@ -26,6 +29,7 @@
 
 | 文档 | 内容 |
 |------|------|
+| [RELEASE_v3.0.1.md](../../docs/RELEASE_v3.0.1.md) | **v3.0.1** 发布说明（吸收暂停、叙事分栏、饱和度） |
 | [RELEASE_v3.0.md](../../docs/RELEASE_v3.0.md) | v3.0 发布说明 |
 | [BUG_REGISTRY.md](../../docs/bugs/BUG_REGISTRY.md) | Bug 登记与截图索引 |
 | [渠化 AMap 迁移计划](../../docs/plans/2026-06-28-渠化AMap迁移与主图下钻.md) | 执行结果与偏差 |
@@ -42,7 +46,7 @@
 ```bash
 bash scripts/dev-v2.sh          # 8011 + 5568
 cd backend && pytest -q         # 141 项
-cd frontend-v2 && npm run test  # 99 项
+cd frontend-v2 && npm run test  # 105 项
 ```
 
 环境：`backend/.env` 参考 `.env.example`（`MOCK_LLM=0` + PG 可查真实干线）

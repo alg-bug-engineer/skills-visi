@@ -46,7 +46,6 @@ class QwenClient:
         user: str,
         temperature: float = 0.2,
         json_mode: bool = False,
-        enable_thinking: bool | None = None,
         max_tokens: int | None = None,
     ) -> str:
         """Send chat completion and return assistant text.
@@ -93,10 +92,7 @@ class QwenClient:
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
-        if enable_thinking is not None:
-            payload["enable_thinking"] = enable_thinking
-        elif json_mode:
-            payload["enable_thinking"] = False
+        payload["enable_thinking"] = False
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
 
@@ -144,7 +140,6 @@ class QwenClient:
         user: str,
         max_retries: int = 2,
         temperature: float = 0.2,
-        enable_thinking: bool = False,
         max_tokens: int | None = None,
     ) -> dict[str, Any]:
         """Chat with JSON mode and parse response; retry with repair on failure."""
@@ -156,7 +151,6 @@ class QwenClient:
                     user=user,
                     json_mode=True,
                     temperature=temperature,
-                    enable_thinking=enable_thinking,
                     max_tokens=max_tokens,
                 )
                 return self._extract_json(text)

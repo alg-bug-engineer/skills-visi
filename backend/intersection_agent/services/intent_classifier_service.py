@@ -76,7 +76,6 @@ class IntentClassifierService:
                 user=normalized,
                 max_retries=0,
                 temperature=0,
-                enable_thinking=False,
                 max_tokens=80,
             )
         except (ValueError, RuntimeError) as exc:

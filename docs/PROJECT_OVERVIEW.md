@@ -1,6 +1,6 @@
 # 项目总览 · 路口问题诊断以及固化技能
 
-> 版本：2026-06-28 · **v3.0**
+> 版本：2026-06-29 · **v3.0.1**
 > 本文档汇总开发内容、计划进度、主要变更与部署方式，作为根仓库的权威索引。
 
 ---
@@ -95,7 +95,8 @@
 | `docs/intersection/*/SKILL.md` | 场景认知、问题诊断等 Agent Skill 定义 |
 | `docs/路口四维筛选与演示路口清单.md` | 演示路口筛选结果 |
 | [`docs/RELEASE_v2.0.5.md`](RELEASE_v2.0.5.md) | v2.0.5 发布说明（融合视图、标注、语音、Bug） |
-| [`docs/RELEASE_v3.0.md`](RELEASE_v3.0.md) | **v3.0** 发布说明（AMap 渠化、叙事、TTS） |
+| [`docs/RELEASE_v3.0.1.md`](RELEASE_v3.0.1.md) | **v3.0.1** 发布说明（吸收暂停、叙事分栏、饱和度、LLM 收敛） |
+| [`docs/RELEASE_v3.0.md`](RELEASE_v3.0.md) | v3.0 发布说明（AMap 渠化、叙事、TTS） |
 | [`docs/bugs/BUG_REGISTRY.md`](bugs/BUG_REGISTRY.md) | Bug 登记与截图索引 |
 | [`docs/PRESENTATION_SYNC_BARRIER.md`](PRESENTATION_SYNC_BARRIER.md) | 呈现同步栅栏（强制） |
 | [`docs/DEV_CONSTRAINTS.md`](DEV_CONSTRAINTS.md) | 开发环境约束（终端代理 vs 应用运行时） |
@@ -155,6 +156,7 @@
 | 2026-06-27 | **饱和度口径**：前后端统一小数；约束「不能超过 N 秒」解析扩展 |
 | 2026-06-27 | **交互修复**：暂不固化不误开新分析；delta 裁剪写入建议 narrative |
 | 2026-06-28 | **v2.0.5**：地图渠化融合、标注分层、TTS 摘要、呈现同步栅栏、空格暂停 |
+| 2026-06-28 | **v3.0.1**：吸收/固化空格暂停、叙事左右分栏、饱和度小数、LLM thinking 收敛 |
 | 2026-06-28 | **v3.0**：渠化 AMap 迁移、左上叙事卡栈、TTS workspace 分离、转角圆弧移除 |
 | 2026-06-28 | **Bug 登记**：[`bugs/BUG_REGISTRY.md`](bugs/BUG_REGISTRY.md) |
 
@@ -231,7 +233,7 @@ bash scripts/dev.sh       # v1 前端 5567（需 frontend/ 独立仓库）
 cd backend && MOCK_LLM=1 MOCK_DB=1 .venv/bin/pytest -q   # 141 项
 
 # 前端单测
-cd frontend-v2 && npm run test   # 99 项
+cd frontend-v2 && npm run test   # 105 项
 
 # 联调冒烟
 bash scripts/e2e-v2.sh

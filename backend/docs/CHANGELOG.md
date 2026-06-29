@@ -1,15 +1,27 @@
 # 变更日志
 
-## v3.0.1 · 饱和度小数 · 地图 marker 格式 (2026-06-28)
+## v3.0.1 · 吸收/固化暂停 · 叙事分栏 · LLM 收敛 (2026-06-29)
+
+### 前端呈现（frontend-v2）
+
+- 经验吸收 / 技能固化接入空格 pause gate（`skillPresentationDispatch` · RT-PAUSE-ABS）。
+- 流式打字机修复：`thought_delta` / `file_delta` 同步 apply；禁止 `stage_start` 上全量 settle。
+- 叙事卡左右分栏：左路口态势 / 右问题验证与治理建议；技能终端时 `hideLeftPanel`。
+- 新增单测 `skillPresentationDispatch.spec.ts`；vitest **105** 项。
 
 ### 饱和度口径
 
 - 移除 `cap_saturation`：`data_fetcher` / `intersection_cognition_service` / `problem_evidence_service` 保留原始饱和度。
-- `map_presentation_service._fmt_sat()`：地图 HUD / marker 以小数两位展示（如 `0.92`），不再使用 `%`。
+- `map_presentation_service._fmt_sat()`：地图 HUD / marker 以小数两位展示（如 `0.92`）。
+
+### LLM 调用
+
+- `QwenClient`：移除 `enable_thinking` 参数，统一 `enable_thinking=False`（JSON Mode 与 thinking 不兼容）。
+- `IntentClassifierService` 调用侧同步简化。
 
 ### 文档
 
-- 联调说明见 [`docs/plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md`](../../docs/plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md) §5。
+- [`docs/RELEASE_v3.0.1.md`](../../docs/RELEASE_v3.0.1.md)、[`docs/plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md`](../../docs/plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md)。
 
 ---
 
