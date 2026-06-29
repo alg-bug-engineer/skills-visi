@@ -45,6 +45,7 @@ const props = defineProps<{
   presentationPaused?: boolean
   presentationLayers?: PresentationLayerGates
   focusStepIndex?: number
+  leaderboardRefreshKey?: number
 }>()
 
 const emit = defineEmits<{
@@ -147,11 +148,6 @@ const canToggleCorridor = computed(
         <div class="stage-toolbar">
           <span class="stage-label">路口 GIS</span>
           <div class="toolbar-actions">
-            <VoiceToggle
-              :enabled="Boolean(voiceEnabled)"
-              :playing="Boolean(voicePlaying)"
-              @toggle="emit('toggleVoice')"
-            />
             <button
               v-if="canToggleTiming"
               type="button"
@@ -174,6 +170,13 @@ const canToggleCorridor = computed(
         </div>
 
         <div class="stage-body">
+          <VoiceToggle
+            class="stage-voice-toggle"
+            :enabled="Boolean(voiceEnabled)"
+            :playing="Boolean(voicePlaying)"
+            @toggle="emit('toggleVoice')"
+          />
+
           <SkillBuildDrawer
             v-if="skillBuildState"
             :state="skillBuildState"
@@ -272,6 +275,7 @@ const canToggleCorridor = computed(
           :missing-fields="missingFields"
           :active="processActive"
           :stack-summary-mode="panelLayout === 'stacked'"
+          :leaderboard-refresh-key="leaderboardRefreshKey"
           @toggle="emit('toggleStep', $event)"
           @toggle-details="emit('toggleDetails', $event)"
         />
@@ -402,6 +406,13 @@ const canToggleCorridor = computed(
   flex: 1;
   min-height: 0;
   position: relative;
+}
+
+.stage-voice-toggle {
+  position: absolute;
+  left: 16px;
+  bottom: 24px;
+  z-index: 18;
 }
 
 .process-column {

@@ -6,6 +6,16 @@ import { streamVoicePcm, synthesizeVoiceWav } from '../services/ttsClient'
 
 const STORAGE_KEY = 'voice-narration-enabled'
 
+/** 语音默认开启；仅用户显式关闭（localStorage = '0'）时静音。 */
+function loadVoiceEnabled(): boolean {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored === null) {
+    localStorage.setItem(STORAGE_KEY, '1')
+    return true
+  }
+  return stored !== '0'
+}
+
 function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'AbortError'
 }
@@ -15,7 +25,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 export function useVoiceNarration() {
-  const enabled = ref(localStorage.getItem(STORAGE_KEY) === '1')
+  const enabled = ref(loadVoiceEnabled())
   const playing = ref(false)
   const queue = shallowRef<VoiceCue[]>([])
   let pcmPlayer: PcmStreamPlayer | null = null
