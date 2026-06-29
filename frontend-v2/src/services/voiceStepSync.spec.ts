@@ -27,6 +27,16 @@ describe('voiceStepSync', () => {
       voiceConfig.guide.evidenceIntro,
     )
     expect(resolveProcessStepVoice(STEP_INDICES.RULE)).toBe(voiceConfig.guide.ruleIntro)
+  })
+
+  it('plays flow-trace cue at problem evidence step when upstream sources found', () => {
+    expect(voiceConfig.guide.flowTrace).toBeTruthy()
+    expect(
+      resolveProcessStepVoice(STEP_INDICES.PROBLEM_EVIDENCE, { flowTraceAvailable: true }),
+    ).toBe(voiceConfig.guide.flowTrace)
+    expect(
+      resolveProcessStepVoice(STEP_INDICES.PROBLEM_EVIDENCE, { flowTraceAvailable: false }),
+    ).toBe(voiceConfig.guide.evidenceIntro)
     expect(resolveProcessStepVoice(STEP_INDICES.SUGGESTION)).toBe(
       voiceConfig.guide.suggestionConfirm,
     )

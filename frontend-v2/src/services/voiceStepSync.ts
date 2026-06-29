@@ -4,9 +4,12 @@
  */
 import { ANALYSIS_STEP_LABELS, STEP_INDICES } from '../constants'
 import { VOICE_GUIDE } from './voiceCueTemplates'
+import { voiceGuide } from './voiceConfig'
 
 export interface ProcessStepVoiceContext {
   intersectionName?: string | null
+  /** 问题诊断步命中流量溯源（高饱和+上游集中来源）时，播报溯源旁白 */
+  flowTraceAvailable?: boolean
 }
 
 /** 理解过程步骤 index → 面板标签（用于测试与文档对齐） */
@@ -46,7 +49,9 @@ export function resolveProcessStepVoice(
     case STEP_INDICES.DATA_FETCH:
       return VOICE_GUIDE.dataFetch
     case STEP_INDICES.PROBLEM_EVIDENCE:
-      return VOICE_GUIDE.evidenceIntro
+      return context.flowTraceAvailable
+        ? voiceGuide('flowTrace')
+        : VOICE_GUIDE.evidenceIntro
     case STEP_INDICES.RULE:
       return VOICE_GUIDE.ruleIntro
     case STEP_INDICES.SUGGESTION:

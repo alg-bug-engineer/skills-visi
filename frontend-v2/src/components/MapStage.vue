@@ -16,6 +16,7 @@ import {
 } from '../utils/amap'
 import { isEntrance, linkStrokeColor, markerHtml, mergeSceneMarkers, normalizeDir } from '../utils/mapMarkers'
 import { buildEvidenceDirectionMarkers, buildProtectedDirectionMarkers, highlightDirsForGroup } from '../utils/evidencePresentation'
+import FlowTraceMapSummary from './insight/FlowTraceMapSummary.vue'
 import { buildInterItemFromCognition } from '../utils/cognitionChannelAdapter'
 import { createChannelizationController, type ChannelizationController } from '../lib/channelizationController'
 import { LOD_THRESHOLDS } from '../lib/channelizationGeometry'
@@ -139,6 +140,8 @@ let boxOverlay: InstanceType<typeof AMap.Polygon> | null = null
 const linkOverlays: InstanceType<typeof AMap.Polyline>[] = []
 const glowOverlays: InstanceType<typeof AMap.Polyline>[] = []
 const markers: InstanceType<typeof AMap.Marker>[] = []
+const flowSourceMarkers: InstanceType<typeof AMap.Marker>[] = []
+const flowSourceLines: InstanceType<typeof AMap.Polyline>[] = []
 
 const sceneOpts = ref({
   highlightDirs: [] as string[],
@@ -229,6 +232,74 @@ function stopLinkFlash() {
 function clearMarkers() {
   markers.forEach((m) => m.setMap(null))
   markers.length = 0
+}
+
+function clearFlowSources() {
+  flowSourceMarkers.forEach((m) => m.setMap(null))
+  flowSourceMarkers.length = 0
+  flowSourceLines.forEach((l) => l.setMap(null))
+  flowSourceLines.length = 0
+}
+
+/** 流量溯源：沿进口道折线展示上一跳来车方向（禁止中心飞线） */
+function renderFlowSources(action: MapActionEvent) {
+  if (!map || !AMapLib) return
+  clearFlowSources()
+  const traces = action.entry_traces ?? []
+  const center = action.source_center
+  const palette = ['#ff8a4c', '#ffc266', '#ff6b9d', '#7ec8ff']
+  traces.forEach((trace, idx) => {
+    const color = palette[idx % palette.length]
+    let path: Array<[number, number]> = []
+    if (trace.path && trace.path.length >= 2) {
+      path = trace.path.map((p) => [p[0], p[1]] as [number, number])
+    } else if (
+      trace.lon != null &&
+      trace.lat != null &&
+      center?.lon != null &&
+      center?.lat != null
+    ) {
+      path = [
+        [trace.lon, trace.lat],
+        [center.lon, center.lat],
+      ]
+    }
+    if (path.length < 2) return
+    const weight = 2.5 + Math.min(4, (trace.vehicles_of_100 ?? 50) / 25)
+    const line = new AMapLib.Polyline({
+      path,
+      strokeColor: color,
+      strokeWeight: weight,
+      strokeOpacity: 0.82,
+      lineJoin: 'round',
+      lineCap: 'round',
+      showDir: true,
+      zIndex: 68 + idx,
+    })
+    line.setMap(map)
+    flowSourceLines.push(line)
+    const tip = path[0]
+    const label =
+      `${trace.entry ?? ''} ← ${trace.name ?? '上一路口'} ` +
+      `${trace.dominant_turn ?? ''} ${trace.vehicles_of_100 ?? ''}辆/100`
+    const marker = new AMapLib.Marker({
+      position: tip,
+      anchor: 'bottom-center',
+      zIndex: 78 + idx,
+      content:
+        `<div class="flow-road-label" style="border-color:${color}">` +
+        `<span>${label.trim()}</span></div>`,
+    })
+    marker.setMap(map)
+    flowSourceMarkers.push(marker)
+  })
+  if (flowSourceLines.length) {
+    try {
+      map.setFitView([...flowSourceLines], true, [100, 100, 160, 100])
+    } catch {
+      /* best-effort */
+    }
+  }
 }
 
 function clearOverlays() {
@@ -446,6 +517,7 @@ async function prepareNewAnalysisRun() {
   }
   clearMarkers()
   clearOverlays()
+  clearFlowSources()
 }
 
 async function resetToCityDefault() {
@@ -625,6 +697,10 @@ async function handleAction(action: MapActionEvent) {
     }
     case 'reset_city_view': {
       await resetToCityDefault()
+      break
+    }
+    case 'highlight_flow_sources': {
+      renderFlowSources(action)
       break
     }
     case 'map_scene': {
@@ -845,6 +921,11 @@ watch(
       @close-corridor-wave="emit('closeCorridorWave')"
     />
 
+    <FlowTraceMapSummary
+      v-if="!showChanFull && evidence?.flow_trace?.available"
+      :flow-trace="evidence?.flow_trace"
+    />
+
     <div v-if="!ready && !error && viewMode === 'map'" class="map-loading">地图加载中…</div>
   </div>
 </template>
@@ -986,6 +1067,18 @@ watch(
 </style>
 
 <style>
+.flow-road-label {
+  padding: 3px 7px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 138, 76, 0.7);
+  background: rgba(10, 14, 22, 0.9);
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffe8cc;
+  white-space: nowrap;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
 /* 高德 Marker 气泡（全局，注入 HTML） */
 .map-marker {
   position: relative;

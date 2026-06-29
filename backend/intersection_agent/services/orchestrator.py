@@ -19,6 +19,7 @@ from intersection_agent.models.domain import (
 )
 from intersection_agent.services.data_fetcher import DataFetcher
 from intersection_agent.services.flow_timing_governance_service import FlowTimingGovernanceService
+from intersection_agent.services.flow_trace_service import FlowTraceService
 from intersection_agent.services.follow_up_service import FollowUpService
 from intersection_agent.services.expert_rules_summary import format_expert_rules_markdown
 from intersection_agent.services.intent_detector import detect_confirmation_intent
@@ -29,6 +30,7 @@ from intersection_agent.services.intersection_cognition_service import (
 )
 from intersection_agent.services.intersection_resolver import IntersectionResolver
 from intersection_agent.services.map_presentation_service import (
+    build_flow_sources_action,
     build_links_narration_payload,
     build_map_scene,
     build_narration_steps,
@@ -88,6 +90,7 @@ class Orchestrator:
         intent_classifier: IntentClassifierService | None = None,
         context_tags: ContextTagsService | None = None,
         flow_governance: FlowTimingGovernanceService | None = None,
+        flow_trace: FlowTraceService | None = None,
         sustained: SustainedMetricsService | None = None,
     ) -> None:
         self._nlu = nlu or NluService()
@@ -109,6 +112,7 @@ class Orchestrator:
         self._intent_classifier = intent_classifier or IntentClassifierService()
         self._context_tags = context_tags or ContextTagsService()
         self._flow_governance = flow_governance or FlowTimingGovernanceService(rules=self._rules)
+        self._flow_trace = flow_trace or FlowTraceService()
         self._sustained = sustained or SustainedMetricsService()
         self._settings = get_settings()
 
@@ -1009,6 +1013,24 @@ class Orchestrator:
         else:
             session.data_payload["cognition"] = cognition
 
+        # 流量溯源（问题诊断环节增强）：仅高饱和问题转向触发，供 diagnosis_story / action_plan / 地图共用
+        flow_trace = await self._flow_trace.build(
+            session.inter_id,
+            session.nlu,
+            data_payload=session.data_payload,
+        )
+        session.data_payload["flow_trace"] = flow_trace
+        if emitter and flow_trace.get("available"):
+            flow_sources_action = build_flow_sources_action(
+                flow_trace, session.data_payload.get("cognition")
+            )
+            if flow_sources_action:
+                await self._emit_map_sequence(
+                    emitter,
+                    action="highlight_flow_sources",
+                    data=flow_sources_action,
+                )
+
         problem_evidence = await self._evidence.build(
             session.inter_id,
             session.resolved_intersection or "",
@@ -1048,6 +1070,7 @@ class Orchestrator:
                 "corridor_context": problem_evidence.get("corridor_context"),
                 "external_evidence": problem_evidence.get("external_evidence"),
                 "diagnosis_story": problem_evidence.get("diagnosis_story"),
+                "flow_trace": flow_trace if flow_trace.get("available") else None,
                 "sustained_metrics": sustained_metrics,
             }
             if quantitative_constraints:
@@ -1573,6 +1596,9 @@ class Orchestrator:
             flow_gov = session.data_payload.get("flow_timing_governance")
             if flow_gov:
                 meta["flow_timing_governance"] = flow_gov
+            flow_trace = session.data_payload.get("flow_trace")
+            if flow_trace and flow_trace.get("available"):
+                meta["flow_trace"] = flow_trace
             sustained = session.data_payload.get("sustained_metrics")
             if sustained:
                 meta["sustained_metrics"] = sustained

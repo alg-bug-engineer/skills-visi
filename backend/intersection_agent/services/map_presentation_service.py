@@ -48,6 +48,99 @@ def build_understanding_card(
     }
 
 
+def build_flow_sources_action(
+    flow_trace: dict[str, Any],
+    cognition: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """流量溯源地图动作：按进口道沿路折线展示上一跳来源（禁止中心飞线）。"""
+    if not flow_trace or not flow_trace.get("available"):
+        return None
+    inter = (cognition or {}).get("intersection") or {}
+    center_lon, center_lat = inter.get("lon"), inter.get("lat")
+    center = {"lon": center_lon, "lat": center_lat}
+
+    entries = flow_trace.get("entry_traces") or []
+    if not entries:
+        return None
+
+    traces: list[dict[str, Any]] = []
+    for entry in entries:
+        if entry.get("upstream_lng") is None or entry.get("upstream_lat") is None:
+            continue
+        path = _road_path_for_entry(
+            cognition,
+            int(entry.get("dir8_code") or 0),
+            center,
+            float(entry["upstream_lng"]),
+            float(entry["upstream_lat"]),
+        )
+        dom = entry.get("dominant_movement") or {}
+        traces.append(
+            {
+                "entry": entry.get("entry"),
+                "dir8_code": entry.get("dir8_code"),
+                "upstream_inter_id": entry.get("upstream_inter_id"),
+                "name": entry.get("upstream_inter_name") or "上一路口",
+                "narrative": entry.get("narrative"),
+                "lon": entry.get("upstream_lng"),
+                "lat": entry.get("upstream_lat"),
+                "dominant_turn": dom.get("turn"),
+                "vehicles_of_100": dom.get("vehicles_of_100"),
+                "movements": entry.get("upstream_movements") or [],
+                "path": path,
+                "dominant": True,
+            }
+        )
+    if not traces:
+        return None
+
+    summary = "；".join(t["narrative"] for t in traces[:3] if t.get("narrative"))
+    return {
+        "phase": "flow_trace",
+        "title": "流量溯源",
+        "source_center": center,
+        "entry_traces": traces,
+        "text": summary,
+    }
+
+
+_DIR8_KEYWORDS = {
+    0: "北", 1: "东北", 2: "东", 3: "东南",
+    4: "南", 5: "西南", 6: "西", 7: "西北",
+}
+
+
+def _road_path_for_entry(
+    cognition: dict[str, Any] | None,
+    dir8_code: int,
+    center: dict[str, Any],
+    up_lon: float,
+    up_lat: float,
+) -> list[list[float]]:
+    """优先沿进口道 link 折线，否则退回上游点→中心折线（仍非多路口飞线）。"""
+    clon, clat = center.get("lon"), center.get("lat")
+    if clon is None or clat is None:
+        return []
+    links = (cognition or {}).get("links") or []
+    kw = _DIR8_KEYWORDS.get(dir8_code, "")
+    best_path: list[list[float]] | None = None
+    best_len = 0
+    for link in links:
+        label = str(link.get("dir8_label") or link.get("dir4_label") or "")
+        if kw and kw not in label:
+            continue
+        raw = link.get("path") or []
+        if len(raw) < 2:
+            continue
+        path = [[float(p[0]), float(p[1])] for p in raw if len(p) >= 2]
+        if len(path) > best_len:
+            best_len = len(path)
+            best_path = path
+    if best_path:
+        return best_path
+    return [[up_lon, up_lat], [float(clon), float(clat)]]
+
+
 def pick_narration_step(steps: list[dict[str, Any]], phase: str) -> dict[str, Any] | None:
     """Return a single narration step by phase."""
     for step in steps:

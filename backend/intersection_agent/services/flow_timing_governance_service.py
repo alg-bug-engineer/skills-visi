@@ -62,9 +62,11 @@ class FlowTimingGovernanceService:
         expert_rules = build_expert_rules_brief({"problems": problems})
 
         action_plan = build_action_plan(data, primary=primary, problems=problems)
+        flow_trace_supplement = _flow_trace_supplement(data, action_plan)
 
         return {
             "primary_diagnosis": primary,
+            "flow_trace_supplement": flow_trace_supplement,
             "match_verdict": match_verdict,
             "match_narrative": match_narrative,
             "flow_green_tau": flow_green.get("spearman_tau") or timing.get("flow_green_tau"),
@@ -78,6 +80,36 @@ class FlowTimingGovernanceService:
             "checklist_refs": {cat: CHECKLIST_REFS.get(cat) for cat in FOCUS_CATEGORIES},
             "action_plan": action_plan,
         }
+
+
+def _flow_trace_supplement(
+    data: dict[str, Any], action_plan: dict[str, Any] | None
+) -> str:
+    """流量溯源补充建议（叠加维度，独立于主诊断类型）。
+
+    当主方案已是上游协调时不重复；否则若存在单一上游主导来源，
+    追加「也可在上游协同」的补充方向。途经率非占比，文案禁用「贡献/占比」。
+    """
+    if action_plan and action_plan.get("action_type") == "upstream_coordination":
+        return ""
+    flow_trace = data.get("flow_trace") or {}
+    if not flow_trace.get("available"):
+        return ""
+    hints = [
+        h for h in (flow_trace.get("governance_hints") or [])
+        if h.get("type") == "upstream_coordination" and h.get("inter_name")
+    ]
+    if not hints:
+        return ""
+    hints.sort(key=lambda h: h.get("coverage") or 0, reverse=True)
+    top = hints[0]
+    cov = top.get("coverage")
+    cov_text = f"约 {cov:.0f} 辆/100 " if isinstance(cov, (int, float)) else ""
+    return (
+        f"流量溯源补充：{top.get('problem_turn')}{cov_text}来自上一路口"
+        f"{top.get('inter_name')}{top.get('feed_direction') or ''}，"
+        "建议在该路口协同优化放行节奏，从源头削减进入车流。"
+    )
 
 
 def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[str, Any]:
@@ -116,8 +148,12 @@ def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[s
         deficit_ratio_max is not None and deficit_ratio_max > 0 and deficit_turns
     )
 
-    over_turn = _over_saturated_turn(by_turn, sat_high)
-    spare_turn = _spare_green_turn(by_turn, exclude=over_turn)
+    low_util = threshold_value("green", "low_utilization_diagnosis", default=0.60)
+
+    over_turn = _best_over_turn(by_turn, sat_high)
+    spare_turn = _best_spare_turn(
+        by_turn, exclude=over_turn.get("label") if over_turn else None, low_util=low_util
+    )
     deficit_turn_label = deficit_turns[0].get("label") if deficit_turns else None
 
     # —— 四选一主诊断 ——
@@ -125,11 +161,17 @@ def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[s
         dtype = "timing_optimizable"
         severity = "high" if max_x >= sat_over else "medium"
         if over_turn and spare_turn:
+            o_label, o_sat, o_util = (
+                over_turn["label"], over_turn["turn_saturation"], over_turn["green_utilization"]
+            )
+            s_label, s_util = spare_turn["label"], spare_turn["green_utilization"]
+            util_part = f"、绿灯利用{o_util:.0%}" if o_util is not None else ""
             headline = (
-                f"{over_turn}已过饱和（{max_x:.2f}），而{spare_turn}绿灯仍有富余"
+                f"{o_label}已过饱和（饱和{o_sat:.2f}{util_part}），"
+                f"而{s_label}绿灯利用率仅{s_util:.0%}仍有富余"
                 "——属于绿灯分配不均，配时可改善"
             )
-            lever = f"建议把{spare_turn}的部分绿灯时间让给{over_turn}，优先调整绿信比分配"
+            lever = f"建议把{s_label}的部分绿灯时间让给{o_label}，优先调整绿信比分配"
         else:
             headline = (
                 f"部分转向已过饱和（最高 {max_x:.2f}），另一些转向绿灯仍有富余"
@@ -162,7 +204,13 @@ def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[s
             _line(spread is not None, f"转向饱和度极差 {spread:.2f}" if spread is not None else ""),
             _line(
                 dtype == "timing_optimizable" and spare_turn is not None,
-                f"{spare_turn}绿灯利用率偏低，可让出富余绿灯" if spare_turn is not None else "",
+                (
+                    f"{spare_turn['label']}绿灯利用率 {spare_turn['green_utilization']:.0%}"
+                    f"（低于富余阈值 {low_util:.0%}），可向"
+                    f"{over_turn['label']}（饱和 {over_turn['turn_saturation']:.2f}）挪绿"
+                    if spare_turn and over_turn
+                    else ""
+                ),
             ),
             _line(
                 flow_green_verdict in ("weak", "mismatch"),
@@ -186,39 +234,90 @@ def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[s
         "severity": severity,
         "evidence": evidence,
         "structure_limited": structure_limited,
+        "turn_balance": _turn_balance_payload(over_turn, spare_turn, low_util),
     }
 
 
-def _over_saturated_turn(by_turn: list[dict[str, Any]], sat_high: float) -> str | None:
-    """流量大、最饱和的转向（by_turn 已按 turn_saturation 降序）。"""
-    best_label: str | None = None
+def _turn_balance_payload(
+    over_turn: dict[str, Any] | None,
+    spare_turn: dict[str, Any] | None,
+    low_util: float,
+) -> dict[str, Any]:
+    """过饱和方 vs 绿灯富余方，供前端展示可核对指标。"""
+    payload: dict[str, Any] = {"spare_util_threshold": low_util}
+    if over_turn:
+        payload["over"] = over_turn
+    if spare_turn:
+        payload["spare"] = spare_turn
+    return payload
+
+
+def _turn_row_metrics(turn: dict[str, Any]) -> dict[str, Any] | None:
+    label = turn.get("label")
+    if not label:
+        return None
+    return {
+        "label": str(label),
+        "turn_saturation": _float(turn.get("turn_saturation")),
+        "green_utilization": _float(turn.get("green_utilization")),
+    }
+
+
+def _best_over_turn(by_turn: list[dict[str, Any]], sat_high: float) -> dict[str, Any] | None:
+    """最饱和且达高饱和阈值的转向（含饱和度、绿灯利用率）。"""
+    best: dict[str, Any] | None = None
     best_sat = -1.0
     for turn in by_turn:
-        sat = _float(turn.get("turn_saturation"))
-        label = turn.get("label")
-        if sat is None or not label:
+        metrics = _turn_row_metrics(turn)
+        if not metrics:
             continue
-        if sat > best_sat:
-            best_sat = sat
-            best_label = str(label)
-    if best_label is not None and best_sat >= sat_high:
-        return best_label
+        sat = metrics.get("turn_saturation")
+        if sat is None or sat <= best_sat:
+            continue
+        best_sat = sat
+        best = metrics
+    if best is not None and best_sat >= sat_high:
+        return best
     return None
 
 
-def _spare_green_turn(by_turn: list[dict[str, Any]], *, exclude: str | None = None) -> str | None:
-    """绿灯有富余的"供绿方"：绿灯利用率最低的转向（排除已过饱和转向，避免自挪绿灯）。"""
-    best_label: str | None = None
+def _best_spare_turn(
+    by_turn: list[dict[str, Any]],
+    *,
+    exclude: str | None = None,
+    low_util: float,
+) -> dict[str, Any] | None:
+    """绿灯富余方：利用率低于阈值且最低的转向（须有可展示的利用率）。"""
+    best: dict[str, Any] | None = None
     best_util = 2.0
     for turn in by_turn:
-        util = _float(turn.get("green_utilization"))
-        label = turn.get("label")
-        if util is None or not label or str(label) == exclude:
+        metrics = _turn_row_metrics(turn)
+        if not metrics:
+            continue
+        if exclude and metrics["label"] == exclude:
+            continue
+        util = metrics.get("green_utilization")
+        if util is None or util >= low_util:
             continue
         if util < best_util:
             best_util = util
-            best_label = str(label)
-    return best_label
+            best = metrics
+    return best
+
+
+def _over_saturated_turn(by_turn: list[dict[str, Any]], sat_high: float) -> str | None:
+    """兼容旧调用：返回过饱和转向 label。"""
+    row = _best_over_turn(by_turn, sat_high)
+    return row["label"] if row else None
+
+
+def _spare_green_turn(
+    by_turn: list[dict[str, Any]], *, exclude: str | None = None
+) -> str | None:
+    """兼容旧调用：返回富余转向 label（带阈值）。"""
+    low_util = threshold_value("green", "low_utilization_diagnosis", default=0.60)
+    row = _best_spare_turn(by_turn, exclude=exclude, low_util=low_util)
+    return row["label"] if row else None
 
 
 def _match_narrative_from_verdict(verdict: str) -> str:

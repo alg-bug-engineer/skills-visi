@@ -549,6 +549,7 @@ class ProblemEvidenceService:
         evidence["timing_profile"] = payload.get("timing_profile") or {}
         evidence["corridor_context"] = payload.get("corridor_context") or {}
         evidence["external_evidence"] = payload.get("external_evidence") or {}
+        evidence["flow_trace"] = payload.get("flow_trace") or {}
         eval_metrics = payload.get("evaluation") or {}
         if eval_metrics.get("level_of_service"):
             evidence.setdefault("metrics", {})
@@ -603,6 +604,11 @@ class ProblemEvidenceService:
         corridor = evidence.get("corridor_context") or {}
         if corridor.get("narrative"):
             beats.append({"phase": "corridor", "title": "干线上下文", "text": str(corridor["narrative"])})
+
+        flow_trace = evidence.get("flow_trace") or {}
+        trace_text = _flow_trace_beat_text(flow_trace)
+        if trace_text:
+            beats.append({"phase": "flow_trace", "title": "流量溯源", "text": trace_text})
 
         external = evidence.get("external_evidence") or {}
         if external.get("has_external_evidence") and _is_display_narrative(external.get("narrative")):
@@ -729,6 +735,26 @@ class ProblemEvidenceService:
             "metrics": {},
             "by_direction": [],
         }
+
+
+def _flow_trace_beat_text(flow_trace: dict[str, Any]) -> str:
+    """流量溯源叙事 beat：进口道 100 辆 / 上一路口左直右（近月规律）。"""
+    if not flow_trace or not flow_trace.get("available"):
+        return ""
+    entries = flow_trace.get("entry_traces") or []
+    if entries:
+        top = max(entries, key=lambda e: float(e.get("entry_max_saturation") or 0))
+        narrative = str(top.get("narrative") or "").strip()
+        if narrative:
+            return f"{narrative}（近月同时段规律）"
+    turns = flow_trace.get("problem_turns") or []
+    for turn in turns:
+        if turn.get("source_pattern") == "multi_corridor":
+            return (
+                f"{turn.get('entry')}{turn.get('turn')}车流来自多个上游方向，"
+                "宜区域协同治理（近月同时段规律）"
+            )
+    return ""
 
 
 def _is_display_verdict(verdict: Any) -> bool:

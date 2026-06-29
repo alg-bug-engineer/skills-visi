@@ -194,8 +194,36 @@ M3: 「确认固化」
 
 ```
 orchestrator.start → nlu → skill_match → intersection → intersection_cognition
-→ data_fetch → problem_evidence → rule_engine → [suggestion] → complete
+→ data_fetch → [flow_trace highlight_flow_sources] → problem_evidence → rule_engine → [suggestion] → complete
 ```
+
+---
+
+## 7b. RT-FLOW · 流量溯源接入问题诊断（2026-06-29）
+
+> 设计/计划：[`plans/2026-06-29-流量溯源接入问题诊断-开发计划.md`](plans/2026-06-29-流量溯源接入问题诊断-开发计划.md)
+> 数据源：`xianchang.dws_tfc_inter_turn_flow_correlate_m`（月度·转向级·UPSTREAM）。
+> 关键语义：`flow_share_ratio`＝途经率（多跳叠加，可 >100%），**非来车占比**。一跳＝同上游方位 coverage 最大者。
+> 触发：分向饱和度 ≥ `flow_trace.trigger_saturation`(0.90) 的问题转向；演示路口 `011wwe28ctu00001`（奥体西路×经十路）。
+
+| TC-ID | 优先级 | 场景 | 期望 | 现有测试 |
+|-------|--------|------|------|---------|
+| RT-FLOW-01 | P0 | by_turn 带方位编码 | by_turn 行含 dir8_code/turn_dir_no | test_data_fetcher::test_by_turn_keeps_dir8_and_turn_codes |
+| RT-FLOW-02 | P0 | 一跳锁定 | 同方位多跳取最大 coverage | test_flow_trace_service::test_one_hop_lock_keeps_max_per_bearing |
+| RT-FLOW-03 | P0 | 来源结构判定 | single/multi/local 分类正确 | test_flow_trace_service::test_classify_* |
+| RT-FLOW-04 | P1 | 未达饱和阈值不触发 | available=false, reason=not_triggered | test_flow_trace_service::test_service_not_triggered* |
+| RT-FLOW-05 | P1 | MOCK_DB 可产出 | available=true（演示兜底） | test_flow_trace_service::test_service_mock_db_builds_trace |
+| RT-FLOW-06 | P1 | 思考过程 beat | diagnosis_story 含 flow_trace phase | test_problem_evidence_verdict::test_diagnosis_story_includes_flow_trace_beat |
+| RT-FLOW-07 | P0 | 能力瓶颈→上游协调 | action_type=upstream_coordination，文案带路口名/「辆/100」 | test_governance_action_plan::test_upstream_coordination_* |
+| RT-FLOW-08 | P1 | timing 可优化也补充上游维度 | flow_trace_supplement 非空，辆/100 口径 | test_governance_action_plan::test_flow_trace_supplement_* |
+| RT-FLOW-09 | P1 | 地图动作 | highlight_flow_sources 含 entry_traces+沿路 path | test_map_presentation::test_flow_sources_action_* |
+| RT-FLOW-10 | P1 | 地图左下摘要 | FlowTraceMapSummary 渲染 100 辆口径 narrative | FlowTraceMapSummary.spec.ts / flowTraceCopy.spec.ts |
+| RT-FLOW-11 | P1 | 语音同步 | 问题诊断步命中溯源播 flowTrace 旁白 | voiceStepSync.spec.ts |
+| RT-FLOW-12 | P1 | 主诊断富余阈值 | turn_balance 含 spare 绿利用 &lt;0.60 | test_flow_timing_governance::test_primary_timing_optimizable |
+| RT-FLOW-13 | P1 | 进口道溯源 | build_entry_traces 100 辆归一化 | test_flow_trace_service::test_build_entry_traces_* |
+| RT-FLOW-14 | P1 | 思考 beat 口径 | _flow_trace_beat_text 用 entry_traces narrative | test_problem_evidence_verdict::test_flow_trace_beat_* |
+
+**口径红线**：文案禁用「贡献」「占比」，统一「途经/来自」；展示「近月同时段规律」。
 
 ---
 

@@ -48,6 +48,32 @@ const primarySeverityClass = computed(() => {
       <ul v-if="primary.evidence?.length" class="primary-evidence">
         <li v-for="(line, i) in primary.evidence" :key="i">{{ line }}</li>
       </ul>
+      <div
+        v-if="primary.turn_balance?.over || primary.turn_balance?.spare"
+        class="turn-balance"
+        data-testid="turn-balance"
+      >
+        <div v-if="primary.turn_balance.over" class="tb-row over">
+          <span class="tb-label">过饱和方</span>
+          <span class="tb-val">{{ primary.turn_balance.over.label }}</span>
+          <span v-if="primary.turn_balance.over.turn_saturation != null" class="tb-metric">
+            饱和 {{ primary.turn_balance.over.turn_saturation.toFixed(2) }}
+          </span>
+          <span v-if="primary.turn_balance.over.green_utilization != null" class="tb-metric">
+            绿利用 {{ Math.round(primary.turn_balance.over.green_utilization * 100) }}%
+          </span>
+        </div>
+        <div v-if="primary.turn_balance.spare" class="tb-row spare">
+          <span class="tb-label">绿灯富余</span>
+          <span class="tb-val">{{ primary.turn_balance.spare.label }}</span>
+          <span v-if="primary.turn_balance.spare.green_utilization != null" class="tb-metric">
+            绿利用 {{ Math.round(primary.turn_balance.spare.green_utilization * 100) }}%
+            <template v-if="primary.turn_balance.spare_util_threshold != null">
+              （阈值 &lt;{{ Math.round(primary.turn_balance.spare_util_threshold * 100) }}%）
+            </template>
+          </span>
+        </div>
+      </div>
     </section>
 
     <section v-if="governance.action_plan?.headline" class="action-plan">
@@ -201,6 +227,42 @@ const primarySeverityClass = computed(() => {
   font-size: 10px;
   line-height: 1.5;
   color: rgba(176, 205, 230, 0.78);
+}
+
+.turn-balance {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10px;
+}
+.tb-label {
+  color: rgba(180, 200, 220, 0.65);
+  min-width: 52px;
+}
+.tb-val {
+  font-weight: 700;
+  color: #e8f6ff;
+}
+.tb-row.over .tb-val {
+  color: #ff9f9f;
+}
+.tb-row.spare .tb-val {
+  color: #9dffb8;
+}
+.tb-metric {
+  font-family: ui-monospace, monospace;
+  color: rgba(200, 225, 245, 0.85);
 }
 
 .action-plan {

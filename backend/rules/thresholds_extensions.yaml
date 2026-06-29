@@ -37,3 +37,15 @@ green:
 
 display:
   saturation_cap: 1.5
+
+flow_trace:
+  # 上游来源路径途经率（flow_share_ratio，0-300+，非占比）判定阈值。
+  # 语义：本进口约 X% 车流"途经过"该上游转向；同方位多跳衰减，一跳取最大。
+  # coverage_high：单一上游主导的途经率下限（百分数口径，70 = 70%）。
+  coverage_high: 70.0
+  # dominance_gap：主导方位与次方位途经率绝对差下限，判定"单一上游主导"。
+  gap_significant: 25.0
+  # 仅对饱和度 ≥ trigger_saturation 的转向做溯源（与 saturation.oversaturation 对齐）。
+  trigger_saturation: 0.90
+  # 单转向展示的一跳来源数上限。
+  top_sources: 3

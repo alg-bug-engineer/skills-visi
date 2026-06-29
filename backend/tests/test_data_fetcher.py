@@ -63,6 +63,34 @@ class _TracePool:
         return []
 
 
+class _ByTurnPool(_TracePool):
+    async def fetch(self, query, *args):
+        if "GROUP BY ts.dir8_code, ts.turn_dir_no" in query:
+            return [
+                {"dir8_code": 2, "turn_dir_no": 1, "turn_saturation": 1.73, "green_utilization": 0.9},
+            ]
+        return await super().fetch(query, *args)
+
+
+@pytest.mark.asyncio
+async def test_by_turn_keeps_dir8_and_turn_codes():
+    """TC by_turn_dir_fields：by_turn 行须带 dir8_code/turn_dir_no（溯源对齐用）。"""
+    settings = Settings(mock_db=False, pg_flow_schema="flow", pgschema="road", pg_version_id="v1")
+    fetcher = DataFetcher(pool=_ByTurnPool(), settings=settings)
+    nlu = NluResult(
+        intersection="x",
+        time_period=TimePeriod(start="16:00", end="18:00", label="晚高峰"),
+        problem_type="congestion",
+        directions=["东西向"],
+    )
+    payload = await fetcher.fetch("inter_001", "x", nlu, reference_date=date(2026, 6, 24))
+    by_turn = payload["granularity"]["by_turn"]
+    assert by_turn
+    assert by_turn[0]["dir8_code"] == 2
+    assert by_turn[0]["turn_dir_no"] == 1
+    assert by_turn[0]["label"]
+
+
 @pytest.mark.asyncio
 async def test_fetch_keeps_sql_and_raw_rows_for_replay(caplog):
     settings = Settings(mock_db=False, pg_flow_schema="flow", pgschema="road", pg_version_id="v1")

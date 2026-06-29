@@ -320,6 +320,8 @@ class DataFetcher:
         return [
             {
                 "label": turn_label(int(r.get("dir8_code") or 0), int(r.get("turn_dir_no") or 2)),
+                "dir8_code": int(r.get("dir8_code") or 0),
+                "turn_dir_no": int(r.get("turn_dir_no") or 2),
                 "turn_saturation": _float(r, "turn_saturation"),
                 "green_utilization": _float(r, "green_utilization"),
             }

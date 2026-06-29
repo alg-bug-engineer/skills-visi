@@ -36,11 +36,16 @@ def build_action_plan(
     detected = {str(p.get("category")) for p in problems if p.get("detected")}
     primary_type = str(primary.get("type") or "")
 
+    flow_trace = data.get("flow_trace") or {}
+
     spillback = "spillback" in detected
     if spillback and _spillback_severe(data):
         return _spillback_plan(data, turns, cycle)
 
     if primary_type == "capacity_bottleneck":
+        upstream = _upstream_coordination_plan(primary, flow_trace, turns)
+        if upstream:
+            return upstream
         return _capacity_plan(primary, turns, cycle, flow_green)
 
     if primary_type == "basically_matched":
@@ -68,8 +73,13 @@ def format_action_plan_for_prompt(plan: dict[str, Any]) -> str:
         f"- 要点：{plan.get('headline')}",
         f"- 数据依据：{plan.get('narrative_template')}",
     ]
-    if plan.get("transfer_seconds") is not None:
+    if plan.get("transfer_seconds"):
         lines.append(f"- 建议挪绿：{plan.get('transfer_seconds')} 秒（保持周期不变）")
+    if plan.get("action_type") == "upstream_coordination" and plan.get("upstream_inter_name"):
+        lines.append(
+            f"- 上游协调目标：{plan.get('upstream_inter_name')}"
+            f"{plan.get('upstream_movement') or ''}（{plan.get('upstream_coverage')} 辆/100）"
+        )
     if plan.get("donor_turn"):
         d = plan["donor_turn"]
         if d.get("green_utilization") is not None:
@@ -316,6 +326,62 @@ def _capacity_plan(
         "confidence": 0.8,
         "evidence": list(primary.get("evidence") or []),
         "data_gaps": ["turn_level_green_sec"] if not (flow_green.get("items")) else [],
+    }
+
+
+def _upstream_coordination_plan(
+    primary: dict[str, Any],
+    flow_trace: dict[str, Any],
+    turns: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """能力瓶颈 + 有单一上游主导来源 → 上游协调，而非本路口加绿。
+
+    coverage 为辆/100（上一路口左/直/右归一化），文案用「来自」。
+    """
+    if not flow_trace or not flow_trace.get("available"):
+        return None
+    hints = [
+        h for h in (flow_trace.get("governance_hints") or [])
+        if h.get("type") == "upstream_coordination" and h.get("inter_name")
+    ]
+    if not hints:
+        return None
+    hints.sort(key=lambda h: h.get("coverage") or 0, reverse=True)
+    top = hints[0]
+    name = top.get("inter_name")
+    movement = top.get("feed_direction") or ""
+    cov = top.get("coverage")
+    problem_turn = top.get("problem_turn") or ""
+    cov_text = f"约 {cov:.0f} 辆/100 " if isinstance(cov, (int, float)) else ""
+    max_sat = max((t.get("turn_saturation") or 0 for t in turns), default=0)
+    template = (
+        f"本路口各转向普遍过饱和（最高 {max_sat:.2f}），单点配时空间有限；"
+        f"其中{problem_turn}{cov_text}来自上游{name}{movement}，"
+        f"建议优先在{name}协同优化信控放行节奏（绿波/截流），从源头削减进入本路口的车流，"
+        "再配合本路口配时微调。"
+    )
+    evidence = [
+        f"{h.get('problem_turn')} 主要来自 {h.get('inter_name')}{h.get('feed_direction') or ''}"
+        f"（{h.get('coverage'):.0f} 辆/100）"
+        for h in hints[:3]
+        if isinstance(h.get("coverage"), (int, float))
+    ]
+    return {
+        "action_type": "upstream_coordination",
+        "headline": f"溯源至上游{name}，建议来源路口协同优化",
+        "narrative_template": template,
+        "transfer_seconds": 0,
+        "cycle_unchanged": None,
+        "direction": "upstream",
+        "donor_turn": None,
+        "recipient_turn": None,
+        "upstream_inter_id": top.get("inter_id"),
+        "upstream_inter_name": name,
+        "upstream_movement": movement,
+        "upstream_coverage": cov,
+        "confidence": 0.8,
+        "evidence": evidence,
+        "data_gaps": [],
     }
 
 

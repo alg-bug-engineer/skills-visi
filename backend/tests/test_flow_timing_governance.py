@@ -108,6 +108,11 @@ def test_primary_timing_optimizable():
     assert primary["type"] == "timing_optimizable"
     assert primary["severity"] == "high"
     assert "分配不均" in primary["headline"]
+    assert "北左转" in primary["headline"]
+    assert "35%" in primary["headline"] or "35" in primary["headline"]
+    tb = primary.get("turn_balance") or {}
+    assert tb.get("spare", {}).get("label") == "北左转"
+    assert tb.get("over", {}).get("label") == "东直行"
     assert "绿信比" in primary["lever"]
     assert "让给" in primary["lever"]
     assert primary["structure_limited"] is False

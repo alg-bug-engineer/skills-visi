@@ -142,6 +142,7 @@ function handleProcessStepVoice(stepIndex: number) {
   if (!voice.enabled.value || voiceSentForStep.has(stepIndex)) return
   const text = resolveProcessStepVoice(stepIndex, {
     intersectionName: lastIntersectionName.value,
+    flowTraceAvailable: Boolean(presentation.state.evidence?.flow_trace?.available),
   })
   if (!text) return
   voiceSentForStep.add(stepIndex)
@@ -1230,6 +1231,7 @@ function handleProblemEvidenceStep(data: Record<string, unknown>) {
       corridor_context: partial.corridor_context ?? presentation.state.evidence?.corridor_context,
       external_evidence: partial.external_evidence ?? presentation.state.evidence?.external_evidence,
       diagnosis_story: partial.diagnosis_story ?? presentation.state.evidence?.diagnosis_story,
+      flow_trace: partial.flow_trace ?? presentation.state.evidence?.flow_trace,
     } as ProblemEvidence)
     presentation.setPhase('evidence')
 

@@ -187,6 +187,7 @@ export interface ProblemEvidence {
   corridor_context?: CorridorContext
   external_evidence?: ExternalEvidence
   diagnosis_story?: DiagnosisStoryBeat[]
+  flow_trace?: FlowTrace | null
   thresholds_used?: EvidenceThresholdsUsed
   query_trace?: unknown[]
   reason?: string
@@ -242,6 +243,18 @@ export type PrimaryDiagnosisType =
   | 'structure_limited'
   | 'basically_matched'
 
+export interface TurnBalanceSide {
+  label: string
+  turn_saturation?: number | null
+  green_utilization?: number | null
+}
+
+export interface TurnBalance {
+  spare_util_threshold?: number
+  over?: TurnBalanceSide
+  spare?: TurnBalanceSide
+}
+
 export interface PrimaryDiagnosis {
   type: PrimaryDiagnosisType
   headline: string
@@ -249,6 +262,73 @@ export interface PrimaryDiagnosis {
   severity: 'high' | 'medium' | 'none'
   evidence: string[]
   structure_limited: boolean
+  turn_balance?: TurnBalance
+}
+
+export interface FlowTraceSource {
+  inter_id: string
+  inter_name?: string | null
+  feed_direction: string
+  /** 路径途经率（%，非占比，多跳叠加可 >100） */
+  path_coverage: number
+  lng?: number | null
+  lat?: number | null
+}
+
+export type FlowSourcePattern = 'single_corridor' | 'multi_corridor' | 'local'
+
+export interface FlowTraceTurn {
+  entry: string
+  turn: string
+  turn_saturation?: number | null
+  source_pattern: FlowSourcePattern
+  dominant_feed?: FlowTraceSource | null
+  sources: FlowTraceSource[]
+}
+
+export interface FlowTraceGovernanceHint {
+  type: 'upstream_coordination' | 'area_coordination' | string
+  problem_turn?: string
+  inter_id?: string
+  inter_name?: string | null
+  feed_direction?: string
+  coverage?: number
+  sources?: FlowTraceSource[]
+}
+
+export interface FlowTraceUpstreamMovement {
+  turn: string
+  cor_turn?: number
+  feed_direction: string
+  share_pct: number
+  vehicles_of_100: number
+  raw_coverage?: number
+}
+
+export interface FlowTraceEntry {
+  entry: string
+  dir8_code: number
+  entry_max_saturation?: number | null
+  upstream_inter_id: string
+  upstream_inter_name?: string | null
+  upstream_lng?: number | null
+  upstream_lat?: number | null
+  vehicles_base: number
+  upstream_movements: FlowTraceUpstreamMovement[]
+  dominant_movement?: FlowTraceUpstreamMovement | null
+  narrative: string
+}
+
+export interface FlowTrace {
+  available: boolean
+  reason?: string
+  period_type?: string
+  day_basis?: string
+  caveat?: string
+  vehicles_base?: number
+  entry_traces?: FlowTraceEntry[]
+  problem_turns?: FlowTraceTurn[]
+  governance_hints?: FlowTraceGovernanceHint[]
 }
 
 export interface GovernanceActionPlan {
@@ -258,6 +338,10 @@ export interface GovernanceActionPlan {
   transfer_seconds?: number
   cycle_unchanged?: boolean | null
   direction?: string
+  upstream_inter_id?: string
+  upstream_inter_name?: string
+  upstream_movement?: string
+  upstream_coverage?: number
   donor_turn?: {
     label?: string
     turn_saturation?: number
@@ -281,6 +365,8 @@ export interface GovernanceActionPlan {
 
 export interface FlowTimingGovernance {
   primary_diagnosis?: PrimaryDiagnosis
+  /** 流量溯源补充建议（上游协同维度，独立于主诊断类型） */
+  flow_trace_supplement?: string
   match_verdict: string
   match_narrative?: string
   flow_green_tau?: number | null
@@ -307,4 +393,5 @@ export interface ProblemEvidenceSseData {
   corridor_context?: CorridorContext
   external_evidence?: ExternalEvidence
   diagnosis_story?: DiagnosisStoryBeat[]
+  flow_trace?: FlowTrace | null
 }

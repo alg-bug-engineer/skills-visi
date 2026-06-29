@@ -136,6 +136,35 @@ export interface MapActionEvent {
   hud?: MapSceneHud | null
   focus?: { lon: number; lat: number } | null
   highlight_turn?: { dir: string; turn: string; label?: string; saturation?: number | null }
+  source_center?: { lon: number; lat: number } | null
+  /** highlight_flow_sources：按进口道沿路展示 */
+  entry_traces?: Array<{
+    entry?: string
+    dir8_code?: number
+    upstream_inter_id?: string
+    name?: string
+    narrative?: string
+    lon?: number
+    lat?: number
+    dominant_turn?: string
+    vehicles_of_100?: number
+    movements?: Array<{
+      turn: string
+      vehicles_of_100: number
+      feed_direction?: string
+    }>
+    path?: Array<[number, number]>
+    dominant?: boolean
+  }>
+  sources?: Array<{
+    inter_id: string
+    name: string
+    movement: string
+    coverage?: number | null
+    lon: number
+    lat: number
+    dominant?: boolean
+  }>
   suggestion?: Record<string, unknown>
   focus_inter_id?: string
   intersections?: Array<Record<string, unknown>>

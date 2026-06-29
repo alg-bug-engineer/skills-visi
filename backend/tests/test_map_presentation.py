@@ -3,10 +3,77 @@
 from intersection_agent.models.domain import DiagnosisResult, NluResult, TimePeriod
 from intersection_agent.services.map_presentation_service import (
     axis_roads_summary,
+    build_flow_sources_action,
     build_links_narration_payload,
     build_map_scene,
     build_narration_steps,
 )
+
+
+def _flow_trace_payload() -> dict:
+    return {
+        "available": True,
+        "entry_traces": [
+            {
+                "entry": "东进口",
+                "dir8_code": 2,
+                "upstream_inter_id": "U1",
+                "upstream_inter_name": "岔口",
+                "upstream_lng": 117.11,
+                "upstream_lat": 36.65,
+                "narrative": "东进口约100辆过境车中，约82辆来自上一路口岔口，以直行为主（82辆）",
+                "dominant_movement": {
+                    "turn": "直行",
+                    "vehicles_of_100": 82,
+                    "feed_direction": "东南进口直行",
+                },
+                "upstream_movements": [
+                    {"turn": "直行", "vehicles_of_100": 82, "feed_direction": "东南进口直行"},
+                ],
+            },
+            {
+                "entry": "西进口",
+                "dir8_code": 6,
+                "upstream_inter_id": "U2",
+                "upstream_inter_name": "无坐标点",
+                "upstream_lng": None,
+                "upstream_lat": None,
+                "narrative": "西进口暂无坐标",
+            },
+        ],
+    }
+
+
+def test_flow_sources_action_builds_road_paths_with_center():
+    cognition = _cognition()
+    action = build_flow_sources_action(_flow_trace_payload(), cognition)
+    assert action is not None
+    assert action["phase"] == "flow_trace"
+    assert action["source_center"] == {"lon": 117.1, "lat": 36.6}
+    # 无坐标进口道被过滤
+    assert len(action["entry_traces"]) == 1
+    trace = action["entry_traces"][0]
+    assert trace["upstream_inter_id"] == "U1"
+    assert trace["vehicles_of_100"] == 82
+    assert trace.get("path")
+    assert len(trace["path"]) >= 2
+    assert "100辆" in action["text"]
+
+
+def test_flow_sources_action_none_when_unavailable_or_no_coords():
+    assert build_flow_sources_action({"available": False}, {}) is None
+    no_coords = {
+        "available": True,
+        "entry_traces": [
+            {
+                "entry": "东进口",
+                "dir8_code": 2,
+                "upstream_lng": None,
+                "upstream_lat": None,
+            },
+        ],
+    }
+    assert build_flow_sources_action(no_coords, {"intersection": {}}) is None
 
 
 def _cognition() -> dict:

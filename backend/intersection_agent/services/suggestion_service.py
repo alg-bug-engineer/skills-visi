@@ -193,6 +193,12 @@ class SuggestionService:
             measure_line = (
                 f"\n\n📋 参考措施：为**{label}**增加有效绿灯约 **{suggestion.delta_seconds} 秒**"
             )
+        elif plan_type == "upstream_coordination":
+            up_name = action_plan.get("upstream_inter_name") or "上游来源路口"
+            measure_line = (
+                f"\n\n📋 参考措施：本路口已过饱和、单点加绿空间有限；"
+                f"建议在上游**{up_name}**协同优化放行节奏，从源头削减进入车流"
+            )
         elif plan_type in ("spillback_control", "capacity_non_timing"):
             measure_line = f"\n\n📋 参考措施：{action_plan.get('headline') or '优先非加绿手段'}"
         elif primary_type not in ("capacity_bottleneck", "basically_matched"):
@@ -203,7 +209,10 @@ class SuggestionService:
         elif primary_type == "capacity_bottleneck":
             measure_line = "\n\n📋 参考措施：优先从周期、协调、渠化或需求调控入手，单点加绿空间有限"
 
+        supplement = str((flow_timing_governance or {}).get("flow_trace_supplement") or "").strip()
+        supplement_line = f"\n\n🔗 {supplement}" if supplement else ""
+
         return f"""**诊断结果** · {nlu_intersection} · {time_label}{note}
 
-{suggestion.narrative}{measure_line}
+{suggestion.narrative}{measure_line}{supplement_line}
 📊 置信度：{suggestion.confidence:.0%}"""
