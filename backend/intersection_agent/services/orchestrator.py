@@ -46,14 +46,7 @@ from intersection_agent.services.skill_matcher import backfill_tags
 from intersection_agent.config import get_settings
 from intersection_agent.services.constraint_resolver_service import ConstraintResolverService
 from intersection_agent.services.context_tags_service import ContextTagsService
-from intersection_agent.services.corridor_context_service import CorridorContextService
-from intersection_agent.services.corridor_narrative_service import CorridorNarrativeService
-from intersection_agent.services.corridor_pick_resolver import resolve_corridor_pick
-from intersection_agent.services.corridor_scan_nlu_service import CorridorScanNluService
-from intersection_agent.services.corridor_scan_scene import build_corridor_scan_scene
-from intersection_agent.services.corridor_scan_service import CorridorScanService
 from intersection_agent.services.intent_classifier_service import IntentClassifierService
-from intersection_agent.services.line_resolver import LineResolver
 from intersection_agent.services.problem_evidence_service import ProblemEvidenceService
 from intersection_agent.services.suggestion_service import SuggestionService
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
@@ -84,11 +77,6 @@ class Orchestrator:
         evidence: ProblemEvidenceService | None = None,
         constraints: ConstraintResolverService | None = None,
         timing: TimingProfileService | None = None,
-        corridor: CorridorContextService | None = None,
-        corridor_scan_nlu: CorridorScanNluService | None = None,
-        line_resolver: LineResolver | None = None,
-        corridor_scan: CorridorScanService | None = None,
-        corridor_narrative: CorridorNarrativeService | None = None,
         intent_classifier: IntentClassifierService | None = None,
         context_tags: ContextTagsService | None = None,
         flow_governance: FlowTimingGovernanceService | None = None,
@@ -107,11 +95,6 @@ class Orchestrator:
         self._evidence = evidence or ProblemEvidenceService()
         self._constraints = constraints or ConstraintResolverService()
         self._timing = timing or TimingProfileService()
-        self._corridor = corridor or CorridorContextService()
-        self._corridor_scan_nlu = corridor_scan_nlu or CorridorScanNluService()
-        self._line_resolver = line_resolver or LineResolver()
-        self._corridor_scan = corridor_scan or CorridorScanService()
-        self._corridor_narrative = corridor_narrative or CorridorNarrativeService()
         self._intent_classifier = intent_classifier or IntentClassifierService()
         self._context_tags = context_tags or ContextTagsService()
         self._flow_governance = flow_governance or FlowTimingGovernanceService(rules=self._rules)
@@ -151,19 +134,10 @@ class Orchestrator:
         if session.state == SessionState.INTERSECTION_AMBIGUOUS:
             return await self._handle_candidate_pick(session, content, emitter)
 
-        if session.state == SessionState.AWAITING_CORRIDOR_PICK:
-            return await self._handle_corridor_pick(session, content, emitter)
-
-        if session.state == SessionState.CORRIDOR_NLU_INCOMPLETE:
-            return await self._continue_corridor_scan(session, emitter)
-
         if session.state == SessionState.NLU_INCOMPLETE:
             return await self._continue_nlu(session, emitter)
 
         if session.state in (SessionState.IDLE, SessionState.DONE):
-            if await self._intent_classifier.route_intent(content, session) == "corridor_scan":
-                session.state = SessionState.CORRIDOR_SCANNING
-                return await self._run_corridor_pipeline(session, emitter)
             session.state = SessionState.PROCESSING
 
         return await self._run_pipeline(session, emitter)
@@ -469,170 +443,6 @@ class Orchestrator:
 
         session.state = SessionState.PROCESSING
         return await self._run_pipeline(session, emitter)
-
-    async def _continue_corridor_scan(
-        self,
-        session: Session,
-        emitter: ExecutionEmitter | None,
-    ) -> dict[str, Any]:
-        session.state = SessionState.CORRIDOR_SCANNING
-        return await self._run_corridor_pipeline(session, emitter)
-
-    async def _run_corridor_pipeline(
-        self,
-        session: Session,
-        emitter: ExecutionEmitter | None,
-    ) -> dict[str, Any]:
-        line_candidates = session.data_payload.get("line_candidates") or []
-        if line_candidates:
-            pick = await self._line_resolver.resolve_candidate_selection(
-                session.messages[-1].content if session.messages else "",
-                line_candidates,
-            )
-            if pick and (pick.line_id or pick.intersection_rows):
-                session.data_payload.pop("line_candidates", None)
-            elif pick is None:
-                session.state = SessionState.CORRIDOR_NLU_INCOMPLETE
-                return self._build_response(
-                    session,
-                    ReplyType.FOLLOW_UP,
-                    "请从候选干线中选择，或回复完整干线名称。",
-                    extra={"missing_fields": ["corridor"]},
-                )
-
-        if emitter:
-            await emitter.emit("corridor_scan_nlu", "running")
-        scan_nlu_result = await self._corridor_scan_nlu.extract(session.raw_user_context)
-        if scan_nlu_result.get("status") == "error":
-            session.state = SessionState.DONE
-            return self._build_response(
-                session, ReplyType.ERROR, scan_nlu_result.get("error", "理解失败")
-            )
-
-        if scan_nlu_result["status"] == "incomplete":
-            session.corridor_scan_nlu = scan_nlu_result["data"]
-            session.state = SessionState.CORRIDOR_NLU_INCOMPLETE
-            if emitter:
-                await emitter.emit(
-                    "corridor_scan_nlu",
-                    "completed",
-                    data={"status": "incomplete", "missing": scan_nlu_result.get("missing")},
-                )
-            return self._build_response(
-                session,
-                ReplyType.FOLLOW_UP,
-                scan_nlu_result.get("follow_up", "请补充干线或时段信息。"),
-                extra={
-                    "missing_fields": scan_nlu_result.get("missing", []),
-                    "intent": "corridor_scan",
-                },
-            )
-
-        session.corridor_scan_nlu = scan_nlu_result["data"]
-        assert session.corridor_scan_nlu and session.corridor_scan_nlu.corridor
-
-        if emitter:
-            await emitter.emit("line_resolve", "running")
-        line_result = await self._line_resolver.resolve(session.corridor_scan_nlu.corridor)
-        if line_result.source == "candidates" and line_result.candidates:
-            session.data_payload["line_candidates"] = line_result.candidates
-            session.state = SessionState.CORRIDOR_NLU_INCOMPLETE
-            return self._build_response(
-                session,
-                ReplyType.FOLLOW_UP,
-                line_result.follow_up or "请选择干线。",
-                extra={"line_candidates": line_result.candidates, "intent": "corridor_scan"},
-            )
-        if not line_result.line_id and not line_result.intersection_rows:
-            session.state = SessionState.DONE
-            return self._build_response(
-                session,
-                ReplyType.ERROR,
-                line_result.follow_up or "未找到该干线。",
-            )
-
-        if emitter:
-            await emitter.emit("corridor_scan", "running")
-        scan_result = await self._corridor_scan.scan(line_result, session.corridor_scan_nlu)
-        session.data_payload["corridor_scan"] = scan_result
-        narrative = await self._corridor_narrative.build(scan_result)
-        scene = build_corridor_scan_scene(scan_result)
-        session.state = SessionState.AWAITING_CORRIDOR_PICK
-
-        if emitter:
-            await emitter.emit("corridor_scan", "completed", data={"top3": scan_result.get("top3_inter_ids")})
-            await self._emit_map_sequence(emitter, action="corridor_scan_scene", data=scene)
-
-        return self._build_response(
-            session,
-            ReplyType.CORRIDOR_SCAN,
-            narrative,
-            extra={
-                "corridor_scan": scan_result,
-                "corridor_scan_scene": scene,
-                "intent": "corridor_scan",
-            },
-        )
-
-    async def _handle_corridor_pick(
-        self,
-        session: Session,
-        content: str,
-        emitter: ExecutionEmitter | None,
-    ) -> dict[str, Any]:
-        scan = session.data_payload.get("corridor_scan") or {}
-        ranked = scan.get("intersections") or []
-        picked = resolve_corridor_pick(content, ranked)
-        if not picked:
-            follow_up = await self._follow_ups.for_corridor_pick(session.raw_user_context)
-            return self._build_response(
-                session,
-                ReplyType.FOLLOW_UP,
-                follow_up,
-                extra={"intent": "corridor_pick"},
-            )
-
-        assert session.corridor_scan_nlu and session.corridor_scan_nlu.time_period
-        session.nlu = NluResult(
-            intersection=str(picked.get("inter_name")),
-            time_period=TimePeriod(**session.corridor_scan_nlu.time_period.model_dump()),
-            problem_type="congestion",
-            directions=[],
-        )
-        session.inter_id = str(picked.get("inter_id")) if picked.get("inter_id") else None
-        session.resolved_intersection = str(picked.get("inter_name"))
-        session.resolution_source = "corridor_pick"
-
-        nlu_result = await self._nlu.extract(session.raw_user_context)
-        nlu_result = self._merge_preserved_nlu(session, nlu_result)
-        if nlu_result.get("status") == "complete" and nlu_result["data"].directions:
-            session.nlu.directions = nlu_result["data"].directions
-
-        if not session.nlu.directions:
-            session.state = SessionState.NLU_INCOMPLETE
-            session.pending_follow_up_field = "directions"
-            follow_up = await self._follow_ups.for_nlu(
-                session.raw_user_context,
-                missing=["directions"],
-                focus_field="directions",
-                partial=session.nlu,
-            )
-            return self._build_response(
-                session,
-                ReplyType.FOLLOW_UP,
-                f"已选定「{session.resolved_intersection}」。{follow_up}",
-                extra={
-                    "missing_fields": ["directions"],
-                    "picked_intersection": session.resolved_intersection,
-                },
-            )
-
-        session.state = SessionState.PROCESSING
-        return await self._diagnose(
-            session,
-            resolution_note=f"已从干线扫描选定：{session.resolved_intersection}",
-            emitter=emitter,
-        )
 
     @staticmethod
     def _merge_preserved_nlu(session: Session, nlu_result: dict[str, Any]) -> dict[str, Any]:
@@ -1729,9 +1539,6 @@ class Orchestrator:
                 meta["sustained_metrics"] = sustained
             if data_meta.get("demo_mode"):
                 meta["demo_mode"] = True
-            corridor_scan = session.data_payload.get("corridor_scan")
-            if corridor_scan:
-                meta["corridor_scan"] = corridor_scan
             reused_experience = session.data_payload.get("reused_experience")
             if reused_experience:
                 meta["reused_experience"] = reused_experience
