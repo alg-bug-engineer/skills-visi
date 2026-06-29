@@ -39,7 +39,7 @@ def test_flow_trace_beat_absent_when_unavailable():
     assert _flow_trace_beat_text({}) == ""
 
 
-def test_diagnosis_story_includes_flow_trace_beat():
+def test_diagnosis_story_excludes_flow_trace_beat():
     evidence = {
         "chronic": {}, "dow_pattern": {}, "metrics": {},
         "flow_trace": {
@@ -55,4 +55,4 @@ def test_diagnosis_story_includes_flow_trace_beat():
     }
     beats = ProblemEvidenceService._build_diagnosis_story(evidence)
     phases = [b["phase"] for b in beats]
-    assert "flow_trace" in phases
+    assert "flow_trace" not in phases

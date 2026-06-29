@@ -1,6 +1,5 @@
 import type { ProblemEvidence } from '../types/evidence'
 import type { GovernanceSuggestionPayload } from '../types/presentation'
-import { formatSaturation } from './evidencePresentation'
 
 function simplifyEvidenceSummary(summary: string): string {
   return summary
@@ -43,7 +42,7 @@ export function buildEvidenceListItems(evidence: ProblemEvidence): string[] {
   if (evidence.diagnosis_story?.length) {
     return evidence.diagnosis_story
       .filter((beat) => {
-        if (beat.phase === 'external' && !evidence.external_evidence?.has_external_evidence) {
+        if (beat.phase === 'external' || beat.phase === 'flow_trace' || beat.phase === 'granularity' || beat.phase === 'corridor') {
           return false
         }
         return isDisplayVerdict(formatStoryBeat(beat))
@@ -72,15 +71,8 @@ export function buildEvidenceListItems(evidence: ProblemEvidence): string[] {
   if (dow?.dow_label && dow.hit_rate != null && isDisplayVerdict(dow.verdict)) {
     const rate = `（约 ${(dow.hit_rate * 100).toFixed(0)}% 的周会中招）`
     parts.push(`每到周${dow.dow_label.replace(/^周/, '')}更容易出现这个问题${rate}`)
-  } else if (isDisplayVerdict(dow?.verdict)) {
+  } else   if (isDisplayVerdict(dow?.verdict)) {
     parts.push(dow!.verdict!)
-  }
-
-  const sat = evidence.metrics?.saturation_rate
-  if (sat != null && sat >= 0.85) {
-    parts.push(`路口整体饱和度 ${formatSaturation(sat)}，已过饱和`)
-  } else if (sat != null && sat >= 0.65) {
-    parts.push(`路口整体饱和度 ${formatSaturation(sat)}，处于偏高`)
   }
 
   if (parts.length) return parts

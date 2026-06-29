@@ -41,7 +41,6 @@ import {
   buildDirectionVoiceCue,
   buildImbalanceCue,
   buildNarrationPhaseVoiceCue,
-  buildSaturationCue,
   type DirectionRoleRow,
 } from './services/voiceCueExtractors'
 import { ABSORPTION_STAGE_VOICE } from './types/voice'
@@ -50,7 +49,7 @@ import {
   formatLocatedIntersectionSummary,
   formatSkillReuseLines,
 } from './config/presentationCopy'
-import { voiceTemplate } from './services/voiceConfig'
+import { voiceConfig, voiceTemplate } from './services/voiceConfig'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
 import type MapStage from './components/MapStage.vue'
 
@@ -86,11 +85,7 @@ const workbenchRef = ref<InstanceType<typeof WorkbenchLayout> | null>(null)
 const PAIRED_NARRATION_PHASES = new Set([
   'traffic',
   'direction',
-  'granularity',
   'timing',
-  'corridor',
-  'external',
-  'saturation',
   'imbalance',
   'rule',
   'conclusion',
@@ -101,7 +96,6 @@ const DATA_FETCH_MAP_PHASES = new Set([
   'direction',
   'granularity',
   'timing',
-  'corridor',
   'external',
   'saturation',
   'imbalance',
@@ -130,19 +124,38 @@ const presentationPause = usePresentationPause(analysisQueue, voice)
 const presentationSequence = usePresentationSequence()
 const lastIntersectionName = ref<string | null>(null)
 const voiceSentForStep = new Set<number>()
+let dataFetchGuideQueued = false
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function ensureDataFetchGuideVoice() {
+  if (!voice.enabled.value || dataFetchGuideQueued) return
+  dataFetchGuideQueued = true
+  voiceSentForStep.add(STEP_INDICES.DATA_FETCH)
+  voice.enqueue({
+    id: 'step:3:data-fetch:guide',
+    stepIndex: STEP_INDICES.DATA_FETCH,
+    phase: 'dataFetch',
+    kind: 'guide',
+    text: VOICE_GUIDE.dataFetch,
+    priority: 0,
+  })
+}
 
 function rememberIntersectionName(name: string) {
   const trimmed = name.trim()
   if (!trimmed) return
   lastIntersectionName.value = trimmed
-  handleProcessStepVoice(STEP_INDICES.INTERSECTION)
+  void scheduleProcessStepVoice(STEP_INDICES.INTERSECTION)
 }
 
 function handleProcessStepVoice(stepIndex: number) {
   if (!voice.enabled.value || voiceSentForStep.has(stepIndex)) return
+  if (stepIndex === STEP_INDICES.DATA_FETCH) return
   const text = resolveProcessStepVoice(stepIndex, {
     intersectionName: lastIntersectionName.value,
-    flowTraceAvailable: Boolean(presentation.state.evidence?.flow_trace?.available),
   })
   if (!text) return
   voiceSentForStep.add(stepIndex)
@@ -156,6 +169,17 @@ function handleProcessStepVoice(stepIndex: number) {
   })
 }
 
+async function scheduleProcessStepVoice(stepIndex: number) {
+  if (!voice.enabled.value || voiceSentForStep.has(stepIndex)) return
+  if (stepIndex === STEP_INDICES.INTERSECTION) {
+    await voice.whenIdle()
+    const gap = voiceConfig.playback.intersectionGuideGapMs ?? 900
+    if (gap > 0) await sleep(gap)
+    if (voiceSentForStep.has(stepIndex)) return
+  }
+  handleProcessStepVoice(stepIndex)
+}
+
 const {
   steps: processSteps,
   enqueue: enqueueProcess,
@@ -165,6 +189,10 @@ const {
   whenIdle: whenProcessIdle,
 } = useUnderstandingProcess({
   onStepStart(stepIndex) {
+    if (stepIndex === STEP_INDICES.INTERSECTION) {
+      void scheduleProcessStepVoice(stepIndex)
+      return
+    }
     handleProcessStepVoice(stepIndex)
   },
   onStepComplete(stepIndex) {
@@ -869,6 +897,7 @@ function prepareNewAnalysisRun(userContent: string) {
   analysisRunKey.value += 1
   lastIntersectionName.value = null
   voiceSentForStep.clear()
+  dataFetchGuideQueued = false
   presentationSequence.reset()
   voice.resetSession()
   void workbenchRef.value?.mapStageRef?.prepareNewAnalysisRun()
@@ -910,6 +939,7 @@ function applySceneHighlight(action: MapActionEvent) {
 
 function enqueueLinksVoice(action: MapActionEvent) {
   if (!voice.enabled.value) return
+  if (voiceSentForStep.has(STEP_INDICES.COGNITION)) return
   const cue = buildCognitionVoiceCue({
     speakable: action.speakable,
     axis_roads: action.axis_roads,
@@ -920,19 +950,14 @@ function enqueueLinksVoice(action: MapActionEvent) {
   voice.enqueue(cue)
 }
 
-const NARRATION_TEXT_VOICE_PHASES = new Set([
-  'traffic',
-  'granularity',
-  'timing',
-  'corridor',
-  'external',
-])
+const NARRATION_TEXT_VOICE_PHASES = new Set(['traffic', 'timing'])
 
 function enqueueNarrationPhaseVoice(action: MapActionEvent) {
   if (!voice.enabled.value) return
   if (presentationSequence.focusStepIndex.value < STEP_INDICES.DATA_FETCH) return
   const phase = action.phase ?? ''
   if (!NARRATION_TEXT_VOICE_PHASES.has(phase)) return
+  ensureDataFetchGuideVoice()
   const cue = buildNarrationPhaseVoiceCue(phase, action.text ?? '', action.title)
   if (cue) voice.enqueue(cue)
 }
@@ -940,14 +965,9 @@ function enqueueNarrationPhaseVoice(action: MapActionEvent) {
 function enqueueSceneVoice(action: MapActionEvent) {
   if (!voice.enabled.value) return
   if (presentationSequence.focusStepIndex.value < STEP_INDICES.DATA_FETCH) return
+  ensureDataFetchGuideVoice()
   if (action.phase === 'direction' && action.direction_roles?.length) {
     const cue = buildDirectionVoiceCue(action.direction_roles as DirectionRoleRow[])
-    if (cue) voice.enqueue(cue)
-    return
-  }
-  if (action.phase === 'saturation') {
-    const sat = presentation.state.runtimeMetrics?.saturation_rate ?? null
-    const cue = buildSaturationCue(sat)
     if (cue) voice.enqueue(cue)
     return
   }
@@ -966,20 +986,19 @@ function handleNarration(action: MapActionEvent) {
   const narrOpts = action
 
   if (action.phase === 'links' || action.phase === 'channelization') {
-    enqueueLinksVoice(action)
+    if (action.phase === 'links') {
+      enqueueLinksVoice(action)
+    }
     enqueueWithPresentation(STEP_INDICES.COGNITION, text, false, false, narrOpts)
     return
   }
   if (
     action.phase === 'traffic' ||
     action.phase === 'direction' ||
-    action.phase === 'granularity' ||
     action.phase === 'timing' ||
-    action.phase === 'corridor' ||
-    action.phase === 'external' ||
-    action.phase === 'saturation' ||
     action.phase === 'imbalance'
   ) {
+    ensureDataFetchGuideVoice()
     const prefix = action.title ? `${action.title}：` : ''
     enqueueWithPresentation(
       STEP_INDICES.DATA_FETCH,
@@ -1123,10 +1142,6 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
         if (ev?.level_of_service_label != null) {
           metrics.push({ label: '服务水平', value: String(ev.level_of_service_label) })
         }
-        const spread = tf?.turn_saturation_spread
-        if (spread != null) {
-          metrics.push({ label: '转向极差', value: Number(spread).toFixed(2) })
-        }
         if (metrics.length) {
           presentation.mergeDataInsight({ title: '运行数据', icon: '📊', metrics })
         }
@@ -1231,7 +1246,6 @@ function handleProblemEvidenceStep(data: Record<string, unknown>) {
       corridor_context: partial.corridor_context ?? presentation.state.evidence?.corridor_context,
       external_evidence: partial.external_evidence ?? presentation.state.evidence?.external_evidence,
       diagnosis_story: partial.diagnosis_story ?? presentation.state.evidence?.diagnosis_story,
-      flow_trace: partial.flow_trace ?? presentation.state.evidence?.flow_trace,
     } as ProblemEvidence)
     presentation.setPhase('evidence')
 
@@ -1259,11 +1273,14 @@ function handlePipelineStep(
   if (event.step === 'data_fetch' && event.status === 'running') {
     if (!processSteps.value.some((s) => s.index === STEP_INDICES.DATA_FETCH)) {
       analysisQueue.enqueue(async () => {
+        ensureDataFetchGuideVoice()
         enqueueProcess(STEP_INDICES.DATA_FETCH, '正在拉取路口运行数据…', false, false, {
           summary: '正在获取运行数据',
         })
         presentationSequence.syncFromStepIndex(STEP_INDICES.DATA_FETCH)
       }, 0)
+    } else {
+      ensureDataFetchGuideVoice()
     }
     return
   }
@@ -1325,33 +1342,6 @@ function handlePipelineStep(
   }
 
   if (event.step === 'data_fetch') {
-    const partial = data as {
-      timing_profile?: ProblemEvidence['timing_profile']
-      corridor_context?: ProblemEvidence['corridor_context']
-      granularity?: { by_turn?: Array<{ label?: string; turn_saturation?: number }> }
-    }
-    if (partial.timing_profile || partial.corridor_context) {
-      presentation.patchEvidence({
-        ...(presentation.state.evidence ?? {}),
-        timing_profile: partial.timing_profile ?? presentation.state.evidence?.timing_profile,
-        corridor_context:
-          partial.corridor_context ?? presentation.state.evidence?.corridor_context,
-      } as ProblemEvidence)
-    }
-    const topTurn = partial.granularity?.by_turn?.[0]
-    if (topTurn?.label) {
-      const label = String(topTurn.label)
-      const dirMatch = label.match(/[东南西北]/)
-      const turnMatch = label.match(/左|直|右|调/)
-      if (dirMatch && turnMatch) {
-        presentation.setHighlightTurn({
-          dir: dirMatch[0],
-          turn: turnMatch[0],
-          label,
-          saturation: topTurn.turn_saturation ?? null,
-        })
-      }
-    }
     return
   }
 
@@ -1411,6 +1401,7 @@ async function initSession() {
   suggestionConfirmQueued = false
   lastIntersectionName.value = null
   voiceSentForStep.clear()
+  dataFetchGuideQueued = false
   presentationSequence.reset()
   panelMode.value = 'idle'
   sessionState.value = 'idle'

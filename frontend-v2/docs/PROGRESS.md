@@ -1,5 +1,27 @@
 # frontend-v2 进度记录
 
+## v3.2-develop（2026-06-29）— 演示叙事精简 · 左侧数据证据化
+
+> 分支：`develop` · 详见 [docs/BRANCH_DEVELOP.md](../../docs/BRANCH_DEVELOP.md)
+
+### 已完成
+
+- [x] 左侧运行数据面板精简：删投诉/溯源/饱和度/规则结论/干线绿波等
+- [x] `shouldSkipRuntimeMetric`：过滤「信号调整 增加 N 秒」等结论文案
+- [x] `turn_balance` 转向饱和度与绿灯利用率与治理建议 headline 对齐
+- [x] 语音：路口结构去重、数据拉取先于指标、`intersectionGuideGapMs`
+- [x] 地图：移除流量溯源层；工具栏移除干线绿波
+
+### 文档
+
+- [docs/plans/2026-06-29-develop-信控演示叙事精简-复盘.md](../../docs/plans/2026-06-29-develop-信控演示叙事精简-复盘.md)
+
+### 单测
+
+- vitest **130** 项（含 `narrativeStack.spec` 转向指标与结论过滤）
+
+---
+
 ## v3.1（2026-06-29）— 供需匹配度头牌 · 治理呈现栅栏
 
 ### 已完成

@@ -172,7 +172,7 @@ def build_narration_steps(
         {
             "phase": "locate",
             "title": "定位路口",
-            "text": f"已锁定「{inter.get('name', '')}」，共 {inter.get('arm_count', 0)} 条路臂、"
+            "text": f"已锁定「{inter.get('name', '')}」，共 {inter.get('arm_count', 0)} 个进口、"
             f"{inter.get('total_lanes', 0)} 条车道。",
         },
     ]
@@ -197,12 +197,11 @@ def build_narration_steps(
             "phase": "traffic",
             "title": "当前流量",
             "text": (
-                f"{time_label or '当前时段'}路口整体饱和度 {saturation:.2f}，"
-                f"延误指数 {delay:.2f}。"
-                if saturation is not None and delay is not None
+                f"{time_label or '当前时段'}延误指数 {delay:.2f}。"
+                if delay is not None
                 else "正在汇总路口运行流量…"
             ),
-            "metrics": {"saturation": saturation, "delay_index": delay},
+            "metrics": {"delay_index": delay},
         }
     )
 
@@ -221,22 +220,6 @@ def build_narration_steps(
             }
         )
 
-    gran = data.get("granularity") or {}
-    turn_rows = gran.get("by_turn") or []
-    if turn_rows:
-        top_turn = turn_rows[0]
-        steps.append(
-            {
-                "phase": "granularity",
-                "title": "多粒度画像",
-                "text": (
-                    f"转向级：{top_turn.get('label')} 饱和度 "
-                    f"{float(top_turn.get('turn_saturation') or 0):.2f}；"
-                    f"进口级：{len(gran.get('by_approach') or [])} 条进口道已纳入评价"
-                ),
-            }
-        )
-
     timing_profile = data.get("timing_profile") or {}
     timing_text = _timing_step_text(timing_profile)
     if timing_text:
@@ -247,46 +230,6 @@ def build_narration_steps(
                 "text": timing_text,
             }
         )
-
-    corridor_context = data.get("corridor_context") or {}
-    if corridor_context.get("narrative"):
-        steps.append(
-            {
-                "phase": "corridor",
-                "title": "干线协调",
-                "text": str(corridor_context["narrative"]),
-            }
-        )
-
-    external = data.get("external_evidence") or {}
-    if external.get("has_external_evidence") and external.get("narrative"):
-        steps.append(
-            {
-                "phase": "external",
-                "title": "投诉与调研",
-                "text": str(external["narrative"]),
-            }
-        )
-
-    los_label = eval_metrics.get("level_of_service_label")
-    saturation_state = "总体可控"
-    if saturation and saturation >= 0.85:
-        saturation_state = "已达过饱和"
-    elif saturation and saturation >= 0.65:
-        saturation_state = "处于偏高"
-    steps.append(
-        {
-            "phase": "saturation",
-            "title": "饱和度判断",
-            "text": (
-                f"路口饱和度 {saturation:.2f}，{saturation_state}"
-                f"{f'，服务水平 {los_label}' if los_label else ''}。"
-                if saturation is not None
-                else "饱和度数据待补充。"
-            ),
-            "metrics": {"saturation": saturation},
-        }
-    )
 
     steps.append(
         {
@@ -547,7 +490,7 @@ def _timing_step_text(timing_profile: dict[str, Any]) -> str:
         return ""
     cycle_text = f"{float(cycle):.0f}s" if cycle is not None else "—"
     period_text = str(period_count) if period_count is not None else "—"
-    return f"当前方案周期约 {cycle_text}，日计划时段 {period_text} 个。"
+    return f"当前方案周期约 {cycle_text}。"
 
 
 def _direction_metric_lines(
@@ -1388,11 +1331,6 @@ def build_map_scene(
                             "value": f"{float(cycle):.0f}s" if cycle is not None else "—",
                             "severity": "medium",
                         },
-                        {
-                            "label": "日计划时段",
-                            "value": str(period_count) if period_count is not None else "—",
-                            "severity": "low",
-                        },
                     ],
                 },
             }
@@ -1431,11 +1369,6 @@ def build_map_scene(
                     "title": "干线协调",
                     "icon": "🌊",
                     "metrics": [
-                        {
-                            "label": "节点位置",
-                            "value": f"{pos}/{total}" if pos and total else "—",
-                            "severity": "medium",
-                        },
                         {
                             "label": "协调周期",
                             "value": (

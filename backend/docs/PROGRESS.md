@@ -13,11 +13,23 @@
 | M12 0625 证据/约束 | ✅ | problem_evidence、quantitative_constraints |
 | M13 四类信控问题 | ✅ | flow_timing_governance、演示嗅探 |
 | M14 经验吸收 v2 | ✅ | skill_absorption + L3 交错落盘 + 三层 tags |
-| M15 测试 | ✅ | pytest **169** 项（`.venv/bin/pytest -q`） |
+| M15 测试 | ✅ | pytest **190** 项（`.venv/bin/pytest -q`） |
 | M16 语音步骤同步 | ✅ | `voice_narration.json` + `onStepStart` 旁白对齐 |
 | M17 饱和度口径 | ✅ | 前后端统一小数（0.92） |
 | M18 约束裁剪修复 | ✅ | delta 先裁剪再生成建议 narrative |
 | M19 供需匹配度主轴 | ✅ | `primary_diagnosis`、`action_plan`、治理 YAML、约束合并 |
+| **M20 演示叙事精简（develop）** | ✅ | 左侧数据证据化、删溯源/干线/结论 HUD、转向指标对齐 |
+
+## develop 分支 · 演示叙事精简（2026-06-29）
+
+| 模块 | 路径 | 状态 |
+|------|------|------|
+| 编排精简 | `services/orchestrator.py` | ✅ 停投诉/溯源/干线拉取 |
+| 地图叙事 | `services/map_presentation_service.py` | ✅ 删非主轴 beat |
+| 证据 | `services/problem_evidence_service.py` | ✅ 对齐精简口径 |
+| 左侧数据 | `frontend-v2/.../narrativeStack.ts` | ✅ turn_balance + 结论过滤 |
+
+详见 [`docs/BRANCH_DEVELOP.md`](../../docs/BRANCH_DEVELOP.md)。
 
 ## 供需匹配度主轴（2026-06-29）
 

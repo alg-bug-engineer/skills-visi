@@ -6,7 +6,6 @@
     "cognitionWithRoads": "正在加载路口渠化，{axisSummary}。",
     "dataFetch": "开始拉取路口运行数据。",
     "evidenceIntro": "核对运行指标与常发规律，印证问题。",
-    "flowTrace": "进口已过饱和，正在溯源上游来车，定位主要来源路口。",
     "ruleIntro": "结合专家规则分析拥堵原因。",
     "suggestionConfirm": "诊断完成，请查看治理建议。",
     "absorptionStart": "开始整理并写入本次诊断经验。",
@@ -27,13 +26,11 @@
     "axisRoads": "{interName}，东西向为{ewRoad}，南北向为{nsRoad}。",
     "directionFocus": "关注{focusGroup}，饱和度{value}，{state}。",
     "directionProtected": "{protectGroup}为保护方向，饱和度{value}。",
-    "saturation": "整体饱和度 {value}，{state}。",
     "imbalance": "失衡系数 {value}，{tail}。",
     "imbalanceWithGreenUtil": "失衡系数 {value}，{tail}，绿灯利用率 {greenUtil}%。",
     "evidenceChronic": "近 {window} 天中有 {days} 天常发拥堵，印证问题存在。",
     "evidenceDow": "每逢周{label}更容易出现这个问题{rateSuffix}。",
     "evidenceDowRateSuffix": "，约 {rate}% 的周会中招",
-    "evidenceSaturation": "整体饱和度 {value}，已过饱和，问题成立。",
     "evidenceFallback": "运行数据与描述基本一致，请查看证据说明。",
     "ruleHit": "命中{ruleName}，{conclusion}。",
     "ruleHitFallback": "命中{ruleName}，请查看规则诊断结论。",
@@ -54,6 +51,7 @@
   "playback": {
     "cueGapMs": 350,
     "drainTailMs": 220,
-    "interruptOnHighPriority": false
+    "interruptOnHighPriority": false,
+    "intersectionGuideGapMs": 900
   }
 }

@@ -75,13 +75,6 @@ const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
 
 defineExpose({ mapStageRef })
 
-/** 地图实时缩放 / LOD 层级（右上角叙事卡显示用） */
-const mapView = ref<{ zoom: number; lod: 'L0' | 'L1' | 'L2' }>({ zoom: 0, lod: 'L0' })
-function onMapView(view: { zoom: number; lod: 'L0' | 'L1' | 'L2' }) {
-  mapView.value = view
-}
-
-/** 地图叙事卡：左侧路口信息 + 右侧问题验证/治理建议（干线扫描态不显示） */
 const showNarrativeStack = computed(
   () =>
     Boolean(props.presentation.cognition?.intersection) &&
@@ -161,15 +154,6 @@ const canToggleCorridor = computed(
             >
               配时环图
             </button>
-            <button
-              v-if="canToggleCorridor"
-              type="button"
-              class="chan-toggle corridor"
-              :class="{ active: showCorridorMini }"
-              @click="emit('toggleCorridorWave')"
-            >
-              干线绿波
-            </button>
           </div>
         </div>
 
@@ -201,7 +185,7 @@ const canToggleCorridor = computed(
             :highlight-turn="presentation.highlightTurn"
             :runtime-metrics="presentation.runtimeMetrics"
             :timing-ring-visible="showTimingMini"
-            :corridor-wave-visible="showCorridorMini"
+            :corridor-wave-visible="false"
             :show-evidence-note="showEvidenceOnMap"
             :presentation-layers="presentationLayers ?? undefined"
             :show-governance-note="presentation.revealedInsightSteps.suggestionNote"
@@ -215,7 +199,6 @@ const canToggleCorridor = computed(
             @close-timing-ring="emit('closeTimingRing')"
             @close-corridor-wave="emit('closeCorridorWave')"
             @corridor-intersection-select="emit('corridorSelect', $event)"
-            @view-change="onMapView"
           />
 
           <IntersectionNarrativeStack
@@ -231,8 +214,6 @@ const canToggleCorridor = computed(
             :flow-timing-governance="presentation.flowTimingGovernance"
             :focus-step-index="focusStepIndex ?? -1"
             :phase="presentation.phase"
-            :zoom="mapView.zoom"
-            :lod="mapView.lod"
             :run-key="analysisRunKey ?? 0"
           />
         </div>

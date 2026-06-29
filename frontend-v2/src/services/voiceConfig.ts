@@ -14,6 +14,7 @@ export interface VoiceNarrationConfig {
     cueGapMs: number
     drainTailMs: number
     interruptOnHighPriority: boolean
+    intersectionGuideGapMs?: number
   }
 }
 

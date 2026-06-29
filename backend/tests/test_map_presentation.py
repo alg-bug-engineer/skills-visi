@@ -341,4 +341,4 @@ def test_build_map_scene_timing_has_cycle_hud_only():
     )
     assert scene["markers"] == []
     labels = [m["label"] for m in scene["hud"]["metrics"]]
-    assert labels == ["周期", "日计划时段"]
+    assert labels == ["周期"]

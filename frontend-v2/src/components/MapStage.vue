@@ -16,7 +16,6 @@ import {
 } from '../utils/amap'
 import { isEntrance, linkStrokeColor, markerHtml, mergeSceneMarkers, normalizeDir } from '../utils/mapMarkers'
 import { buildEvidenceDirectionMarkers, buildProtectedDirectionMarkers, highlightDirsForGroup } from '../utils/evidencePresentation'
-import FlowTraceMapSummary from './insight/FlowTraceMapSummary.vue'
 import { buildInterItemFromCognition } from '../utils/cognitionChannelAdapter'
 import { createChannelizationController, type ChannelizationController } from '../lib/channelizationController'
 import { LOD_THRESHOLDS } from '../lib/channelizationGeometry'
@@ -699,10 +698,8 @@ async function handleAction(action: MapActionEvent) {
       await resetToCityDefault()
       break
     }
-    case 'highlight_flow_sources': {
-      renderFlowSources(action)
+    case 'highlight_flow_sources':
       break
-    }
     case 'map_scene': {
       await applyMapScene(action)
       break
@@ -919,11 +916,6 @@ watch(
       :suppress-hud="suppressStageHud"
       @close-timing-ring="emit('closeTimingRing')"
       @close-corridor-wave="emit('closeCorridorWave')"
-    />
-
-    <FlowTraceMapSummary
-      v-if="!showChanFull && evidence?.flow_trace?.available"
-      :flow-trace="evidence?.flow_trace"
     />
 
     <div v-if="!ready && !error && viewMode === 'map'" class="map-loading">地图加载中…</div>

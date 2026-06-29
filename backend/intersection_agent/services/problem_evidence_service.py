@@ -582,39 +582,9 @@ class ProblemEvidenceService:
                 }
             )
 
-        by_turn = evidence.get("by_turn") or []
-        if by_turn:
-            top = by_turn[0]
-            beats.append(
-                {
-                    "phase": "granularity",
-                    "title": "转向画像",
-                    "text": (
-                        f"最繁忙 {top.get('label')} 饱和度 "
-                        f"{float(top.get('turn_saturation') or 0):.2f}，"
-                        f"绿灯利用率 {float(top.get('green_utilization') or 0):.0%}"
-                    ),
-                }
-            )
-
         timing = evidence.get("timing_profile") or {}
         if timing.get("narrative"):
             beats.append({"phase": "timing", "title": "配时画像", "text": str(timing["narrative"])})
-
-        corridor = evidence.get("corridor_context") or {}
-        if corridor.get("narrative"):
-            beats.append({"phase": "corridor", "title": "干线上下文", "text": str(corridor["narrative"])})
-
-        flow_trace = evidence.get("flow_trace") or {}
-        trace_text = _flow_trace_beat_text(flow_trace)
-        if trace_text:
-            beats.append({"phase": "flow_trace", "title": "流量溯源", "text": trace_text})
-
-        external = evidence.get("external_evidence") or {}
-        if external.get("has_external_evidence") and _is_display_narrative(external.get("narrative")):
-            beats.append(
-                {"phase": "external", "title": "外部证据", "text": str(external["narrative"])}
-            )
 
         return beats
 

@@ -1,6 +1,8 @@
 # --- 外部独立仓库（不纳入根 monorepo）---
 frontend/
 signal_optimization_engine-main/
+traffic_signaling_optimization/
+traffic_signal_deepagent/
 
 # --- 开发与运行时 ---
 .dev-logs/
@@ -35,6 +37,7 @@ frontend-v2/*.local
 
 # --- 密钥（勿提交）---
 docs/AccessKey.csv
+docs/knowledge_qa.jsonl
 
 # --- 大体积数仓导出（本地参考，勿提交）---
 docs/all_slices_dws_correlate_m_multihop_merged.csv

@@ -69,18 +69,6 @@ export function buildEvidenceVoiceCue(data: Record<string, unknown>): VoiceCue {
     )
   }
 
-  const sat = evidence.metrics?.saturation_rate
-  if (sat != null && sat >= 0.85) {
-    return cue(
-      'step:4:evidence:sat',
-      STEP_INDICES.PROBLEM_EVIDENCE,
-      'evidence',
-      voiceTemplate('evidenceSaturation', { value: sat.toFixed(2) }),
-      'highlight',
-      1,
-    )
-  }
-
   return cue(
     'step:4:evidence:fallback',
     STEP_INDICES.PROBLEM_EVIDENCE,
@@ -99,21 +87,6 @@ export function buildEvidenceIntroCue(): VoiceCue {
     voiceGuide('evidenceIntro'),
     'guide',
     0,
-  )
-}
-
-export function buildSaturationCue(saturation: number | null | undefined): VoiceCue | null {
-  if (saturation == null) return null
-  return cue(
-    'step:3:saturation',
-    STEP_INDICES.DATA_FETCH,
-    'saturation',
-    voiceTemplate('saturation', {
-      value: saturation.toFixed(2),
-      state: saturationStateLabel(saturation),
-    }),
-    'highlight',
-    1,
   )
 }
 

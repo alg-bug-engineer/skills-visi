@@ -4,7 +4,7 @@ import type { CognitionPayload, MapSceneHud } from '../types/map'
 import type { CorridorIntersectionItem } from '../types/corridor'
 import type { DataInsight, DataInsightMetric, InsightCardEntry } from '../types/insight'
 import { STEP_INDICES } from '../constants'
-import { RUNTIME_METRIC_SKIP_LABELS } from '../utils/narrativeStack'
+import { shouldSkipRuntimeMetric } from '../utils/narrativeStack'
 import {
   CORRIDOR_WAVE_AUTO_PHASES,
   TIMING_RING_AUTO_PHASES,
@@ -245,7 +245,7 @@ export function usePresentation() {
         title: hud.title ?? '运行数据',
         icon: hud.icon,
         metrics: hud.metrics
-          .filter((m) => !RUNTIME_METRIC_SKIP_LABELS.has(m.label))
+          .filter((m) => !shouldSkipRuntimeMetric(m.label, m.value))
           .map((m) => ({
           label: m.label,
           value: m.value,

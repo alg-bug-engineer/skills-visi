@@ -24,8 +24,6 @@ const props = defineProps<{
   flowTimingGovernance?: FlowTimingGovernance | null
   focusStepIndex: number
   phase?: PipelinePhase
-  zoom?: number | null
-  lod?: 'L0' | 'L1' | 'L2' | null
   /** 新一轮分析递增，重置粘性揭示 */
   runKey?: number
   /** 技能写入终端展开时隐藏左侧路口信息卡 */
@@ -38,17 +36,6 @@ const armCount = computed(() => props.cognition?.arms?.length ?? 0)
 const laneCount = computed(() =>
   (props.cognition?.arms ?? []).reduce((s, a) => s + (a.lane_num || a.lanes?.length || 0), 0),
 )
-const lodLabel = computed(() => {
-  switch (props.lod) {
-    case 'L2':
-      return '逐车道渠化'
-    case 'L1':
-      return '路口轮廓'
-    default:
-      return '路网'
-  }
-})
-const zoomLabel = computed(() => (props.zoom != null ? props.zoom.toFixed(1) : '—'))
 
 function formatDirRoles(dirs?: string[]): string {
   if (!dirs?.length) return ''
@@ -66,6 +53,7 @@ const runtimeItems = computed(() =>
     runtimeMetrics: props.runtimeMetrics,
     dataInsight: props.dataInsight,
     evidence: props.evidence,
+    flowTimingGovernance: props.flowTimingGovernance,
   }),
 )
 const showRuntime = computed(() => runtimeRevealed.value && runtimeItems.value.length > 0)
@@ -133,27 +121,19 @@ function sevClass(sev?: string): string {
       >
         <header class="head">
           <h3>{{ intersection.name }}</h3>
-          <p class="sub">
-            <span v-if="intersection.inter_id" class="id">{{ intersection.inter_id }}</span>
-            <span class="dot">·</span>真实渠化数据
+          <p v-if="intersection.inter_id" class="sub">
+            <span class="id">{{ intersection.inter_id }}</span>
           </p>
           <div class="meta-grid">
-            <div class="meta">
-              <span class="k">当前层级</span><span class="v">{{ lodLabel }}</span>
-            </div>
-            <div class="meta">
-              <span class="k">缩放 zoom</span><span class="v">{{ zoomLabel }}</span>
-            </div>
             <div class="meta wide">
-              <span class="k">路臂 / 进口车道</span>
-              <span class="v">{{ armCount }} 臂 / {{ laneCount }} 道</span>
+              <span class="k">进口车道</span>
+              <span class="v">{{ armCount }} 进口 · {{ laneCount }} 车道</span>
             </div>
           </div>
           <div v-if="focusRole || protectRole" class="roles">
             <span v-if="focusRole" class="role focus">关注 {{ focusRole }}</span>
             <span v-if="protectRole" class="role protect">保护 {{ protectRole }}</span>
           </div>
-          <p class="hint">滚轮放大到 18+ 逐车道渠化下钻 · 点击进口道查看转向 · 可拖拽平移</p>
         </header>
 
         <section v-if="showRuntime" class="block runtime">

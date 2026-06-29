@@ -1,5 +1,29 @@
 # 变更日志
 
+## develop · 信控演示叙事精简 (2026-06-29)
+
+> 分支 `develop` 首个可用版本 · **勿合并 `main`**
+
+### 叙事与呈现
+
+- `orchestrator` / `map_presentation_service` / `problem_evidence_service`：停投诉、流量溯源、干线协调等非主轴 beat。
+- 左侧运行数据：仅数据与证据；`shouldSkipRuntimeMetric` 过滤信号调整秒数、绿信比等结论。
+- `narrativeStack`：从 `turn_balance` 输出转向级饱和度与绿灯利用率，与治理建议 headline 一致。
+
+### 前端
+
+- `IntersectionNarrativeStack` / `MapStage` / `WorkbenchLayout`：面板与地图精简。
+- `App.vue` + `voice_narration.json`：语音去重、数据拉取先于指标、corridor/溯源静音。
+
+### 文档
+
+- [`docs/BRANCH_DEVELOP.md`](../../docs/BRANCH_DEVELOP.md)
+- [`docs/plans/2026-06-29-develop-信控演示叙事精简-复盘.md`](../../docs/plans/2026-06-29-develop-信控演示叙事精简-复盘.md)
+
+- 后端 pytest **190** 项；前端 vitest **130** 项。
+
+---
+
 ## v3.1 · 供需匹配度主轴 · 治理动作方案 (2026-06-29)
 
 ### 信控叙事主轴
