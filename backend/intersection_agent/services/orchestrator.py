@@ -168,35 +168,52 @@ class Orchestrator:
 
         return await self._run_pipeline(session, emitter)
 
-    def _record_problem_experience(
+    async def _record_problem_experience(
         self,
         session: Session,
         diagnosis: DiagnosisResult,
         governance: dict[str, Any] | None,
+        emitter: ExecutionEmitter | None = None,
     ) -> None:
-        """三级经验逐级写入：识别问题步落 cognition、归因步落 diagnosis。"""
+        """三级经验逐级写入：识别问题步落 cognition、归因步落 diagnosis。
+
+        严格栅栏：每步先落库，再 emit 对应 step_conclusion。
+        """
         inter_id = session.inter_id
         if not inter_id:
             return
         nlu = session.nlu
 
         # 识别问题步：数据可验证 → verified；人坚持但数据不显著 → data_doubt
+        cognition_entry = None
         if diagnosis.diagnosed and diagnosis.matched_rules:
             top = diagnosis.matched_rules[0]
-            self._profile_store.add_cognition(
+            profile = self._profile_store.add_cognition(
                 inter_id,
                 text=str(top.get("conclusion") or top.get("name") or "诊断命中问题"),
                 status="verified",
                 source="data",
                 evidence=diagnosis.metrics_snapshot or {},
             )
+            cognition_entry = profile.cognition[-1]
         elif nlu and nlu.user_suggestion:
-            self._profile_store.add_cognition(
+            profile = self._profile_store.add_cognition(
                 inter_id,
                 text=nlu.user_suggestion,
                 status="data_doubt",
                 source="user",
                 evidence={},
+            )
+            cognition_entry = profile.cognition[-1]
+        if cognition_entry is not None and emitter:
+            await emitter.emit(
+                "experience_cognition",
+                "completed",
+                data={
+                    "inter_id": inter_id,
+                    "text": cognition_entry.text,
+                    "status": cognition_entry.status,
+                },
             )
 
         # 归因步：供需匹配度主诊断 → diagnosis 先验
@@ -211,13 +228,20 @@ class Orchestrator:
                 source="data",
                 confidence=float(primary.get("confidence") or 0.0),
             )
+            if emitter:
+                await emitter.emit(
+                    "experience_diagnosis",
+                    "completed",
+                    data={"inter_id": inter_id, "cause": str(cause), "dimension": str(dimension)},
+                )
 
-    def _record_solution_ref(
+    async def _record_solution_ref(
         self,
         session: Session,
         result: SkillUpsertResult,
+        emitter: ExecutionEmitter | None = None,
     ) -> None:
-        """出方案步：skill 固化后在档案追加 solution_ref。"""
+        """出方案步：skill 固化后在档案追加 solution_ref（落库后再播报）。"""
         inter_id = session.inter_id
         if not inter_id or not result or not result.record:
             return
@@ -231,6 +255,16 @@ class Orchestrator:
             qualitative=qualitative,
             quantified=record.suggestion_formula or None,
         )
+        if emitter:
+            await emitter.emit(
+                "experience_solution",
+                "completed",
+                data={
+                    "inter_id": inter_id,
+                    "skill_id": record.skill_id,
+                    "quantified": record.suggestion_formula or None,
+                },
+            )
 
     async def _handle_confirmation(
         self,
@@ -254,7 +288,7 @@ class Orchestrator:
                 result = await self._skills.upsert_from_session_visual(session, emitter)
             else:
                 result = self._skills.upsert_from_session(session)
-            self._record_solution_ref(session, result)
+            await self._record_solution_ref(session, result, emitter)
             session.state = SessionState.DONE
             action = session.pending_skill_action or "create"
             log_event(
@@ -1214,7 +1248,9 @@ class Orchestrator:
             if reuse_badges:
                 session.data_payload["reused_experience"] = reuse_badges
 
-        self._record_problem_experience(session, diagnosis, flow_timing_governance)
+        await self._record_problem_experience(
+            session, diagnosis, flow_timing_governance, emitter
+        )
 
         if session.skill_reuse_mode and session.matched_skill_id:
             skill = self._skills.get_by_id(session.matched_skill_id)
@@ -1462,7 +1498,7 @@ class Orchestrator:
             result = await self._skills.upsert_from_session_visual(session, emitter)
         else:
             result = self._skills.upsert_from_session(session)
-        self._record_solution_ref(session, result)
+        await self._record_solution_ref(session, result, emitter)
         session.pending_skill_action = None
         log_event(
             logger,

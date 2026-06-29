@@ -23,6 +23,9 @@ STEP_LABELS: dict[str, str] = {
     "suggestion": "生成治理建议",
     "confirm_intent": "识别确认意图",
     "skill_create": "固化路口 Skill",
+    "experience_cognition": "沉淀认知经验",
+    "experience_diagnosis": "沉淀诊断经验",
+    "experience_solution": "沉淀方案经验",
     "complete": "处理完成",
 }
 
