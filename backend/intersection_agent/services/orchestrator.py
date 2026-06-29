@@ -36,6 +36,7 @@ from intersection_agent.services.map_presentation_service import (
     pick_narration_step,
 )
 from intersection_agent.services.dimension_pack_service import DimensionPackService
+from intersection_agent.services.experience_reuse_service import ExperienceReuseService
 from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
 from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
@@ -115,6 +116,7 @@ class Orchestrator:
         self._flow_governance = flow_governance or FlowTimingGovernanceService(rules=self._rules)
         self._sustained = sustained or SustainedMetricsService()
         self._profile_store = profile_store or IntersectionProfileStore()
+        self._experience_reuse = ExperienceReuseService(self._profile_store)
         self._settings = get_settings()
 
     async def handle_message(
@@ -1200,6 +1202,16 @@ class Orchestrator:
 
         session.diagnosis = diagnosis
 
+        # 复用先于沉淀：先采集历史档案中各步可复用经验（本轮写入之前）
+        if session.inter_id:
+            reuse_badges: list[str] = []
+            for step in ("identify", "attribution", "solution"):
+                reuse_badges.extend(
+                    self._experience_reuse.for_step(session.inter_id, step).reuse_badges
+                )
+            if reuse_badges:
+                session.data_payload["reused_experience"] = reuse_badges
+
         self._record_problem_experience(session, diagnosis, flow_timing_governance)
 
         if session.skill_reuse_mode and session.matched_skill_id:
@@ -1666,6 +1678,9 @@ class Orchestrator:
             corridor_scan = session.data_payload.get("corridor_scan")
             if corridor_scan:
                 meta["corridor_scan"] = corridor_scan
+            reused_experience = session.data_payload.get("reused_experience")
+            if reused_experience:
+                meta["reused_experience"] = reused_experience
         if extra:
             meta.update(extra)
 
