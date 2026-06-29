@@ -36,6 +36,7 @@ from intersection_agent.services.map_presentation_service import (
     pick_narration_step,
 )
 from intersection_agent.services.dimension_pack_service import DimensionPackService
+from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
 from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
 from intersection_agent.services.skill_service import SkillService, SkillUpsertResult
@@ -90,6 +91,7 @@ class Orchestrator:
         context_tags: ContextTagsService | None = None,
         flow_governance: FlowTimingGovernanceService | None = None,
         sustained: SustainedMetricsService | None = None,
+        profile_store: IntersectionProfileStore | None = None,
     ) -> None:
         self._nlu = nlu or NluService()
         self._resolver = resolver or IntersectionResolver()
@@ -112,6 +114,7 @@ class Orchestrator:
         self._context_tags = context_tags or ContextTagsService()
         self._flow_governance = flow_governance or FlowTimingGovernanceService(rules=self._rules)
         self._sustained = sustained or SustainedMetricsService()
+        self._profile_store = profile_store or IntersectionProfileStore()
         self._settings = get_settings()
 
     async def handle_message(
@@ -161,6 +164,70 @@ class Orchestrator:
 
         return await self._run_pipeline(session, emitter)
 
+    def _record_problem_experience(
+        self,
+        session: Session,
+        diagnosis: DiagnosisResult,
+        governance: dict[str, Any] | None,
+    ) -> None:
+        """三级经验逐级写入：识别问题步落 cognition、归因步落 diagnosis。"""
+        inter_id = session.inter_id
+        if not inter_id:
+            return
+        nlu = session.nlu
+
+        # 识别问题步：数据可验证 → verified；人坚持但数据不显著 → data_doubt
+        if diagnosis.diagnosed and diagnosis.matched_rules:
+            top = diagnosis.matched_rules[0]
+            self._profile_store.add_cognition(
+                inter_id,
+                text=str(top.get("conclusion") or top.get("name") or "诊断命中问题"),
+                status="verified",
+                source="data",
+                evidence=diagnosis.metrics_snapshot or {},
+            )
+        elif nlu and nlu.user_suggestion:
+            self._profile_store.add_cognition(
+                inter_id,
+                text=nlu.user_suggestion,
+                status="data_doubt",
+                source="user",
+                evidence={},
+            )
+
+        # 归因步：供需匹配度主诊断 → diagnosis 先验
+        primary = (governance or {}).get("primary_diagnosis") or {}
+        dimension = primary.get("type")
+        cause = primary.get("headline") or primary.get("lever")
+        if dimension and dimension != "basically_matched" and cause:
+            self._profile_store.add_diagnosis(
+                inter_id,
+                cause=str(cause),
+                dimension=str(dimension),
+                source="data",
+                confidence=float(primary.get("confidence") or 0.0),
+            )
+
+    def _record_solution_ref(
+        self,
+        session: Session,
+        result: SkillUpsertResult,
+    ) -> None:
+        """出方案步：skill 固化后在档案追加 solution_ref。"""
+        inter_id = session.inter_id
+        if not inter_id or not result or not result.record:
+            return
+        record = result.record
+        qualitative = (session.nlu.user_suggestion if session.nlu else None) or (
+            record.user_constraints
+        )
+        self._profile_store.add_solution_ref(
+            inter_id,
+            skill_id=record.skill_id,
+            qualitative=qualitative,
+            quantified=record.suggestion_formula or None,
+        )
+
     async def _handle_confirmation(
         self,
         session: Session,
@@ -183,6 +250,7 @@ class Orchestrator:
                 result = await self._skills.upsert_from_session_visual(session, emitter)
             else:
                 result = self._skills.upsert_from_session(session)
+            self._record_solution_ref(session, result)
             session.state = SessionState.DONE
             action = session.pending_skill_action or "create"
             log_event(
@@ -1132,6 +1200,8 @@ class Orchestrator:
 
         session.diagnosis = diagnosis
 
+        self._record_problem_experience(session, diagnosis, flow_timing_governance)
+
         if session.skill_reuse_mode and session.matched_skill_id:
             skill = self._skills.get_by_id(session.matched_skill_id)
             if skill and skill.user_constraints and not session.nlu.user_suggestion:
@@ -1362,6 +1432,7 @@ class Orchestrator:
             result = await self._skills.upsert_from_session_visual(session, emitter)
         else:
             result = self._skills.upsert_from_session(session)
+        self._record_solution_ref(session, result)
         session.pending_skill_action = None
         log_event(
             logger,
