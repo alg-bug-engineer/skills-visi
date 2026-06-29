@@ -8,6 +8,7 @@
 
 ```
 ├── backend/          # FastAPI 后端（纳入根仓库）
+├── region-scan/      # 区域路口扫描与试点选择（全域体检 + 试点榜，复用 backend 诊断；API 8100 / 前端 5570）
 ├── frontend-v2/      # Vue 3 三栏信控工作台 v2（纳入根仓库，端口 5568）
 ├── scripts/          # dev.sh / dev-v2.sh / prod-start.sh
 ├── deploy/           # Nginx、systemd 配置
