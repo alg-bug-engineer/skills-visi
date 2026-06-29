@@ -1354,16 +1354,20 @@ class Orchestrator:
                     "user_suggestion": safe_preview(session.nlu.user_suggestion),
                 },
             )
-        # knowledge_qa 轻量匹配：按问题类型 + 路口形态注入 Top-K 范例
+        # 专家经验库匹配：按问题类型 + 路口场景文本注入同类场景治理经验
         problem_types = session.nlu.problem_types or ["congestion"]
-        shape_tags = [
-            tag
-            for tag in ("短间距", "相邻", "左转", "快速路", "匝道", "溢出")
-            if tag in str(cognition)
-        ]
-        case_examples = self._case_library.match(problem_types, shape_tags, k=3)
-        if case_examples:
-            session.data_payload["case_examples"] = case_examples
+        scene_text = " ".join(
+            str(part)
+            for part in (
+                session.resolved_intersection or "",
+                session.raw_user_context or "",
+                cognition,
+            )
+        )
+        case_matches = self._case_library.match(problem_types, scene_text=scene_text, k=2)
+        case_experience_block = self._case_library.format_experience_block(case_matches)
+        if case_matches:
+            session.data_payload["case_experience"] = case_matches
 
         raw_delta = evaluate_formula(rule["action"]["formula"], data)
         flow_gov = data.get("flow_timing_governance") or {}
@@ -1388,6 +1392,7 @@ class Orchestrator:
             quantitative_constraints=session.data_payload.get("quantitative_constraints"),
             delta_override=clipped_delta,
             direction_override=str(direction_override) if direction_override else None,
+            case_experience=case_experience_block,
         )
         if clipped_delta != raw_delta and clip_note:
             suggestion = suggestion.model_copy(
@@ -1694,9 +1699,9 @@ class Orchestrator:
             reused_experience = session.data_payload.get("reused_experience")
             if reused_experience:
                 meta["reused_experience"] = reused_experience
-            case_examples = session.data_payload.get("case_examples")
-            if case_examples:
-                meta["case_examples"] = case_examples
+            case_experience = session.data_payload.get("case_experience")
+            if case_experience:
+                meta["case_experience"] = case_experience
         if extra:
             meta.update(extra)
 

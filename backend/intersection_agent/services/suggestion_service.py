@@ -28,6 +28,8 @@ NARRATIVE_PROMPT = """
 {action_plan_block}
 - 用户约束或建议：{user_suggestion}
 - 量化约束：{quantitative_constraints}
+- 同类场景专家治理经验（来自经验库，仅供表述与方向参考，不可改写量化动作）：
+{case_experience}
 
 ## 专业原则（必须遵守）
 1. 若绿灯利用率已偏高或存在空放/失衡，禁止简单建议「一律加绿灯」；应优先绿信比再分配、压缩空放相位。
@@ -57,6 +59,7 @@ class SuggestionService:
         quantitative_constraints: dict[str, Any] | None = None,
         delta_override: int | None = None,
         direction_override: str | None = None,
+        case_experience: str | None = None,
     ) -> SuggestionResult:
         """Build suggestion from matched rule."""
         action = rule["action"]
@@ -105,6 +108,7 @@ class SuggestionService:
                 if quantitative_constraints
                 else "无"
             ),
+            case_experience=case_experience or "无同类场景经验。",
         )
 
         try:

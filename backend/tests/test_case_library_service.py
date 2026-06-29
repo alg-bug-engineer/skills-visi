@@ -1,22 +1,42 @@
 import inspect
-from pathlib import Path
 
 from intersection_agent.services.case_library_service import CaseLibraryService
 
-_QA_PATH = Path(__file__).resolve().parents[2] / "docs" / "knowledge_qa.jsonl"
 
-
-def test_match_by_problem_type_and_shape():
-    svc = CaseLibraryService(path=_QA_PATH)
-    hits = svc.match(problem_types=["spillback"], shape_tags=["短间距"], k=3)
-    assert hits and "溢出" in (hits[0]["交通问题诊断"] + hits[0]["案例场景"])
-    assert len(hits) <= 3
-
-
-def test_default_path_resolves():
+def test_parses_all_scenarios():
     svc = CaseLibraryService()
-    hits = svc.match(problem_types=["congestion"], shape_tags=[], k=2)
-    assert len(hits) <= 2
+    scenarios = svc._load()
+    ids = {s["scenario_id"] for s in scenarios}
+    assert len(scenarios) == 19
+    assert {"arterial_green_wave", "school_zone", "short_spacing_coordinated"} <= ids
+    # 每个场景至少解析出一个典型问题
+    assert all(s["problems"] for s in scenarios)
+
+
+def test_matches_school_zone_scenario():
+    svc = CaseLibraryService()
+    matches = svc.match(
+        problem_types=["congestion"], scene_text="路口旁边有小学，上下学高峰排队", k=1
+    )
+    assert matches and matches[0]["scenario_id"] == "school_zone"
+
+
+def test_matches_short_spacing_and_block_has_measures():
+    svc = CaseLibraryService()
+    matches = svc.match(
+        problem_types=["spillback"],
+        scene_text="两个相邻路口相距很短，排队回溢到上游",
+        k=1,
+    )
+    assert matches[0]["scenario_id"] == "short_spacing_coordinated"
+    block = svc.format_experience_block(matches)
+    assert "治理方案" in block and "关键措施" in block
+
+
+def test_fallback_to_general_when_no_scene_hit():
+    svc = CaseLibraryService()
+    matches = svc.match(problem_types=["congestion"], scene_text="", k=1)
+    assert matches  # 回退一般路口/首个场景
 
 
 def test_no_vector_dependency():
