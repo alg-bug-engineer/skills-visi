@@ -305,6 +305,7 @@ rules:
   - id: rule_channelization_conflict
     name: 渠化与配时冲突
     problem_type: channelization
+    focus_category: channelization
     priority: 30
     conditions:
       - metric: channelization.has_mixed_left

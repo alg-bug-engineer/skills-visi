@@ -1,0 +1,12 @@
+version: 1.0.0
+base:            # 所有问题共有底座（流量/渠化/POI/AOI 在 cognition 阶段加载，此处为诊断类目）
+  focus_categories: [saturation]
+packs:
+  congestion:    # 拥堵：饱和度/绿灯利用率/排队/延误
+    focus_categories: [saturation, imbalance]
+  spillback:     # 溢出：排队长度/溢出/下游阻塞
+    focus_categories: [spillback]
+  empty_green:   # 空放：绿灯利用率/配时/环图/失衡
+    focus_categories: [empty_green, imbalance]
+  conflict:      # 冲突：相位相序/渠化匹配
+    focus_categories: [channelization]
