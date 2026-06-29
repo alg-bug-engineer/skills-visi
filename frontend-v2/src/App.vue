@@ -2,11 +2,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { checkHealth, createSession, sendMessageStream } from './api/client'
 import WorkbenchLayout from './components/workbench/WorkbenchLayout.vue'
-import { STEP_INDICES, STEP_PAUSE_MS } from './constants'
+import { STEP_INDICES, STEP_PAUSE_MS, DATA_FETCH_STEP_PAUSE_MS, SUGGESTION_CONFIRM_BANNER } from './constants'
 import {
   isSkillPresentationActive,
+  shouldEnterAnalysisTerminal,
   shouldShowSkillSolidificationStep,
 } from './utils/regressionSkillFlow'
+import { waitForGovernanceSuggestionPresented } from './utils/waitForGovernanceSuggestionPresented'
 import {
   frameYield,
   isSkillStreamBufferedEvent,
@@ -62,12 +64,18 @@ const errorBanner = ref<string | null>(null)
 
 const docked = ref(false)
 const inputLocked = ref(false)
+const analysisTerminalMode = ref(false)
 const mapActions = ref<MapActionEvent[]>([])
 const showConfirm = ref(false)
 const confirmMessage = ref('是否将此诊断固化为路口 Skill？')
 const pendingConfirm = ref(false)
+const pendingSkillCreateConfirm = ref(false)
+let skillSolidificationPresenting = false
 const mapToast = ref<string | null>(null)
 const awaitingSuggestionConfirm = ref(false)
+const suggestionConfirmBanner = computed(() =>
+  awaitingSuggestionConfirm.value ? SUGGESTION_CONFIRM_BANNER : null,
+)
 const channelizationActive = ref(false)
 const analysisRunKey = ref(0)
 const leaderboardRefreshKey = ref(0)
@@ -87,6 +95,25 @@ const PAIRED_NARRATION_PHASES = new Set([
   'rule',
   'conclusion',
 ])
+
+const DATA_FETCH_MAP_PHASES = new Set([
+  'traffic',
+  'direction',
+  'granularity',
+  'timing',
+  'corridor',
+  'external',
+  'saturation',
+  'imbalance',
+])
+
+function resolveMapActionPauseMs(action: MapActionEvent): number {
+  if (action.action === 'update_metrics') return DATA_FETCH_STEP_PAUSE_MS
+  if (action.phase && DATA_FETCH_MAP_PHASES.has(action.phase)) {
+    return DATA_FETCH_STEP_PAUSE_MS
+  }
+  return STEP_PAUSE_MS
+}
 let pendingNarration: MapActionEvent | null = null
 let lastUserContent = ''
 
@@ -177,6 +204,7 @@ const hideInputDock = computed(
     absorptionState.active ||
     (channelizationActive.value &&
       inputLocked.value &&
+      !analysisTerminalMode.value &&
       !showConfirm.value &&
       !followUpBubble.value &&
       !awaitingSuggestionConfirm.value),
@@ -402,6 +430,7 @@ watch(
 )
 
 function isPresentationPauseActive(): boolean {
+  if (awaitingSuggestionConfirm.value) return false
   return (
     loading.value ||
     analysisQueue.isRunning ||
@@ -449,7 +478,6 @@ function startSuggestionConfirmPause(message: string) {
   docked.value = true
   inputLocked.value = false
   presentationPause.pause()
-  showMapToast(message)
 }
 
 function queueSuggestionConfirmPause(message: string) {
@@ -463,10 +491,35 @@ function queueSuggestionConfirmPause(message: string) {
   }, STEP_PAUSE_MS)
 }
 
+function enterAnalysisTerminal() {
+  analysisTerminalMode.value = true
+  inputLocked.value = true
+  pendingConfirm.value = false
+  showConfirm.value = false
+  docked.value = true
+}
+
+async function enterAnalysisTerminalAfterSuggestionPresented(
+  skillAction: string | undefined,
+  state: string,
+) {
+  if (!shouldEnterAnalysisTerminal(skillAction, state)) return
+  await waitForGovernanceSuggestionPresented({
+    whenQueueIdle: () => analysisQueue.whenIdle(),
+    whenSettled: whenPresentationSettled,
+    getFocusStepIndex: () => presentationSequence.focusStepIndex.value,
+    getSuggestion: () => presentation.state.governanceSuggestion,
+    getFlowTimingGovernance: () => presentation.state.flowTimingGovernance,
+  })
+  if (!shouldEnterAnalysisTerminal(skillAction, state)) return
+  enterAnalysisTerminal()
+}
+
 function stopSuggestionConfirmPause({ resumeQueue = true } = {}) {
   suggestionConfirmQueued = false
   awaitingSuggestionConfirm.value = false
   pendingConfirm.value = false
+  pendingSkillCreateConfirm.value = false
   clearToastTimer()
   mapToast.value = null
   if (resumeQueue) presentationPause.resume()
@@ -544,6 +597,57 @@ async function revealSuggestionStep(message: string) {
   await whenPresentationSettled()
 }
 
+function governanceSuggestionPresentationGate() {
+  return {
+    whenQueueIdle: () => analysisQueue.whenIdle(),
+    whenSettled: whenPresentationSettled,
+    getFocusStepIndex: () => presentationSequence.focusStepIndex.value,
+    getSuggestion: () => presentation.state.governanceSuggestion,
+    getFlowTimingGovernance: () => presentation.state.flowTimingGovernance,
+  }
+}
+
+function extractSkillSolidificationPrompt(content: string): string | null {
+  const match = content.match(/---\n([\s\S]+?)回复「是」/)
+  return match?.[1]?.trim() ?? null
+}
+
+/** 治理建议卡片揭示后再展示技能固化步骤与确认弹窗。 */
+async function presentSkillSolidificationConfirm(
+  message: string,
+  { insideAnalysisQueue = false } = {},
+) {
+  if (showConfirm.value || skillSolidificationPresenting) return
+  skillSolidificationPresenting = true
+  try {
+    confirmMessage.value = message
+    pendingConfirm.value = true
+    pendingSkillCreateConfirm.value = true
+    if (!insideAnalysisQueue) {
+      await analysisQueue.whenIdle()
+    }
+    await waitForGovernanceSuggestionPresented({
+      ...governanceSuggestionPresentationGate(),
+      skipQueueIdle: true,
+    })
+    if (
+      !pendingConfirm.value ||
+      awaitingSuggestionConfirm.value ||
+      suggestionConfirmQueued ||
+      showConfirm.value
+    ) {
+      return
+    }
+    if (!hasSkillStep()) {
+      await revealSkillStep(message)
+    }
+    showConfirm.value = true
+    inputLocked.value = false
+  } finally {
+    skillSolidificationPresenting = false
+  }
+}
+
 async function finalizeDiagnosisUi(result: MessageResponse) {
   if (panelMode.value !== 'analysis') return
 
@@ -555,8 +659,26 @@ async function finalizeDiagnosisUi(result: MessageResponse) {
   await analysisQueue.whenIdle()
   await whenPresentationSettled()
 
+  const skillAction = result.meta?.skill_action as string | undefined
+  const entersTerminal = shouldEnterAnalysisTerminal(skillAction, result.state)
+
+  if (entersTerminal) {
+    await enterAnalysisTerminalAfterSuggestionPresented(skillAction, result.state)
+    return
+  }
+
+  if (result.state === 'awaiting_confirm' && skillAction === 'awaiting_create') {
+    if (!showConfirm.value && pendingConfirm.value) {
+      const prompt =
+        confirmMessage.value ||
+        extractSkillSolidificationPrompt(result.reply.content) ||
+        '已生成治理建议，是否将本次诊断和约束沉淀为路口 Skill？'
+      await presentSkillSolidificationConfirm(prompt)
+    }
+    return
+  }
+
   if (!hasSkillStep()) {
-    const skillAction = result.meta?.skill_action as string | undefined
     if (shouldShowSkillSolidificationStep(skillAction, result.state)) {
       await revealSkillStep(
         confirmMessage.value ||
@@ -567,19 +689,27 @@ async function finalizeDiagnosisUi(result: MessageResponse) {
 
   if (pendingConfirm.value) {
     showConfirm.value = true
-    inputLocked.value = false
-  } else if (result.state !== 'awaiting_confirm') {
+    if (!entersTerminal) inputLocked.value = false
+  } else if (result.state !== 'awaiting_confirm' && !entersTerminal && !analysisTerminalMode.value) {
     inputLocked.value = false
   }
 }
 
 async function tryShowConfirm() {
   if (
+    analysisTerminalMode.value ||
     !pendingConfirm.value ||
     showConfirm.value ||
     awaitingSuggestionConfirm.value ||
     suggestionConfirmQueued
   ) {
+    return
+  }
+  if (pendingSkillCreateConfirm.value) {
+    const prompt =
+      confirmMessage.value ||
+      '已生成治理建议，是否将本次诊断和约束沉淀为路口 Skill？'
+    await presentSkillSolidificationConfirm(prompt)
     return
   }
   await analysisQueue.whenIdle()
@@ -726,6 +856,7 @@ function beginAnalysisFlow(userContent: string) {
 
 function prepareNewAnalysisRun(userContent: string) {
   stopSuggestionConfirmPause()
+  analysisTerminalMode.value = false
   presentationPause.reset()
   analysisQueue.reset()
   resetSkillEventBuffer()
@@ -906,6 +1037,7 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
 
   analysisQueue.enqueue(async () => {
     if (action.action === 'input_dock') {
+      if (analysisTerminalMode.value) return
       if (action.phase === 'engage') {
         docked.value = true
         inputLocked.value = action.locked ?? true
@@ -1051,19 +1183,16 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
         startSuggestionConfirmPause(message)
         return
       }
-      confirmMessage.value = action.message ?? confirmMessage.value
-      await revealSkillStep(
+      await presentSkillSolidificationConfirm(
         action.message ??
-          '是否将此诊断固化为路口 Skill？回复「是」确认固化，「否」结束本次会话。',
+          '已生成治理建议，是否将本次诊断和约束沉淀为路口 Skill？',
+        { insideAnalysisQueue: true },
       )
-      pendingConfirm.value = true
-      showConfirm.value = true
-      inputLocked.value = false
       return
     }
 
     pushMapAction(action)
-  }, STEP_PAUSE_MS)
+  }, resolveMapActionPauseMs(action))
 }
 
 function handleProblemEvidenceStep(data: Record<string, unknown>) {
@@ -1231,10 +1360,13 @@ function handlePipelineStep(
       )
       presentation.setPhase('rule')
       analysisQueue.enqueue(async () => {
-        const gov = data.flow_timing_governance as { summary?: string }
+        const gov = data.flow_timing_governance as {
+          summary?: string
+          primary_diagnosis?: { headline?: string }
+        }
         enqueueProcess(
           STEP_INDICES.RULE,
-          gov.summary ?? '四维信控诊断完成',
+          gov.primary_diagnosis?.headline ?? gov.summary ?? '四维信控诊断完成',
           true,
           true,
         )
@@ -1264,9 +1396,12 @@ async function initSession() {
   skillBuildPendingFinish.value = false
   loading.value = false
   inputLocked.value = false
+  analysisTerminalMode.value = false
   docked.value = false
   showConfirm.value = false
   pendingConfirm.value = false
+  pendingSkillCreateConfirm.value = false
+  skillSolidificationPresenting = false
   awaitingSuggestionConfirm.value = false
   mapToast.value = null
   mapActions.value = []
@@ -1303,6 +1438,7 @@ async function handleSend(content: string) {
   const wasSuggestionConfirm = awaitingSuggestionConfirm.value
   const isSkillConfirmReply = sessionState.value === 'awaiting_confirm'
   if (wasSuggestionConfirm) {
+    inputLocked.value = true
     stopSuggestionConfirmPause()
   } else {
     clearToastTimer()
@@ -1335,6 +1471,7 @@ async function handleSend(content: string) {
   if (!wasSuggestionConfirm) {
     showConfirm.value = false
     pendingConfirm.value = false
+    pendingSkillCreateConfirm.value = false
   }
 
   try {
@@ -1384,6 +1521,7 @@ async function handleSend(content: string) {
 
           if (result.state === 'awaiting_confirm') {
             pendingConfirm.value = true
+            pendingSkillCreateConfirm.value = result.meta?.skill_action === 'awaiting_create'
             if (isSuggestionGenerateConfirm(result)) {
               docked.value = true
             }
@@ -1450,6 +1588,7 @@ function onInputActivity(value: string) {
 function onConfirm() {
   showConfirm.value = false
   pendingConfirm.value = false
+  pendingSkillCreateConfirm.value = false
   analysisQueue.resume()
   handleSend('是')
 }
@@ -1467,9 +1606,14 @@ function onSkillBuildFinish() {
   }, 650)
 }
 
+async function onReturnHome() {
+  await initSession()
+}
+
 async function onDeny() {
   showConfirm.value = false
   pendingConfirm.value = false
+  pendingSkillCreateConfirm.value = false
   presentationPause.reset()
   analysisQueue.reset()
   resetSkillEventBuffer()
@@ -1512,6 +1656,7 @@ onUnmounted(() => {
       :process-active="loading || pendingConfirm"
       :docked="docked"
       :input-locked="inputLocked"
+      :analysis-terminal="analysisTerminalMode"
       :loading="loading"
       :follow-up-bubble="followUpBubble"
       :map-toast="mapToast"
@@ -1527,6 +1672,7 @@ onUnmounted(() => {
       :voice-enabled="voice.enabled.value"
       :voice-playing="voice.playing.value"
       :presentation-paused="presentationPause.paused.value"
+      :suggestion-confirm-banner="suggestionConfirmBanner"
       :presentation-layers="presentationSequence.layers.value"
       :focus-step-index="presentationSequence.focusStepIndex.value"
       :leaderboard-refresh-key="leaderboardRefreshKey"
@@ -1543,6 +1689,7 @@ onUnmounted(() => {
       @close-corridor-wave="presentation.closeCorridorWaveMini()"
       @confirm="onConfirm"
       @deny="onDeny"
+      @return-home="onReturnHome"
       @select-skill-file="selectSkillFile"
       @skill-build-finish="onSkillBuildFinish"
       @corridor-select="handleCorridorSelect"

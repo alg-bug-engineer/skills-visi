@@ -166,7 +166,7 @@ def build_narration_steps(
         )
 
     external = data.get("external_evidence") or {}
-    if external.get("narrative"):
+    if external.get("has_external_evidence") and external.get("narrative"):
         steps.append(
             {
                 "phase": "external",
@@ -887,7 +887,6 @@ def build_map_scene(
                     "icon": "📊",
                     "metrics": [
                         {"label": "饱和度", "value": sat_text, "severity": _severity(saturation)},
-                        {"label": "延误", "value": delay_text, "severity": _severity(saturation)},
                     ],
                 },
                 "markers": entrance_markers + ([delay_marker] if delay is not None else []),
@@ -1339,11 +1338,6 @@ def build_map_scene(
                     "title": "干线协调",
                     "icon": "🌊",
                     "metrics": [
-                        {
-                            "label": "走廊",
-                            "value": (str(corridor.get("corridor_name") or "—"))[:14],
-                            "severity": "medium",
-                        },
                         {
                             "label": "节点位置",
                             "value": f"{pos}/{total}" if pos and total else "—",

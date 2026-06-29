@@ -122,9 +122,6 @@ class ContextTagsService:
             narrative_parts.append(
                 f"交通组织调研问题 {len(field_issues)} 条：{field_issues[0].get('desc', '')[:40]}"
             )
-        if not narrative_parts:
-            narrative_parts.append("暂无投诉或现场调研台账，诊断完全基于运行数据")
-
         return {
             "complaint_total": complaint_total,
             "complaints": complaints,
@@ -132,7 +129,7 @@ class ContextTagsService:
             "field_survey": field_issues,
             "tags": tags,
             "has_external_evidence": bool(complaint_total or manual_issues or field_issues),
-            "narrative": "；".join(narrative_parts),
+            "narrative": "；".join(narrative_parts) if narrative_parts else "",
             "query_trace": query_trace,
         }
 

@@ -36,6 +36,9 @@ frontend-v2/*.local
 # --- 密钥（勿提交）---
 docs/AccessKey.csv
 
+# --- 大体积数仓导出（本地参考，勿提交）---
+docs/all_slices_dws_correlate_m_multihop_merged.csv
+
 *.egg-info/
 .idea/
 .vscode/

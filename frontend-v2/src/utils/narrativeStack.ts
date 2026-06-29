@@ -9,6 +9,14 @@ import type { DataInsight } from '../types/insight'
 import { formatSaturation } from './evidencePresentation'
 import { THRESHOLDS } from '../constants'
 
+/** 已在运行数据其他条目展示的 HUD 指标，避免重复罗列 */
+export const RUNTIME_METRIC_SKIP_LABELS = new Set([
+  '饱和度',
+  '失衡系数',
+  '走廊', // 与「干线绿波」重复
+  '延误', // 与「延误指数」重复
+])
+
 export type NarrativeRuntimeCategory =
   | 'saturation'
   | 'metrics'
@@ -81,9 +89,9 @@ export function buildNarrativeRuntimeItems(input: {
     })
   }
 
-  // 2) 四向指标（来自累积的运行数据 DataInsight，排除饱和度/失衡，后两者单列）
+  // 2) 四向指标（来自累积的运行数据 DataInsight，排除已在其他条目展示的项）
   for (const m of insightMetrics) {
-    if (m.label === '饱和度' || m.label === '失衡系数') continue
+    if (RUNTIME_METRIC_SKIP_LABELS.has(m.label)) continue
     push({
       id: `metric-${m.label}`,
       label: m.label,

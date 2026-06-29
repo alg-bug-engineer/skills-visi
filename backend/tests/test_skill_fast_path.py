@@ -161,6 +161,45 @@ async def test_fast_path_supplement_triggers_skill_confirm(client):
     assert body["state"] == "awaiting_confirm"
     assert body["meta"].get("skill_action") == "awaiting_create"
     assert "垂直方向" in body["nlu"]["user_suggestion"]
+    assert "绿灯应更长" in body["nlu"]["user_suggestion"]
+
+
+@pytest.mark.asyncio
+async def test_fast_path_supplement_merges_constraints_on_persist(client):
+    """RT-REUSE: D1 补充新约束时合并历史约束并更新 Skill。"""
+    create = await client.post("/api/v1/sessions")
+    sid = create.json()["session_id"]
+    await client.post(
+        f"/api/v1/sessions/{sid}/messages",
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向经常拥堵，绿灯应更长"},
+    )
+    await client.post(f"/api/v1/sessions/{sid}/messages", json={"content": "确认固化"})
+
+    second_session = await client.post("/api/v1/sessions")
+    sid2 = second_session.json()["session_id"]
+    await client.post(
+        f"/api/v1/sessions/{sid2}/messages",
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向经常拥堵"},
+    )
+    await client.post(
+        f"/api/v1/sessions/{sid2}/messages",
+        json={"content": "是，垂直方向不能溢出"},
+    )
+    pending = await client.post(f"/api/v1/sessions/{sid2}/messages", json={"content": "是"})
+    body = pending.json()
+    assert body["reply"]["type"] in ("skill_created", "skill_updated", "diagnosis")
+    assert body["meta"].get("skill_action") in ("updated", "created")
+
+    skills = await client.get("/api/v1/skills/leaderboard")
+    records = skills.json()
+    matched = next(
+        (s for s in records if "奥体西路" in (s.get("intersection") or "")),
+        None,
+    )
+    assert matched is not None
+    constraints = matched.get("user_constraints") or ""
+    assert "绿灯应更长" in constraints
+    assert "垂直方向" in constraints or "溢出" in constraints
 
 
 @pytest.mark.asyncio

@@ -14,6 +14,22 @@ export const SKILL_ACTIONS_WITHOUT_SOLIDIFICATION_UI = [
 export type SkillActionWithoutSolidificationUi =
   (typeof SKILL_ACTIONS_WITHOUT_SOLIDIFICATION_UI)[number]
 
+/** 治理建议已生成、无需技能固化：分析结束，输入锁定并展示返回主页 */
+export const SKILL_ACTIONS_ANALYSIS_TERMINAL = [
+  'reused_no_persist',
+  'skipped_no_user_suggestion',
+] as const
+
+export type SkillActionAnalysisTerminal = (typeof SKILL_ACTIONS_ANALYSIS_TERMINAL)[number]
+
+export function shouldEnterAnalysisTerminal(
+  skillAction: string | undefined,
+  state: string,
+): boolean {
+  if (state !== 'done' || !skillAction) return false
+  return (SKILL_ACTIONS_ANALYSIS_TERMINAL as readonly string[]).includes(skillAction)
+}
+
 /** 是否应在理解过程面板展示步骤 7（技能固化） */
 export function shouldShowSkillSolidificationStep(
   skillAction: string | undefined,

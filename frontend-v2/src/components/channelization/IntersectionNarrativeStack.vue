@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { CognitionPayload } from '../../types/map'
-import type { ProblemEvidence } from '../../types/evidence'
+import type { ProblemEvidence, FlowTimingGovernance } from '../../types/evidence'
 import type {
   GovernanceSuggestionPayload,
   PipelinePhase,
@@ -21,6 +21,7 @@ const props = defineProps<{
   dataInsight?: DataInsight | null
   evidence?: ProblemEvidence | null
   governanceSuggestion?: GovernanceSuggestionPayload | null
+  flowTimingGovernance?: FlowTimingGovernance | null
   focusStepIndex: number
   phase?: PipelinePhase
   zoom?: number | null
@@ -80,7 +81,9 @@ const evidenceSummary = computed(() => evidenceItems.value[0] ?? '问题已印�
 
 /* ── 治理建议 ───────────────────────────────────────────────────────────── */
 const suggestionRevealed = ref(false)
-const suggestionItems = computed(() => buildSuggestionListItems(props.governanceSuggestion))
+const suggestionItems = computed(() =>
+  buildSuggestionListItems(props.governanceSuggestion, props.flowTimingGovernance),
+)
 const showSuggestion = computed(
   () => suggestionRevealed.value && suggestionItems.value.length > 0,
 )

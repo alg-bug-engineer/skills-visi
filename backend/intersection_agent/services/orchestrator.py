@@ -52,6 +52,7 @@ from intersection_agent.services.intent_classifier_service import IntentClassifi
 from intersection_agent.services.line_resolver import LineResolver
 from intersection_agent.services.problem_evidence_service import ProblemEvidenceService
 from intersection_agent.services.suggestion_service import SuggestionService
+from intersection_agent.services.user_constraint_merge import merge_user_constraints
 from intersection_agent.services.sustained_metrics_service import SustainedMetricsService
 from intersection_agent.services.timing_profile_service import TimingProfileService
 from intersection_agent.utils.terminal_report import (
@@ -267,10 +268,12 @@ class Orchestrator:
 
         session.pending_suggestion_action = None
         if suggestion_text:
-            session.nlu.user_suggestion = suggestion_text
+            base = self._base_user_suggestion_for_merge(session)
+            merged = merge_user_constraints(base, suggestion_text)
+            session.nlu.user_suggestion = merged
             problem_evidence = session.data_payload.get("problem_evidence")
             quantitative_constraints = self._constraints.resolve(
-                suggestion_text,
+                merged or suggestion_text,
                 nlu_directions=session.nlu.directions,
                 problem_evidence=problem_evidence,
             )
@@ -1254,6 +1257,16 @@ class Orchestrator:
                 },
             )
         raw_delta = evaluate_formula(rule["action"]["formula"], data)
+        flow_gov = data.get("flow_timing_governance") or {}
+        action_plan = flow_gov.get("action_plan") or {}
+        plan_type = str(action_plan.get("action_type") or "")
+        if plan_type in ("reallocate_green", "increase_green"):
+            plan_delta = action_plan.get("transfer_seconds")
+            if plan_delta is not None and int(plan_delta) > 0:
+                raw_delta = int(plan_delta)
+        elif plan_type in ("capacity_non_timing", "spillback_control", "maintain", "guidance_only"):
+            raw_delta = 0
+        direction_override = action_plan.get("direction")
         clipped_delta, clip_note = self._constraints.apply_to_delta(
             raw_delta,
             session.data_payload.get("quantitative_constraints"),
@@ -1265,6 +1278,7 @@ class Orchestrator:
             user_suggestion=session.nlu.user_suggestion,
             quantitative_constraints=session.data_payload.get("quantitative_constraints"),
             delta_override=clipped_delta,
+            direction_override=str(direction_override) if direction_override else None,
         )
         if clipped_delta != raw_delta and clip_note:
             suggestion = suggestion.model_copy(
@@ -1318,6 +1332,7 @@ class Orchestrator:
             session.nlu.intersection or session.resolved_intersection or "",
             time_label,
             resolution_note,
+            flow_timing_governance=session.data_payload.get("flow_timing_governance"),
         )
 
     async def _persist_skill_from_session(
@@ -1350,6 +1365,16 @@ class Orchestrator:
             )
         return result
 
+    def _base_user_suggestion_for_merge(self, session: Session) -> str | None:
+        """Existing session or matched skill constraints before D1 supplement."""
+        if session.nlu and session.nlu.user_suggestion and session.nlu.user_suggestion.strip():
+            return session.nlu.user_suggestion
+        if session.matched_skill_id:
+            skill = self._skills.get_by_id(session.matched_skill_id)
+            if skill and skill.user_constraints:
+                return skill.user_constraints
+        return None
+
     async def _await_skill_create_confirmation(
         self,
         session: Session,
@@ -1359,9 +1384,18 @@ class Orchestrator:
         suggestion_action: str,
     ) -> dict[str, Any]:
         """Show generated suggestion, then wait for user confirmation before persisting Skill."""
-        session.pending_skill_action = "create"
+        existing = (
+            self._skills.get_by_id(self._skills._skill_id_for_session(session))
+            if session.inter_id
+            else None
+        )
+        session.pending_skill_action = "update" if existing else "create"
         session.state = SessionState.AWAITING_CONFIRM
-        prompt = "已生成治理建议，是否将本次诊断和约束沉淀为路口 Skill？"
+        prompt = (
+            "已生成治理建议，是否将本次新增约束更新到路口 Skill？"
+            if existing
+            else "已生成治理建议，是否将本次诊断和约束沉淀为路口 Skill？"
+        )
         if emitter:
             await self._emit_map_sequence(
                 emitter,
@@ -1564,7 +1598,7 @@ class Orchestrator:
 def _no_diagnosis_message(reason_code: str, data: dict[str, Any]) -> str:
     """User message when no rule matches."""
     if reason_code == "missing_dws_coverage":
-        return "该路口暂无完整运行数据（DWS 未覆盖），无法给出可靠拥堵诊断，请联系数据管理员补采。"
+        return "该路口暂无完整运行数据（运行数据未覆盖），无法给出可靠拥堵诊断，请联系数据管理员补采。"
     snap = data.get("traffic_flow", {})
     return (
         "根据当前数据，暂未命中拥堵诊断规则，可能需要进一步现场调研或补充数据。"

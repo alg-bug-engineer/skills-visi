@@ -69,6 +69,28 @@ describe('buildNarrativeRuntimeItems', () => {
     expect(sat[0].value).toContain('0.70')
   })
 
+  it('omits corridor and delay HUD metrics duplicated elsewhere', () => {
+    const items = buildNarrativeRuntimeItems({
+      dataInsight: {
+        title: '运行数据',
+        metrics: [
+          { label: '延误指数', value: '1.30' },
+          { label: '延误', value: '1.30' },
+          { label: '走廊', value: '经十路' },
+          { label: '节点位置', value: '3/5' },
+        ],
+      },
+      evidence: {
+        corridor_context: { in_corridor: true, corridor_name: '经十路', green_wave_break_risk: false },
+      } as ProblemEvidence,
+    })
+    expect(items.find((i) => i.label === '延误')).toBeUndefined()
+    expect(items.find((i) => i.label === '走廊')).toBeUndefined()
+    expect(items.find((i) => i.label === '延误指数')).toBeDefined()
+    expect(items.find((i) => i.label === '干线绿波')).toBeDefined()
+    expect(items.find((i) => i.label === '节点位置')).toBeDefined()
+  })
+
   it('omits corridor when not in a corridor', () => {
     const items = buildNarrativeRuntimeItems({
       evidence: { corridor_context: { in_corridor: false } } as ProblemEvidence,

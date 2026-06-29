@@ -3,6 +3,7 @@ import {
   isSkillPresentationActive,
   shouldEnqueueAbsorptionVoice,
   shouldEnqueueSkillBuildVoice,
+  shouldEnterAnalysisTerminal,
   shouldShowSkillSolidificationStep,
 } from './regressionSkillFlow'
 
@@ -11,8 +12,17 @@ describe('regressionSkillFlow RT-UI-07 / RT-VOICE-16', () => {
     expect(shouldShowSkillSolidificationStep('reused_no_persist', 'done')).toBe(false)
   })
 
-  it('skipped_no_user_suggestion does not show skill solidification step', () => {
+  it('reused_no_persist enters analysis terminal (lock input + return home)', () => {
+    expect(shouldEnterAnalysisTerminal('reused_no_persist', 'done')).toBe(true)
+    expect(shouldEnterAnalysisTerminal('reused_no_persist', 'awaiting_confirm')).toBe(false)
+  })
+
+  it('skipped_no_user_suggestion enters analysis terminal without skill solidification', () => {
     expect(shouldShowSkillSolidificationStep('skipped_no_user_suggestion', 'done')).toBe(false)
+    expect(shouldEnterAnalysisTerminal('skipped_no_user_suggestion', 'done')).toBe(true)
+    expect(shouldEnterAnalysisTerminal('skipped_no_user_suggestion', 'awaiting_confirm')).toBe(
+      false,
+    )
   })
 
   it('awaiting_create shows skill solidification step', () => {

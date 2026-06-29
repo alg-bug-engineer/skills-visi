@@ -1,6 +1,6 @@
 # 开发进度
 
-> 最后更新：2026-06-27
+> 最后更新：2026-06-29
 
 ## 里程碑状态
 
@@ -13,10 +13,21 @@
 | M12 0625 证据/约束 | ✅ | problem_evidence、quantitative_constraints |
 | M13 四类信控问题 | ✅ | flow_timing_governance、演示嗅探 |
 | M14 经验吸收 v2 | ✅ | skill_absorption + L3 交错落盘 + 三层 tags |
-| M15 测试 | ✅ | pytest **119** 项（`.venv/bin/pytest -q`） |
+| M15 测试 | ✅ | pytest **169** 项（`.venv/bin/pytest -q`） |
 | M16 语音步骤同步 | ✅ | `voice_narration.json` + `onStepStart` 旁白对齐 |
 | M17 饱和度口径 | ✅ | 前后端统一小数（0.92） |
 | M18 约束裁剪修复 | ✅ | delta 先裁剪再生成建议 narrative |
+| M19 供需匹配度主轴 | ✅ | `primary_diagnosis`、`action_plan`、治理 YAML、约束合并 |
+
+## 供需匹配度主轴（2026-06-29）
+
+| 模块 | 路径 | 状态 |
+|------|------|------|
+| 主诊断 | `services/flow_timing_governance_service.py` | ✅ `primary_diagnosis` |
+| 动作方案 | `services/governance_action_plan_service.py` | ✅ `action_plan` |
+| 治理文案 | `services/governance_guidance.py` + `docs/intersection/flow-timing-governance/` | ✅ YAML 规则 |
+| 约束合并 | `services/user_constraint_merge.py` | ✅ |
+| 建议注入 | `services/suggestion_service.py` | ✅ prompt 块 |
 
 ## 经验吸收 v2 新增模块
 

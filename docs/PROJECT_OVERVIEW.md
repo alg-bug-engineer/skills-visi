@@ -1,6 +1,6 @@
 # 项目总览 · 路口问题诊断以及固化技能
 
-> 版本：2026-06-29 · **v3.0.1**
+> 版本：2026-06-29 · **v3.1**
 > 本文档汇总开发内容、计划进度、主要变更与部署方式，作为根仓库的权威索引。
 
 ---
@@ -69,6 +69,7 @@
 | **v3.0 TTS 鉴权** | **2026-06-28** | TTS workspace 与 LLM 分离、无声 Bug 修复 |
 | **v3.0.1 吸收/固化暂停** | **2026-06-28** | 经验吸收与技能固化空格 pause gate；流式 delta 同步呈现 |
 | **v3.0.1 饱和度展示** | **2026-06-28** | 移除 cap_saturation；地图 marker 小数两位 |
+| **v3.1 供需匹配度主轴** | **2026-06-29** | `primary_diagnosis`、结构化 `action_plan`、治理 YAML、`flow-timing-governance` Skill |
 
 ### 3.2 前端 v2 能力演进
 
@@ -85,6 +86,7 @@
 | **v3.0 渠化 AMap** | **2026-06-28** | AMap 渲染器、主图下钻、叙事卡栈左上、TTS workspace 修复 |
 | **v3.0.1 叙事分栏** | **2026-06-28** | 左路口态势 / 右问题验证与治理建议；技能终端时隐藏左栏 |
 | **v3.0.1 吸收/固化暂停** | **2026-06-28** | `skillPresentationDispatch` · RT-PAUSE-ABS |
+| **v3.1 治理头牌** | **2026-06-29** | `FlowTimingGovernanceCard` 主诊断头牌；`waitForGovernanceSuggestionPresented` 栅栏 |
 
 ### 3.3 文档与技能包
 
@@ -92,7 +94,8 @@
 |------|------|
 | `docs/路口场景认知与问题诊断检查单.md` | 37 项认知 + 16 项诊断检查单 |
 | `docs/路口指标证据计算说明.md` | 指标口径与证据计算 |
-| `docs/intersection/*/SKILL.md` | 场景认知、问题诊断等 Agent Skill 定义 |
+| `docs/intersection/*/SKILL.md` | 场景认知、问题诊断、**流量-配时治理**等 Agent Skill 定义 |
+| `docs/流量溯源表结构信息.md` | 转向流量上下游关联表（截流/协调分析参考） |
 | `docs/路口四维筛选与演示路口清单.md` | 演示路口筛选结果 |
 | [`docs/RELEASE_v2.0.5.md`](RELEASE_v2.0.5.md) | v2.0.5 发布说明（融合视图、标注、语音、Bug） |
 | [`docs/RELEASE_v3.0.1.md`](RELEASE_v3.0.1.md) | **v3.0.1** 发布说明（吸收暂停、叙事分栏、饱和度、LLM 收敛） |
@@ -121,6 +124,7 @@
 | [地图语音暂停交互增强](地图语音暂停交互增强开发计划.md) | ✅ R1–R4 交付；见 RELEASE_v2.0.5 |
 | [渠化 AMap 迁移](plans/2026-06-28-渠化AMap迁移与主图下钻.md) | ✅ 全量实现；见 RELEASE_v3.0 |
 | [领导演示叙事重构](plans/2026-06-28-领导演示叙事与地图呈现重构-开发方案.md) | ✅ 叙事卡栈 + 镜头连贯；见 RELEASE_v3.0 |
+| [信控叙事主轴 · 供需匹配度](plans/2026-06-29-信控叙事主轴重构-供需匹配度-design.md) | ✅ primary_diagnosis + action_plan；见 [复盘](plans/2026-06-29-信控叙事主轴重构-供需匹配度-复盘.md) |
 | [frontend-v2 开发计划](../frontend-v2/docs/DEVELOPMENT_PLAN.md) | ✅ P0–P2.1；P3 待办 |
 
 ### 4.2 待办
@@ -150,6 +154,7 @@
 | 2026-06-27 | 演示路口嗅探脚本、`demo_intersections.yaml` |
 | 2026-06-28 | `skill_absorption` SSE、三层 Skill tags、L3 交错落盘（吸收 + 写文件同框） |
 | 2026-06-28 | frontend-v2 `ExperienceAbsorptionPanel` + `SkillBuildDrawer`（替代全屏 overlay） |
+| 2026-06-29 | **v3.1**：供需匹配度主轴、`primary_diagnosis`、`action_plan`、治理 YAML Skill、用户约束合并 |
 | 2026-06-29 | **干线扫描**：`corridor_scan` 流水线、意图 LLM 二分类+规则兜底、路网链化可视化 |
 | 2026-06-29 | **语音 v2**：Qwen-TTS Realtime；选型口语匹配「奥体西与经十路」 |
 | 2026-06-27 | **语音步骤同步**：`voice_narration.json` + `onStepStart` 旁白与理解过程对齐 |

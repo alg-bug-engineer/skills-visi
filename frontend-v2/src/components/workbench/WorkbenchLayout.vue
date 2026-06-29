@@ -28,6 +28,7 @@ const props = defineProps<{
   processActive: boolean
   docked: boolean
   inputLocked: boolean
+  analysisTerminal?: boolean
   loading: boolean
   followUpBubble: string | null
   mapToast: string | null
@@ -43,6 +44,8 @@ const props = defineProps<{
   voiceEnabled?: boolean
   voicePlaying?: boolean
   presentationPaused?: boolean
+  /** 治理建议二次确认引导条；与空格演示暂停互斥展示 */
+  suggestionConfirmBanner?: string | null
   presentationLayers?: PresentationLayerGates
   focusStepIndex?: number
   leaderboardRefreshKey?: number
@@ -61,6 +64,7 @@ const emit = defineEmits<{
   toggleVoice: []
   confirm: []
   deny: []
+  returnHome: []
   channelizationActive: [active: boolean]
   selectSkillFile: [path: string]
   skillBuildFinish: []
@@ -224,6 +228,7 @@ const canToggleCorridor = computed(
             :data-insight="presentation.dataInsightBuffer"
             :evidence="presentation.evidence"
             :governance-suggestion="presentation.governanceSuggestion"
+            :flow-timing-governance="presentation.flowTimingGovernance"
             :focus-step-index="focusStepIndex ?? -1"
             :phase="presentation.phase"
             :zoom="mapView.zoom"
@@ -233,8 +238,22 @@ const canToggleCorridor = computed(
         </div>
 
         <Transition name="toast-fade">
-          <div v-if="presentationPaused" class="pause-toast" data-testid="presentation-pause">
+          <div
+            v-if="presentationPaused && !suggestionConfirmBanner"
+            class="pause-toast"
+            data-testid="presentation-pause"
+          >
             分析暂停 · 空格继续
+          </div>
+        </Transition>
+
+        <Transition name="toast-fade">
+          <div
+            v-if="suggestionConfirmBanner"
+            class="confirm-prompt-toast"
+            data-testid="suggestion-confirm-banner"
+          >
+            {{ suggestionConfirmBanner }}
           </div>
         </Transition>
 
@@ -258,10 +277,13 @@ const canToggleCorridor = computed(
           v-show="!hideInputDock"
           :docked="docked"
           :locked="inputLocked"
+          :terminal="analysisTerminal"
           :loading="loading"
           :conversation="panelMode === 'conversation'"
+          :awaiting-suggestion-confirm="Boolean(suggestionConfirmBanner)"
           @send="emit('send', $event)"
           @input-activity="emit('inputActivity', $event)"
+          @return-home="emit('returnHome')"
         />
       </main>
 
@@ -463,6 +485,7 @@ const canToggleCorridor = computed(
 
 .map-toast,
 .pause-toast,
+.confirm-prompt-toast,
 .follow-up-bubble,
 .confirm-bubble {
   position: absolute;
@@ -480,6 +503,21 @@ const canToggleCorridor = computed(
   font-size: 12px;
   letter-spacing: 0.4px;
   pointer-events: none;
+}
+
+.confirm-prompt-toast {
+  top: 16px;
+  max-width: min(560px, 92%);
+  padding: 10px 16px;
+  background: rgba(0, 14, 28, 0.94);
+  border: 1px solid rgba(0, 212, 240, 0.5);
+  color: rgba(226, 246, 255, 0.96);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.2px;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
 .map-toast {

@@ -5,20 +5,23 @@ import { DEFAULT_PROMPT } from '../constants'
 const props = defineProps<{
   docked: boolean
   locked: boolean
+  terminal?: boolean
   loading: boolean
   conversation?: boolean
+  awaitingSuggestionConfirm?: boolean
 }>()
 
 const emit = defineEmits<{
   send: [content: string]
   inputActivity: [value: string]
+  returnHome: []
 }>()
 
 const input = ref('')
 const placeholder = DEFAULT_PROMPT
 
 function submit() {
-  if (props.locked || props.loading) return
+  if (props.locked || props.loading || props.terminal) return
   const text = input.value.trim() || placeholder
   input.value = ''
   emit('send', text)
@@ -33,7 +36,7 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div :class="['input-dock', { docked, locked }]">
+  <div :class="['input-dock', { docked, locked: locked || terminal }]">
     <div class="dock-inner">
       <p v-if="!docked" class="hero-title">济南交通智能体</p>
       <p v-if="!docked" class="hero-sub">描述路口拥堵，或直接使用示例一键分析</p>
@@ -42,11 +45,21 @@ function onKeydown(e: KeyboardEvent) {
           v-model="input"
           :rows="docked ? 1 : 2"
           :placeholder="placeholder"
-          :disabled="locked || loading"
+          :disabled="locked || loading || terminal"
           @input="emit('inputActivity', input)"
           @keydown="onKeydown"
         />
         <button
+          v-if="terminal"
+          type="button"
+          class="send-btn home-btn"
+          data-testid="return-home-button"
+          @click="emit('returnHome')"
+        >
+          返回主页
+        </button>
+        <button
+          v-else
           type="button"
           class="send-btn"
           data-testid="send-button"
@@ -57,7 +70,11 @@ function onKeydown(e: KeyboardEvent) {
           <span v-else>发送</span>
         </button>
       </div>
-      <p v-if="docked && conversation && !locked" class="lock-hint conversation-hint">
+      <p v-if="terminal" class="lock-hint terminal-hint">本次分析已完成，可返回主页开始新诊断</p>
+      <p v-else-if="docked && awaitingSuggestionConfirm && !locked" class="lock-hint confirm-hint">
+        请回复「是」生成治理建议，或直接输入经验约束
+      </p>
+      <p v-else-if="docked && conversation && !locked" class="lock-hint conversation-hint">
         请补充信息后发送，系统将引导您完成描述
       </p>
       <p v-else-if="locked" class="lock-hint">分析进行中，请跟随地图步骤…</p>
@@ -164,6 +181,19 @@ function onKeydown(e: KeyboardEvent) {
 .send-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.home-btn {
+  background: rgba(0, 212, 240, 0.28);
+  border-color: rgba(0, 229, 255, 0.65);
+}
+
+.terminal-hint {
+  color: rgba(0, 229, 255, 0.75);
+}
+
+.confirm-hint {
+  color: rgba(0, 229, 255, 0.8);
 }
 
 .lock-hint {

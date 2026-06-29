@@ -8,6 +8,8 @@ from intersection_agent.services.expert_rules_summary import (
     build_expert_rules_brief,
     format_expert_rules_markdown,
 )
+from intersection_agent.services.governance_action_plan_service import build_action_plan
+from intersection_agent.services.governance_guidance import guidance_for_category
 from intersection_agent.services.rule_engine import RuleEngine
 from intersection_agent.utils.thresholds_loader import threshold_value
 
@@ -47,29 +49,176 @@ class FlowTimingGovernanceService:
         data_gaps = _collect_data_gaps(data)
 
         diagnosis = self._rules.diagnose_focused(list(FOCUS_CATEGORIES), data)
+        primary = _build_primary_diagnosis(data, match_verdict)
         problems = _detect_problems(
             data,
             diagnosis.matched_rules if diagnosis.diagnosed else [],
             sustained=sustained,
+            primary=primary,
         )
 
         detected = [p for p in problems if p["detected"]]
-        summary = _build_summary(match_verdict, detected)
+        summary = _build_summary(primary, detected)
         expert_rules = build_expert_rules_brief({"problems": problems})
 
+        action_plan = build_action_plan(data, primary=primary, problems=problems)
+
         return {
+            "primary_diagnosis": primary,
             "match_verdict": match_verdict,
             "match_narrative": match_narrative,
             "flow_green_tau": flow_green.get("spearman_tau") or timing.get("flow_green_tau"),
             "data_gaps": data_gaps,
             "problems": problems,
             "summary": summary,
-            "governance_narrative": _governance_narrative(match_verdict, detected),
+            "governance_narrative": _governance_narrative(primary, detected),
             "expert_rules": expert_rules,
             "expert_rules_markdown": format_expert_rules_markdown(expert_rules),
             "sustained_checklist": sustained.get("checklist_items") or [],
             "checklist_refs": {cat: CHECKLIST_REFS.get(cat) for cat in FOCUS_CATEGORIES},
+            "action_plan": action_plan,
         }
+
+
+def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[str, Any]:
+    """Primary narrative axis: is this a timing-fixable mis-allocation or a capacity ceiling.
+
+    供需匹配度为主轴——把"饱和度高不高"重构为"绿灯该不该挪、往哪挪、还是单点配时已无解"。
+    所有判定量均已在 payload 中，无新增取数。
+    """
+    tf = data.get("traffic_flow") or {}
+    timing_profile = data.get("timing_profile") or {}
+    timing = data.get("timing") or {}
+    by_turn = ((data.get("granularity") or {}).get("by_turn")) or []
+    flow_green = timing_profile.get("flow_green_fit") or {}
+    flow_green_verdict = str(flow_green.get("verdict") or timing.get("flow_green_verdict") or "")
+
+    sat_high = threshold_value("saturation", "high", default=0.80)
+    sat_over = threshold_value("saturation", "oversaturation", default=0.90)
+    spread_balanced = threshold_value(
+        "imbalance", "spread_balanced",
+        default=threshold_value("imbalance", "diagnosis", default=0.30),
+    )
+
+    # max_x：转向饱和度优先，缺失回退路口饱和度 / 车道最高饱和度
+    max_x = _float(tf.get("turn_saturation_max"))
+    if max_x is None:
+        max_x = _float(tf.get("saturation_rate"))
+    if max_x is None:
+        max_x = _float(tf.get("lane_saturation_max"))
+    spread = _float(tf.get("turn_saturation_spread"))
+
+    deficit_ratio_max = _float(timing_profile.get("green_deficit_ratio_max")) or _float(
+        timing.get("green_deficit_ratio_max")
+    )
+    deficit_turns = timing_profile.get("deficit_turns") or []
+    structure_limited = bool(
+        deficit_ratio_max is not None and deficit_ratio_max > 0 and deficit_turns
+    )
+
+    over_turn = _over_saturated_turn(by_turn, sat_high)
+    spare_turn = _spare_green_turn(by_turn, exclude=over_turn)
+    deficit_turn_label = deficit_turns[0].get("label") if deficit_turns else None
+
+    # —— 四选一主诊断 ——
+    if max_x is not None and max_x >= sat_high and spread is not None and spread >= spread_balanced:
+        dtype = "timing_optimizable"
+        severity = "high" if max_x >= sat_over else "medium"
+        if over_turn and spare_turn:
+            headline = (
+                f"{over_turn}已过饱和（{max_x:.2f}），而{spare_turn}绿灯仍有富余"
+                "——属于绿灯分配不均，配时可改善"
+            )
+            lever = f"建议把{spare_turn}的部分绿灯时间让给{over_turn}，优先调整绿信比分配"
+        else:
+            headline = (
+                f"部分转向已过饱和（最高 {max_x:.2f}），另一些转向绿灯仍有富余"
+                "——属于绿灯分配不均，配时可改善"
+            )
+            lever = "建议把绿灯富余转向的时间让给过饱和转向，优先调整绿信比分配"
+    elif max_x is not None and max_x >= sat_over and (spread is None or spread < spread_balanced):
+        dtype = "capacity_bottleneck"
+        severity = "high"
+        headline = f"各转向饱和度接近且普遍偏高（最高 {max_x:.2f}），该路口已接近通行能力上限"
+        lever = (
+            "绿信比分配已接近最优，单点配时优化空间有限；"
+            "建议从加大周期、绿波协调、车道渠化展宽、需求调控等方向入手"
+        )
+    else:
+        dtype = "basically_matched"
+        severity = "none"
+        headline = "供需与配时基本匹配，未见明显绿灯错配"
+        lever = "维持现有配时方案，持续监测高峰表现"
+
+    if structure_limited and dtype != "basically_matched":
+        if deficit_turn_label:
+            headline += f"；其中{deficit_turn_label}绿灯已触最小绿，压缩空间有限"
+        else:
+            headline += "；其中关键转向绿灯已触最小绿，压缩空间有限"
+
+    evidence = _evidence_lines(
+        [
+            _line(max_x is not None, f"最高转向饱和度 {max_x:.2f}" if max_x is not None else ""),
+            _line(spread is not None, f"转向饱和度极差 {spread:.2f}" if spread is not None else ""),
+            _line(
+                dtype == "timing_optimizable" and spare_turn is not None,
+                f"{spare_turn}绿灯利用率偏低，可让出富余绿灯" if spare_turn is not None else "",
+            ),
+            _line(
+                flow_green_verdict in ("weak", "mismatch"),
+                "流量-绿信比一致性偏弱，印证绿灯错配"
+                if flow_green_verdict in ("weak", "mismatch")
+                else "",
+            ),
+            _line(
+                structure_limited and bool(deficit_turn_label),
+                f"{deficit_turn_label}绿灯已触最小绿（亏空 {deficit_ratio_max:.0%}）"
+                if structure_limited and deficit_turn_label and deficit_ratio_max is not None
+                else "",
+            ),
+        ]
+    )
+
+    return {
+        "type": dtype,
+        "headline": headline,
+        "lever": lever,
+        "severity": severity,
+        "evidence": evidence,
+        "structure_limited": structure_limited,
+    }
+
+
+def _over_saturated_turn(by_turn: list[dict[str, Any]], sat_high: float) -> str | None:
+    """流量大、最饱和的转向（by_turn 已按 turn_saturation 降序）。"""
+    best_label: str | None = None
+    best_sat = -1.0
+    for turn in by_turn:
+        sat = _float(turn.get("turn_saturation"))
+        label = turn.get("label")
+        if sat is None or not label:
+            continue
+        if sat > best_sat:
+            best_sat = sat
+            best_label = str(label)
+    if best_label is not None and best_sat >= sat_high:
+        return best_label
+    return None
+
+
+def _spare_green_turn(by_turn: list[dict[str, Any]], *, exclude: str | None = None) -> str | None:
+    """绿灯有富余的"供绿方"：绿灯利用率最低的转向（排除已过饱和转向，避免自挪绿灯）。"""
+    best_label: str | None = None
+    best_util = 2.0
+    for turn in by_turn:
+        util = _float(turn.get("green_utilization"))
+        label = turn.get("label")
+        if util is None or not label or str(label) == exclude:
+            continue
+        if util < best_util:
+            best_util = util
+            best_label = str(label)
+    return best_label
 
 
 def _match_narrative_from_verdict(verdict: str) -> str:
@@ -102,6 +251,7 @@ def _detect_problems(
     matched_rules: list[dict[str, Any]],
     *,
     sustained: dict[str, Any],
+    primary: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     tf = data.get("traffic_flow") or {}
     ev = data.get("evaluation") or {}
@@ -133,6 +283,16 @@ def _detect_problems(
         if cat in rules_by_category:
             rules_by_category[cat].append(rule)
 
+    guidance_data = data
+    if primary is not None:
+        guidance_data = {
+            **data,
+            "flow_timing_governance": {
+                **(data.get("flow_timing_governance") or {}),
+                "primary_diagnosis": primary,
+            },
+        }
+
     problems: list[dict[str, Any]] = []
 
     sat_value = saturation_rate if saturation_rate is not None else lane_sat_max
@@ -155,12 +315,8 @@ def _detect_problems(
                     ),
                 ]
             ),
-            governance=_rule_governance(rules_by_category["saturation"])
-            or (
-                "关键方向过饱和，建议增加有效绿灯时长"
-                if sat_detected
-                else "饱和度处于可控范围，维持现有配时并持续监测"
-            ),
+            governance=guidance_for_category("saturation", guidance_data)
+            or _rule_governance(rules_by_category["saturation"]),
             matched_rule_ids=[r["id"] for r in rules_by_category["saturation"]],
             checklist_ref=CHECKLIST_REFS["saturation"],
         )
@@ -198,12 +354,8 @@ def _detect_problems(
             if imb_sustained or (imbalance_index is not None and imbalance_index >= imb_diag + 0.1)
             else "medium",
             evidence=_evidence_lines(imb_evidence),
-            governance=_rule_governance(rules_by_category["imbalance"])
-            or (
-                "进口/转向服务失衡，建议重分配绿信比，向高流量转向倾斜"
-                if imb_detected
-                else "各进口服务相对均衡"
-            ),
+            governance=guidance_for_category("imbalance", guidance_data)
+            or _rule_governance(rules_by_category["imbalance"]),
             matched_rule_ids=[r["id"] for r in rules_by_category["imbalance"]],
             checklist_ref=CHECKLIST_REFS["imbalance"],
         )
@@ -232,12 +384,8 @@ def _detect_problems(
                     _line(empty_sustained, "连续15分钟低利用（检查单）"),
                 ]
             ),
-            governance=_rule_governance(rules_by_category["empty_green"])
-            or (
-                "存在绿灯空放，建议压缩低利用相位绿灯并转给拥堵方向"
-                if empty_detected
-                else "绿灯利用率正常，无明显空放"
-            ),
+            governance=guidance_for_category("empty_green", guidance_data)
+            or _rule_governance(rules_by_category["empty_green"]),
             matched_rule_ids=[r["id"] for r in rules_by_category["empty_green"]],
             checklist_ref=CHECKLIST_REFS["empty_green"],
         )
@@ -275,12 +423,8 @@ def _detect_problems(
                     ),
                 ]
             ),
-            governance=_rule_governance(rules_by_category["spillback"])
-            or (
-                "排队接近或超过存储能力，建议控制上游放行、避免外溢"
-                if spill_detected
-                else "未发现明显溢出风险"
-            ),
+            governance=guidance_for_category("spillback", guidance_data)
+            or _rule_governance(rules_by_category["spillback"]),
             matched_rule_ids=[r["id"] for r in rules_by_category["spillback"]],
             checklist_ref=CHECKLIST_REFS["spillback"],
         )
@@ -326,29 +470,22 @@ def _rule_governance(rules: list[dict[str, Any]]) -> str | None:
     return "；".join(p for p in parts if p) or None
 
 
-def _build_summary(match_verdict: str, detected: list[dict[str, Any]]) -> str:
+def _build_summary(primary: dict[str, Any], detected: list[dict[str, Any]]) -> str:
+    headline = str(primary.get("headline") or "").strip()
     if not detected:
-        if match_verdict == "strong":
-            return "流量与配时匹配良好，四类核心问题均未达告警阈值"
-        return "未发现四类核心问题的明显异常，建议结合现场观测复核"
-
+        return headline
     labels = [p["label"] for p in detected]
-    match_part = {
-        "mismatch": "流量-配时失配",
-        "weak": "流量-配时匹配偏弱",
-        "strong": "流量-配时基本匹配",
-    }.get(match_verdict, "流量-配时待进一步核实")
-
-    return f"{match_part}，主要问题：{'、'.join(labels)}"
+    return f"{headline}；同步扫描命中：{'、'.join(labels)}"
 
 
-def _governance_narrative(match_verdict: str, detected: list[dict[str, Any]]) -> str:
-    if not detected:
-        return "当前指标下四类问题均未触发，可维持配时并持续监测高峰表现。"
-
-    lines = []
-    if match_verdict in ("weak", "mismatch"):
-        lines.append("从流量-配时匹配看，信号配时结构与实际需求存在偏差，治理应优先调整绿信比分配。")
+def _governance_narrative(primary: dict[str, Any], detected: list[dict[str, Any]]) -> str:
+    lines: list[str] = []
+    headline = str(primary.get("headline") or "").strip()
+    lever = str(primary.get("lever") or "").strip()
+    if headline:
+        lines.append(headline + "。")
+    if lever:
+        lines.append(lever + "。")
     for problem in detected:
         lines.append(f"【{problem['label']}】{problem['governance']}")
     return " ".join(lines)

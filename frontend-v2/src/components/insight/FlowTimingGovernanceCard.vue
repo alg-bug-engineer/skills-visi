@@ -23,6 +23,15 @@ const verdictClass = computed(() => {
   if (v === 'strong') return 'good'
   return 'neutral'
 })
+
+const primary = computed(() => props.governance.primary_diagnosis ?? null)
+
+const primarySeverityClass = computed(() => {
+  const sev = primary.value?.severity
+  if (sev === 'high') return 'sev-high'
+  if (sev === 'medium') return 'sev-medium'
+  return 'sev-none'
+})
 </script>
 
 <template>
@@ -33,10 +42,29 @@ const verdictClass = computed(() => {
       <span class="verdict" :class="verdictClass">{{ verdictLabel }}</span>
     </header>
 
-    <p v-if="governance.match_narrative" class="match-line">
+    <section v-if="primary" class="primary" :class="primarySeverityClass">
+      <p class="primary-headline">{{ primary.headline }}</p>
+      <p v-if="primary.lever" class="primary-lever">{{ primary.lever }}</p>
+      <ul v-if="primary.evidence?.length" class="primary-evidence">
+        <li v-for="(line, i) in primary.evidence" :key="i">{{ line }}</li>
+      </ul>
+    </section>
+
+    <section v-if="governance.action_plan?.headline" class="action-plan">
+      <h4>数据推导动作</h4>
+      <p class="action-headline">{{ governance.action_plan.headline }}</p>
+      <p v-if="governance.action_plan.narrative_template" class="action-detail">
+        {{ governance.action_plan.narrative_template }}
+      </p>
+    </section>
+
+    <p
+      v-if="governance.match_narrative && governance.match_verdict !== 'insufficient'"
+      class="match-line"
+    >
       {{ governance.match_narrative }}
     </p>
-    <p v-if="governance.summary" class="summary">{{ governance.summary }}</p>
+    <p v-if="!primary && governance.summary" class="summary">{{ governance.summary }}</p>
 
     <div class="dim-grid">
       <div
@@ -47,6 +75,9 @@ const verdictClass = computed(() => {
       >
         <span class="dim-label">{{ problem.label }}</span>
         <span class="dim-status">{{ problem.detected ? '命中' : '正常' }}</span>
+        <ul v-if="problem.detected && problem.governance" class="dim-governance">
+          <li>{{ problem.governance }}</li>
+        </ul>
         <ul v-if="problem.evidence?.length" class="dim-evidence">
           <li v-for="(line, i) in problem.evidence" :key="i">{{ line }}</li>
         </ul>
@@ -126,6 +157,80 @@ const verdictClass = computed(() => {
   color: rgba(200, 225, 245, 0.82);
 }
 
+.primary {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border-left: 3px solid rgba(186, 215, 240, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.primary.sev-high {
+  border-left-color: rgba(248, 113, 113, 0.85);
+  background: rgba(127, 29, 29, 0.18);
+}
+
+.primary.sev-medium {
+  border-left-color: rgba(252, 211, 77, 0.85);
+  background: rgba(120, 80, 12, 0.16);
+}
+
+.primary.sev-none {
+  border-left-color: rgba(110, 231, 183, 0.7);
+  background: rgba(6, 78, 59, 0.14);
+}
+
+.primary-headline {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: rgba(236, 246, 255, 0.96);
+}
+
+.primary-lever {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(200, 225, 245, 0.85);
+}
+
+.primary-evidence {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: rgba(176, 205, 230, 0.78);
+}
+
+.action-plan {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(6, 78, 59, 0.18);
+}
+
+.action-plan h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: rgba(167, 243, 208, 0.9);
+}
+
+.action-headline {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(236, 253, 245, 0.95);
+}
+
+.action-detail {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(209, 250, 229, 0.88);
+}
+
 .dim-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -160,6 +265,15 @@ const verdictClass = computed(() => {
 .dim-status {
   font-size: 10px;
   color: rgba(148, 196, 230, 0.75);
+}
+
+.dim-governance {
+  margin: 6px 0 0;
+  padding-left: 14px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(200, 230, 255, 0.88);
+  list-style: none;
 }
 
 .dim-evidence {

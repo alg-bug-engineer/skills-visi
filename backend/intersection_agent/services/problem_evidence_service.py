@@ -86,7 +86,7 @@ class ProblemEvidenceService:
 
         chronic = self._assess_chronic(daily_rows, saturation_row, thresholds, window)
         dow_pattern = self._assess_dow_pattern(
-            daily_rows, target_dow, thresholds, window
+            daily_rows, target_dow, thresholds, window, saturation_row=saturation_row
         )
         metrics = self._aggregate_metrics(
             daily_rows, direction_rows, saturation_row, data_payload
@@ -99,16 +99,12 @@ class ProblemEvidenceService:
         source_tier = "dwd_rolling_7d" if has_dwd else (
             "dws_weekday_pattern" if direction_rows else "none"
         )
-        coverage_warning = None
-        if not has_dwd:
-            coverage_warning = "近7日 DWD 明细无数据，常发性/星期规律基于 DWS 周模式估算"
 
         evidence = {
             "inter_id": inter_id,
             "intersection": inter_name,
             "time_label": nlu.time_period.label,
             "source_tier": source_tier,
-            "coverage_warning": coverage_warning,
             "target_dow": target_dow,
             "target_dow_label": dow_label(target_dow),
             "chronic": chronic,
@@ -312,7 +308,7 @@ class ProblemEvidenceService:
                 "window_days": window_days,
                 "rate": None,
                 "congested_dates": [],
-                "verdict": f"DWS 周模式显示该时段饱和度 {sat_max:.2f} 持续偏高（无日历明细）",
+                "verdict": f"同时段周内规律显示该时段饱和度 {sat_max:.2f} 持续偏高",
                 "method": "dws_pattern_estimate",
             }
 
@@ -322,7 +318,7 @@ class ProblemEvidenceService:
             "window_days": window_days,
             "rate": 0.0,
             "congested_dates": [],
-            "verdict": "数据不足，暂无法判定常发性拥堵",
+            "verdict": "",
             "method": "insufficient_data",
         }
 
@@ -332,6 +328,8 @@ class ProblemEvidenceService:
         target_dow: int,
         thresholds: dict[str, Any],
         window: DataWindow,
+        *,
+        saturation_row: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         hit_rate_high = float(thresholds.get("chronic", {}).get("dow_hit_rate_high", 0.75))
         label = dow_label(target_dow)
@@ -345,7 +343,7 @@ class ProblemEvidenceService:
                     "hit_days": 0,
                     "total_days": 0,
                     "hit_rate": 0.0,
-                    "verdict": f"近7日窗口内无{label}样本",
+                    "verdict": "",
                     "method": "dwd_calendar",
                 }
             congested = [
@@ -370,13 +368,26 @@ class ProblemEvidenceService:
                 "method": "dwd_calendar",
             }
 
+        sat_max = _float(saturation_row.get("saturation_max")) if saturation_row else None
+        sat_high = float(thresholds.get("saturation", {}).get("high", 0.80))
+        if sat_max is not None and sat_max >= sat_high:
+            return {
+                "target_dow": target_dow,
+                "dow_label": label,
+                "hit_days": None,
+                "total_days": None,
+                "hit_rate": None,
+                "verdict": f"{label}同时段历史规律显示该时段运行压力偏高",
+                "method": "dws_weekday_pattern",
+            }
+
         return {
             "target_dow": target_dow,
             "dow_label": label,
             "hit_days": None,
             "total_days": None,
             "hit_rate": None,
-            "verdict": f"无日历明细，按{label}（提问日）分析 DWS 周模式",
+            "verdict": "",
             "method": "dws_weekday_pattern",
         }
 
@@ -506,9 +517,9 @@ class ProblemEvidenceService:
         nlu: NluResult,
     ) -> str:
         parts: list[str] = []
-        if chronic.get("verdict"):
+        if _is_display_verdict(chronic.get("verdict")):
             parts.append(str(chronic["verdict"]))
-        if dow_pattern.get("verdict"):
+        if _is_display_verdict(dow_pattern.get("verdict")):
             parts.append(str(dow_pattern["verdict"]))
         dirs = "、".join(nlu.directions) if nlu.directions else "全方向"
         sat = metrics.get("saturation_rate")
@@ -549,10 +560,10 @@ class ProblemEvidenceService:
         """Ordered narrative beats for frontend storytelling."""
         beats: list[dict[str, str]] = []
         chronic = evidence.get("chronic") or {}
-        if chronic.get("verdict"):
+        if _is_display_verdict(chronic.get("verdict")):
             beats.append({"phase": "chronic", "title": "常发性", "text": str(chronic["verdict"])})
         dow = evidence.get("dow_pattern") or {}
-        if dow.get("verdict"):
+        if _is_display_verdict(dow.get("verdict")):
             beats.append({"phase": "dow", "title": "周期性", "text": str(dow["verdict"])})
 
         metrics = evidence.get("metrics") or {}
@@ -594,8 +605,10 @@ class ProblemEvidenceService:
             beats.append({"phase": "corridor", "title": "干线上下文", "text": str(corridor["narrative"])})
 
         external = evidence.get("external_evidence") or {}
-        if external.get("narrative"):
-            beats.append({"phase": "external", "title": "外部证据", "text": str(external["narrative"])})
+        if external.get("has_external_evidence") and _is_display_narrative(external.get("narrative")):
+            beats.append(
+                {"phase": "external", "title": "外部证据", "text": str(external["narrative"])}
+            )
 
         return beats
 
@@ -604,7 +617,7 @@ class ProblemEvidenceService:
         parts = [str(evidence.get("summary") or "")]
         for beat in evidence.get("diagnosis_story") or []:
             text = str(beat.get("text") or "")
-            if text and text not in parts[0]:
+            if text and _is_display_narrative(text) and text not in parts[0]:
                 parts.append(text)
         return "；".join(p for p in parts if p)
 
@@ -716,6 +729,31 @@ class ProblemEvidenceService:
             "metrics": {},
             "by_direction": [],
         }
+
+
+def _is_display_verdict(verdict: Any) -> bool:
+    """Skip empty, insufficient-data, or internal methodology verdicts from user-facing cards."""
+    return _is_display_narrative(verdict)
+
+
+def _is_display_narrative(text: Any) -> bool:
+    """User-facing cards only show lines backed by real evidence."""
+    value = str(text or "").strip()
+    if not value:
+        return False
+    hidden_markers = (
+        "无逐日",
+        "无日历明细",
+        "同时段的周内规律分析",
+        "DWS",
+        "DWD",
+        "数据不足",
+        "暂无法判定",
+        "暂无投诉",
+        "诊断完全基于运行数据",
+        "无样本",
+    )
+    return not any(marker in value for marker in hidden_markers)
 
 
 def _float(value: Any) -> float | None:

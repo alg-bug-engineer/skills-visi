@@ -1,5 +1,25 @@
 # frontend-v2 进度记录
 
+## v3.1（2026-06-29）— 供需匹配度头牌 · 治理呈现栅栏
+
+### 已完成
+
+- [x] `FlowTimingGovernanceCard`：主诊断 `headline` + `lever` + `action_plan` 摘要
+- [x] `channelizationCopy`：渠化右上角与 `primary_diagnosis.type` 联动
+- [x] `waitForGovernanceSuggestionPresented`：治理建议 SSE 呈现栅栏
+- [x] `App.vue` / `WorkbenchLayout`：治理段 TTS 以 headline 起句
+- [x] `evidence.ts`：`PrimaryDiagnosis` / `ActionPlan` 类型
+
+### 文档
+
+- [docs/plans/2026-06-29-信控叙事主轴重构-供需匹配度-复盘.md](../../docs/plans/2026-06-29-信控叙事主轴重构-供需匹配度-复盘.md)
+
+### 单测
+
+- vitest **125** 项（含 `FlowTimingGovernanceCard.spec`、`WorkbenchLayout.spec`、`waitForGovernanceSuggestionPresented.spec`）
+
+---
+
 ## v3.0.1（2026-06-28）— 吸收/固化空格暂停 · 叙事分栏 · 饱和度小数
 
 ### 已完成

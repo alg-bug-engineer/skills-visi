@@ -11,6 +11,11 @@ constraint:
   queue_growth_margin: 0.10
   saturation_margin: 0.10
 
+imbalance:
+  # 转向饱和度极差（spread）分界：≥ 视为"绿灯分配不均、配时可优化"，< 视为"分布均匀"。
+  # 主诊断（供需匹配度叙事主轴）专用，可独立于 imbalance.diagnosis 调参。
+  spread_balanced: 0.30
+
 corridor:
   coord_stop_times_high: 1.5
   line_delay_index_high: 1.5

@@ -65,7 +65,7 @@ function severityClass(value: number | null | undefined, high: number): string {
           >
             常发性 {{ evidence.chronic?.congested_days }}/{{ evidence.chronic?.window_days }} 日
           </span>
-          <span v-if="evidence?.dow_pattern?.dow_label" class="badge dow">
+          <span v-if="evidence?.dow_pattern?.dow_label && evidence?.dow_pattern?.hit_rate != null" class="badge dow">
             每逢{{ evidence.dow_pattern.dow_label }}
           </span>
           <span class="badge tier">{{ sourceTierLabel(evidence?.source_tier) }}</span>
@@ -82,7 +82,7 @@ function severityClass(value: number | null | undefined, high: number): string {
           <p class="meter-hint">{{ evidence?.chronic?.verdict }}</p>
         </div>
 
-        <div v-if="dowRate != null" class="meter-block">
+        <div v-if="dowRate != null && evidence?.dow_pattern?.verdict" class="meter-block">
           <div class="meter-label">
             <span>{{ evidence?.dow_pattern?.dow_label }}命中率</span>
             <span>{{ dowRate.toFixed(0) }}%</span>

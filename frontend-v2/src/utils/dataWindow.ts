@@ -1,9 +1,9 @@
 import type { DataWindowMeta } from '../types/api'
 
 const SOURCE_LABELS: Record<string, string> = {
-  dwd_rolling_7d: 'DWD 近7日明细',
-  dws_weekday_pattern: 'DWS 周模式（降级）',
-  mock: 'Mock 数据',
+  dwd_rolling_7d: '近7日逐日明细',
+  dws_weekday_pattern: '同时段周内规律（降级）',
+  mock: '示例数据',
   none: '无数据',
 }
 

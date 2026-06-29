@@ -236,7 +236,51 @@ export interface FlowTimingExpertRule {
   checklist_ref?: string
 }
 
+export type PrimaryDiagnosisType =
+  | 'timing_optimizable'
+  | 'capacity_bottleneck'
+  | 'structure_limited'
+  | 'basically_matched'
+
+export interface PrimaryDiagnosis {
+  type: PrimaryDiagnosisType
+  headline: string
+  lever: string
+  severity: 'high' | 'medium' | 'none'
+  evidence: string[]
+  structure_limited: boolean
+}
+
+export interface GovernanceActionPlan {
+  action_type?: string
+  headline?: string
+  narrative_template?: string
+  transfer_seconds?: number
+  cycle_unchanged?: boolean | null
+  direction?: string
+  donor_turn?: {
+    label?: string
+    turn_saturation?: number
+    green_utilization?: number
+    green_sec?: number
+    flow_share?: number
+    green_share?: number
+  }
+  recipient_turn?: {
+    label?: string
+    turn_saturation?: number
+    green_utilization?: number
+    green_sec?: number
+    flow_share?: number
+    green_share?: number
+  }
+  confidence?: number
+  evidence?: string[]
+  data_gaps?: string[]
+}
+
 export interface FlowTimingGovernance {
+  primary_diagnosis?: PrimaryDiagnosis
   match_verdict: string
   match_narrative?: string
   flow_green_tau?: number | null
@@ -248,6 +292,7 @@ export interface FlowTimingGovernance {
   sustained_checklist?: Array<Record<string, unknown>>
   checklist_refs?: Record<string, string>
   data_gaps?: string[]
+  action_plan?: GovernanceActionPlan
 }
 
 /** SSE step payload for problem_evidence */

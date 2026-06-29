@@ -21,6 +21,7 @@ from intersection_agent.skills.interleaved_skill_persist_visualizer import (
 )
 from intersection_agent.skills.package_builder import SkillPackageBuilder, skill_dir_name
 from intersection_agent.services.skill_matcher import build_skill_tags, compare_content_tags, match_skill
+from intersection_agent.services.user_constraint_merge import merge_user_constraints
 from intersection_agent.skills.tag_helpers import increment_usage_meta, merge_usage_meta, read_hit_count, read_last_hit_at
 
 logger = logging.getLogger(__name__)
@@ -120,7 +121,10 @@ class SkillService:
         now = datetime.now(timezone.utc).isoformat()
         match_keywords = _extract_keywords(session.raw_user_context)
         directions = list(session.nlu.directions or [])
+        existing = self.get_by_id(skill_id)
         user_constraints = session.nlu.user_suggestion
+        if existing:
+            user_constraints = merge_user_constraints(existing.user_constraints, user_constraints)
         quantitative_constraints = session.data_payload.get("quantitative_constraints")
         flow_gov = session.data_payload.get("flow_timing_governance") or {}
         issue_codes = [
@@ -148,7 +152,6 @@ class SkillService:
             data_window=data_window,
             source_utterance_summary=_summarize_context(session),
         )
-        existing = self.get_by_id(skill_id)
         if existing and existing.tags:
             tags = merge_usage_meta(existing.tags, tags)
         return SkillRecord(

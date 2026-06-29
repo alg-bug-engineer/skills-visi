@@ -87,6 +87,7 @@ class SuggestionResult(BaseModel):
     confidence: float
     rule_id: str
     action_type: str = "green_light_adjustment"
+    action_plan: dict[str, Any] | None = None
 
 
 class Session(BaseModel):

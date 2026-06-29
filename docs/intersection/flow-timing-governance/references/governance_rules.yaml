@@ -1,0 +1,122 @@
+# 信控治理建议规则 · 业务专家可编辑
+# 加载：backend/intersection_agent/services/governance_guidance.py
+# 配套 Skill：docs/intersection/flow-timing-governance/SKILL.md
+
+categories:
+  saturation:
+    - id: sat_rebalance_with_empty_green
+      priority: 10
+      when:
+        oversaturated: true
+        empty_green_detected: true
+      guidance: 关键方向过饱和，但存在绿灯空放或低利用相位；不宜一律加绿，应把富余绿灯转给过饱和转向，优先调整绿信比
+
+    - id: sat_rebalance_imbalance
+      priority: 11
+      when:
+        oversaturated: true
+        imbalance_detected: true
+        spread_above: 0.30
+      guidance: 转向饱和度差异大，主方向绿灯不足；建议从低饱和、低利用转向压缩绿灯，再分配给过饱和转向
+
+    - id: sat_add_green_room
+      priority: 20
+      when:
+        oversaturated: true
+        green_utilization_below: 0.75
+        empty_green_detected: false
+      guidance: 关键方向过饱和且绿灯利用率仍有提升空间，建议增加有效绿灯时长
+
+    - id: sat_capacity_ceiling
+      priority: 5
+      when:
+        oversaturated: true
+        primary_type: capacity_bottleneck
+      guidance: 各转向普遍过饱和，单点加绿空间有限；建议从加大周期、绿波协调、车道展宽或需求调控入手
+
+    - id: sat_structure_limited
+      priority: 8
+      when:
+        oversaturated: true
+        structure_limited: true
+      guidance: 关键转向已触最小绿，压缩对向空间有限；加绿需结合周期与相位结构整体评估
+
+    - id: sat_default
+      priority: 99
+      when:
+        oversaturated: true
+      guidance: 关键方向过饱和，建议结合绿灯利用率与空放情况，优先评估绿信比再分配后再考虑加绿
+
+    - id: sat_normal
+      priority: 100
+      when: {}
+      guidance: 饱和度处于可控范围，维持现有配时并持续监测
+
+  imbalance:
+    - id: imb_turn_spread
+      priority: 10
+      when:
+        spread_above: 0.60
+        oversaturated: true
+      guidance: 部分转向严重过饱和而其他转向空闲，服务分配失衡；建议重划绿信比，向高饱和转向倾斜
+
+    - id: imb_approach_gap
+      priority: 15
+      when:
+        imbalance_detected: true
+        oversaturated: true
+      guidance: 各进口饱和度差异大，主方向绿灯不足；建议压缩低需求进口绿灯，转给拥堵主方向
+
+    - id: imb_flow_green_mismatch
+      priority: 12
+      when:
+        flow_green_mismatch: true
+      guidance: 流量占比与有效绿灯占比不一致，绿信比分配与需求结构不匹配；建议按流量结构重划相位绿信比
+
+    - id: imb_default
+      priority: 99
+      when:
+        imbalance_detected: true
+      guidance: 进口或转向服务失衡，建议重分配绿信比，向高流量、高饱和转向倾斜
+
+    - id: imb_normal
+      priority: 100
+      when: {}
+      guidance: 各进口服务相对均衡
+
+  empty_green:
+    - id: empty_rebalance
+      priority: 10
+      when:
+        empty_green_detected: true
+        oversaturated: true
+      guidance: 存在绿灯空放且对向过饱和；建议压缩低利用相位绿灯，转给拥堵方向，优化相位绿信比
+
+    - id: empty_compress
+      priority: 20
+      when:
+        empty_green_detected: true
+      guidance: 存在绿灯空放，可优化相位绿信比，压缩低利用相位并转给需求更高的转向
+
+    - id: empty_normal
+      priority: 100
+      when: {}
+      guidance: 绿灯利用率正常，无明显空放
+
+  spillback:
+    - id: spill_high_risk
+      priority: 10
+      when:
+        spillback_high: true
+      guidance: 排队接近或超过存储能力，溢流风险高；建议控制上游放行、缩短周期或出口优先，避免外溢锁死
+
+    - id: spill_medium
+      priority: 20
+      when:
+        spillback_detected: true
+      guidance: 排队接近存储上限，建议控制上游放行、避免外溢，必要时配合边界控流
+
+    - id: spill_normal
+      priority: 100
+      when: {}
+      guidance: 未发现明显溢出风险

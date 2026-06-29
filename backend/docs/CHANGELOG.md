@@ -1,5 +1,42 @@
 # 变更日志
 
+## v3.1 · 供需匹配度主轴 · 治理动作方案 (2026-06-29)
+
+### 信控叙事主轴
+
+- `FlowTimingGovernanceService`：新增 `primary_diagnosis`（`timing_optimizable` / `capacity_bottleneck` / `structure_limited` / `basically_matched`）；`summary` / `governance_narrative` 以 headline 起句。
+- 新增 `governance_action_plan_service`：结构化 `action_plan`（挪绿秒数、供绿/受绿转向、LLM 不可改数模板）。
+- 新增 `governance_guidance` + `docs/intersection/flow-timing-governance/references/governance_rules.yaml`：分维度专家治理文案。
+- `SuggestionService`：prompt 注入 `action_plan` 与 YAML 治理块；与能力瓶颈判定一致，全饱和禁止「加绿即可」。
+
+### 约束与术语
+
+- `user_constraint_merge`：用户治理约束子句去重合并（orchestrator / skill_service）。
+- `problem_evidence_service`：用户可见文案去 DWS/DWD 术语；`method` 映射业务语言。
+
+### 前端
+
+- `FlowTimingGovernanceCard`：主诊断头牌 + `action_plan` 摘要；severity 配色。
+- `channelizationCopy` / `App.vue`：渠化摘要与 TTS 以 `primary_diagnosis.headline` 起句。
+- `waitForGovernanceSuggestionPresented`：治理建议呈现栅栏。
+
+### Skill 包
+
+- 新增 [`docs/intersection/flow-timing-governance/SKILL.md`](../../docs/intersection/flow-timing-governance/SKILL.md)（`intersection_flow_timing_governance`）。
+
+### 数据参考文档
+
+- [`docs/流量溯源表结构信息.md`](../../docs/流量溯源表结构信息.md)：`dws_tfc_inter_turn_flow_correlate_m` 上下游转向流量占比表。
+
+### 文档
+
+- [`docs/plans/2026-06-29-信控叙事主轴重构-供需匹配度-design.md`](../../docs/plans/2026-06-29-信控叙事主轴重构-供需匹配度-design.md)
+- [`docs/plans/2026-06-29-信控叙事主轴重构-供需匹配度-复盘.md`](../../docs/plans/2026-06-29-信控叙事主轴重构-供需匹配度-复盘.md)
+
+- 后端 pytest **169** 项；前端 vitest **125** 项。
+
+---
+
 ## v3.0.1 · 吸收/固化暂停 · 叙事分栏 · LLM 收敛 (2026-06-29)
 
 ### 前端呈现（frontend-v2）
