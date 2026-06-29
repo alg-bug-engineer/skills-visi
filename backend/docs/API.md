@@ -113,6 +113,7 @@ curl -s "http://localhost:8000/api/v1/sessions/${SESSION_ID}"
 ```bash
 curl -s "http://localhost:8000/api/v1/skills"
 curl -s "http://localhost:8000/api/v1/skills?intersection=奥体"
+curl -s "http://localhost:8000/api/v1/skills/leaderboard?sort=hits"
 ```
 
 ## 响应字段说明

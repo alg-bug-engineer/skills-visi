@@ -276,6 +276,18 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 | RT-REUSE-08 | P0 | 首轮带约束（与 Skill 同） | 仍 awaiting_generate | test_fast_path_with_same_constraint_still_awaits_d1 |
 | RT-REUSE-11 | P1 | 复用后不固化无步骤 7 | 无 skill_absorption SSE | regressionSkillFlow.spec |
 | RT-REUSE-12 | P1 | 复用+补充后固化 | skill_created/updated | test_fast_path_supplement |
+| RT-REUSE-13 | P1 | 快路径命中递增 hit_count | leaderboard hit_count≥1 | test_fast_path_records_hit |
+
+### 11.2 RT-SkillBoard · 技能排行榜
+
+| TC-ID | 优先级 | 场景 | 关键断言 | 现有测试 |
+|-------|--------|------|---------|---------|
+| RT-SkillBoard-01 | P1 | GET /skills/leaderboard 空库 | `[]` | test_leaderboard_empty |
+| RT-SkillBoard-02 | P1 | 固化后排行榜含 tags | hit_count=0, download_url | test_leaderboard_after_persist |
+| RT-SkillBoard-03 | P1 | record_hit 递增 | meta.hit_count +1 | test_record_hit_increments |
+| RT-SkillBoard-04 | P1 | upsert 保留 hit_count | 仍为 1 | test_upsert_preserves_hit_count |
+
+---
 
 ### 11.1 复用 vs 初次 · 一致性检查清单（RT-X 引用）
 

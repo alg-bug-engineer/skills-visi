@@ -101,11 +101,21 @@ class QwenClient:
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(
-            timeout=self._settings.llm_timeout_s,
-            trust_env=False,
-        ) as client:
-            response = await client.post(url, json=payload, headers=headers)
+        client_kwargs: dict[str, Any] = {
+            "timeout": self._settings.llm_timeout_s,
+            "trust_env": False,
+        }
+        if self._settings.llm_http_proxy:
+            client_kwargs["proxy"] = self._settings.llm_http_proxy
+
+        async with httpx.AsyncClient(**client_kwargs) as client:
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+            except httpx.ConnectError as exc:
+                hint = ""
+                if not self._settings.llm_http_proxy:
+                    hint = "（若本机 Clash TUN 劫持 DNS，可在 .env 设置 LLM_HTTP_PROXY=http://127.0.0.1:7897）"
+                raise RuntimeError(f"无法连接百炼 API{hint}") from exc
             if response.status_code >= 400:
                 api_message = _dashscope_error_message(response)
                 log_event(

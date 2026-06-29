@@ -61,6 +61,26 @@ class SkillResponse(BaseModel):
     created_at: str
 
 
+class SkillLeaderboardResponse(BaseModel):
+    """Skill leaderboard row with tags and utilization stats."""
+
+    skill_id: str
+    skill_dir: str
+    intersection: str
+    inter_id: str
+    problem_type: str
+    time_period_label: str
+    rule_ids: list[str]
+    created_at: str
+    updated_at: str | None = None
+    hit_count: int = 0
+    last_hit_at: str | None = None
+    tags: dict[str, Any] = Field(default_factory=dict)
+    user_constraints: str | None = None
+    suggestion_formula: str = ""
+    download_url: str
+
+
 class HealthResponse(BaseModel):
     """Health check."""
 

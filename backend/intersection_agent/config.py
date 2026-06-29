@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     qwen_model: str = "qwen3.6-flash-2026-04-16"
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     llm_timeout_s: float = 60.0
+    # 可选：仅 LLM HTTP 客户端使用（HTTP 代理，勿用 SOCKS）。Clash TUN 假 IP 场景下需显式配置。
+    llm_http_proxy: str = ""
 
     pghost: str = "121.40.233.80"
     pgport: int = 15432

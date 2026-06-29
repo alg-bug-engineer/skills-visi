@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { ProcessStepState } from '../composables/useUnderstandingProcess'
+import { useSkillLeaderboard } from '../composables/useSkillLeaderboard'
+import SkillLeaderboardPanel from './SkillLeaderboardPanel.vue'
 import { parseTerminalLine, splitTerminalLines } from '../utils/terminalLines'
 import { DETAIL_COLLAPSE_LABEL, DETAIL_TOGGLE_LABEL } from '../config/presentationCopy'
 
@@ -9,6 +11,8 @@ export interface ConversationTurn {
   content: string
   tag?: string
 }
+
+type PanelTab = 'process' | 'leaderboard'
 
 const props = defineProps<{
   steps: ProcessStepState[]
@@ -20,6 +24,8 @@ const props = defineProps<{
   embedded?: boolean
   /** 经验吸收阶段：默认折叠为摘要条，可点击展开回看 */
   stackSummaryMode?: boolean
+  /** 递增时刷新技能排行榜（如固化完成） */
+  leaderboardRefreshKey?: number
 }>()
 
 const emit = defineEmits<{
@@ -27,7 +33,11 @@ const emit = defineEmits<{
   toggleDetails: [index: number]
 }>()
 
+const activeTab = ref<PanelTab>('process')
 const panelExpanded = ref(true)
+const leaderboard = useSkillLeaderboard()
+
+const leaderboardCount = computed(() => leaderboard.items.value.length)
 
 watch(
   () => props.stackSummaryMode,
@@ -36,6 +46,18 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  () => props.leaderboardRefreshKey,
+  () => {
+    if (activeTab.value === 'leaderboard') leaderboard.refresh()
+  },
+)
+
+function selectTab(tab: PanelTab) {
+  activeTab.value = tab
+  if (tab === 'leaderboard') leaderboard.load()
+}
 
 const doneStepCount = computed(() => props.steps.filter((s) => s.status === 'done').length)
 
@@ -73,9 +95,51 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
     <header class="panel-header">
       <span class="eyebrow">{{ mode === 'conversation' ? 'DIALOGUE' : 'ANALYSIS' }}</span>
       <h2>{{ mode === 'conversation' ? '对话追问' : '理解过程' }}</h2>
-      <span v-if="active" class="pulse-dot" title="处理中" />
+      <span v-if="active && activeTab === 'process'" class="pulse-dot" title="处理中" />
     </header>
 
+    <div class="tab-bar" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        class="tab-btn"
+        :class="{ active: activeTab === 'process' }"
+        :aria-selected="activeTab === 'process'"
+        @click="selectTab('process')"
+      >
+        理解过程
+        <span v-if="active && activeTab !== 'process'" class="tab-hint" title="推理进行中" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab-btn"
+        :class="{ active: activeTab === 'leaderboard' }"
+        :aria-selected="activeTab === 'leaderboard'"
+        data-testid="skill-leaderboard-tab"
+        @click="selectTab('leaderboard')"
+      >
+        技能排行榜
+        <span v-if="leaderboardCount" class="tab-count">{{ leaderboardCount }}</span>
+      </button>
+    </div>
+
+    <template v-if="activeTab === 'leaderboard'">
+      <SkillLeaderboardPanel
+        :items="leaderboard.items.value"
+        :loading="leaderboard.loading.value"
+        :error="leaderboard.error.value"
+        :sort="leaderboard.sort.value"
+        :expanded-id="leaderboard.expandedId.value"
+        :active="activeTab === 'leaderboard'"
+        :refresh-key="leaderboardRefreshKey"
+        @set-sort="leaderboard.setSort"
+        @toggle="leaderboard.toggleExpanded"
+        @retry="leaderboard.refresh"
+      />
+    </template>
+
+    <template v-else>
     <button
       v-if="stackSummaryMode && mode === 'analysis' && steps.length"
       type="button"
@@ -192,6 +256,7 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
           : '发送消息后，将按步骤展示理解、匹配、关联 link 与诊断过程。'
       }}
     </p>
+    </template>
   </aside>
 </template>
 
@@ -236,6 +301,51 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
   font-weight: 600;
   letter-spacing: 0.5px;
   color: rgba(232, 244, 255, 0.95);
+}
+
+.tab-bar {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(94, 184, 255, 0.1);
+}
+
+.tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 2px;
+  border: 1px solid rgba(94, 184, 255, 0.2);
+  background: rgba(8, 16, 30, 0.4);
+  color: rgba(186, 230, 253, 0.75);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(14, 165, 233, 0.12);
+  color: #e0f2fe;
+  font-weight: 600;
+}
+
+.tab-count {
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 9px;
+  background: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+}
+
+.tab-hint {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
 }
 
 .pulse-dot {

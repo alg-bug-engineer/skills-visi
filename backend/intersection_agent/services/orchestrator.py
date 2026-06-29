@@ -650,6 +650,7 @@ class Orchestrator:
             skill = match_result.skill
             session.matched_skill_id = skill.skill_id
             session.skill_reuse_mode = True
+            hit_count = self._skills.record_hit(skill.skill_id)
             session.inter_id = skill.inter_id
             session.resolved_intersection = skill.intersection
             session.resolution_source = "skill_fast_path"
@@ -670,6 +671,7 @@ class Orchestrator:
                         "reason": match_result.reason,
                         "reuse_notice": match_result.detail,
                         "tags": backfill_tags(skill),
+                        "hit_count": hit_count,
                     },
                 )
                 await emitter.emit(

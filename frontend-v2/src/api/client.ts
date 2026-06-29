@@ -53,6 +53,16 @@ async function requestJson<T>(
   return { data: parsed as T, status: res.status, url }
 }
 
+export async function fetchSkillLeaderboard(
+  sort: 'hits' | 'created' | 'updated' = 'hits',
+): Promise<import('../types/skillLeaderboard').SkillLeaderboardItem[]> {
+  const { data } = await requestJson<import('../types/skillLeaderboard').SkillLeaderboardItem[]>(
+    'GET',
+    `/api/v1/skills/leaderboard?sort=${sort}`,
+  )
+  return data
+}
+
 export async function createSession(): Promise<{ session_id: string; state: string }> {
   const { data } = await requestJson<{ session_id: string; state: string }>('POST', '/api/v1/sessions')
   logger.info('session', '会话已创建', data)

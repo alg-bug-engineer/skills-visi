@@ -70,6 +70,7 @@ const mapToast = ref<string | null>(null)
 const awaitingSuggestionConfirm = ref(false)
 const channelizationActive = ref(false)
 const analysisRunKey = ref(0)
+const leaderboardRefreshKey = ref(0)
 
 const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
 const workbenchRef = ref<InstanceType<typeof WorkbenchLayout> | null>(null)
@@ -312,6 +313,7 @@ function applySkillBuildEvent(event: import('./types/skillBuild').SkillBuildEven
       if (payload.path) enqueueProcess(STEP_INDICES.SKILL, `· 写入 ${payload.path}`, true, true)
       break
     case 'skill_build_done':
+      leaderboardRefreshKey.value += 1
       enqueueProcess(
         STEP_INDICES.SKILL,
         `技能包已生成${payload.download_url ? '，可下载' : ''}。`,
@@ -1527,6 +1529,7 @@ onUnmounted(() => {
       :presentation-paused="presentationPause.paused.value"
       :presentation-layers="presentationSequence.layers.value"
       :focus-step-index="presentationSequence.focusStepIndex.value"
+      :leaderboard-refresh-key="leaderboardRefreshKey"
       @toggle-voice="voice.toggleEnabled()"
       @channelization-active="channelizationActive = $event"
       @send="handleSend"

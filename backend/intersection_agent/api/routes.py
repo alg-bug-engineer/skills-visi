@@ -16,6 +16,7 @@ from intersection_agent.api.schemas import (
     ReplyPayload,
     SessionCreateResponse,
     SessionDetailResponse,
+    SkillLeaderboardResponse,
     SkillResponse,
 )
 from intersection_agent.api.sse import build_emitter, sse_event_stream
@@ -23,6 +24,8 @@ from intersection_agent.config import get_settings
 from intersection_agent.logging.helpers import log_event, safe_preview
 from intersection_agent.services.orchestrator import Orchestrator
 from intersection_agent.services.skill_service import SkillService
+from intersection_agent.services.skill_matcher import backfill_tags
+from intersection_agent.skills.tag_helpers import read_hit_count, read_last_hit_at
 from intersection_agent.stores.session_store import SessionStore
 
 logger = logging.getLogger(__name__)
@@ -208,6 +211,43 @@ async def list_skills(
         )
         for r in records
     ]
+
+
+def _leaderboard_item(record) -> SkillLeaderboardResponse:
+    tags = backfill_tags(record)
+    return SkillLeaderboardResponse(
+        skill_id=record.skill_id,
+        skill_dir=record.skill_dir,
+        intersection=record.intersection,
+        inter_id=record.inter_id,
+        problem_type=record.problem_type,
+        time_period_label=record.time_period_label,
+        rule_ids=record.rule_ids,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+        hit_count=read_hit_count(record.tags),
+        last_hit_at=read_last_hit_at(record.tags),
+        tags=tags,
+        user_constraints=record.user_constraints,
+        suggestion_formula=record.suggestion_formula,
+        download_url=f"/api/v1/skills/{record.skill_id}/download",
+    )
+
+
+@router.get("/skills/leaderboard", response_model=list[SkillLeaderboardResponse])
+async def list_skill_leaderboard(
+    sort: str = Query(
+        default="hits",
+        description="Sort key: hits | created | updated",
+        pattern="^(hits|created|updated)$",
+    ),
+    intersection: str | None = Query(default=None, description="Filter by intersection name"),
+) -> list[SkillLeaderboardResponse]:
+    """List persisted skills for the leaderboard panel."""
+    if sort not in {"hits", "created", "updated"}:
+        raise HTTPException(status_code=422, detail="Invalid sort")
+    records = _skills.list_leaderboard(sort=sort, intersection=intersection)
+    return [_leaderboard_item(r) for r in records]
 
 
 @router.get("/skills/{skill_id}/download")

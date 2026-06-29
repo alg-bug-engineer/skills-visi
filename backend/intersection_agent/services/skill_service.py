@@ -21,6 +21,7 @@ from intersection_agent.skills.interleaved_skill_persist_visualizer import (
 )
 from intersection_agent.skills.package_builder import SkillPackageBuilder, skill_dir_name
 from intersection_agent.services.skill_matcher import build_skill_tags, compare_content_tags, match_skill
+from intersection_agent.skills.tag_helpers import increment_usage_meta, merge_usage_meta, read_hit_count, read_last_hit_at
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,9 @@ class SkillService:
             data_window=data_window,
             source_utterance_summary=_summarize_context(session),
         )
+        existing = self.get_by_id(skill_id)
+        if existing and existing.tags:
+            tags = merge_usage_meta(existing.tags, tags)
         return SkillRecord(
             skill_id=skill_id,
             skill_dir=skill_dir_name(session.inter_id or "", DEFAULT_PROBLEM_TYPE, label),
@@ -262,7 +266,7 @@ class SkillService:
             updated_at=candidate.updated_at,
             user_constraints=candidate.user_constraints,
             quantitative_constraints=candidate.quantitative_constraints,
-            tags=report.tags,
+            tags=merge_usage_meta(existing.tags if existing else None, report.tags),
         )
 
         if result.action == "unchanged":
@@ -298,6 +302,54 @@ class SkillService:
         if intersection:
             records = [r for r in records if intersection in r.intersection]
         return records
+
+    def list_leaderboard(
+        self,
+        *,
+        sort: str = "hits",
+        intersection: str | None = None,
+    ) -> list[SkillRecord]:
+        """List skills ordered for leaderboard display."""
+        records = self.list_skills(intersection)
+        if sort == "created":
+            records.sort(key=lambda r: r.created_at, reverse=True)
+        elif sort == "updated":
+            records.sort(key=lambda r: r.updated_at or r.created_at, reverse=True)
+        else:
+            records.sort(
+                key=lambda r: (read_hit_count(r.tags), r.created_at),
+                reverse=True,
+            )
+        return records
+
+    def record_hit(self, skill_id: str) -> int | None:
+        """Increment reuse counter when a skill is matched on the fast path."""
+        record = self.get_by_id(skill_id)
+        if not record:
+            return None
+        tags = increment_usage_meta(record.tags)
+        updated = SkillRecord(
+            skill_id=record.skill_id,
+            skill_dir=record.skill_dir,
+            intersection=record.intersection,
+            inter_id=record.inter_id,
+            problem_type=record.problem_type,
+            time_period_label=record.time_period_label,
+            match_keywords=record.match_keywords,
+            data_query_spec=record.data_query_spec,
+            rule_ids=record.rule_ids,
+            suggestion_formula=record.suggestion_formula,
+            created_at=record.created_at,
+            updated_at=datetime.now(timezone.utc).isoformat(),
+            user_constraints=record.user_constraints,
+            quantitative_constraints=record.quantitative_constraints,
+            tags=tags,
+        )
+        files = self._builder.build_file_contents(updated, session=None)
+        self._builder.write_package_files(updated, files)
+        count = read_hit_count(tags)
+        logger.info("skill.hit_recorded skill_id=%s hit_count=%s", skill_id, count)
+        return count
 
     def _write_package(self, record: SkillRecord, session: Session) -> None:
         """Write standard skill package to disk."""
@@ -357,7 +409,13 @@ def _tags_materially_equal(
     def _strip_volatile(tags: dict[str, Any]) -> dict[str, Any]:
         copied = dict(tags)
         meta = dict(copied.get("meta") or {})
-        for key in ("absorbed_at", "library_count_before", "library_count_after"):
+        for key in (
+            "absorbed_at",
+            "library_count_before",
+            "library_count_after",
+            "hit_count",
+            "last_hit_at",
+        ):
             meta.pop(key, None)
         copied["meta"] = meta
         return copied
