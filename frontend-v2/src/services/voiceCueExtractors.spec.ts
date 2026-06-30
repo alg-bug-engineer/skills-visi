@@ -15,10 +15,11 @@ describe('voiceCueExtractors', () => {
     expect(cue.stepIndex).toBe(4)
   })
 
-  it('builds imbalance cue', () => {
+  it('builds imbalance cue with raw green utilization', () => {
     const cue = buildImbalanceCue(0.42, 0.78)
     expect(cue?.text).toContain('失衡系数')
-    expect(cue?.text).toContain('差异明显')
+    expect(cue?.text).toContain('0.78')
+    expect(cue?.text).not.toContain('78%')
   })
 
   it('RT-VOICE-AXIS: builds cognition cue from axis roads', () => {
@@ -28,6 +29,7 @@ describe('voiceCueExtractors', () => {
     })
     expect(cue?.text).toContain('东西向为经十路')
     expect(cue?.text).toContain('南北向为奥体西路')
+    expect(cue?.text).not.toContain('路口')
   })
 
   it('rejects cognition speakable with runtime metrics', () => {

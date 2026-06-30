@@ -6,6 +6,10 @@ export type ExperienceLevel = 'cognition' | 'diagnosis' | 'solution'
 export interface ExperienceSedimentItem {
   level: ExperienceLevel
   text: string
+  /** 仅 cognition（认知画像）使用：数据支撑则已验证，否则待验证。 */
+  status?: 'verified' | 'pending'
+  /** 展示用标签（问题记录 / 用户口述 / 治理措施等） */
+  tags?: string[]
 }
 
 export interface CaseSolution {

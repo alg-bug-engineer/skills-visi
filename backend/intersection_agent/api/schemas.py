@@ -149,14 +149,15 @@ class ExecutionStepEvent(BaseModel):
 
 
 class UpstreamFrame(BaseModel):
-    """Storyboard 单帧（逐树串讲 + 帧重建底座）。"""
+    """Storyboard 单帧（逐路口运镜 + 帧重建底座）。"""
 
     idx: int
     tree: str
-    kind: str
     focus: Any = None
+    center: list[float | None] | None = None
+    zoom: int | None = None
+    fit: bool = False
     reveal: list[str] = Field(default_factory=list)
-    camera: str | None = None
     narration: str | None = None
 
 
@@ -172,6 +173,9 @@ class UpstreamTreeNode(BaseModel):
     hop: int | None = None
     decision: str | None = None
     feeding_dir8: int | None = None
+    approach: str | None = None
+    saturation: float | None = None
+    turn_split: list[dict[str, Any]] = Field(default_factory=list)
     approach_profiles: list[dict[str, Any]] = Field(default_factory=list)
 
 

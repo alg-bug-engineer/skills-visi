@@ -165,10 +165,10 @@ def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[s
                 over_turn["label"], over_turn["turn_saturation"], over_turn["green_utilization"]
             )
             s_label, s_util = spare_turn["label"], spare_turn["green_utilization"]
-            util_part = f"、绿灯利用{o_util:.0%}" if o_util is not None else ""
+            util_part = f"、绿灯利用{o_util:.2f}" if o_util is not None else ""
             headline = (
                 f"{o_label}已过饱和（饱和{o_sat:.2f}{util_part}），"
-                f"而{s_label}绿灯利用率仅{s_util:.0%}仍有富余"
+                f"而{s_label}绿灯利用率{s_util:.2f}仍有富余"
                 "——属于绿灯分配不均，配时可改善"
             )
             lever = f"建议把{s_label}的部分绿灯时间让给{o_label}，优先调整绿信比分配"
@@ -205,8 +205,8 @@ def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[s
             _line(
                 dtype == "timing_optimizable" and spare_turn is not None,
                 (
-                    f"{spare_turn['label']}绿灯利用率 {spare_turn['green_utilization']:.0%}"
-                    f"（低于富余阈值 {low_util:.0%}），可向"
+                    f"{spare_turn['label']}绿灯利用率 {spare_turn['green_utilization']:.2f}"
+                    f"（低于富余阈值 {low_util:.2f}），可向"
                     f"{over_turn['label']}（饱和 {over_turn['turn_saturation']:.2f}）挪绿"
                     if spare_turn and over_turn
                     else ""
@@ -478,7 +478,7 @@ def _detect_problems(
                     ),
                     _line(
                         green_util is not None,
-                        f"绿灯利用率 {green_util:.0%}" if green_util is not None else "",
+                        f"绿灯利用率 {green_util:.2f}" if green_util is not None else "",
                     ),
                     _line(empty_sustained, "连续15分钟低利用（检查单）"),
                 ]

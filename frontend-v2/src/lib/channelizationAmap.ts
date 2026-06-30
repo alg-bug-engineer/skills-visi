@@ -25,7 +25,9 @@ import {
   laneLabel,
   metersToLngLat,
   parseLaneInfo,
+  angleDiff,
 } from './channelizationGeometry'
+import type { ChannelQueueArm } from '../utils/cognitionChannelAdapter'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AMapNS = any
@@ -106,6 +108,27 @@ const VERDICT_TEXT: Record<string, string> = {
   warn: '⚠ 告警',
   partial: '○ 数据缺失',
   pass: '✓ 正常',
+}
+
+function queueLengthColor(satPct: number): string {
+  if (satPct >= 85) return '#dd2233'
+  if (satPct >= 70) return '#dd6600'
+  if (satPct >= 50) return '#ccaa00'
+  return '#338844'
+}
+
+function matchQueueArm(arm: ChannelArm, queueArms: ChannelQueueArm[]): ChannelQueueArm | null {
+  let best: ChannelQueueArm | null = null
+  let bestDiff = 999
+  for (const q of queueArms) {
+    if (!(q.queueM > 0)) continue
+    const d = angleDiff(arm.angle, q.armAngle)
+    if (d < bestDiff) {
+      bestDiff = d
+      best = q
+    }
+  }
+  return best && bestDiff < 30 ? best : null
 }
 
 function flattenLinks(interItem: ChannelInterItem): ChannelLink[] {
@@ -678,16 +701,64 @@ export class ChannelizationAmapLayer {
     }
   }
 
+  /* ── applyQueueLengthHighlight（排队长度色带，对齐 channelizationLayer.js） ─ */
+  applyQueueLengthHighlight(queueArms: ChannelQueueArm[] = []) {
+    if (!this.arms.length || !queueArms.length) return
+    for (const arm of this.arms) {
+      const q = matchQueueArm(arm, queueArms)
+      if (!q || q.queueM <= 0) continue
+      const inLanes = arm.inLink ? parseLaneInfo(arm.inLink) : []
+      const nIn = inLanes.length
+      if (nIn === 0) continue
+
+      const fillLen = Math.min(ARM_LEN * 0.92, Math.max(2, q.queueM))
+      const u0 = this.boxR
+      const wIn = nIn * LANE_W
+      const satPct = q.satPct ?? (q.satRatio != null ? q.satRatio * 100 : 50)
+      const flowColor = queueLengthColor(satPct)
+
+      this.addCheck(
+        new this.amap.Polygon({
+          path: this.rect(arm, u0, u0 + fillLen, -wIn, 0),
+          strokeOpacity: 0,
+          fillColor: flowColor,
+          fillOpacity: 0.52,
+          bubble: true,
+          zIndex: 41,
+        }),
+      )
+      this.addCheck(
+        new this.amap.Polyline({
+          path: [this.ll(u0 + fillLen, 0, arm.angle), this.ll(u0 + fillLen, -wIn, arm.angle)],
+          strokeColor: '#ff2200',
+          strokeWeight: 3,
+          strokeOpacity: 0.92,
+          bubble: true,
+          zIndex: 42,
+        }),
+      )
+    }
+  }
+
   /* ── applyArmSceneLabels（臂外缘文本框） ──────────────────────────────────── */
   applyArmSceneLabels(labels: ArmSceneLabel[] = []) {
     this.clearLabels()
     if (!labels.length) return
     for (const label of labels) {
       if (!label.dir) continue
+      const line1 = (label.line1 || '').trim()
+      const line2 = (label.line2 || '').trim()
+      if (!line1 && !line2) continue
+      if (line2 === '—' || line2 === '-' || line2 === '–') {
+        if (!line1) continue
+      }
       const arm = this.arms.find((a) => armMatchesDir(a.angle, label.dir))
       if (!arm) continue
       const pos = this.ll(this.boxR + ARM_LEN * 0.94, 0, arm.angle)
-      this.addLabel(this.makeTextMarker(pos, label.line1 || '', label.line2 || '', label.colorHex || '#00e5ff', -10))
+      const showLine2 = line2 && line2 !== '—' && line2 !== '-' && line2 !== '–'
+      this.addLabel(
+        this.makeTextMarker(pos, line1, showLine2 ? line2 : '', label.colorHex || '#00e5ff', -10),
+      )
     }
   }
 

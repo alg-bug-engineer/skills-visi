@@ -85,7 +85,7 @@ def format_action_plan_for_prompt(plan: dict[str, Any]) -> str:
         if d.get("green_utilization") is not None:
             lines.append(
                 f"- 供绿方 {d.get('label')}：计划绿 {d.get('green_sec')}s，"
-                f"利用率 {d['green_utilization']:.0%}"
+                f"利用率 {d['green_utilization']:.2f}"
             )
         else:
             lines.append(f"- 供绿方 {d.get('label')}")
@@ -231,7 +231,7 @@ def _reallocate_plan(
 
     evidence = [
         f"{r_label} 转向饱和度 {r_sat:.2f}",
-        f"{d_label} 绿灯利用率 {d_util:.0%}",
+        f"{d_label} 绿灯利用率 {d_util:.2f}",
     ]
     if recipient.get("flow_share") is not None and recipient.get("green_share") is not None:
         evidence.append(
@@ -243,7 +243,7 @@ def _reallocate_plan(
 
     headline = f"保持周期 {cycle:.0f}s，从{d_label}向{r_label}挪绿约 {transfer}s"
     template = (
-        f"针对{r_label}严重过饱和（{r_sat:.2f}）且{d_label}绿灯利用率仅{d_util:.0%}，"
+        f"针对{r_label}严重过饱和（{r_sat:.2f}）且{d_label}绿灯利用率仅{d_util:.2f}，"
         f"建议在周期不变前提下压缩{d_label}约 {transfer}s 有效绿灯并转给{r_label}，"
         "以纠正绿信比错配、缓解主方向排队。"
     )
@@ -285,7 +285,7 @@ def _increase_green_plan(
     add_sec = max(5, min(int(round((sat - sat_high) * cycle * 0.15)), 20))
     label = target["label"]
     template = (
-        f"{label}饱和度 {sat:.2f} 且绿灯利用率 {util:.0%} 仍有空间，"
+        f"{label}饱和度 {sat:.2f} 且绿灯利用率 {util:.2f} 仍有空间，"
         f"可在周期内为{label}增加约 {add_sec}s 有效绿灯；"
         "若其他转向已高利用，优先评估是否加周期而非继续挤占。")
     return {
@@ -298,7 +298,7 @@ def _increase_green_plan(
         "recipient_turn": _turn_snapshot(target),
         "donor_turn": None,
         "confidence": 0.72,
-        "evidence": [f"{label} 饱和度 {sat:.2f}", f"绿灯利用率 {util:.0%}" if util is not None else ""],
+        "evidence": [f"{label} 饱和度 {sat:.2f}", f"绿灯利用率 {util:.2f}" if util is not None else ""],
         "data_gaps": [],
     }
 

@@ -11,6 +11,7 @@ function makeFakeLayer() {
     applyCheckHighlight: [],
     applyDirectionRoleHighlight: [],
     applyArmSceneLabels: [],
+    applyQueueLengthHighlight: [],
   }
   const layer: PhaseHighlightTarget = {
     clearCheck: () => calls.clearCheck.push([]),
@@ -19,6 +20,7 @@ function makeFakeLayer() {
     applyCheckHighlight: (a, b, c) => calls.applyCheckHighlight.push([a, b, c]),
     applyDirectionRoleHighlight: (a, b) => calls.applyDirectionRoleHighlight.push([a, b]),
     applyArmSceneLabels: (a) => calls.applyArmSceneLabels.push([a]),
+    applyQueueLengthHighlight: (a) => calls.applyQueueLengthHighlight.push([a]),
   }
   return { layer, calls }
 }
@@ -87,6 +89,120 @@ describe('applyPhaseHighlight', () => {
     expect(calls.applyDirectionRoleHighlight).toHaveLength(1)
   })
 
+  it('traffic 阶段不在渠化臂标上展示饱和度数值', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'traffic',
+      allowRuntimeMetrics: true,
+      cognition: {
+        ...COG,
+        direction_groups: [
+          { group: '南北向', saturation_max: 1.2, arm_labels: ['南', '北'] },
+        ],
+      },
+    })
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ line2: string }>
+    expect(labels?.every((l) => !/^[\d.]+$/.test(l.line2.trim()))).toBe(true)
+  })
+
+  it('direction 阶段展示分向饱和度臂标', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'direction',
+      allowRuntimeMetrics: true,
+      cognition: {
+        ...COG,
+        direction_groups: [
+          { group: '南北向', saturation_max: 1.2, arm_labels: ['南', '北'] },
+        ],
+      },
+    })
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ line2: string }>
+    expect(labels?.some((l) => l.line2.includes('1.2'))).toBe(true)
+  })
+
+  it('traffic 阶段剥离饱和度后不保留无排队信息的转向占位标签', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'traffic',
+      allowRuntimeMetrics: true,
+      cognition: COG,
+      activeDimensions: ['flow'],
+      sceneMarkers: [
+        {
+          id: 't-n',
+          lon: 117.11,
+          lat: 36.66,
+          kind: 'metric',
+          variant: 'turn',
+          title: '北直行',
+          value: '1.33',
+          dir: '北',
+          severity: 'high',
+        },
+      ],
+    })
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ line1: string; line2: string }>
+    expect(labels?.some((l) => l.line1 === '北直行')).toBe(false)
+    expect(labels?.some((l) => l.line2 === '—')).toBe(false)
+  })
+
+  it('direction 阶段转向饱和度展示问题提示文案', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'direction',
+      allowRuntimeMetrics: true,
+      cognition: COG,
+      sceneMarkers: [
+        {
+          id: 't-n',
+          lon: 117.11,
+          lat: 36.66,
+          kind: 'metric',
+          variant: 'turn',
+          title: '北直行',
+          value: '1.33',
+          dir: '北',
+          severity: 'high',
+        },
+      ],
+    })
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ line1: string; line2: string }>
+    const north = labels?.find((l) => l.line1 === '北直行')
+    expect(north?.line2).toContain('过饱和')
+    expect(north?.line2).toContain('1.33')
+  })
+
+  it('direction 阶段可叠加排队长度文字', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'direction',
+      allowRuntimeMetrics: true,
+      cognition: COG,
+      activeDimensions: ['flow', 'queue'],
+      sceneMarkers: [
+        {
+          id: 't-e',
+          lon: 117.11,
+          lat: 36.66,
+          kind: 'metric',
+          variant: 'turn',
+          title: '东直行',
+          value: '1.10',
+          dir: '东',
+          severity: 'high',
+        },
+      ],
+      queueArms: [
+        { armAngle: 0, queueM: 146, satPct: 110, satRatio: 1.1, dir4: '东', label: '东进口' },
+      ],
+    })
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ dir: string; line2: string }>
+    const east = labels?.find((l) => l.dir === '东')
+    expect(east?.line2).toContain('排队')
+    expect(east?.line2).toContain('146')
+  })
+
   it('运行数据未揭示时 traffic 阶段不展示饱和度车道卡', () => {
     const { layer, calls } = makeFakeLayer()
     applyPhaseHighlight(layer, {
@@ -150,10 +266,25 @@ describe('applyPhaseHighlight', () => {
     expect(calls.applyArmSceneLabels).toHaveLength(2)
   })
 
-  it('排队维度相关时叠加排队长度标签（traffic）', () => {
+  it('路口结构阶段不展示排队标签', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'links',
+      allowRuntimeMetrics: true,
+      cognition: COG,
+      activeDimensions: ['flow', 'queue'],
+      queueArms: [
+        { armAngle: 0, queueM: 85, satPct: 95, satRatio: 0.95, dir4: '东', label: '东进口' },
+      ],
+    })
+    expect(calls.applyArmSceneLabels.at(-1)?.[0]).toEqual([])
+  })
+
+  it('排队维度相关时仅在 traffic 且运行数据揭示后叠加排队标签', () => {
     const { layer, calls } = makeFakeLayer()
     applyPhaseHighlight(layer, {
       phase: 'traffic',
+      allowRuntimeMetrics: true,
       cognition: COG,
       activeDimensions: ['flow', 'queue'],
       queueArms: [
@@ -163,6 +294,24 @@ describe('applyPhaseHighlight', () => {
     const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ dir: string; line2: string }>
     const east = labels?.find((l) => l.dir === '东')
     expect(east?.line2).toContain('排队~85m')
+    expect(east?.line2).not.toContain('饱和')
+    expect(calls.applyQueueLengthHighlight).toHaveLength(1)
+    expect((calls.applyQueueLengthHighlight[0][0] as Array<{ queueM: number }>)[0]?.queueM).toBe(85)
+  })
+
+  it('运行数据未揭示时不叠加排队标签', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'traffic',
+      allowRuntimeMetrics: false,
+      cognition: COG,
+      activeDimensions: ['flow', 'queue'],
+      queueArms: [
+        { armAngle: 0, queueM: 85, satPct: 95, satRatio: 0.95, dir4: '东', label: '东进口' },
+      ],
+    })
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ dir: string; line2: string }>
+    expect(labels?.some((l) => l.line2.includes('排队'))).toBe(false)
   })
 
   it('排队维度不相关时不叠加排队标签（如空放：activeDimensions 无 queue）', () => {

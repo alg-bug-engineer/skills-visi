@@ -4,9 +4,18 @@ import {
   buildArmLabelsFromDirectionGroups,
   buildArmLabelsFromEntranceLinks,
   buildArmLabelsFromQueue,
+  saturationProblemHint,
 } from './channelArmLabels'
 import type { ChannelQueueArm } from './cognitionChannelAdapter'
 import type { CognitionPayload, MapSceneMarker } from '../types/map'
+
+describe('saturationProblemHint', () => {
+  it('maps saturation tiers to problem copy', () => {
+    expect(saturationProblemHint(1.33)).toBe('过饱和 1.33')
+    expect(saturationProblemHint(0.9)).toBe('饱和偏高 0.90')
+    expect(saturationProblemHint(0.5)).toBe('饱和 0.50')
+  })
+})
 
 describe('buildArmLabelsFromQueue', () => {
   it('renders queue length (m) + saturation for arms with queue', () => {

@@ -14,6 +14,7 @@ from intersection_agent.services.flow_trace_service import (
     day_labels_for_filter,
     one_hop_for_approach,
     period_type_from_label,
+    turn_split_for_upstream,
 )
 from intersection_agent.services.map_presentation_service import build_upstream_storyboard
 from intersection_agent.utils.data_window import DataWindow, build_data_window
@@ -101,13 +102,18 @@ def _mock_upstream_rows(inter_id: str, dir8: int) -> list[dict[str, Any]]:
         cor_id, name = f"mock_gov_{dir8}", "可治理上游路口"
     else:
         cor_id, name = f"mock_full_{dir8}", "上游路口(全饱和)"
+    lng = 117.1 + dir8 * 0.01
+    lat = 36.65 + dir8 * 0.01
+    base = {
+        "f_dir8_no": dir8, "turn_dir_no": 2,
+        "cor_inter_id": cor_id, "cor_f_dir8_no": dir8,
+        "cor_inter_name": name, "cor_lng": lng, "cor_lat": lat,
+    }
+    # 上一路口流量按转向拆分：直行为主，左右转辅（供地图标注演示）
     return [
-        {
-            "f_dir8_no": dir8, "turn_dir_no": 2,
-            "cor_inter_id": cor_id, "cor_f_dir8_no": dir8, "cor_turn_dir_no": 2,
-            "flow_share_ratio": 67.0, "cor_inter_name": name,
-            "cor_lng": 117.1 + dir8 * 0.01, "cor_lat": 36.65 + dir8 * 0.01,
-        }
+        {**base, "cor_turn_dir_no": 2, "flow_share_ratio": 67.0},
+        {**base, "cor_turn_dir_no": 1, "flow_share_ratio": 22.0},
+        {**base, "cor_turn_dir_no": 3, "flow_share_ratio": 11.0},
     ]
 
 
@@ -228,9 +234,11 @@ class UpstreamGovernanceTraceService:
             max_hops=self._max_hops,
             inter_name=hop1.get("cor_inter_name"),
         )
-        # 一跳节点经纬度回填（build_tree 不持有 hop1 坐标）
+        # 一跳节点经纬度/转向拆分回填（build_tree 不持有 hop1 这些字段）
         root.setdefault("lng", hop1.get("lng"))
         root.setdefault("lat", hop1.get("lat"))
+        root["turn_split"] = hop1.get("turn_split") or []
+        root["coverage"] = hop1.get("coverage")
         _backfill_coords(root, upstream_cache)
 
         intersection = (cognition or {}).get("intersection") or {}
@@ -294,7 +302,10 @@ class UpstreamGovernanceTraceService:
             period_type = period_type_from_label(self._period_label)
             day_labels = day_labels_for_filter(window.dow_filter)
             rows = await self._flow_trace._fetch_upstream(inter_id, period_type, day_labels)
-        return one_hop_for_approach(rows, dir8)
+        hop = one_hop_for_approach(rows, dir8)
+        if hop:
+            hop["turn_split"] = turn_split_for_upstream(rows, dir8, hop["cor_inter_id"])
+        return hop
 
 
 def _other_approaches(profiles: list[dict[str, Any]], exclude: int) -> list[int]:
@@ -312,5 +323,7 @@ def _backfill_coords(
             if up and up.get("cor_inter_id") == child.get("inter_id"):
                 child.setdefault("lng", up.get("lng"))
                 child.setdefault("lat", up.get("lat"))
+                child.setdefault("turn_split", up.get("turn_split") or [])
+                child.setdefault("coverage", up.get("coverage"))
                 break
         _backfill_coords(child, upstream_cache)

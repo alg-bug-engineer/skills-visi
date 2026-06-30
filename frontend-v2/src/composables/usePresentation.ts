@@ -393,7 +393,8 @@ export function usePresentation() {
   }
 
   function addExperienceSediment(item: ExperienceSedimentItem) {
-    if (state.experienceSediment.some((e) => e.level === item.level && e.text === item.text)) {
+    const key = `${item.level}:${item.text.replace(/\s+/g, '')}`
+    if (state.experienceSediment.some((e) => `${e.level}:${e.text.replace(/\s+/g, '')}` === key)) {
       return
     }
     state.experienceSediment.push(item)

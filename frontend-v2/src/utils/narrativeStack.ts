@@ -11,6 +11,7 @@ import type {
 import type { RuntimeMetrics } from '../types/presentation'
 import type { DataInsight } from '../types/insight'
 import { THRESHOLDS } from '../constants'
+import { formatGreenUtilizationRaw } from './evidencePresentation'
 import { normalizeTurnMetrics, sortTurnMetrics } from './turnMetrics'
 
 /** 已在运行数据其他条目展示的 HUD 指标，避免重复罗列 */
@@ -55,7 +56,7 @@ export interface NarrativeRuntimeItem {
 const CATEGORY_ORDER: NarrativeRuntimeCategory[] = ['metrics', 'imbalance', 'chronic']
 
 function formatGreenUtil(v: number): string {
-  return `${Math.round(v * 100)}%`
+  return formatGreenUtilizationRaw(v)
 }
 
 function formatTurnSatValue(sat: number): string {

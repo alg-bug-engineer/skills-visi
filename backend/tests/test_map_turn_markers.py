@@ -46,13 +46,20 @@ def _cognition_with_turns() -> dict:
     }
 
 
-def test_traffic_phase_uses_turn_level_markers():
-    scene = build_map_scene(
+def test_traffic_phase_defers_turn_markers_to_direction():
+    traffic = build_map_scene(
         "traffic",
         cognition=_cognition_with_turns(),
         data={"traffic_flow": {"saturation_rate": 1.83}, "evaluation": {"delay_index": 1.5}},
     )
-    turn_markers = [m for m in scene["markers"] if m.get("variant") == "turn"]
+    assert [m for m in traffic["markers"] if m.get("variant") == "turn"] == []
+
+    direction = build_map_scene(
+        "direction",
+        cognition=_cognition_with_turns(),
+        data={"traffic_flow": {"saturation_rate": 1.83}, "evaluation": {"delay_index": 1.5}},
+    )
+    turn_markers = [m for m in direction["markers"] if m.get("variant") == "turn"]
     assert len(turn_markers) >= 3
     by_title = {m["title"]: m["value"] for m in turn_markers}
     assert by_title["东左转"] == "1.83"

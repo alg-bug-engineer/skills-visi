@@ -9,10 +9,7 @@ import type {
   GovernanceSuggestionPayload,
 } from '../../types/presentation'
 import type { PresentationLayerGates } from '../../composables/usePresentationSequence'
-import { COGNITION_STRUCTURE_PHASES } from '../../types/presentation'
-import { useChannelFooterLayout } from '../../composables/useChannelFooterLayout'
 import type { FlowTimingGovernance } from '../../types/evidence'
-import ChannelizationLegend from './ChannelizationLegend.vue'
 import TimingRingMiniWindow from '../timing/TimingRingMiniWindow.vue'
 import CorridorWaveMiniWindow from '../corridor/CorridorWaveMiniWindow.vue'
 
@@ -60,26 +57,7 @@ const phaseLabel = computed(() => {
   return map[props.phase ?? 'links'] ?? '路口渠化'
 })
 
-const { queueArms } = useChannelFooterLayout({
-  phase: computed(() => props.phase ?? 'idle'),
-  cognition: computed(() => props.cognition),
-  evidence: computed(() => props.evidence ?? null),
-  runtimeMetrics: computed(() => props.runtimeMetrics ?? null),
-  fullscreen: computed(() => Boolean(props.fullscreen)),
-})
-
-const showDirectionRoles = computed(
-  () =>
-    props.phase === 'direction' &&
-    Boolean(props.highlightDirs?.length || props.protectedDirs?.length),
-)
-
 const showHudBar = computed(() => props.presentationLayers?.hudBar ?? true)
-
-const hasQueue = computed(() => {
-  if (COGNITION_STRUCTURE_PHASES.includes(props.phase ?? 'idle')) return false
-  return queueArms.value.some((a) => a.queueM > 0)
-})
 
 const totalLanes = computed(() =>
   (props.cognition?.arms ?? []).reduce(
@@ -143,16 +121,9 @@ const totalLanes = computed(() =>
             @close="emit('closeCorridorWave')"
           />
         </div>
-        <!-- 渠化已下沉到主地图(AMap 覆盖物)渲染，此处仅留透传区让地图显示，
-             图例/迷你窗作为 HUD 浮层叠加；问题验证/治理建议见右侧叙事卡 -->
+        <!-- 渠化已下沉到主地图(AMap 覆盖物)渲染，此处仅留透传区让地图显示；
+             图例已移除，问题验证/治理建议见右侧叙事卡 -->
         <div class="chan-map-passthrough" />
-        <ChannelizationLegend
-          v-if="fullscreen"
-          :phase="phase"
-          :show-queue="hasQueue"
-          :show-direction-roles="showDirectionRoles"
-          :run-key="runKey"
-        />
       </div>
 
     </div>

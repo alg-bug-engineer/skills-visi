@@ -1,0 +1,263 @@
+"""治理建议生成：上游溯源与用户经验等上下文拼装。"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from intersection_agent.services.governance_action_plan_service import build_action_plan
+
+
+def _fmt_turn_split(split: list[dict[str, Any]] | None) -> str:
+    if not split:
+        return "无转向拆分"
+    parts: list[str] = []
+    for s in split:
+        turn = s.get("turn") or "—"
+        if s.get("data_gap"):
+            parts.append(f"{turn}（数仓无记录，待核查）")
+            continue
+        pct = s.get("share_pct")
+        parts.append(f"{turn}{pct}%" if pct is not None else turn)
+    return "、".join(parts)
+
+
+def synthesize_flow_trace_from_upstream(upstream_trace: dict[str, Any]) -> dict[str, Any]:
+    """将上游治理溯源结果转为 flow_trace 风格 hints，供 action_plan 消费。"""
+    hints: list[dict[str, Any]] = []
+    for tree in upstream_trace.get("trees") or []:
+        approach = str(tree.get("approach") or "")
+
+        def walk(node: dict[str, Any]) -> None:
+            split = node.get("turn_split") or []
+            dom = split[0] if split and not split[0].get("data_gap") else None
+            name = node.get("inter_name") or node.get("inter_id")
+            if node.get("decision") == "治理落点" and name:
+                hints.append(
+                    {
+                        "type": "upstream_coordination",
+                        "problem_turn": approach,
+                        "inter_id": node.get("inter_id"),
+                        "inter_name": name,
+                        "feed_direction": dom.get("turn", "") if dom else "",
+                        "coverage": dom.get("share_pct") if dom else None,
+                        "turn_split": _fmt_turn_split(split),
+                    }
+                )
+            for child in node.get("children") or []:
+                walk(child)
+
+        root = tree.get("root") or {}
+        walk(root)
+    if not hints:
+        return {"available": False}
+    return {"available": True, "governance_hints": hints}
+
+
+def format_upstream_trace_for_prompt(data: dict[str, Any]) -> str:
+    """上游溯源分镜摘要，供 LLM 写入治理建议。"""
+    trace = data.get("upstream_trace") or {}
+    trees = trace.get("trees") or []
+    points = trace.get("governance_points") or []
+    if not trees and not points:
+        return "无上游溯源结果。"
+
+    lines: list[str] = []
+    for tree in trees:
+        approach = tree.get("approach") or "—"
+        target = tree.get("target") or {}
+        lines.append(
+            f"- {approach}：自「{target.get('name') or target.get('inter_id')}」向上游追溯"
+        )
+
+        def walk(node: dict[str, Any], depth: int = 1) -> None:
+            name = node.get("inter_name") or node.get("inter_id")
+            if not name:
+                return
+            sat = node.get("approach_profiles")
+            sat_txt = "待核查数仓"
+            if node.get("saturation") is not None and float(node["saturation"]) > 0.01:
+                sat_txt = f"饱和{float(node['saturation']):.2f}"
+            split_txt = _fmt_turn_split(node.get("turn_split"))
+            decision = node.get("decision") or "继续上溯"
+            indent = "  " * depth
+            lines.append(
+                f"{indent}· 上游{name}：{sat_txt}；汇入车流 {split_txt}；判定「{decision}」"
+            )
+            for child in node.get("children") or []:
+                walk(child, depth + 1)
+
+        walk(tree.get("root") or {}, 1)
+
+    if points:
+        lines.append("- 治理落点：")
+        for p in points[:4]:
+            lines.append(
+                f"  · {p.get('approach')} → {p.get('inter_name')}（hop {p.get('hop')}）"
+            )
+    return "\n".join(lines)
+
+
+def format_user_experience_for_prompt(
+    data: dict[str, Any], user_suggestion: str | None
+) -> str:
+    """用户口述约束、量化边界与复用经验。"""
+    parts: list[str] = []
+    if user_suggestion and user_suggestion.strip():
+        parts.append(f"- 用户约束/经验：{user_suggestion.strip()}")
+    qc = data.get("quantitative_constraints") or {}
+    if qc.get("narrative"):
+        parts.append(f"- 量化边界：{qc['narrative']}")
+    reused = data.get("reused_experience") or []
+    if reused:
+        parts.append(f"- 本次复用经验：{'；'.join(str(x) for x in reused)}")
+    nlu = data.get("meta", {}).get("nlu") or {}
+    directions = nlu.get("directions") or data.get("nlu_directions")
+    if directions:
+        parts.append(f"- 关注方向：{directions}")
+    if not parts:
+        return "用户未补充额外约束。"
+    return "\n".join(parts)
+
+
+def _upstream_action_sentence(data: dict[str, Any]) -> str:
+    """从溯源落点提炼一句可执行建议。"""
+    trace = data.get("upstream_trace") or {}
+    points = trace.get("governance_points") or []
+    if points:
+        names = [str(p.get("inter_name") or p.get("inter_id")) for p in points[:2]]
+        names = [n for n in names if n]
+        if names:
+            joined = "、".join(names)
+            return (
+                f"溯源显示车流主要来自上游{joined}，"
+                "建议在该治理落点协同优化放行节奏或截流，从源头削减进入本路口车流。"
+            )
+    flow_gov = data.get("flow_timing_governance") or {}
+    supplement = str(flow_gov.get("flow_trace_supplement") or "").strip()
+    if supplement:
+        return supplement.replace("上游溯源：", "")
+    hints = (data.get("flow_trace") or {}).get("governance_hints") or []
+    if hints:
+        h = hints[0]
+        name = h.get("inter_name")
+        if name:
+            turn = h.get("feed_direction") or ""
+            return (
+                f"其中主要车流来自上游{name}{turn}，"
+                f"建议优先在{name}协同信控，避免仅在本路口加绿。"
+            )
+    trees = trace.get("trees") or []
+    if trees and not points:
+        return "上游路口普遍过饱和，单点信控优化空间有限，需协调控流或扩容手段。"
+    return ""
+
+
+def compose_suggestion_narrative(
+    data: dict[str, Any],
+    *,
+    user_suggestion: str | None = None,
+    quantitative_constraints: dict[str, Any] | None = None,
+) -> str:
+    """由 action_plan、溯源与用户约束拼装治理建议正文（不重复诊断 headline）。"""
+    flow_gov = data.get("flow_timing_governance") or {}
+    action_plan = flow_gov.get("action_plan") or {}
+    primary = flow_gov.get("primary_diagnosis") or {}
+    meta = data.get("meta") or {}
+    tp = meta.get("time_period") or {}
+    time_label = str(tp.get("label") or "").strip()
+    intersection = str(meta.get("intersection") or "").strip()
+
+    sentences: list[str] = []
+
+    opener = ""
+    if intersection and time_label:
+        opener = f"针对{intersection}{time_label}，"
+    elif intersection:
+        opener = f"针对{intersection}，"
+
+    template = str(action_plan.get("narrative_template") or "").strip()
+    plan_type = str(action_plan.get("action_type") or "")
+    if template:
+        body = template if not opener or template.startswith(opener.rstrip("，")) else f"{opener}{template}"
+        sentences.append(body.rstrip("。") + "。")
+    else:
+        transfer = action_plan.get("transfer_seconds")
+        donor = (action_plan.get("donor_turn") or {}).get("label")
+        recipient = (action_plan.get("recipient_turn") or {}).get("label")
+        if plan_type == "reallocate_green" and donor and recipient and transfer:
+            sentences.append(
+                f"{opener}建议保持周期不变，从{donor}向{recipient}挪绿约 {transfer}s，"
+                "纠正绿信比错配、缓解主方向排队。"
+            )
+        elif plan_type == "upstream_coordination":
+            up_name = action_plan.get("upstream_inter_name") or "上游来源路口"
+            sentences.append(
+                f"{opener}本路口已过饱和、单点加绿空间有限；"
+                f"建议优先在上游{up_name}协同优化放行节奏，从源头削减进入车流。"
+            )
+        elif action_plan.get("headline"):
+            sentences.append(f"{opener}{action_plan['headline']}。".lstrip())
+        else:
+            lever = str(primary.get("lever") or "").strip()
+            if lever and len(lever) >= 12:
+                sentences.append(f"{opener}{lever.rstrip('。')}。")
+
+    upstream = _upstream_action_sentence(data)
+    if upstream and upstream not in "".join(sentences):
+        sentences.append(upstream.rstrip("。") + "。")
+
+    qc = quantitative_constraints or data.get("quantitative_constraints") or {}
+    qc_text = str(qc.get("narrative") or "").strip()
+    if qc_text:
+        sentences.append(f"须严守量化边界：{qc_text.rstrip('。')}。")
+    elif user_suggestion and user_suggestion.strip():
+        sentences.append(f"须兼顾用户约束：{user_suggestion.strip().rstrip('。')}。")
+
+    case_experience = data.get("case_experience")
+    if isinstance(case_experience, list) and case_experience:
+        first = case_experience[0]
+        if isinstance(first, dict) and first.get("measure"):
+            sentences.append(f"同类场景参考：{first['measure']}。")
+
+    return "".join(sentences)
+
+
+def narrative_echoes_diagnosis(narrative: str, data: dict[str, Any]) -> bool:
+    """LLM 输出是否只是在复述四维诊断 headline。"""
+    text = (narrative or "").strip()
+    if not text:
+        return True
+    primary = (data.get("flow_timing_governance") or {}).get("primary_diagnosis") or {}
+    headline = str(primary.get("headline") or "").strip()
+    if headline and headline in text:
+        return True
+    lever = str(primary.get("lever") or "").strip()
+    if lever and len(text) < len(lever) + 40 and lever in text:
+        return True
+    return False
+
+
+def prepare_suggestion_data(data: dict[str, Any]) -> dict[str, Any]:
+    """在生成治理建议前合并上游溯源并刷新 action_plan。"""
+    payload = dict(data)
+    upstream = payload.get("upstream_trace") or {}
+    flow_trace = dict(payload.get("flow_trace") or {})
+    if upstream.get("trees") and not flow_trace.get("governance_hints"):
+        merged = synthesize_flow_trace_from_upstream(upstream)
+        if merged.get("available"):
+            flow_trace = {**flow_trace, **merged}
+            payload["flow_trace"] = flow_trace
+
+    flow_gov = dict(payload.get("flow_timing_governance") or {})
+    primary = flow_gov.get("primary_diagnosis")
+    problems = flow_gov.get("problems")
+    plan = build_action_plan(payload, primary=primary, problems=problems)
+    flow_gov["action_plan"] = plan
+    if upstream.get("trees") and plan.get("action_type") == "upstream_coordination":
+        supplement = (
+            f"上游溯源：建议优先在{plan.get('upstream_inter_name')}协同信控，"
+            f"削减进入本路口车流。"
+        )
+        flow_gov["flow_trace_supplement"] = supplement
+    payload["flow_timing_governance"] = flow_gov
+    return payload

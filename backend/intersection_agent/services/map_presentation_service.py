@@ -239,7 +239,7 @@ def build_narration_steps(
             "text": (
                 f"失衡系数 {imbalance:.2f}，"
                 f"{'各进口差异明显' if imbalance and imbalance >= 0.3 else '各向相对均衡'}；"
-                f"绿灯利用率 {green_util:.0%}。"
+                f"绿灯利用率 {green_util:.2f}。"
                 if imbalance is not None and green_util is not None
                 else "正在计算进口失衡…"
             ),
@@ -432,46 +432,9 @@ def build_links_speakable(
     axis_roads: dict[str, str],
     inter_name: str = "",
 ) -> str:
-    """完整的路口结构播报：路口名 + 主轴道路 + 进口/车道概览。
-
-    仅播主轴道路会让语音在面板还显示进口/车道信息时显得「被截断」，
-    这里把结构概览一并纳入，保证口播与面板结构一致。
-    """
-    segments: list[str] = []
-    if inter_name:
-        segments.append(str(inter_name))
-    axis_parts = [
-        f"{group}为{axis_roads[group]}"
-        for group in ("东西向", "南北向")
-        if axis_roads.get(group)
-    ]
-    if axis_parts:
-        segments.append("，".join(axis_parts))
-
-    inter = cognition.get("intersection") or {}
-    links = cognition.get("links") or []
-    entrances = [
-        link
-        for link in links
-        if str(link.get("link_role") or "") in ("entrance", "进口")
-    ]
-    arm_count = (
-        len(entrances)
-        or len(cognition.get("arms") or [])
-        or inter.get("arm_count")
-    )
-    total_lanes = inter.get("total_lanes")
-    overview: list[str] = []
-    if arm_count:
-        overview.append(f"共{arm_count}个进口方向")
-    if total_lanes:
-        overview.append(f"总计{total_lanes}条车道")
-    if overview:
-        segments.append("，".join(overview))
-
-    if not segments:
-        return ""
-    return "，".join(segments) + "。"
+    """路口结构口播：仅主轴道路（东西向 / 南北向），不含进口数、车道数等概览。"""
+    del cognition, inter_name
+    return build_axis_roads_speakable(axis_roads, inter_name="")
 
 
 def build_links_narration_payload(cognition: dict[str, Any]) -> dict[str, Any]:
@@ -1040,29 +1003,11 @@ def build_map_scene(
     }
 
     if phase == "traffic":
-        sat_text = f"{float(saturation):.2f}" if saturation is not None else "—"
         delay_text = f"{float(delay):.2f}" if delay is not None else "—"
         time_label = ""
         if nlu and nlu.time_period:
             time_label = nlu.time_period.label or ""
-        arm_metrics = cognition.get("metrics_by_arm") or []
-        metrics_by_turn = _resolve_metrics_by_turn(cognition, data)
-        if metrics_by_turn:
-            entrance_markers = _markers_for_turn_saturation(
-                links, center_lon, center_lat, metrics_by_turn
-            )
-        else:
-            entrance_markers = _markers_for_traffic_phase(
-                links, center_lon, center_lat, arm_metrics, groups
-            )
-        if not entrance_markers and saturation is not None:
-            entrance_markers = _markers_for_dirs(links, center_lon, center_lat, worst_dirs)
-            for m in entrance_markers:
-                m["kind"] = "metric"
-                m["variant"] = "saturation"
-                m["value"] = sat_text
-                m["subtitle"] = "路口整体"
-                m["severity"] = _severity(saturation)
+        # 流量阶段地图仅呈现延误（饱和度由左侧面板 update_metrics 承担，分向饱和度留到 direction 阶段）
         delay_marker = {
             "id": "delay-chip",
             "lon": center_lon,
@@ -1071,20 +1016,29 @@ def build_map_scene(
             "variant": "delay",
             "title": "延误指数",
             "value": delay_text,
-            "severity": _severity(saturation),
+            "severity": _severity(delay),
         }
+        hud_metrics: list[dict[str, Any]] = []
+        if delay is not None:
+            hud_metrics.append(
+                {
+                    "label": "延误指数",
+                    "value": delay_text,
+                    "severity": _severity(delay),
+                }
+            )
         base.update(
             {
                 "zoom": 17.6,
-                "pulse_link_ids": [str(m["link_id"]) for m in entrance_markers if m.get("link_id")],
+                "pulse_link_ids": [],
                 "hud": {
                     "title": time_label or "运行数据",
                     "icon": "📊",
-                    "metrics": [
-                        {"label": "饱和度", "value": sat_text, "severity": _severity(saturation)},
-                    ],
-                },
-                "markers": entrance_markers + ([delay_marker] if delay is not None else []),
+                    "metrics": hud_metrics,
+                }
+                if hud_metrics
+                else None,
+                "markers": [delay_marker] if delay is not None else [],
             }
         )
         return base
@@ -1225,7 +1179,7 @@ def build_map_scene(
                         },
                         {
                             "label": "绿灯利用率",
-                            "value": f"{util_val:.0%}" if util_val is not None else "—",
+                            "value": f"{util_val:.2f}" if util_val is not None else "—",
                             "severity": "medium",
                         },
                     ],
@@ -1309,7 +1263,7 @@ def build_map_scene(
                         },
                         {
                             "label": "绿灯利用率",
-                            "value": f"{util_val:.0%}" if util_val is not None else "—",
+                            "value": f"{util_val:.2f}" if util_val is not None else "—",
                             "severity": "medium",
                         },
                         {
@@ -1561,38 +1515,62 @@ def build_map_scene(
     return base
 
 
-def _collect_governance_points(node: dict[str, Any]) -> list[dict[str, Any]]:
-    """深度优先收集树内所有 decision == 治理落点 的节点。"""
-    points: list[dict[str, Any]] = []
-    if node.get("decision") == "治理落点":
-        points.append(node)
-    for child in node.get("children") or []:
-        points.extend(_collect_governance_points(child))
-    return points
+def _node_saturation(node: dict[str, Any]) -> float | None:
+    """节点四向进口最大饱和度（用于标注与运镜叙事）。"""
+    profiles = node.get("approach_profiles") or []
+    sats = [
+        p.get("turn_saturation_max")
+        for p in profiles
+        if p.get("turn_saturation_max") is not None
+    ]
+    if not sats:
+        return None
+    mx = max(float(s) for s in sats)
+    if mx <= 0.01:
+        return None
+    return mx
 
 
-def _approach_profile_summary(profiles: list[dict[str, Any]]) -> str:
-    """挑出最饱和进口道的简述，用于 narration。"""
-    if not profiles:
+def _saturation_label_text(sat: float | None) -> str:
+    if sat is None:
+        return "待核查数仓"
+    if float(sat) <= 0.01:
+        return "待核查数仓"
+    return f"饱和{float(sat):.2f}"
+
+
+def _turn_split_text(turn_split: list[dict[str, Any]] | None) -> str:
+    """转向拆分文案，如「直行67%、左转22%、右转11%」。"""
+    if not turn_split:
         return ""
-    worst = max(profiles, key=lambda p: p.get("turn_saturation_max") or 0.0)
-    sat = worst.get("turn_saturation_max")
-    gu = worst.get("green_util_min")
-    parts = []
-    if sat is not None:
-        parts.append(f"饱和{float(sat):.2f}")
-    if gu is not None:
-        parts.append(f"绿用{float(gu):.2f}")
+    parts: list[str] = []
+    for s in turn_split:
+        turn = s.get("turn")
+        if not turn:
+            continue
+        if s.get("data_gap"):
+            parts.append(f"{turn}待核查")
+            continue
+        if s.get("share_pct") is not None:
+            parts.append(f"{turn}{s.get('share_pct')}%")
     return "、".join(parts)
+
+
+_UPSTREAM_CORRIDOR_ZOOM = 13
+_UPSTREAM_PULLBACK_ZOOM = 13
 
 
 def build_upstream_storyboard(
     trees: list[dict[str, Any]], cognition: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """逐树串讲 + 帧重建底座：对每棵溯源树生成有序帧序列。
+    """逐路口运镜分镜：从目标进口出发，沿干线逐个聚焦上游路口、落转向拆分标注。
 
-    每帧 reveal 仅含"该帧新增"的覆盖物 id（前端按帧号累计并集得到可见集）。
-    帧顺序保持输入树顺序——即逐树串讲。
+    每帧 {idx, tree, focus, center:[lng,lat], zoom, fit, reveal:[overlay_id], narration}：
+    - center/zoom 驱动前端平滑运镜（panTo / setZoomAndCenter），用户全程不操作。
+    - fit=True 时前端 setFitView 收束全景。
+    - reveal 仅含「该帧新增」覆盖物 id（节点 inter_id 或 `edge:*` 边 id），前端按帧累计并集。
+    - 节点带 saturation 与 turn_split，前端落浮动文本标注（路口名+饱和度+转向拆分）。
+    帧顺序保持输入树顺序——逐进口串讲。
     """
     out_trees: list[dict[str, Any]] = []
     frames: list[dict[str, Any]] = []
@@ -1603,12 +1581,12 @@ def build_upstream_storyboard(
         approach = tree.get("approach") or ""
         root = tree["root"]
         target = tree.get("target") or {}
-        root_id = root.get("inter_id")
-        root_name = root.get("inter_name") or root_id
+        target_id = target.get("inter_id")
 
         nodes: list[dict[str, Any]] = []
         edges: list[dict[str, Any]] = []
-        target_id = target.get("inter_id")
+        path_nodes: list[dict[str, Any]] = []  # DFS 路径顺序，用于逐路口运镜
+
         nodes.append(
             {
                 "id": target_id,
@@ -1618,6 +1596,8 @@ def build_upstream_storyboard(
                 "lat": target.get("lat"),
                 "role": "target",
                 "approach": approach,
+                "saturation": None,
+                "turn_split": [],
                 "approach_profiles": [],
                 "decision": None,
             }
@@ -1625,20 +1605,23 @@ def build_upstream_storyboard(
 
         def _walk(node: dict[str, Any], parent_id: str | None) -> None:
             nid = node.get("inter_id")
-            nodes.append(
-                {
-                    "id": nid,
-                    "inter_id": nid,
-                    "name": node.get("inter_name"),
-                    "lon": node.get("lng"),
-                    "lat": node.get("lat"),
-                    "role": "governance" if node.get("decision") == "治理落点" else "upstream",
-                    "hop": node.get("hop"),
-                    "approach_profiles": node.get("approach_profiles") or [],
-                    "decision": node.get("decision"),
-                    "feeding_dir8": node.get("feeding_dir8"),
-                }
-            )
+            view = {
+                "id": nid,
+                "inter_id": nid,
+                "name": node.get("inter_name"),
+                "lon": node.get("lng"),
+                "lat": node.get("lat"),
+                "role": "governance" if node.get("decision") == "治理落点" else "upstream",
+                "hop": node.get("hop"),
+                "feeding_dir8": node.get("feeding_dir8"),
+                "saturation": _node_saturation(node),
+                "turn_split": node.get("turn_split") or [],
+                "approach_profiles": node.get("approach_profiles") or [],
+                "decision": node.get("decision"),
+                "governable": node.get("governable"),
+            }
+            nodes.append(view)
+            path_nodes.append(view)
             if parent_id is not None:
                 edges.append(
                     {
@@ -1656,98 +1639,120 @@ def build_upstream_storyboard(
         _walk(root, target_id)
         out_trees.append({"tree_id": tid, "approach": approach, "nodes": nodes, "edges": edges})
 
-        # —— 帧序列 ——
-        edge_root = f"edge:{tid}:{target_id}-{root_id}"
-        ring_root = f"ring:{root_id}"
-
+        # —— 逐路口运镜帧 ——
+        # 0) 从渠化视角抬升拉远到干线走廊
         frames.append(
             {
                 "idx": idx,
                 "tree": tid,
-                "kind": "thesis",
-                "focus": "target",
-                "reveal": [],
-                "camera": "intersection",
-                "narration": f"{approach}本地无可调空间，向上游溯源。",
-            }
-        )
-        idx += 1
-        frames.append(
-            {
-                "idx": idx,
-                "tree": tid,
-                "kind": "zoom_out",
-                "focus": "target",
-                "reveal": [],
-                "camera": "corridor",
-                "narration": "缩放到道路级，追上一跳来车。",
-            }
-        )
-        idx += 1
-        frames.append(
-            {
-                "idx": idx,
-                "tree": tid,
-                "kind": "hop1",
-                "focus": root_id,
-                "reveal": [edge_root],
-                "camera": "corridor",
-                "narration": f"主要来自上游{root_name}。",
-            }
-        )
-        idx += 1
-        root_summary = _approach_profile_summary(root.get("approach_profiles") or [])
-        if root.get("decision") == "治理落点":
-            inspect_narration = f"{root_name}有信控空间（{root_summary}），可作治理落点。"
-        else:
-            inspect_narration = f"{root_name}四向全饱和，继续上溯。"
-        frames.append(
-            {
-                "idx": idx,
-                "tree": tid,
-                "kind": "inspect",
-                "focus": root_id,
-                "reveal": [ring_root],
-                "narration": inspect_narration,
+                "frame_type": "pullback",
+                "focus": target_id,
+                "center": [target.get("lon"), target.get("lat")],
+                "zoom": _UPSTREAM_PULLBACK_ZOOM,
+                "fit": False,
+                "reveal": [target_id] if target_id else [],
+                "show_labels": False,
+                "narration": f"抬升视角，从{approach}沿干线向上游追溯来车。",
             }
         )
         idx += 1
 
-        children = root.get("children") or []
-        if children:
-            reveal2: list[str] = []
-            for child in children:
-                cid = child.get("inter_id")
-                reveal2.append(f"edge:{tid}:{root_id}-{cid}")
-                reveal2.append(f"ring:{cid}")
+        # 1) 目标路口：聚焦问题进口（锚点，暂不展示指标卡）
+        frames.append(
+            {
+                "idx": idx,
+                "tree": tid,
+                "frame_type": "target",
+                "focus": target_id,
+                "center": [target.get("lon"), target.get("lat")],
+                "zoom": _UPSTREAM_CORRIDOR_ZOOM,
+                "fit": False,
+                "reveal": [target_id] if target_id else [],
+                "show_labels": False,
+                "narration": f"{approach}过饱和，沿干线向上游追溯来车。",
+            }
+        )
+        idx += 1
+
+        # 2) 逐个上游路口：先蔓延连线，再呈现指标
+        gov_count = 0
+        for view in path_nodes:
+            nid = view["id"]
+            parent_edge = next((e["id"] for e in edges if e["to"] == nid), None)
+            if parent_edge:
+                frames.append(
+                    {
+                        "idx": idx,
+                        "tree": tid,
+                        "frame_type": "spread",
+                        "focus": parent_edge,
+                        "center": [view.get("lon"), view.get("lat")],
+                        "zoom": _UPSTREAM_CORRIDOR_ZOOM,
+                        "fit": False,
+                        "reveal": [parent_edge],
+                        "show_labels": False,
+                        "animate_edge": parent_edge,
+                        "narration": f"沿{approach}干线向上游蔓延…",
+                    }
+                )
+                idx += 1
+            sat = view.get("saturation")
+            sat_txt = _saturation_label_text(sat if isinstance(sat, (int, float)) else None)
+            split_txt = _turn_split_text(view.get("turn_split"))
+            split_seg = f"，汇入车流 {split_txt}" if split_txt else ""
+            if view.get("decision") == "治理落点":
+                gov_count += 1
+                tail = "（有信控空间，可作治理落点）"
+            elif view.get("decision") == "二跳截止":
+                if view.get("governable") is False:
+                    tail = "（上游亦过饱和，单点信控优化空间有限）"
+                else:
+                    tail = "（已达溯源上限）"
+            elif view.get("governable") is False:
+                tail = "（上游亦过饱和，信控优化空间有限，继续上溯）"
+            else:
+                tail = "（仍偏饱和，继续上溯）"
+            name = view.get("name") or nid
             frames.append(
                 {
                     "idx": idx,
                     "tree": tid,
-                    "kind": "hop2",
-                    "focus": root_id,
-                    "reveal": reveal2,
-                    "narration": "对其余进口道继续向上一跳溯源。",
+                    "frame_type": "node",
+                    "focus": nid,
+                    "center": [view.get("lon"), view.get("lat")],
+                    "zoom": _UPSTREAM_CORRIDOR_ZOOM,
+                    "fit": False,
+                    "reveal": [nid] + ([parent_edge] if parent_edge else []),
+                    "show_labels": True,
+                    "narration": f"上游{name}：{sat_txt}{split_seg}{tail}",
                 }
             )
             idx += 1
 
-        gov_points = _collect_governance_points(root)
-        badges = [f"badge:{g.get('inter_id')}★" for g in gov_points]
-        gov_names = "、".join(str(g.get("inter_name") or g.get("inter_id")) for g in gov_points)
-        if gov_points:
-            resolve_narration = f"共定位 {len(gov_points)} 个治理落点：{gov_names}，可借调绿信比。"
+        # 3) 全景收束
+        all_ids = [n["id"] for n in nodes if n.get("id")] + [e["id"] for e in edges]
+        if gov_count:
+            summary = (
+                f"{approach}共溯 {len(path_nodes)} 个上游路口，"
+                f"定位 {gov_count} 个治理落点。"
+            )
         else:
-            resolve_narration = "本树未定位到可信控治理落点。"
+            summary = (
+                f"{approach}共溯 {len(path_nodes)} 个上游路口，"
+                "上游普遍过饱和，单点信控优化空间有限。"
+            )
         frames.append(
             {
                 "idx": idx,
                 "tree": tid,
-                "kind": "resolve",
-                "focus": [g.get("inter_id") for g in gov_points],
-                "reveal": badges,
-                "camera": f"fit_tree_{tid}",
-                "narration": resolve_narration,
+                "frame_type": "fit",
+                "focus": [n["id"] for n in path_nodes],
+                "center": None,
+                "zoom": _UPSTREAM_PULLBACK_ZOOM,
+                "fit": True,
+                "reveal": all_ids,
+                "show_labels": True,
+                "narration": summary,
             }
         )
         idx += 1

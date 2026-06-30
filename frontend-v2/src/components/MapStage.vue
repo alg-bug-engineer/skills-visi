@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker, UpstreamStoryboard, UpstreamTreeNode } from '../types/map'
-import { visibleAtFrame } from '../utils/upstreamFrame'
+import { isEdgeId, visibleAtFrame } from '../utils/upstreamFrame'
+import { assignLabelAnchors } from '../utils/upstreamLayout'
+import {
+  colorAtGradientProgress,
+  segmentPathWithGradient,
+  sleepMs,
+} from '../utils/upstreamGradient'
+import {
+  UPSTREAM_CHAN_FADE_MS,
+  UPSTREAM_CORRIDOR_ZOOM,
+  UPSTREAM_ROAD_HOLD_MS,
+  upstreamFrameDuration,
+} from '../utils/upstreamTiming'
 import { severityColor } from '../utils/ringSeverity'
 import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
 import type { PipelinePhase, HighlightTurn, RuntimeMetrics } from '../types/presentation'
 import type { PresentationLayerGates } from '../composables/usePresentationSequence'
 import ChannelizationStageOverlay from './channelization/ChannelizationStageOverlay.vue'
-import UpstreamGovernanceCard from './insight/UpstreamGovernanceCard.vue'
-import UpstreamControlBar from './insight/UpstreamControlBar.vue'
 import { TA_THEME } from '../theme'
 import {
   createDarkMap,
@@ -23,6 +33,7 @@ import { buildEvidenceDirectionMarkers, buildProtectedDirectionMarkers, highligh
 import { buildInterItemFromCognition, buildQueueDataFromEvidence } from '../utils/cognitionChannelAdapter'
 import { createChannelizationController, type ChannelizationController } from '../lib/channelizationController'
 import { LOD_THRESHOLDS } from '../lib/channelizationGeometry'
+import { STEP_INDICES } from '../constants'
 
 const props = defineProps<{
   mapActions: MapActionEvent[]
@@ -51,6 +62,9 @@ const props = defineProps<{
   suppressStageHud?: boolean
   /** 后端按问题类型推导的呈现维度，门控渠化排队等图层 */
   activeDimensions?: string[]
+  /** 理解过程已进入「运行数据」步骤 */
+  runtimePanelRevealed?: boolean
+  focusStepIndex?: number
 }>()
 
 const emit = defineEmits<{
@@ -59,16 +73,8 @@ const emit = defineEmits<{
   closeCorridorWave: []
   corridorIntersectionSelect: [interId: string]
   viewChange: [view: { zoom: number; lod: 'L0' | 'L1' | 'L2' }]
-  upstreamProgress: [
-    state: {
-      idx: number
-      total: number
-      playing: boolean
-      activeTree: string | null
-      narration: string | null
-      showHop2: boolean
-    },
-  ]
+  /** 上游溯源逐帧叙事，供 App 同步 TTS */
+  upstreamNarration: [payload: { idx: number; text: string | null }]
 }>()
 
 /** 程序化镜头移动期间为 true，用于区分"用户手动操作"与"系统下钻" */
@@ -160,21 +166,21 @@ const markers: InstanceType<typeof AMap.Marker>[] = []
 const flowSourceMarkers: InstanceType<typeof AMap.Marker>[] = []
 const flowSourceLines: InstanceType<typeof AMap.Polyline>[] = []
 
-// —— 上游治理溯源本地播放器（帧重建：渲染纯由帧号 n 决定） ——
+// —— 上游治理溯源：全自动逐路口运镜（无控制条 / 用户全程不操作） ——
 const upstreamOverlays: Array<InstanceType<typeof AMap.Polyline> | InstanceType<typeof AMap.Marker>> = []
+const upstreamOverlayById = new Map<
+  string,
+  InstanceType<typeof AMap.Polyline> | InstanceType<typeof AMap.Marker>
+>()
 let upstreamStoryboard: UpstreamStoryboard | null = null
+/** beginUpstreamStoryboard 已完成「渠化隐去 → 道路 → 拉远」，pullback 帧不再重复运镜 */
+let upstreamRoadTransitionDone = false
 const upstreamIdx = ref(0)
-const upstreamPlaying = ref(false)
-const upstreamShowHop2 = ref(true)
-const upstreamSpeed = ref(1)
 let upstreamTimer: ReturnType<typeof setTimeout> | null = null
-const UPSTREAM_BASE_MS = 2600
-// 侧卡 / 控制条绑定的响应式视图状态
-const upstreamCardTrees = ref<UpstreamStoryboard['trees']>([])
-const upstreamActiveTree = ref<string | null>(null)
-const upstreamNarration = ref<string | null>(null)
-const upstreamTotal = ref(0)
-const showUpstreamPanel = computed(() => upstreamCardTrees.value.length > 0)
+let upstreamCameraTask: Promise<void> = Promise.resolve()
+let lastUpstreamCenter: [number, number] | null = null
+let lastUpstreamZoom: number | null = null
+const upstreamSpreadTasks = new Map<string, Promise<void>>()
 
 const sceneOpts = ref({
   highlightDirs: [] as string[],
@@ -191,7 +197,13 @@ const chanSceneMarkers = ref<MapSceneMarker[]>([])
 let chanController: ChannelizationController | null = null
 let chanMountedKey = '' // 已挂载渠化的路口标识（inter_id|arm数），变更时重建
 
+function allowRuntimeMapMetrics(): boolean {
+  const step = props.focusStepIndex ?? -1
+  return Boolean(props.runtimePanelRevealed) && step >= STEP_INDICES.DATA_FETCH
+}
+
 function channelizationPhaseParams() {
+  const allowRuntime = allowRuntimeMapMetrics()
   return {
     phase: props.pipelinePhase,
     cognition: effectiveCognition.value,
@@ -201,12 +213,15 @@ function channelizationPhaseParams() {
     highlightDirs: channelHighlightDirs.value,
     protectedDirs: props.protectedDirs ?? [],
     sceneMarkers: chanSceneMarkers.value,
-    queueArms: buildQueueDataFromEvidence(
-      effectiveCognition.value,
-      props.evidence ?? null,
-      props.runtimeMetrics ?? null,
-    ),
+    queueArms: allowRuntime
+      ? buildQueueDataFromEvidence(
+          effectiveCognition.value,
+          props.evidence ?? null,
+          props.runtimeMetrics ?? null,
+        )
+      : [],
     activeDimensions: props.activeDimensions,
+    allowRuntimeMetrics: allowRuntime,
   }
 }
 
@@ -239,7 +254,7 @@ function syncChanSceneMarkers(action?: MapActionEvent) {
     if (action.phase && RUNTIME_METRIC_MAP_PHASES.has(action.phase)) {
       lastMetricSceneAction = action
     }
-    if (!props.runtimePanelRevealed) {
+    if (!allowRuntimeMapMetrics()) {
       chanSceneMarkers.value = []
       syncChannelizationPhase()
       return
@@ -270,9 +285,10 @@ function centerMapOnIntersection(lon: number, lat: number, zoom?: number) {
   panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
 }
 
-// ===== 上游治理溯源本地播放器 =====
+// ===== 上游治理溯源：全自动逐路口运镜 =====
 function clearUpstreamOverlays() {
-  upstreamOverlays.forEach((o) => o.setMap(null))
+  upstreamOverlayById.forEach((o) => (o as { setMap: (m: null) => void }).setMap(null))
+  upstreamOverlayById.clear()
   upstreamOverlays.length = 0
 }
 
@@ -281,14 +297,14 @@ function disposeUpstream() {
     clearTimeout(upstreamTimer)
     upstreamTimer = null
   }
-  upstreamPlaying.value = false
   clearUpstreamOverlays()
   upstreamStoryboard = null
   upstreamIdx.value = 0
-  upstreamCardTrees.value = []
-  upstreamActiveTree.value = null
-  upstreamNarration.value = null
-  upstreamTotal.value = 0
+  upstreamCameraTask = Promise.resolve()
+  upstreamSpreadTasks.clear()
+  lastUpstreamCenter = null
+  lastUpstreamZoom = null
+  upstreamRoadTransitionDone = false
 }
 
 function findUpstreamNode(sb: UpstreamStoryboard, key: string): UpstreamTreeNode | null {
@@ -300,171 +316,363 @@ function findUpstreamNode(sb: UpstreamStoryboard, key: string): UpstreamTreeNode
   return null
 }
 
-/** 帧重建：清空后按 frames[0..n] 的 reveal 并集重绘，幂等无副作用残留。 */
+function turnSplitChips(node: UpstreamTreeNode): string {
+  return (node.turn_split ?? [])
+    .map((s) => {
+      if (s.data_gap) {
+        return `<span class="us-chip us-chip-gap">${s.turn}待核查</span>`
+      }
+      if (s.share_pct == null) return ''
+      return `<span class="us-chip">${s.turn}${s.share_pct}%</span>`
+    })
+    .filter(Boolean)
+    .join('')
+}
+
+function syncUpstreamOverlayDim(sb: UpstreamStoryboard, activeTree: string) {
+  for (const tree of sb.trees) {
+    const dimTree = tree.tree_id !== activeTree
+    for (const edge of tree.edges) {
+      const line = upstreamOverlayById.get(edge.id) as
+        | { setOptions?: (o: { strokeOpacity: number }) => void }
+        | undefined
+      line?.setOptions?.({ strokeOpacity: dimTree ? 0.25 : 0.9 })
+    }
+    for (const node of tree.nodes) {
+      const id = node.id ?? node.inter_id ?? ''
+      if (!id) continue
+      for (const suffix of ['dot', 'label'] as const) {
+        const key = `${suffix}:${id}`
+        const marker = upstreamOverlayById.get(key) as
+          | { getContent?: () => string; setContent?: (h: string) => void }
+          | undefined
+        if (!marker?.getContent || !marker.setContent) continue
+        const html = marker.getContent()
+        if (typeof html !== 'string') continue
+        const shouldDim = dimTree && node.role !== 'target'
+        const hasDim = html.includes('is-dim')
+        if (shouldDim === hasDim) continue
+        marker.setContent(
+          shouldDim
+            ? html.replace(/class="([^"]*)"/, 'class="$1 is-dim"')
+            : html.replace(/\s*is-dim/g, ''),
+        )
+      }
+    }
+  }
+}
+
+function resolveEdgePath(
+  sb: UpstreamStoryboard,
+  edge: { from?: string | null; to?: string | null; path?: Array<[number, number]> },
+): Array<[number, number]> {
+  let path = (edge.path ?? []).map((p) => [p[0], p[1]] as [number, number])
+  if (path.length >= 2) return path
+  const a = edge.from ? findUpstreamNode(sb, edge.from) : null
+  const b = edge.to ? findUpstreamNode(sb, edge.to) : null
+  if (a?.lon != null && a.lat != null && b?.lon != null && b.lat != null) {
+    return [
+      [a.lon, a.lat],
+      [b.lon, b.lat],
+    ]
+  }
+  return path
+}
+
+function labelsVisibleAtFrame(sb: UpstreamStoryboard, n: number, nodeId: string): boolean {
+  const clamped = Math.max(0, Math.min(n, sb.frames.length - 1))
+  for (let i = 0; i <= clamped; i++) {
+    const f = sb.frames[i]
+    if (f.show_labels === false) continue
+    if (f.frame_type === 'spread' || f.frame_type === 'pullback') continue
+    if (!f.reveal.includes(nodeId) || isEdgeId(nodeId)) continue
+    if (!f.frame_type || f.frame_type === 'node' || f.frame_type === 'fit') return true
+  }
+  return false
+}
+
+async function animateGradientEdge(
+  edgeId: string,
+  path: Array<[number, number]>,
+  dimTree: boolean,
+): Promise<void> {
+  if (!map || !AMapLib || path.length < 2) return
+  if (upstreamOverlayById.has(edgeId)) return
+
+  const segments = segmentPathWithGradient(path)
+  const groupKey = `${edgeId}:group`
+  const lines: InstanceType<typeof AMap.Polyline>[] = []
+
+  const task = (async () => {
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i]
+      const color = colorAtGradientProgress(seg.progress)
+      const line = new AMapLib.Polyline({
+        path: seg.path,
+        strokeColor: color,
+        strokeWeight: 3.2,
+        strokeOpacity: dimTree ? 0.28 : 0.92,
+        lineJoin: 'round',
+        lineCap: 'round',
+        zIndex: 70 + i,
+      })
+      line.setMap(map!)
+      lines.push(line)
+      upstreamOverlays.push(line)
+      if (i < segments.length - 1) {
+        await sleepMs(55)
+      }
+    }
+    upstreamOverlayById.set(edgeId, lines[lines.length - 1]!)
+    upstreamOverlayById.set(groupKey, lines[0]!)
+  })()
+
+  upstreamSpreadTasks.set(edgeId, task)
+  await task
+  upstreamSpreadTasks.delete(edgeId)
+}
+
+function renderUpstreamTargetRipple(node: UpstreamTreeNode, dim: boolean) {
+  if (!map || !AMapLib || node.lon == null || node.lat == null) return
+  const id = node.id ?? node.inter_id ?? ''
+  const rippleKey = `ripple:${id}`
+  if (upstreamOverlayById.has(rippleKey)) return
+  const ripple = new AMapLib.Marker({
+    position: [node.lon, node.lat],
+    anchor: 'center',
+    zIndex: 80,
+    content: `<div class="us-ripple${dim ? ' is-dim' : ''}"></div>`,
+  })
+  ripple.setMap(map)
+  upstreamOverlayById.set(rippleKey, ripple)
+  upstreamOverlays.push(ripple)
+}
+
+/** 帧增量揭示：渐变蔓延连线，指标卡在 node 帧再落。 */
 function renderUpstreamFrame(n: number) {
   const sb = upstreamStoryboard
   if (!sb || !map || !AMapLib) return
-  const { overlayIds, activeTree, frame } = visibleAtFrame(sb, n)
-  clearUpstreamOverlays()
+  const frame = sb.frames[Math.max(0, Math.min(n, sb.frames.length - 1))]
+  const { overlayIds, activeTree } = visibleAtFrame(sb, n)
 
   for (const tree of sb.trees) {
-    const dim = tree.tree_id !== activeTree
-    // 边：沿 link path，缺失退节点直连（禁止中心飞线）
+    const dimTree = tree.tree_id !== activeTree
     for (const edge of tree.edges) {
-      if (!overlayIds.has(edge.id)) continue
-      const target = edge.to ? findUpstreamNode(sb, edge.to) : null
-      if (!upstreamShowHop2.value && (target?.hop ?? 1) >= 2) continue // 折叠二跳减负
-      let path = (edge.path ?? []).map((p) => [p[0], p[1]] as [number, number])
-      if (path.length < 2) {
-        const a = edge.from ? findUpstreamNode(sb, edge.from) : null
-        const b = edge.to ? findUpstreamNode(sb, edge.to) : null
-        if (a?.lon != null && a.lat != null && b?.lon != null && b.lat != null) {
-          path = [
-            [a.lon, a.lat],
-            [b.lon, b.lat],
-          ]
-        }
-      }
+      if (!overlayIds.has(edge.id) || upstreamOverlayById.has(edge.id)) continue
+      const path = resolveEdgePath(sb, edge)
       if (path.length < 2) continue
-      const weight = 2.5 + Math.min(4, Number(edge.flow_pct ?? 50) / 25)
-      const line = new AMapLib.Polyline({
-        path,
-        strokeColor: '#7ec8ff',
-        strokeWeight: weight,
-        strokeOpacity: dim ? 0.25 : 0.85,
-        lineJoin: 'round',
-        lineCap: 'round',
-        showDir: true,
-        zIndex: 70,
-      })
-      line.setMap(map)
-      upstreamOverlays.push(line)
+      void animateGradientEdge(edge.id, path, dimTree)
     }
-    // 环 / 落点 badge：以节点为锚
+  }
+
+  const visible: Array<{ tree: string; node: UpstreamTreeNode; id: string }> = []
+  for (const tree of sb.trees) {
     for (const node of tree.nodes) {
       const id = node.id ?? node.inter_id ?? ''
+      if (!id || !overlayIds.has(id)) continue
       if (node.lon == null || node.lat == null) continue
-      const showRing = overlayIds.has(`ring:${id}`)
-      const showBadge = overlayIds.has(`badge:${id}★`)
-      if (!showRing && !showBadge) continue
-      if (!upstreamShowHop2.value && (node.hop ?? 1) >= 2 && !showBadge) continue // 折叠二跳环
-      const worst = (node.approach_profiles ?? []).reduce(
-        (m, p) => Math.max(m, Number(p.turn_saturation_max ?? 0)),
-        0,
-      )
-      const color = showBadge ? '#6dffb5' : severityColor(worst || null)
-      const star = showBadge ? '★' : ''
-      const marker = new AMapLib.Marker({
-        position: [node.lon, node.lat],
+      visible.push({ tree: tree.tree_id, node, id })
+    }
+  }
+  const anchors = assignLabelAnchors(visible.map((v) => ({ id: v.id, hop: v.node.hop })))
+
+  for (const { tree, node, id } of visible) {
+    const dim = tree !== activeTree
+    const dotKey = `dot:${id}`
+    const labelKey = `label:${id}`
+    const isTarget = node.role === 'target'
+    const showLabels = labelsVisibleAtFrame(sb, n, id)
+
+    if (isTarget && !upstreamOverlayById.has(`ripple:${id}`)) {
+      renderUpstreamTargetRipple(node, dim)
+    }
+
+    if (!upstreamOverlayById.has(dotKey)) {
+      const isGov = node.role === 'governance' || node.decision === '治理落点'
+      const sat = node.saturation ?? null
+      const color = isTarget ? '#ff5a5a' : isGov ? '#6dffb5' : severityColor(sat)
+      const dot = new AMapLib.Marker({
+        position: [node.lon as number, node.lat as number],
         anchor: 'center',
-        zIndex: 80,
-        content:
-          `<div class="upstream-node-badge${dim ? ' is-dim' : ''}" ` +
-          `style="border-color:${color};color:${color}">` +
-          `${star}${node.name ?? id}</div>`,
+        zIndex: 81,
+        content: `<div class="us-dot${dim ? ' is-dim' : ''}${isTarget ? ' is-target' : ''}" style="background:${color}"></div>`,
       })
-      marker.setMap(map)
-      upstreamOverlays.push(marker)
+      dot.setMap(map)
+      upstreamOverlayById.set(dotKey, dot)
+      upstreamOverlays.push(dot)
     }
+
+    if (!showLabels || upstreamOverlayById.has(labelKey)) continue
+
+    const isGov = node.role === 'governance' || node.decision === '治理落点'
+    const sat = node.saturation ?? null
+    const color = isTarget ? '#ff5a5a' : isGov ? '#6dffb5' : severityColor(sat)
+    const [dx, dy] = anchors[id] ?? [0, -58]
+    const satTxt =
+      typeof sat === 'number' && sat > 0.01
+        ? `饱和 ${sat.toFixed(2)}`
+        : isTarget
+          ? '问题进口'
+          : '待核查数仓'
+    const chips = isTarget ? '' : `<div class="us-chips">${turnSplitChips(node)}</div>`
+    const label = new AMapLib.Marker({
+      position: [node.lon as number, node.lat as number],
+      anchor: 'center',
+      offset: new AMapLib.Pixel(dx, dy),
+      zIndex: 82,
+      content:
+        `<div class="us-card${dim ? ' is-dim' : ''}${isGov ? ' is-gov' : ''}${isTarget ? ' is-target' : ''}">` +
+        `<div class="us-name">${isGov ? '★ ' : ''}${node.name ?? id}</div>` +
+        `<div class="us-sat" style="color:${color}">${satTxt}</div>${chips}</div>`,
+    })
+    label.setMap(map)
+    upstreamOverlayById.set(labelKey, label)
+    upstreamOverlays.push(label)
   }
 
-  // 运镜：用户介入则让位，不强制对位
-  if (!userInteracted.value && upstreamOverlays.length) {
-    const camera = frame?.camera ?? ''
-    if (camera.startsWith('fit_tree') || camera === 'corridor' || camera === 'resolve') {
-      try {
-        void withProgrammatic(() => {
-          map!.setFitView([...upstreamOverlays], true, [120, 120, 200, 120])
-        })
-      } catch {
-        /* best-effort */
-      }
-    }
-  }
-
-  emitUpstreamProgress()
+  syncUpstreamOverlayDim(sb, activeTree)
+  scheduleUpstreamCamera(sb, n)
+  const narr = frame?.narration ?? null
+  emit('upstreamNarration', { idx: n, text: narr })
 }
 
-function emitUpstreamProgress() {
-  const sb = upstreamStoryboard
-  const frame = sb?.frames[upstreamIdx.value]
-  upstreamActiveTree.value = frame?.tree ?? null
-  upstreamNarration.value = frame?.narration ?? null
-  emit('upstreamProgress', {
-    idx: upstreamIdx.value,
-    total: sb?.frames.length ?? 0,
-    playing: upstreamPlaying.value,
-    activeTree: frame?.tree ?? null,
-    narration: frame?.narration ?? null,
-    showHop2: upstreamShowHop2.value,
+function upstreamCameraSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+/** 上游溯源允许拉远 zoom（突破分析推进的 clampZoomUp 约束）。 */
+async function flyToUpstreamCorridor(center: [number, number], zoom: number, duration = 1100) {
+  if (!map || !AMapLib) return
+  await withProgrammatic(async () => {
+    await flyTo(map!, AMapLib!, center, zoom, duration)
+    panToVisualCenter(map!, center, visualPanOffsetX(), 0)
+    lastUpstreamCenter = center
+    lastUpstreamZoom = zoom
   })
 }
 
-/** 侧卡点选节点 → 跳到首个揭示该节点环/落点的帧。 */
-function upstreamFocusNode(interId: string) {
-  const sb = upstreamStoryboard
-  if (!sb) return
-  const target = sb.frames.findIndex(
-    (f) => f.reveal.includes(`ring:${interId}`) || f.reveal.includes(`badge:${interId}★`),
-  )
-  upstreamStep(0) // 暂停
-  if (target >= 0) upstreamSeek(target)
+/** 流量溯源：从渠化视角起步，先隐渠化、只留道路 link，再分步拉远后进入蔓延帧。 */
+async function enterUpstreamFromChannelization(center: [number, number]) {
+  if (!map || !AMapLib) return
+  const startZoom = map.getZoom()
+
+  // 1) 淡出渠化舞台（保留当前镜头位姿）
+  viewMode.value = 'map'
+  await upstreamCameraSleep(UPSTREAM_CHAN_FADE_MS)
+
+  // 2) 移除车道级渠化几何，恢复道路 link 高亮
+  disposeChannelization()
+  channelizationLocked.value = false
+  chanSceneMarkers.value = []
+  scenePhase.value = 'links'
+  sceneOpts.value = {
+    highlightDirs: [],
+    protectedDirs: [],
+    pulseIds: [],
+    flashDirs: [],
+    dimOthers: false,
+  }
+  drawHighlights()
+  await upstreamCameraSleep(UPSTREAM_ROAD_HOLD_MS)
+
+  // 3) 从渠化 zoom 分步拉远到干线走廊
+  const targetZoom = UPSTREAM_CORRIDOR_ZOOM
+  if (startZoom > targetZoom + 0.4) {
+    const steps = 4
+    const gap = startZoom - targetZoom
+    for (let i = 1; i <= steps; i++) {
+      const z = startZoom - (gap * i) / steps
+      await flyToUpstreamCorridor(center, z, 680)
+    }
+  }
+  await flyToUpstreamCorridor(center, targetZoom, 900)
+  upstreamRoadTransitionDone = true
+}
+
+/** 逐帧丝滑运镜：先拉远再平移下钻，禁止瞬移到目标路口。 */
+async function driveUpstreamCameraSmooth(sb: UpstreamStoryboard, n: number) {
+  if (!map || !AMapLib) return
+  const frame = sb.frames[Math.max(0, Math.min(n, sb.frames.length - 1))]
+  const { center, zoom, fit } = visibleAtFrame(sb, n)
+  await withProgrammatic(async () => {
+    if (fit && upstreamOverlays.length) {
+      map!.setStatus({ animateEnable: true })
+      map!.setFitView([...upstreamOverlays], false, [140, 140, 220, 140])
+      await upstreamCameraSleep(920)
+      return
+    }
+    if (!center || center[0] == null || center[1] == null) return
+    const target: [number, number] = [center[0], center[1]]
+    const targetZoom =
+      typeof zoom === 'number' ? zoom : frame.frame_type === 'pullback' ? UPSTREAM_CORRIDOR_ZOOM : map!.getZoom()
+    if (frame.frame_type === 'pullback') {
+      if (!upstreamRoadTransitionDone) {
+        await flyToUpstreamCorridor(target, targetZoom, 1000)
+      }
+      return
+    }
+    const currentZoom = map!.getZoom()
+    const jumpDist = lastUpstreamCenter
+      ? Math.hypot(target[0] - lastUpstreamCenter[0], target[1] - lastUpstreamCenter[1])
+      : 0
+    const longJump = jumpDist > 0.012
+    const zoomGap = Math.abs(targetZoom - currentZoom)
+    if (longJump || zoomGap > 2.5) {
+      const pullBack = Math.min(currentZoom, targetZoom, UPSTREAM_CORRIDOR_ZOOM + 1.5)
+      await flyTo(map!, AMapLib!, target, pullBack, 720)
+    }
+    await flyTo(map!, AMapLib!, target, targetZoom, 880)
+    panToVisualCenter(map!, target, visualPanOffsetX(), 0)
+    lastUpstreamCenter = target
+    lastUpstreamZoom = targetZoom
+  })
+}
+
+function scheduleUpstreamCamera(sb: UpstreamStoryboard, n: number) {
+  upstreamCameraTask = upstreamCameraTask
+    .then(() => driveUpstreamCameraSmooth(sb, n))
+    .catch(() => undefined)
+}
+
+function startUpstreamAuto() {
+  if (!upstreamStoryboard?.frames.length) return
+  upstreamIdx.value = 0
+  renderUpstreamFrame(0)
+  scheduleUpstreamTick()
 }
 
 function scheduleUpstreamTick() {
   if (upstreamTimer) clearTimeout(upstreamTimer)
-  if (!upstreamPlaying.value || !upstreamStoryboard) return
+  if (!upstreamStoryboard) return
+  const frame = upstreamStoryboard.frames[upstreamIdx.value]
+  const delay = upstreamFrameDuration(frame)
   upstreamTimer = setTimeout(() => {
     const last = (upstreamStoryboard?.frames.length ?? 1) - 1
     if (upstreamIdx.value >= last) {
-      upstreamPlaying.value = false
-      emitUpstreamProgress()
+      upstreamTimer = null
       return
     }
     upstreamIdx.value += 1
     renderUpstreamFrame(upstreamIdx.value)
     scheduleUpstreamTick()
-  }, UPSTREAM_BASE_MS / upstreamSpeed.value)
+  }, delay)
 }
 
-function upstreamPlay() {
-  if (!upstreamStoryboard) return
-  const last = upstreamStoryboard.frames.length - 1
-  if (upstreamIdx.value >= last) upstreamSeek(0)
-  upstreamPlaying.value = true
-  emitUpstreamProgress()
-  scheduleUpstreamTick()
-}
-
-function upstreamPause() {
-  upstreamPlaying.value = false
-  if (upstreamTimer) {
-    clearTimeout(upstreamTimer)
-    upstreamTimer = null
+async function beginUpstreamStoryboard(sb: UpstreamStoryboard) {
+  disposeUpstream()
+  upstreamStoryboard = sb
+  const first = sb.frames[0]
+  const targetNode = sb.trees[0]?.nodes.find((n) => n.role === 'target')
+  const center: [number, number] | null =
+    first?.center && first.center[0] != null && first.center[1] != null
+      ? [first.center[0], first.center[1]]
+      : targetNode?.lon != null && targetNode.lat != null
+        ? [targetNode.lon, targetNode.lat]
+        : null
+  if (center) {
+    await enterUpstreamFromChannelization(center)
   }
-  emitUpstreamProgress()
-}
-
-function upstreamStep(delta: number) {
-  upstreamPause()
-  upstreamSeek(upstreamIdx.value + delta)
-}
-
-function upstreamSeek(n: number) {
-  if (!upstreamStoryboard) return
-  const last = upstreamStoryboard.frames.length - 1
-  upstreamIdx.value = Math.max(0, Math.min(n, last))
-  renderUpstreamFrame(upstreamIdx.value)
-}
-
-function upstreamSetSpeed(speed: number) {
-  upstreamSpeed.value = speed
-  if (upstreamPlaying.value) scheduleUpstreamTick()
-}
-
-function upstreamToggleHop2(show: boolean) {
-  upstreamShowHop2.value = show
-  renderUpstreamFrame(upstreamIdx.value)
+  startUpstreamAuto()
 }
 
 let linkFlashTimer: ReturnType<typeof setInterval> | null = null
@@ -666,7 +874,7 @@ function renderMarkers(action: MapActionEvent) {
   const selectedId = props.corridorSelectedInterId
   const merged = [
     ...mergeSceneMarkers(action, cognition.value, {
-      allowRuntimeMetrics: Boolean(props.runtimePanelRevealed),
+      allowRuntimeMetrics: allowRuntimeMapMetrics(),
     }),
     ...extraEvidenceMarkers,
   ].map((m) => {
@@ -749,8 +957,9 @@ async function focusCorridorIntersection(lon: number, lat: number, zoom = CORRID
   })
 }
 
-async function prepareNewAnalysisRun() {
+async function resetMapVisualState(options?: { clearCognition?: boolean }) {
   stopLinkFlash()
+  disposeUpstream()
   disposeChannelization()
   userInteracted.value = false
   channelizationLocked.value = false
@@ -771,21 +980,18 @@ async function prepareNewAnalysisRun() {
   clearMarkers()
   clearOverlays()
   clearFlowSources()
+  if (options?.clearCognition !== false) {
+    cognition.value = null
+  }
+}
+
+async function prepareNewAnalysisRun() {
+  await resetMapVisualState({ clearCognition: false })
 }
 
 async function resetToCityDefault() {
   if (!map || !AMapLib) return
-  stopLinkFlash()
-  disposeChannelization()
-  userInteracted.value = false
-  channelizationLocked.value = false
-  viewMode.value = 'map'
-  cognition.value = null
-  hud.value = null
-  scenePhase.value = null
-  clearMarkers()
-  clearOverlays()
-  sceneOpts.value = { highlightDirs: [], protectedDirs: [], pulseIds: [], flashDirs: [], dimOthers: false }
+  await resetMapVisualState()
   await flyTo(map, AMapLib, JINAN_CENTER, CITY_ZOOM, 900)
 }
 
@@ -966,15 +1172,9 @@ async function handleAction(action: MapActionEvent) {
       break
     }
     case 'upstream_tree': {
-      disposeUpstream()
       const sb = action.storyboard
       if (!sb || !sb.frames?.length) break
-      upstreamStoryboard = sb
-      upstreamIdx.value = 0
-      upstreamCardTrees.value = sb.trees
-      upstreamTotal.value = sb.frames.length
-      renderUpstreamFrame(0)
-      upstreamPlay() // 默认自动播放，用户介入即让位
+      await beginUpstreamStoryboard(sb)
       break
     }
     default:
@@ -1015,6 +1215,7 @@ watch(
     props.highlightDirs,
     props.protectedDirs,
     props.runtimePanelRevealed,
+    props.focusStepIndex,
     chanSceneMarkers.value,
     effectiveCognition.value,
   ],
@@ -1104,16 +1305,12 @@ onMounted(async () => {
     // 渠化态随地图缩放下钻（L0 路网 / L1 轮廓 / L2 车道渠化）
     map.on('zoomend', () => {
       if (channelizationLocked.value) chanController?.applyLOD(map!.getZoom())
-      if (!programmaticMove) {
-        userInteracted.value = true
-        if (upstreamPlaying.value) upstreamPause() // 让位：用户滚轮缩放即暂停
-      }
+      if (!programmaticMove) userInteracted.value = true
       emitView()
     })
     // 用户手动拖拽后，后续步骤不再强制回拉视角
     map.on('dragend', () => {
       userInteracted.value = true
-      if (upstreamPlaying.value) upstreamPause() // 让位：用户介入即暂停溯源回放
     })
     emitView()
 
@@ -1143,13 +1340,6 @@ defineExpose({
   setEvidenceOverlay,
   prepareNewAnalysisRun,
   focusCorridorIntersection,
-  upstreamPlay,
-  upstreamPause,
-  upstreamStep,
-  upstreamSeek,
-  upstreamSetSpeed,
-  upstreamToggleHop2,
-  upstreamFocusNode,
 })
 
 watch(
@@ -1225,31 +1415,6 @@ watch(
       @close-corridor-wave="emit('closeCorridorWave')"
     />
 
-    <!-- 上游治理溯源：左下角树形侧卡 + 回放控制条 -->
-    <div v-if="showUpstreamPanel" class="upstream-panel">
-      <p v-if="upstreamNarration" class="upstream-panel__narration">{{ upstreamNarration }}</p>
-      <UpstreamGovernanceCard
-        :trees="upstreamCardTrees"
-        :active-tree="upstreamActiveTree"
-        :show-hop2="upstreamShowHop2"
-        @focus-node="upstreamFocusNode"
-        @select-tree="(t) => { upstreamActiveTree = t }"
-      />
-      <UpstreamControlBar
-        :idx="upstreamIdx"
-        :total="upstreamTotal"
-        :playing="upstreamPlaying"
-        :speed="upstreamSpeed"
-        :show-hop2="upstreamShowHop2"
-        @play="upstreamPlay"
-        @pause="upstreamPause"
-        @step="upstreamStep"
-        @seek="upstreamSeek"
-        @set-speed="upstreamSetSpeed"
-        @toggle-hop2="upstreamToggleHop2"
-      />
-    </div>
-
     <div v-if="!ready && !error && viewMode === 'map'" class="map-loading">地图加载中…</div>
   </div>
 </template>
@@ -1263,25 +1428,31 @@ watch(
   overflow: hidden;
 }
 
-.upstream-panel {
+.upstream-narration {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 248px;
-}
-.upstream-panel__narration {
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 32;
   margin: 0;
-  padding: 7px 10px;
-  border-radius: 6px;
-  background: rgba(8, 12, 20, 0.88);
+  max-width: min(72%, 560px);
+  padding: 9px 16px;
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.9);
   border-left: 3px solid #7ec8ff;
-  color: #cfe6ff;
-  font-size: 12px;
-  line-height: 1.4;
+  color: #d6ecff;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+.us-fade-enter-active,
+.us-fade-leave-active {
+  transition: opacity 0.35s ease;
+}
+.us-fade-enter-from,
+.us-fade-leave-to {
+  opacity: 0;
 }
 
 .map-stage.chan-mode {
@@ -1424,22 +1595,101 @@ watch(
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-.upstream-node-badge {
-  padding: 3px 8px;
-  border-radius: 12px;
-  border: 1.5px solid #7ec8ff;
-  background: rgba(10, 14, 22, 0.92);
-  font-size: 11px;
-  font-weight: 700;
-  color: #7ec8ff;
-  white-space: nowrap;
-  font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-  transition: opacity 0.3s ease;
+/* 上游溯源：路口锚点圆点 + 偏移浮动标注卡（全局，注入 HTML） */
+.us-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+  transition: opacity 0.45s ease, transform 0.45s ease;
 }
-
-.upstream-node-badge.is-dim {
+.us-dot.is-dim {
+  opacity: 0.4;
+}
+.us-dot.is-target {
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 12px rgba(255, 90, 90, 0.75);
+}
+.us-ripple {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 90, 90, 0.85);
+  box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.45);
+  animation: us-ripple-pulse 1.8s ease-out infinite;
+}
+.us-ripple.is-dim {
   opacity: 0.35;
+}
+@keyframes us-ripple-pulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.95;
+    box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.5);
+  }
+  70% {
+    transform: scale(1);
+    opacity: 0.35;
+    box-shadow: 0 0 0 14px rgba(255, 90, 90, 0);
+  }
+  100% {
+    transform: scale(1.05);
+    opacity: 0.15;
+    box-shadow: 0 0 0 18px rgba(255, 90, 90, 0);
+  }
+}
+.us-card {
+  min-width: 86px;
+  max-width: 168px;
+  padding: 5px 9px;
+  border-radius: 9px;
+  border: 1.5px solid #7ec8ff;
+  background: rgba(9, 13, 21, 0.94);
+  white-space: normal;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+.us-card.is-dim {
+  opacity: 0.4;
+}
+.us-card.is-gov {
+  border-color: #6dffb5;
+}
+.us-card.is-target {
+  border-color: #ff5a5a;
+}
+.us-card .us-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #eaf4ff;
+  line-height: 1.3;
+}
+.us-card .us-sat {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+.us-card .us-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+.us-card .us-chip {
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(126, 200, 255, 0.16);
+  color: #bfe0ff;
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.us-card .us-chip-gap {
+  background: rgba(255, 193, 120, 0.14);
+  color: #ffd9a8;
 }
 
 /* 高德 Marker 气泡（全局，注入 HTML） */

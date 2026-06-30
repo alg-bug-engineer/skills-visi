@@ -9,6 +9,10 @@ import type {
 } from '../../types/presentation'
 import type { DataInsight } from '../../types/insight'
 import type { CaseScenario, ExperienceLevel, ExperienceSedimentItem } from '../../types/experience'
+import {
+  dedupeExperienceSediment,
+  filterReusedExperienceBadges,
+} from '../../utils/experienceDedup'
 import { STEP_INDICES } from '../../constants'
 import { buildNarrativeRuntimeItems } from '../../utils/narrativeStack'
 import { buildEvidenceListItems, buildSuggestionListItems } from '../../utils/channelizationCopy'
@@ -84,19 +88,42 @@ const showSuggestion = computed(
 )
 
 /* ── 经验沉淀与复用 ─────────────────────────────────────────────────────── */
-const sedimentItems = computed(() => props.experienceSediment ?? [])
-const reusedItems = computed(() => props.reusedExperience ?? [])
+const sedimentItems = computed(() =>
+  dedupeExperienceSediment(props.experienceSediment ?? []),
+)
+const reusedItems = computed(() =>
+  filterReusedExperienceBadges(props.reusedExperience ?? [], sedimentItems.value),
+)
 const caseItems = computed(() => props.caseExperience ?? [])
 const showExperience = computed(
   () => sedimentItems.value.length > 0 || reusedItems.value.length > 0 || caseItems.value.length > 0,
 )
-const LEVEL_LABELS: Record<ExperienceLevel, string> = {
-  cognition: '认知',
-  diagnosis: '诊断',
-  solution: '方案',
+const LEVEL_DEFAULT_TAGS: Record<ExperienceLevel, string[]> = {
+  cognition: ['认知画像', '问题记录'],
+  diagnosis: ['诊断经验', '用户口述'],
+  solution: ['方案经验', '治理措施'],
 }
-function levelLabel(level: ExperienceLevel): string {
-  return LEVEL_LABELS[level] ?? level
+function itemTags(item: ExperienceSedimentItem): string[] {
+  const base = item.tags?.length ? [...item.tags] : [...(LEVEL_DEFAULT_TAGS[item.level] ?? [])]
+  if (item.level === 'cognition') {
+    base.push(item.status === 'verified' ? '已验证' : '待验证')
+  }
+  return [...new Set(base)]
+}
+/* 三类经验分组：认知画像（问题记录）/ 诊断经验（用户口述原因）/ 方案诊断经验（用户治理经验）。 */
+const EXPERIENCE_GROUPS: Array<{ level: ExperienceLevel; title: string }> = [
+  { level: 'cognition', title: '认知画像' },
+  { level: 'diagnosis', title: '诊断经验' },
+  { level: 'solution', title: '方案诊断经验' },
+]
+const groupedSediment = computed(() =>
+  EXPERIENCE_GROUPS.map((g) => ({
+    ...g,
+    items: sedimentItems.value.filter((it) => it.level === g.level),
+  })).filter((g) => g.items.length > 0),
+)
+function statusLabel(status?: 'verified' | 'pending'): string {
+  return status === 'verified' ? '已验证' : '待验证'
 }
 
 /* ── 粘性揭示（只增不减，避免阶段切换闪烁）──────────────────────────────── */
@@ -210,21 +237,34 @@ function sevClass(sev?: string): string {
         </aside>
       </div>
 
-      <!-- 经验沉淀卡：地图舞台左下角独立卡片 -->
+      <!-- 经验沉淀卡：地图舞台右下角独立卡片 -->
       <aside
         v-if="showExperience"
-        class="narrative-stack narrative-card experience-card experience-card--bottom-left"
+        class="narrative-stack narrative-card experience-card experience-card--bottom-right"
         aria-label="经验沉淀与复用"
       >
-        <section v-if="sedimentItems.length" class="block sediment">
-          <span class="block-title sediment-title">经验沉淀</span>
+        <span v-if="sedimentItems.length" class="card-title sediment-title">经验沉淀</span>
+        <section
+          v-for="grp in groupedSediment"
+          :key="grp.level"
+          class="block sediment"
+        >
+          <span class="block-title" :class="`lvl-title-${grp.level}`">{{ grp.title }}</span>
           <TransitionGroup name="item-in" tag="ul" class="list">
             <li
-              v-for="(item, i) in sedimentItems"
-              :key="`${item.level}-${i}`"
+              v-for="(item, i) in grp.items"
+              :key="`${grp.level}-${i}`"
               class="row plain"
             >
-              <span class="level-badge" :class="`lvl-${item.level}`">{{ levelLabel(item.level) }}</span>
+              <span
+                v-for="tag in itemTags(item)"
+                :key="tag"
+                class="exp-tag"
+                :class="{
+                  'is-verified': tag === '已验证',
+                  'is-pending': tag === '待验证',
+                }"
+              >{{ tag }}</span>
               <span class="text">{{ item.text }}</span>
             </li>
           </TransitionGroup>
@@ -337,16 +377,30 @@ function sevClass(sev?: string): string {
   border-color: rgba(201, 162, 39, 0.4);
 }
 
-/* 经验沉淀卡固定在地图舞台左下角，与左上身份卡互不重叠（最高 60% 高度，溢出内部滚动）。 */
-.experience-card--bottom-left {
-  left: 12px;
+/* 经验沉淀卡固定在地图舞台右下角（图例已删除腾出位置，最高 60% 高度，溢出内部滚动）。 */
+.experience-card--bottom-right {
+  right: 12px;
   bottom: 12px;
   top: auto;
-  right: auto;
+  left: auto;
   max-height: calc(60% - 24px);
 }
-.block-title.sediment-title {
+.card-title.sediment-title {
+  display: block;
+  padding: 10px 14px 4px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: 700;
   color: #c9a227;
+}
+.lvl-title-cognition {
+  color: #6dd0ff;
+}
+.lvl-title-diagnosis {
+  color: #ffc266;
+}
+.lvl-title-solution {
+  color: #6dffb5;
 }
 .block-title.reused-title {
   color: #ffb86b;
@@ -354,7 +408,7 @@ function sevClass(sev?: string): string {
 .block-title.case-title {
   color: rgba(0, 229, 255, 0.7);
 }
-.level-badge {
+.status-badge {
   flex-shrink: 0;
   font-size: 9px;
   padding: 1px 6px;
@@ -362,20 +416,38 @@ function sevClass(sev?: string): string {
   border: 1px solid transparent;
   line-height: 1.5;
 }
-.level-badge.lvl-cognition {
-  color: #6dd0ff;
-  border-color: rgba(109, 208, 255, 0.4);
-  background: rgba(109, 208, 255, 0.1);
-}
-.level-badge.lvl-diagnosis {
-  color: #ffc266;
-  border-color: rgba(255, 194, 102, 0.4);
-  background: rgba(255, 194, 102, 0.1);
-}
-.level-badge.lvl-solution {
+.status-badge.is-verified {
   color: #6dffb5;
-  border-color: rgba(109, 255, 181, 0.4);
-  background: rgba(109, 255, 181, 0.1);
+  border-color: rgba(109, 255, 181, 0.45);
+  background: rgba(109, 255, 181, 0.12);
+}
+.status-badge.is-pending {
+  color: #ffb86b;
+  border-color: rgba(255, 184, 107, 0.45);
+  background: rgba(255, 184, 107, 0.12);
+}
+.exp-tag {
+  flex-shrink: 0;
+  display: inline-block;
+  margin-right: 4px;
+  margin-bottom: 2px;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(126, 200, 255, 0.28);
+  line-height: 1.5;
+  color: #9ec8ff;
+  background: rgba(126, 200, 255, 0.1);
+}
+.exp-tag.is-verified {
+  color: #6dffb5;
+  border-color: rgba(109, 255, 181, 0.45);
+  background: rgba(109, 255, 181, 0.12);
+}
+.exp-tag.is-pending {
+  color: #ffb86b;
+  border-color: rgba(255, 184, 107, 0.45);
+  background: rgba(255, 184, 107, 0.12);
 }
 .reuse-tick {
   color: #ffb86b !important;

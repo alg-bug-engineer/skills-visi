@@ -9,6 +9,14 @@ from intersection_agent.llm.qwen_client import QwenClient
 from intersection_agent.models.domain import SuggestionResult
 from intersection_agent.services.governance_guidance import format_category_guidance_block
 from intersection_agent.services.governance_action_plan_service import format_action_plan_for_prompt
+from intersection_agent.logging.helpers import log_event, safe_preview
+from intersection_agent.services.suggestion_context import (
+    compose_suggestion_narrative,
+    format_upstream_trace_for_prompt,
+    format_user_experience_for_prompt,
+    narrative_echoes_diagnosis,
+    prepare_suggestion_data,
+)
 from intersection_agent.services.rule_engine import evaluate_formula
 
 logger = logging.getLogger(__name__)
@@ -30,6 +38,10 @@ NARRATIVE_PROMPT = """
 - 量化约束：{quantitative_constraints}
 - 同类场景专家治理经验（来自经验库，仅供表述与方向参考，不可改写量化动作）：
 {case_experience}
+- 上游流量溯源（必须体现具体路口名、治理落点与汇入转向）：
+{upstream_trace}
+- 用户经验与约束（必须优先回应，不得忽略）：
+{user_experience}
 
 ## 专业原则（必须遵守）
 1. 若绿灯利用率已偏高或存在空放/失衡，禁止简单建议「一律加绿灯」；应优先绿信比再分配、压缩空放相位。
@@ -37,6 +49,9 @@ NARRATIVE_PROMPT = """
 3. 溢出风险时优先防锁死与上游控流，不单靠加绿。
 4. 用户约束不为「无」时，正文必须优先回应；量化约束不为「无」时说明边界内方案。
 5. 结构化动作方案中的秒数、供绿/受绿转向、动作类型为硬约束，只可润色表述，禁止另起炉灶。
+6. 有上游溯源时，必须点名至少一个上游路口及治理落点，说明与本路口问题的关联；禁止泛泛而谈。
+7. 禁止输出与数据矛盾的加绿建议（如向已过饱和方向继续加绿）。
+8. 禁止复述 primary_diagnosis 的 headline 句式；正文须是 action_plan 的可执行措施与边界说明。
 
 参考量化幅度（与结构化方案一致时直接沿用）：{direction_text}绿灯约 {delta} 秒。
 
@@ -62,6 +77,7 @@ class SuggestionService:
         case_experience: str | None = None,
     ) -> SuggestionResult:
         """Build suggestion from matched rule."""
+        data = prepare_suggestion_data(data)
         action = rule["action"]
         formula = action["formula"]
         delta = (
@@ -92,6 +108,13 @@ class SuggestionService:
         ) or "无显著异常"
         category_guidance = format_category_guidance_block(data)
         action_plan_block = format_action_plan_for_prompt(action_plan)
+        composed = compose_suggestion_narrative(
+            data,
+            user_suggestion=user_suggestion,
+            quantitative_constraints=quantitative_constraints,
+        )
+        upstream_trace_text = format_upstream_trace_for_prompt(data)
+        user_experience_text = format_user_experience_for_prompt(data, user_suggestion)
         prompt = NARRATIVE_PROMPT.format(
             intersection=meta.get("intersection", ""),
             time_label=tp.get("label", ""),
@@ -109,11 +132,46 @@ class SuggestionService:
                 else "无"
             ),
             case_experience=case_experience or "无同类场景经验。",
+            upstream_trace=upstream_trace_text,
+            user_experience=user_experience_text,
         )
 
+        log_event(
+            logger,
+            logging.INFO,
+            "suggestion.prepare",
+            rule_id=rule.get("id"),
+            action_type=action_plan.get("action_type"),
+            action_plan_headline=action_plan.get("headline"),
+            composed_narrative=composed,
+            upstream_trace=upstream_trace_text,
+            user_experience=user_experience_text,
+            case_experience=case_experience,
+            prompt_preview=prompt,
+        )
+
+        narrative = composed
         try:
-            narrative = await self._llm.chat(system="你是交通信号优化专家。", user=prompt)
-        except RuntimeError:
+            llm_text = await self._llm.chat(system="你是交通信号优化专家。", user=prompt)
+            llm_text = (llm_text or "").strip()
+            if llm_text and not narrative_echoes_diagnosis(llm_text, data):
+                narrative = llm_text
+            else:
+                log_event(
+                    logger,
+                    logging.INFO,
+                    "suggestion.llm_skipped",
+                    reason="echoes_diagnosis_or_empty",
+                    llm_preview=llm_text,
+                )
+        except RuntimeError as exc:
+            log_event(
+                logger,
+                logging.WARNING,
+                "suggestion.llm_failed",
+                error=str(exc),
+                fallback=composed,
+            )
             narrative = self._fallback_narrative(
                 rule,
                 data,
@@ -121,6 +179,18 @@ class SuggestionService:
                 delta=delta,
                 user_suggestion=user_suggestion,
             )
+            if narrative_echoes_diagnosis(narrative, data):
+                narrative = composed
+
+        log_event(
+            logger,
+            logging.INFO,
+            "suggestion.result",
+            rule_id=rule.get("id"),
+            narrative=narrative,
+            delta_seconds=delta,
+            direction=direction,
+        )
 
         return SuggestionResult(
             delta_seconds=delta,
@@ -147,6 +217,14 @@ class SuggestionService:
             base = str(action_plan["narrative_template"])
             suffix = f"同时结合用户约束：{user_suggestion}。" if user_suggestion else ""
             return f"{base}{suffix}"
+
+        composed = compose_suggestion_narrative(
+            data,
+            user_suggestion=user_suggestion,
+            quantitative_constraints=data.get("quantitative_constraints"),
+        )
+        if composed:
+            return composed
 
         primary = governance.get("primary_diagnosis") or {}
         lever = str(primary.get("lever") or "").strip()

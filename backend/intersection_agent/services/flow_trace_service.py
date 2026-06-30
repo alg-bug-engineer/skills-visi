@@ -26,6 +26,41 @@ _DIR8_ENTRY = {
 }
 # flow_correlate / dws_turn_saturation 转向编码：1左 2直 3右 4掉头
 _TURN = {1: "左转", 2: "直行", 3: "右转", 4: "掉头"}
+_STANDARD_COR_TURNS = (1, 2, 3)
+
+
+def _normalize_cor_turn(raw: Any) -> int | None:
+    try:
+        t = int(raw)
+    except (TypeError, ValueError):
+        return None
+    if t in _TURN:
+        return t
+    if t in (11, 12, 13):
+        return t - 10
+    if t == 0:
+        return None
+    return None
+
+
+def complete_turn_split(split: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """补全左/直/右三项；数仓无记录的转向标注 data_gap。"""
+    present = {s.get("cor_turn") for s in split if s.get("cor_turn") is not None}
+    out = list(split)
+    for ct in _STANDARD_COR_TURNS:
+        if ct in present:
+            continue
+        out.append(
+            {
+                "turn": _TURN[ct],
+                "cor_turn": ct,
+                "share_pct": None,
+                "data_gap": True,
+            }
+        )
+    order = {1: 0, 2: 1, 3: 2, 4: 3}
+    out.sort(key=lambda s: order.get(s.get("cor_turn"), 99))
+    return out
 
 _PERIOD_BY_LABEL = {
     "早高峰": "MORNING_PEAK",
@@ -113,6 +148,44 @@ def one_hop_for_approach(
         "lng": best.get("lng"),
         "lat": best.get("lat"),
     }
+
+
+def turn_split_for_upstream(
+    rows: list[dict[str, Any]], dir8: int, cor_inter_id: str
+) -> list[dict[str, Any]]:
+    """上游路口 cor_inter_id 汇入本路口 dir8 进口的车流，按上游转向(cor_turn)拆分占比。
+
+    每个上游转向取最大 coverage，再归一为 share_pct（合计 100），按占比降序。
+    用于地图标注「上一路口流量按转向拆分」。
+    """
+    by_turn: dict[int, float] = {}
+    for r in rows:
+        try:
+            if int(r["f_dir8_no"]) != int(dir8):
+                continue
+        except (TypeError, ValueError, KeyError):
+            continue
+        if str(r.get("cor_inter_id") or "") != str(cor_inter_id):
+            continue
+        cov = _as_float(r.get("flow_share_ratio"))
+        ct = _normalize_cor_turn(r.get("cor_turn_dir_no"))
+        if cov is None or ct is None:
+            continue
+        by_turn[ct] = max(by_turn.get(ct, 0.0), cov)
+    total = sum(by_turn.values())
+    if total <= 0:
+        return complete_turn_split([])
+    out = [
+        {
+            "turn": _TURN.get(ct, str(ct)),
+            "cor_turn": ct,
+            "share_pct": round(cov / total * 100, 1),
+            "raw_coverage": round(cov, 1),
+        }
+        for ct, cov in by_turn.items()
+    ]
+    out.sort(key=lambda s: s["share_pct"], reverse=True)
+    return complete_turn_split(out)
 
 
 def classify_sources(

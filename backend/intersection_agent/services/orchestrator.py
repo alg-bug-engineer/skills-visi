@@ -39,6 +39,7 @@ from intersection_agent.services.map_presentation_service import (
 from intersection_agent.services.case_library_service import CaseLibraryService
 from intersection_agent.services.dimension_pack_service import DimensionPackService
 from intersection_agent.services.experience_reuse_service import ExperienceReuseService
+from intersection_agent.services.experience_classifier import ExperienceClassifier
 from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
 from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
@@ -50,6 +51,7 @@ from intersection_agent.services.context_tags_service import ContextTagsService
 from intersection_agent.services.intent_classifier_service import IntentClassifierService
 from intersection_agent.services.problem_evidence_service import ProblemEvidenceService
 from intersection_agent.services.suggestion_service import SuggestionService
+from intersection_agent.services.suggestion_context import prepare_suggestion_data
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
 from intersection_agent.services.sustained_metrics_service import SustainedMetricsService
 from intersection_agent.services.timing_profile_service import TimingProfileService
@@ -72,6 +74,52 @@ _DIR8_BY_LABEL = sorted(
     key=lambda kv: len(kv[0]),
     reverse=True,
 )
+
+
+_PROBLEM_LABELS: dict[str, str] = {
+    "congestion": "拥堵",
+    "spillover": "溢出",
+    "queue": "排队",
+    "delay": "延误",
+}
+
+
+def _compose_cognition_text(nlu: "NluResult | None") -> str:
+    """从 NLU 结构化字段兜底拼装认知画像文本：时段 + 方向 + 问题（路口名见卡头）。"""
+    if nlu is None:
+        return ""
+    parts: list[str] = []
+    if nlu.time_period and nlu.time_period.label:
+        parts.append(nlu.time_period.label)
+    if nlu.directions:
+        parts.append("".join(nlu.directions) + "向")
+    parts.append(_PROBLEM_LABELS.get(nlu.problem_type or "congestion", "拥堵"))
+    return "".join(parts)
+
+
+_DIRECTION_DIR8: dict[str, tuple[int, ...]] = {
+    "南北向": (0, 4),
+    "南北": (0, 4),
+    "东西向": (2, 6),
+    "东西": (2, 6),
+}
+
+
+def _dir8s_from_directions(
+    directions: list[str] | None, available: set[int]
+) -> list[int]:
+    """NLU 方向 → dir8：「南北向」展开为北(0)+南(4)，「X进口」取单向；仅保留实际有数据的进口。"""
+    out: set[int] = set()
+    for raw in directions or []:
+        token = str(raw).strip()
+        if token in _DIRECTION_DIR8:
+            out.update(_DIRECTION_DIR8[token])
+            continue
+        for code, label in DIR8_LABELS.items():
+            if token.startswith(label):
+                out.add(code)
+                break
+    return [d for d in out if d in available]
 
 
 def _row_dir8(row: dict[str, Any]) -> int | None:
@@ -108,6 +156,7 @@ class Orchestrator:
         sustained: SustainedMetricsService | None = None,
         profile_store: IntersectionProfileStore | None = None,
         upstream_trace: UpstreamGovernanceTraceService | None = None,
+        experience_classifier: ExperienceClassifier | None = None,
     ) -> None:
         self._nlu = nlu or NluService()
         self._resolver = resolver or IntersectionResolver()
@@ -129,6 +178,7 @@ class Orchestrator:
         self._experience_reuse = ExperienceReuseService(self._profile_store)
         self._case_library = CaseLibraryService()
         self._upstream_trace = upstream_trace or UpstreamGovernanceTraceService()
+        self._experience_classifier = experience_classifier or ExperienceClassifier()
         self._settings = get_settings()
 
     async def handle_message(
@@ -176,7 +226,11 @@ class Orchestrator:
         governance: dict[str, Any] | None,
         emitter: ExecutionEmitter | None = None,
     ) -> None:
-        """三级经验逐级写入：识别问题步落 cognition、归因步落 diagnosis。
+        """三类经验沉淀（大模型理解用户原话归类）：
+
+        - 认知画像 cognition：问题记录（路口/方向/时段拥堵）。数据支撑→verified，否则→data_doubt(待验证)。
+        - 诊断经验 diagnosis：用户口述、库内通常无记录的原因（如"附近学校放学"）。
+        - 方案诊断经验 solution：用户给出的治理经验（对向不溢出、绿灯±x 秒、加左转车道）。
 
         严格栅栏：每步先落库，再 emit 对应 step_conclusion。
         """
@@ -185,55 +239,76 @@ class Orchestrator:
             return
         nlu = session.nlu
 
-        # 识别问题步：数据可验证 → verified；人坚持但数据不显著 → data_doubt
-        cognition_entry = None
-        if diagnosis.diagnosed and diagnosis.matched_rules:
-            top = diagnosis.matched_rules[0]
-            profile = self._profile_store.add_cognition(
-                inter_id,
-                text=str(top.get("conclusion") or top.get("name") or "诊断命中问题"),
-                status="verified",
-                source="data",
-                evidence=diagnosis.metrics_snapshot or {},
-            )
-            cognition_entry = profile.cognition[-1]
-        elif nlu and nlu.user_suggestion:
-            profile = self._profile_store.add_cognition(
-                inter_id,
-                text=nlu.user_suggestion,
-                status="data_doubt",
-                source="user",
-                evidence={},
-            )
-            cognition_entry = profile.cognition[-1]
-        if cognition_entry is not None and emitter:
-            await emitter.emit(
-                "experience_cognition",
-                "completed",
-                data={
-                    "inter_id": inter_id,
-                    "text": cognition_entry.text,
-                    "status": cognition_entry.status,
-                },
-            )
+        raw_text = session.raw_user_context or session.user_messages_text()
+        classified = await self._experience_classifier.classify(raw_text)
 
-        # 归因步：供需匹配度主诊断 → diagnosis 先验
-        primary = (governance or {}).get("primary_diagnosis") or {}
-        dimension = primary.get("type")
-        cause = primary.get("headline") or primary.get("lever")
-        if dimension and dimension != "basically_matched" and cause:
+        # 认知画像：问题记录 = 路口/方向/时段拥堵；数据支撑→verified，否则→data_doubt(待验证)
+        verified = bool(diagnosis.diagnosed and diagnosis.matched_rules)
+        cognition_text = classified.get("problem") or _compose_cognition_text(nlu)
+        if cognition_text:
+            status = "verified" if verified else "data_doubt"
+            profile = self._profile_store.add_cognition(
+                inter_id,
+                text=cognition_text,
+                status=status,
+                source="data" if verified else "user",
+                evidence=(diagnosis.metrics_snapshot or {}) if verified else {},
+            )
+            cognition_entry = profile.cognition[-1]
+            if emitter:
+                await emitter.emit(
+                    "experience_cognition",
+                    "completed",
+                    data={
+                        "inter_id": inter_id,
+                        "text": cognition_entry.text,
+                        "status": cognition_entry.status,
+                        "tags": [
+                            "认知画像",
+                            "问题记录",
+                            "已验证" if status == "verified" else "待验证",
+                        ],
+                    },
+                )
+
+        # 诊断经验：用户口述、库内通常无记录的原因
+        for cause in classified.get("causes") or []:
             self._profile_store.add_diagnosis(
                 inter_id,
-                cause=str(cause),
-                dimension=str(dimension),
-                source="data",
-                confidence=float(primary.get("confidence") or 0.0),
+                cause=cause,
+                dimension="user_observation",
+                source="user",
+                confidence=0.0,
             )
             if emitter:
                 await emitter.emit(
                     "experience_diagnosis",
                     "completed",
-                    data={"inter_id": inter_id, "cause": str(cause), "dimension": str(dimension)},
+                    data={
+                        "inter_id": inter_id,
+                        "cause": cause,
+                        "dimension": "user_observation",
+                        "tags": ["诊断经验", "用户口述", "用户观察"],
+                    },
+                )
+
+        # 方案诊断经验：用户给出的治理措施（实体方案另在固化步沉淀）
+        for measure in classified.get("measures") or []:
+            self._profile_store.add_solution_ref(
+                inter_id,
+                skill_id="user_experience",
+                qualitative=measure,
+                quantified=None,
+            )
+            if emitter:
+                await emitter.emit(
+                    "experience_solution",
+                    "completed",
+                    data={
+                        "inter_id": inter_id,
+                        "measure": measure,
+                        "tags": ["方案经验", "治理措施"],
+                    },
                 )
 
     async def _record_solution_ref(
@@ -1064,14 +1139,6 @@ class Orchestrator:
                 await self._emit_map_sequence(
                     emitter, action="narration", data={**rule_step, "index": 0, "total": 1}
                 )
-                scene = build_map_scene(
-                    "rule",
-                    cognition=cognition,
-                    data=data,
-                    diagnosis=diagnosis,
-                    nlu=session.nlu,
-                )
-                await self._emit_map_sequence(emitter, action="map_scene", data=scene)
 
         if skill_rule_ids:
             diagnosis = self._filter_skill_rules(diagnosis, skill_rule_ids)
@@ -1125,8 +1192,20 @@ class Orchestrator:
             msg = _no_diagnosis_message(reason, data)
             return self._build_response(session, ReplyType.TEXT, msg, extra={"reason_code": reason})
 
-        # 上游治理溯源：对过饱和进口道递归定位可信控治理落点（失败不阻断主诊断）
+        # 原因诊断成立后：立即上游溯源运镜（与 RULE 步骤同步；有溯源帧时跳过 rule 地图场景）
         gov_point_count = await self._run_upstream_trace(session, cognition, emitter)
+        if emitter:
+            trace = session.data_payload.get("upstream_trace") or {}
+            storyboard = trace.get("storyboard") or {}
+            if not storyboard.get("frames"):
+                scene = build_map_scene(
+                    "rule",
+                    cognition=cognition,
+                    data=data,
+                    diagnosis=diagnosis,
+                    nlu=session.nlu,
+                )
+                await self._emit_map_sequence(emitter, action="map_scene", data=scene)
 
         if session.skill_reuse_mode and session.matched_skill_id:
             reuse_note = skill_reuse_notice or ""
@@ -1180,41 +1259,26 @@ class Orchestrator:
                 suggestion_action="generated_with_user_suggestion",
             )
 
-        session.pending_suggestion_action = "generate"
-        session.state = SessionState.AWAITING_CONFIRM
-        if gov_point_count > 0:
-            confirm_message = f"已定位 {gov_point_count} 个上游治理落点，是否生成跨路口协调建议？"
-            confirm_tail = (
-                f"已定位 {gov_point_count} 个上游治理落点，是否需要生成跨路口协调建议？"
-            )
-        else:
-            confirm_message = "问题诊断成立，是否生成治理建议？"
-            confirm_tail = "问题诊断成立，是否需要生成治理建议？"
-        if emitter:
-            await self._emit_map_sequence(
-                emitter,
-                action="confirm_bubble",
-                data={
-                    "action_type": "generate_suggestion",
-                    "intersection": cognition.get("intersection"),
-                    "message": confirm_message,
-                },
-            )
-            await self._emit_map_sequence(
-                emitter,
-                action="input_dock",
-                data={"phase": "confirm", "locked": False},
-            )
-        content = self._format_problem_confirm_message(session, resolution_note)
-        content = (
-            f"{content}\n\n---\n{confirm_tail}"
-            "回复「是」生成，或直接补充治理约束/建议；回复「否」结束本次会话。"
+        # 主诊断路径（无用户建议）：零确认。溯源完成后直接生成（跨路口协调）治理建议，
+        # 直接结束；本路径无新增用户约束故不固化技能（用户补充约束时走 user_suggestion 分支固化）。
+        content = await self._generate_suggestion_content(
+            session,
+            resolution_note=resolution_note,
+            emitter=emitter,
+        )
+        session.pending_suggestion_action = None
+        session.state = SessionState.DONE
+        suggestion_action = (
+            "generated_cross_intersection" if gov_point_count > 0 else "generated"
         )
         return self._build_response(
             session,
-            ReplyType.FOLLOW_UP,
+            ReplyType.DIAGNOSIS,
             content,
-            extra={"suggestion_action": "awaiting_generate"},
+            extra={
+                "suggestion_action": suggestion_action,
+                "skill_action": "skipped_no_user_suggestion",
+            },
         )
 
     async def _generate_suggestion_content(
@@ -1228,7 +1292,10 @@ class Orchestrator:
         assert session.nlu is not None
         assert session.diagnosis is not None
         assert session.diagnosis.matched_rules
-        data = session.data_payload
+        data = prepare_suggestion_data(session.data_payload)
+        session.data_payload["flow_timing_governance"] = data.get("flow_timing_governance")
+        if data.get("flow_trace"):
+            session.data_payload["flow_trace"] = data["flow_trace"]
         cognition = data.get("cognition") or {}
         rule = session.diagnosis.matched_rules[0]
 
@@ -1519,20 +1586,24 @@ class Orchestrator:
         cognition: dict[str, Any],
         emitter: ExecutionEmitter | None,
     ) -> int:
-        """对过饱和进口道溯源上游、定位可信控治理落点。返回落点数；失败返回 0。"""
+        """溯源上游、定位治理落点。触发进口 = 过饱和进口 ∪ 用户明示方向。返回落点数；失败返回 0。"""
         if not session.inter_id:
             return 0
         data = session.data_payload
         by_turn = (data.get("granularity") or {}).get("by_turn") or []
         trigger = threshold_value("upstream_trace", "trigger_saturation", default=0.90)
-        dir8s = sorted(
-            {
-                d8
-                for r in by_turn
-                if (r.get("turn_saturation") or 0.0) >= trigger
-                and (d8 := _row_dir8(r)) is not None
-            }
+        available = {d8 for r in by_turn if (d8 := _row_dir8(r)) is not None}
+        saturated = {
+            d8
+            for r in by_turn
+            if (r.get("turn_saturation") or 0.0) >= trigger
+            and (d8 := _row_dir8(r)) is not None
+        }
+        # 用户明示方向（如「南北向」→北+南）即便未全过饱和也一并溯源
+        directed = _dir8s_from_directions(
+            session.nlu.directions if session.nlu else None, available
         )
+        dir8s = sorted(saturated | set(directed))
         approaches = [f"{DIR8_LABELS[d]}进口" for d in dir8s if d in DIR8_LABELS]
         if not approaches:
             return 0

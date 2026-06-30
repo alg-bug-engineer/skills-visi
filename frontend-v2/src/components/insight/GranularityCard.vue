@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProblemEvidence } from '../../types/evidence'
-import { formatPercent, formatSaturation } from '../../utils/evidencePresentation'
+import { formatGreenUtilizationRaw, formatSaturation } from '../../utils/evidencePresentation'
 import { THRESHOLDS } from '../../constants'
 
 defineProps<{
@@ -28,7 +28,7 @@ defineProps<{
           >
             {{ formatSaturation(row.turn_saturation) }}
             <em v-if="row.green_utilization != null">
-              · 绿利用 {{ formatPercent(row.green_utilization) }}
+              · 绿利用 {{ formatGreenUtilizationRaw(row.green_utilization) }}
             </em>
           </span>
         </li>

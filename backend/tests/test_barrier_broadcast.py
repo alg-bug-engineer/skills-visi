@@ -28,6 +28,20 @@ class _RecordingStore(IntersectionProfileStore):
         return super().add_solution_ref(*args, **kwargs)
 
 
+class _StubClassifier:
+    """固定返回三类经验，避免测试触达真实 LLM。"""
+
+    def __init__(self, problem=None, causes=None, measures=None):
+        self._out = {
+            "problem": problem,
+            "causes": causes or [],
+            "measures": measures or [],
+        }
+
+    async def classify(self, text: str):
+        return dict(self._out)
+
+
 def _emitter(order):
     async def _cb(payload):
         if payload.get("event") == "step":
@@ -39,7 +53,12 @@ def _emitter(order):
 @pytest.mark.asyncio
 async def test_cognition_and_diagnosis_emit_after_store(tmp_path):
     order: list = []
-    orch = Orchestrator(profile_store=_RecordingStore(tmp_path, order))
+    orch = Orchestrator(
+        profile_store=_RecordingStore(tmp_path, order),
+        experience_classifier=_StubClassifier(
+            problem="晚高峰南北向拥堵", causes=["附近学校放学"]
+        ),
+    )
     session = Session(inter_id="i1", nlu=NluResult(user_suggestion="绿灯多给点"))
     diagnosis = DiagnosisResult(
         diagnosed=True,
@@ -58,9 +77,32 @@ async def test_cognition_and_diagnosis_emit_after_store(tmp_path):
     assert order.index(("store", "cognition")) < order.index(
         ("emit", "experience_cognition", "completed")
     )
+    # 诊断经验沉淀的是用户口述原因（库内无记录）
     assert order.index(("store", "diagnosis")) < order.index(
         ("emit", "experience_diagnosis", "completed")
     )
+
+
+@pytest.mark.asyncio
+async def test_cognition_pending_when_not_data_verified(tmp_path):
+    """无数据命中时，认知画像状态为待验证(data_doubt)。"""
+    order: list = []
+    captured: list = []
+
+    async def _cb(payload):
+        if payload.get("event") == "step" and payload["step"] == "experience_cognition":
+            captured.append(payload.get("data") or {})
+
+    orch = Orchestrator(
+        profile_store=_RecordingStore(tmp_path, order),
+        experience_classifier=_StubClassifier(problem="晚高峰南北向拥堵"),
+    )
+    session = Session(inter_id="i1", nlu=NluResult())
+    diagnosis = DiagnosisResult(diagnosed=False)
+    await orch._record_problem_experience(
+        session, diagnosis, {}, ExecutionEmitter(callback=_cb)
+    )
+    assert captured and captured[0]["status"] == "data_doubt"
 
 
 @pytest.mark.asyncio

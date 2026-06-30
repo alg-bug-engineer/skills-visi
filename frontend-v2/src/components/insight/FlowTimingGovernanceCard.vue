@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { FlowTimingGovernance } from '../../types/evidence'
+import { formatGreenUtilizationRaw } from '../../utils/evidencePresentation'
 
 const props = defineProps<{
   governance: FlowTimingGovernance
@@ -60,14 +61,14 @@ const primarySeverityClass = computed(() => {
             饱和 {{ primary.turn_balance.over.turn_saturation.toFixed(2) }}
           </span>
           <span v-if="primary.turn_balance.over.green_utilization != null" class="tb-metric">
-            绿利用 {{ Math.round(primary.turn_balance.over.green_utilization * 100) }}%
+            绿利用 {{ formatGreenUtilizationRaw(primary.turn_balance.over.green_utilization) }}
           </span>
         </div>
         <div v-if="primary.turn_balance.spare" class="tb-row spare">
           <span class="tb-label">绿灯富余</span>
           <span class="tb-val">{{ primary.turn_balance.spare.label }}</span>
           <span v-if="primary.turn_balance.spare.green_utilization != null" class="tb-metric">
-            绿利用 {{ Math.round(primary.turn_balance.spare.green_utilization * 100) }}%
+            绿利用 {{ formatGreenUtilizationRaw(primary.turn_balance.spare.green_utilization) }}
             <template v-if="primary.turn_balance.spare_util_threshold != null">
               （阈值 &lt;{{ Math.round(primary.turn_balance.spare_util_threshold * 100) }}%）
             </template>

@@ -1,8 +1,42 @@
+import { THRESHOLDS } from '../constants'
 import type { CognitionPayload, MapSceneMarker } from '../types/map'
 import type { ChannelQueueArm } from './cognitionChannelAdapter'
 import { normalizeDir } from './mapMarkers'
 import { formatSaturation } from './evidencePresentation'
 import { resolveTurnMetrics, sortTurnMetrics, dirFromTurnLabel } from './turnMetrics'
+
+const PLACEHOLDER_LINES = new Set(['—', '-', '–', ''])
+
+/** 从臂标第二行解析饱和度数值（支持纯小数或带前缀文案）。 */
+export function parseSaturationFromLabelLine(line2: string): number | null {
+  const t = line2.trim()
+  if (PLACEHOLDER_LINES.has(t)) return null
+  const m =
+    t.match(/(?:过饱和|饱和偏高|接近饱和|饱和[度]?)\s*([\d.]+)/) ??
+    t.match(/^饱和([\d.]+)/) ??
+    t.match(/^([\d.]+)$/)
+  if (!m) return null
+  const n = Number(m[1])
+  return Number.isFinite(n) ? n : null
+}
+
+/** 饱和度问题提示（地图臂标第二行）。 */
+export function saturationProblemHint(sat: number): string {
+  if (sat >= 1.0) return `过饱和 ${sat.toFixed(2)}`
+  if (sat >= THRESHOLDS.saturationHigh) return `饱和偏高 ${sat.toFixed(2)}`
+  if (sat >= 0.85) return `接近饱和 ${sat.toFixed(2)}`
+  return `饱和 ${sat.toFixed(2)}`
+}
+
+export function saturationHintColor(sat: number): string {
+  if (sat >= 0.85) return '#ff6b4a'
+  if (sat >= THRESHOLDS.saturationHigh) return '#ffaa44'
+  return '#6dffb5'
+}
+
+export function isPlaceholderLabelLine(line2?: string | null): boolean {
+  return PLACEHOLDER_LINES.has((line2 ?? '').trim())
+}
 
 export interface ArmSceneLabel {
   dir: string
@@ -83,7 +117,11 @@ export function buildArmLabelsFromDirectionGroups(
  * 排队长度标签：在渠化进口显示估算排队长度（米）+ 饱和度。
  * 解决「排队长度在渠化上缺少显示」——数据取自 buildQueueDataFromEvidence。
  */
-export function buildArmLabelsFromQueue(queueArms: ChannelQueueArm[]): ArmSceneLabel[] {
+export function buildArmLabelsFromQueue(
+  queueArms: ChannelQueueArm[],
+  options?: { includeSaturation?: boolean },
+): ArmSceneLabel[] {
+  const includeSaturation = options?.includeSaturation !== false
   const labels: ArmSceneLabel[] = []
   for (const arm of queueArms) {
     if (!(arm.queueM > 0)) continue
@@ -91,7 +129,7 @@ export function buildArmLabelsFromQueue(queueArms: ChannelQueueArm[]): ArmSceneL
     if (!dir) continue
     const meters = Math.round(arm.queueM)
     const sat = arm.satRatio
-    const satText = sat != null ? `饱和${sat.toFixed(2)} · ` : ''
+    const satText = includeSaturation && sat != null ? `饱和${sat.toFixed(2)} · ` : ''
     labels.push({
       dir,
       line1: arm.label || `${dir}进口`,
@@ -128,10 +166,11 @@ export function buildArmLabelsFromScene(
     const dir = dirKeyFromLabel(m.dir)
     if (!dir) continue
     const line1 = (m.title || m.kind || '指标').slice(0, 20)
-    const line2 =
+    const rawLine2 =
       m.variant === 'turn'
         ? (m.value || '').slice(0, 24)
         : (m.value || m.subtitle || '').slice(0, 24)
+    const line2 = isPlaceholderLabelLine(rawLine2) ? '' : rawLine2
     if (!line1 && !line2) continue
     // 同进口多转向：保留转向级标签（不覆盖）
     const key = m.variant === 'turn' ? `${dir}:${line1}` : dir

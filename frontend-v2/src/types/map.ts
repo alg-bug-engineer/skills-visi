@@ -213,6 +213,15 @@ export interface UpstreamApproachProfile {
   queue_len_est_m?: number | null
 }
 
+export interface UpstreamTurnSplit {
+  turn: string
+  cor_turn?: number
+  share_pct?: number
+  raw_coverage?: number
+  /** 数仓无该转向记录时为 true */
+  data_gap?: boolean
+}
+
 export interface UpstreamTreeNode {
   id?: string
   inter_id?: string
@@ -223,6 +232,9 @@ export interface UpstreamTreeNode {
   hop?: number
   decision?: string | null
   feeding_dir8?: number | null
+  approach?: string
+  saturation?: number | null
+  turn_split?: UpstreamTurnSplit[]
   approach_profiles?: UpstreamApproachProfile[]
 }
 
@@ -242,19 +254,23 @@ export interface UpstreamTreeView {
   edges: UpstreamTreeEdge[]
 }
 
-export interface UpstreamFrameView {
+export interface UpstreamFrame {
   idx: number
   tree: string
-  kind: string
   focus?: unknown
+  center?: [number | null, number | null] | null
+  zoom?: number | null
+  fit?: boolean
   reveal: string[]
-  camera?: string
   narration?: string
+  frame_type?: 'pullback' | 'target' | 'spread' | 'node' | 'fit'
+  show_labels?: boolean
+  animate_edge?: string | null
 }
 
 export interface UpstreamStoryboard {
   trees: UpstreamTreeView[]
-  frames: UpstreamFrameView[]
+  frames: UpstreamFrame[]
 }
 
 export interface UpstreamGovernancePoint {

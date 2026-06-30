@@ -32,18 +32,28 @@
 | **intersection 步骤** | 三级匹配 exact/variant | 同左 | **跳过解析**，用 Skill inter_id |
 | **诊断** | 全量 _diagnose | 全量 _diagnose | 全量 _diagnose + `_filter_skill_rules` |
 | **约束注入** | 仅用户 NLU 约束 | 固化时写入 Skill | Skill 有约束且用户无 → **自动注入** nlu.user_suggestion |
-| **诊断后第一出口** | awaiting_generate (FOLLOW_UP) | 若首轮带约束 → 直接 DIAGNOSIS + awaiting_create | **始终** awaiting_generate (FOLLOW_UP) ⚠️ |
-| **D1 用户「是」无补充** | skipped_no_user_suggestion | — | **reused_no_persist** |
-| **D1 用户带约束** | awaiting_create → D2 | — | awaiting_create → D2 |
+| **诊断后第一出口** | **零确认**：溯源后直接 DIAGNOSIS（无落点 generated / 有落点 generated_cross_intersection），state=done | 若首轮带约束 → 直接 DIAGNOSIS + awaiting_create | **始终** awaiting_generate (FOLLOW_UP) ⚠️ |
+| **无约束（不固化）** | 直接 done + skipped_no_user_suggestion（主路径无 D1） | — | D1「是」→ **reused_no_persist** |
+| **首轮带约束** | 生成后 awaiting_create → D2 | awaiting_create → D2 | D1 补充新约束 → awaiting_create → D2 |
 | **D2 确认固化** | skill_created | skill_created | 仅 D1 补充新经验时进入 |
 | **前端步骤 7** | 无（未固化） | 经验吸收 + 落盘动画 | 同 B；复用仅「是」时不展示 |
 | **语音步骤 7** | 无 | absorption + skillBuild | 同 B 或跳过 |
 
-⚠️ **已知不对称（P0 已测）**：路径 C 首轮带 `user_suggestion` 仍走 D1；路径 A 同条件跳过 D1（见 RT-REUSE-08）。
+⚠️ **路径不对称（P0 已测）**：自 2026-06-30 流量溯源重做起，路径 A（普通诊断）**主路径零确认**——溯源完成后直接生成（跨路口协调）治理建议、不再有 D1；无新增约束故不固化（skipped_no_user_suggestion），首轮带约束才进入 D2 固化确认。路径 C（Skill 复用快路径）**仍始终 D1**（受技能固化语义保护，见 RT-REUSE / `.cursor/rules/regression-testing.mdc`）。
 
 快路径**不再**使用 `verified` / `awaiting_update`（已删除 `_finish_fast_path_diagnosis` 死代码，2026-06-28）。
 
 ### 1.2 消息序列对照（Happy Path）
+
+#### 路径 A · 初次诊断（无 Skill，零确认）
+
+```
+M1: 「路口+时段+方向」（无约束，如 奥体西路×经十路 晚高峰 南北向拥堵）
+  → 自动溯源（南北向→南+北进口，逐路口运镜+转向拆分标注）
+  → state=done, reply=DIAGNOSIS, suggestion 有值
+  → meta.suggestion_action=generated_cross_intersection（无落点时 generated）
+  → meta.skill_action=skipped_no_user_suggestion（不固化）
+```
 
 #### 路径 B · 初次沉淀（含约束）
 
@@ -229,7 +239,23 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 
 ## 8. RT-CONF · 二次确认
 
-### 8.1 D1 · 治理建议生成
+### 8.0 主路径零确认（2026-06-30 流量溯源重做）
+
+普通诊断路径（无 Skill 复用）不再有 D1 治理建议确认：溯源完成后自动生成建议。
+仅当首轮带用户约束时进入 D2 固化确认；Skill 复用快路径仍走 §8.1 的 D1。
+
+| TC-ID | 优先级 | 输入 | state | reply | meta | 现有测试 |
+|---|---|---|---|---|---|---|
+| RT-CONF-AUTO-01 | P0 | 路口+时段+南北向（无约束，过饱和触发溯源） | done | DIAGNOSIS | suggestion_action=generated_cross_intersection, skill_action=skipped_no_user_suggestion | test_first_diagnosis_auto_generates_cross_intersection |
+| RT-CONF-AUTO-02 | P0 | 同上 | done | DIAGNOSIS | suggestion 有值, problem_evidence 齐备 | test_first_diagnosis_auto_generates_without_confirm |
+| RT-CONF-AUTO-03 | P1 | 「…拥堵，绿灯感觉不够」（未给明确约束，user_suggestion=None） | done | DIAGNOSIS | skipped_no_user_suggestion | test_green_light_complaint_without_explicit_advice_auto_generates |
+| RT-CONF-AUTO-04 | P1 | 纯诊断（无约束） | done | DIAGNOSIS | suggestion 有值, 不固化 | test_plain_diagnosis_generates_suggestion_without_skill |
+| RT-CONF-AUTO-05 | P0 | 首轮即带约束 | awaiting_confirm | DIAGNOSIS | generated_with_user_suggestion → awaiting_create | test_diagnosis_with_constraint_generates_suggestion_then_awaits_skill_confirm |
+
+> RT-CONF-D1-01/02/03（旧普通路径 D1）已被本节取代（普通路径不再产出 awaiting_generate）；
+> D1 语义现仅适用于 Skill 复用快路径（RT-CONF-D1-04~07）。
+
+### 8.1 D1 · 治理建议生成（仅 Skill 复用快路径）
 
 | TC-ID | 优先级 | 前置 | 用户回复 | state | meta | 现有测试 |
 |-------|--------|------|---------|-------|------|---------|

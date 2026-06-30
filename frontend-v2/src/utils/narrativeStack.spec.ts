@@ -99,7 +99,7 @@ describe('buildNarrativeRuntimeItems', () => {
     })
     expect(items.find((i) => i.label === '东左转饱和度')?.value).toContain('1.77')
     expect(items.find((i) => i.label === '西直行饱和度')?.value).toContain('0.03')
-    expect(items.find((i) => i.label === '西直行绿灯利用')?.value).toBe('35%')
+    expect(items.find((i) => i.label === '西直行绿灯利用')?.value).toBe('0.35')
   })
 
   it('shows turn-level metrics from flow timing governance turn_balance when no by_turn', () => {
@@ -126,8 +126,8 @@ describe('buildNarrativeRuntimeItems', () => {
     })
 
     expect(items.find((i) => i.label === '东左转饱和度')?.value).toContain('1.77')
-    expect(items.find((i) => i.label === '东左转绿灯利用')?.value).toBe('177%')
-    expect(items.find((i) => i.label === '北左转绿灯利用')?.value).toBe('26%')
+    expect(items.find((i) => i.label === '东左转绿灯利用')?.value).toBe('1.77')
+    expect(items.find((i) => i.label === '北左转绿灯利用')?.value).toBe('0.26')
     expect(items.find((i) => i.label === '信号调整')).toBeUndefined()
   })
 

@@ -31,7 +31,9 @@ export const STEP_INDICES = {
 
 export const STEP_PAUSE_MS = 2200
 /** 运行数据子步骤（traffic/direction/…）队列间隔 */
-export const DATA_FETCH_STEP_PAUSE_MS = 1000
+export const DATA_FETCH_STEP_PAUSE_MS = 350
+/** 理解过程进入「运行数据」后，再延时揭示左侧运行数据与地图指标标注 */
+export const RUNTIME_PRESENTATION_DELAY_MS = 1000
 
 /** 饱和度 / 溢流风险 展示阈值（与 backend/rules/thresholds.yaml 对齐） */
 export const THRESHOLDS = {

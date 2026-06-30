@@ -48,6 +48,8 @@ const props = defineProps<{
   suggestionConfirmBanner?: string | null
   presentationLayers?: PresentationLayerGates
   focusStepIndex?: number
+  /** 路口结构步骤完成且运行数据面板已揭示后，才允许地图/左侧运行指标 */
+  runtimeMetricsUnlocked?: boolean
   leaderboardRefreshKey?: number
 }>()
 
@@ -69,6 +71,7 @@ const emit = defineEmits<{
   selectSkillFile: [path: string]
   skillBuildFinish: []
   corridorSelect: [interId: string]
+  upstreamNarration: [payload: { idx: number; text: string | null }]
 }>()
 
 const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
@@ -196,10 +199,13 @@ const canToggleCorridor = computed(
             :visual-pan-offset-x="corridorPanOffsetX"
             :suppress-stage-hud="showNarrativeStack"
             :active-dimensions="presentation.activeDimensions"
+            :runtime-panel-revealed="runtimeMetricsUnlocked"
+            :focus-step-index="focusStepIndex"
             @channelization-active="emit('channelizationActive', $event)"
             @close-timing-ring="emit('closeTimingRing')"
             @close-corridor-wave="emit('closeCorridorWave')"
             @corridor-intersection-select="emit('corridorSelect', $event)"
+            @upstream-narration="emit('upstreamNarration', $event)"
           />
 
           <IntersectionNarrativeStack
@@ -217,7 +223,7 @@ const canToggleCorridor = computed(
             :case-experience="presentation.caseExperience"
             :experience-sediment="presentation.experienceSediment"
             :focus-step-index="focusStepIndex ?? -1"
-            :runtime-panel-revealed="presentation.revealedInsightSteps.runtimePanel"
+            :runtime-panel-revealed="runtimeMetricsUnlocked"
             :phase="presentation.phase"
             :run-key="analysisRunKey ?? 0"
           />

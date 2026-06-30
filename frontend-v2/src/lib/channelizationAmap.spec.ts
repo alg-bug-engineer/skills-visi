@@ -175,6 +175,18 @@ describe('阶段标注', () => {
     expect(faces.length).toBe(layer.arms.length)
   })
 
+  it('applyQueueLengthHighlight 生成排队色带与末端线', () => {
+    const before = map.added.length
+    layer.applyQueueLengthHighlight([
+      { armAngle: 270, queueM: 85, satPct: 95, satRatio: 0.95, dir4: '西', label: '西进口' },
+    ])
+    expect(map.added.length).toBeGreaterThan(before)
+    const band = map.added.find((o) => o.type === 'Polygon' && o.opt.zIndex === 41)
+    const endLine = map.added.find((o) => o.type === 'Polyline' && o.opt.zIndex === 42)
+    expect(band).toBeTruthy()
+    expect(endLine).toBeTruthy()
+  })
+
   it('applyArmSceneLabels 生成臂外缘文本框', () => {
     layer.clearHighlight()
     layer.applyArmSceneLabels([{ dir: '西', line1: '西进口', line2: '饱和 95%', colorHex: '#00e5ff' }])

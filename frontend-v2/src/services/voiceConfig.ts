@@ -59,6 +59,7 @@ export const VOICE_GUIDE = {
   dataFetch: voiceConfig.guide.dataFetch,
   evidenceIntro: voiceConfig.guide.evidenceIntro,
   ruleIntro: voiceConfig.guide.ruleIntro,
+  upstreamIntro: voiceConfig.guide.upstreamIntro,
   suggestionConfirm: voiceConfig.guide.suggestionConfirm,
   absorptionStart: voiceConfig.guide.absorptionStart,
   absorptionDone: voiceConfig.guide.absorptionDone,

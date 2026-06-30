@@ -135,7 +135,7 @@ def _cognition() -> dict:
     }
 
 
-def test_build_map_scene_traffic_has_hud_and_marker():
+def test_build_map_scene_traffic_shows_delay_not_saturation_on_map():
     scene = build_map_scene(
         "traffic",
         cognition=_cognition(),
@@ -143,7 +143,14 @@ def test_build_map_scene_traffic_has_hud_and_marker():
     )
     assert scene["action"] == "map_scene"
     assert scene["hud"] is not None
-    assert len(scene["markers"]) >= 1
+    hud_labels = [m["label"] for m in scene["hud"]["metrics"]]
+    assert "饱和度" not in hud_labels
+    assert "延误指数" in hud_labels
+    sat_markers = [m for m in scene["markers"] if m.get("variant") == "saturation"]
+    turn_markers = [m for m in scene["markers"] if m.get("variant") == "turn"]
+    assert sat_markers == []
+    assert turn_markers == []
+    assert any(m.get("variant") == "delay" for m in scene["markers"])
 
 
 def test_build_map_scene_prefers_nlu_direction_over_worst_saturation():
@@ -173,9 +180,8 @@ def test_build_links_narration_payload_includes_speakable():
     assert payload["axis_roads"]["东西向"] == "经十路"
     assert "东西向为经十路" in payload["speakable"]
     assert "南北向为奥体西路" in payload["speakable"]
-    # 结构概览纳入口播，避免「被截断」：进口方向数 + 总车道数
-    assert "4个进口方向" in payload["speakable"]
-    assert "8条车道" in payload["speakable"]
+    assert "进口" not in payload["speakable"]
+    assert "车道" not in payload["speakable"]
     assert payload["speakable"].endswith("。")
 
 
@@ -291,7 +297,7 @@ def test_timing_narration_reports_duration_only():
     assert "最小绿" not in timing["text"]
 
 
-def test_build_map_scene_traffic_merges_direction_groups_when_arm_metrics_partial():
+def test_build_map_scene_traffic_defers_turn_saturation_to_direction_phase():
     cognition = _cognition()
     cognition["metrics_by_arm"] = [
         {"dir4_label": "东进口", "link_id": "e1", "saturation": 1.5},
@@ -303,19 +309,27 @@ def test_build_map_scene_traffic_merges_direction_groups_when_arm_metrics_partia
         {"label": "南直行", "dir4_label": "南", "turn_dir_no": 2, "turn_saturation": 1.2},
         {"label": "北直行", "dir4_label": "北", "turn_dir_no": 2, "turn_saturation": 1.2},
     ]
-    scene = build_map_scene(
+    traffic = build_map_scene(
         "traffic",
         cognition=cognition,
         data={"traffic_flow": {"saturation_rate": 1.5}, "evaluation": {"delay_index": 1.47}},
     )
-    turn_markers = [m for m in scene["markers"] if m.get("variant") == "turn"]
-    assert len(turn_markers) == 4
-    by_dir = {m["dir"]: m for m in turn_markers}
+    turn_markers = [m for m in traffic["markers"] if m.get("variant") == "turn"]
+    assert turn_markers == []
+
+    direction = build_map_scene(
+        "direction",
+        cognition=cognition,
+        data={"traffic_flow": {"saturation_rate": 1.5}, "evaluation": {"delay_index": 1.47}},
+    )
+    dir_turn = [m for m in direction["markers"] if m.get("variant") == "turn"]
+    assert len(dir_turn) == 4
+    by_dir = {m["dir"]: m for m in dir_turn}
     assert by_dir["东"]["value"] == "1.50"
     assert by_dir["南"]["value"] == "1.20"
 
 
-def test_build_map_scene_traffic_shows_missing_dirs_when_no_group_data():
+def test_build_map_scene_traffic_has_no_turn_markers_even_with_partial_groups():
     cognition = _cognition()
     cognition["direction_groups"] = [
         {
@@ -340,9 +354,7 @@ def test_build_map_scene_traffic_shows_missing_dirs_when_no_group_data():
         data={"traffic_flow": {"saturation_rate": 1.5}, "evaluation": {"delay_index": 1.47}},
     )
     turn_markers = [m for m in scene["markers"] if m.get("variant") == "turn"]
-    by_dir = {m["dir"]: m for m in turn_markers}
-    assert "南" not in by_dir
-    assert "北" not in by_dir
+    assert turn_markers == []
 
 
 def test_build_map_scene_timing_has_cycle_hud_only():

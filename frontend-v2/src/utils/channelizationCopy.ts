@@ -71,7 +71,7 @@ export function buildEvidenceListItems(evidence: ProblemEvidence): string[] {
   if (dow?.dow_label && dow.hit_rate != null && isDisplayVerdict(dow.verdict)) {
     const rate = `（约 ${(dow.hit_rate * 100).toFixed(0)}% 的周会中招）`
     parts.push(`每到周${dow.dow_label.replace(/^周/, '')}更容易出现这个问题${rate}`)
-  } else   if (isDisplayVerdict(dow?.verdict)) {
+  } else if (isDisplayVerdict(dow?.verdict)) {
     parts.push(dow!.verdict!)
   }
 
@@ -91,21 +91,14 @@ export function buildSuggestionPlainText(
 ): string | null {
   if (!suggestion?.narrative) return null
 
-  const plan = flowTimingGovernance?.action_plan
-  const primaryType = flowTimingGovernance?.primary_diagnosis?.type
-  const dir = suggestion.direction === 'increase' ? '增加' : suggestion.direction === 'reallocate' ? '挪绿' : '减少'
-  const delta = suggestion.delta_seconds != null ? Math.abs(suggestion.delta_seconds) : 0
-  let head = ''
-  if (plan?.headline) {
-    head = `${plan.headline}。`
-  } else if (
-    delta > 0 &&
-    primaryType !== 'capacity_bottleneck' &&
-    primaryType !== 'basically_matched'
-  ) {
-    head = `可参考${dir}主要方向绿灯约 ${delta} 秒（须结合绿信比综合研判）。`
+  const primaryHeadline = flowTimingGovernance?.primary_diagnosis?.headline?.trim()
+  let text = suggestion.narrative.trim()
+
+  if (primaryHeadline) {
+    text = text.replace(primaryHeadline, '').replace(/^[。；\s]+/, '').trim()
   }
-  return [head, suggestion.narrative].filter(Boolean).join('\n')
+
+  return text || suggestion.narrative.trim()
 }
 
 /** 治理建议列表项（按行/句号拆分） */
@@ -116,11 +109,13 @@ export function buildSuggestionListItems(
   const text = buildSuggestionPlainText(suggestion, flowTimingGovernance)
   if (!text) return []
 
+  const primaryHeadline = flowTimingGovernance?.primary_diagnosis?.headline?.trim()
   const lines = text
     .split(/\n+/)
     .flatMap((line) => line.split(/(?<=[。；])/))
     .map((s) => s.trim())
     .filter(Boolean)
+    .filter((line) => !primaryHeadline || !line.includes(primaryHeadline))
 
   return lines.length ? lines : [text]
 }

@@ -7,6 +7,7 @@
     "dataFetch": "开始拉取路口运行数据。",
     "evidenceIntro": "核对运行指标与常发规律，印证问题。",
     "ruleIntro": "结合专家规则分析拥堵原因。",
+    "upstreamIntro": "开始追溯各进口道的上游来车来源。",
     "suggestionConfirm": "诊断完成，请查看治理建议。",
     "absorptionStart": "开始整理并写入本次诊断经验。",
     "absorptionDone": "经验整理与技能写入完成。",
@@ -27,7 +28,7 @@
     "directionFocus": "关注{focusGroup}，饱和度{value}，{state}。",
     "directionProtected": "{protectGroup}为保护方向，饱和度{value}。",
     "imbalance": "失衡系数 {value}，{tail}。",
-    "imbalanceWithGreenUtil": "失衡系数 {value}，{tail}，绿灯利用率 {greenUtil}%。",
+    "imbalanceWithGreenUtil": "失衡系数 {value}，{tail}，绿灯利用率 {greenUtil}。",
     "evidenceChronic": "近 {window} 天中有 {days} 天常发拥堵，印证问题存在。",
     "evidenceDow": "每逢周{label}更容易出现这个问题{rateSuffix}。",
     "evidenceDowRateSuffix": "，约 {rate}% 的周会中招",
@@ -50,7 +51,7 @@
   },
   "playback": {
     "cueGapMs": 350,
-    "drainTailMs": 220,
+    "drainTailMs": 480,
     "interruptOnHighPriority": false,
     "intersectionGuideGapMs": 900
   }

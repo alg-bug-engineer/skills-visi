@@ -2,7 +2,14 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { checkHealth, createSession, sendMessageStream } from './api/client'
 import WorkbenchLayout from './components/workbench/WorkbenchLayout.vue'
-import { STEP_INDICES, STEP_PAUSE_MS, DATA_FETCH_STEP_PAUSE_MS, SUGGESTION_CONFIRM_BANNER } from './constants'
+import {
+  STEP_INDICES,
+  STEP_PAUSE_MS,
+  DATA_FETCH_STEP_PAUSE_MS,
+  RUNTIME_PRESENTATION_DELAY_MS,
+  SUGGESTION_CONFIRM_BANNER,
+} from './constants'
+import { shouldRevealRuntimePanel } from './utils/runtimePanelGate'
 import {
   isSkillPresentationActive,
   shouldEnterAnalysisTerminal,
@@ -39,8 +46,10 @@ import { processStepPhase, resolveProcessStepVoice } from './services/voiceStepS
 import {
   buildCognitionVoiceCue,
   buildDirectionVoiceCue,
+  buildEvidenceIntroCue,
   buildImbalanceCue,
   buildNarrationPhaseVoiceCue,
+  buildRuleCue,
   type DirectionRoleRow,
 } from './services/voiceCueExtractors'
 import { ABSORPTION_STAGE_VOICE } from './types/voice'
@@ -50,6 +59,8 @@ import {
   formatSkillReuseLines,
 } from './config/presentationCopy'
 import { voiceConfig, voiceTemplate } from './services/voiceConfig'
+import { summarizeUpstreamVoice, shouldVoiceUpstreamFrame } from './utils/upstreamVoice'
+import { upstreamStoryboardDurationMs } from './utils/upstreamTiming'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
 import type MapStage from './components/MapStage.vue'
 
@@ -125,9 +136,97 @@ const presentationSequence = usePresentationSequence()
 const lastIntersectionName = ref<string | null>(null)
 const voiceSentForStep = new Set<number>()
 let dataFetchGuideQueued = false
+const upstreamVoiceSeen = new Set<number>()
+let pendingPresentationStepIndex: number | null = null
+let runtimeRevealTimer: ReturnType<typeof setTimeout> | null = null
+let pendingRuleEngineVoice: Record<string, unknown> | null = null
+
+function isCognitionStepDone(): boolean {
+  const cog = processSteps.value.find((s) => s.index === STEP_INDICES.COGNITION)
+  return cog?.status === 'done'
+}
+
+const runtimeMetricsUnlocked = computed(() => {
+  if (!presentation.state.revealedInsightSteps.runtimePanel) return false
+  return isCognitionStepDone()
+})
+
+function clearRuntimeRevealTimer() {
+  if (runtimeRevealTimer) {
+    clearTimeout(runtimeRevealTimer)
+    runtimeRevealTimer = null
+  }
+}
+
+/** 运行数据面板：路口结构完成 + 进入运行数据步骤后，再延时揭示（避免与旁白抢拍）。 */
+function scheduleRevealRuntimePanel() {
+  const dataFetchStarted = processSteps.value.some((s) => s.index === STEP_INDICES.DATA_FETCH)
+  if (!shouldRevealRuntimePanel(dataFetchStarted, isCognitionStepDone())) return
+  if (presentation.state.revealedInsightSteps.runtimePanel) return
+  clearRuntimeRevealTimer()
+  runtimeRevealTimer = setTimeout(() => {
+    runtimeRevealTimer = null
+    const started = processSteps.value.some((s) => s.index === STEP_INDICES.DATA_FETCH)
+    if (!shouldRevealRuntimePanel(started, isCognitionStepDone())) return
+    presentation.revealRuntimePanel()
+  }, RUNTIME_PRESENTATION_DELAY_MS)
+}
+
+function flushDeferredPresentationStep() {
+  if (pendingPresentationStepIndex == null) return
+  if (!isCognitionStepDone()) return
+  presentationSequence.syncFromStepIndex(pendingPresentationStepIndex)
+  pendingPresentationStepIndex = null
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function isDataFetchSubBeat(phase?: string | null): boolean {
+  return Boolean(phase && ['traffic', 'direction', 'timing', 'imbalance'].includes(phase))
+}
+
+function enqueueUpstreamIntroVoice() {
+  if (!voice.enabled.value) return
+  voice.enqueue({
+    id: 'step:5:upstream:intro',
+    stepIndex: STEP_INDICES.RULE,
+    phase: 'upstream',
+    kind: 'guide',
+    text: VOICE_GUIDE.upstreamIntro,
+    priority: 0,
+  })
+}
+
+function handleUpstreamNarration(payload: { idx: number; text: string | null }) {
+  if (!voice.enabled.value || !payload.text?.trim()) return
+  if (!shouldVoiceUpstreamFrame(payload.text)) return
+  if (upstreamVoiceSeen.has(payload.idx)) return
+  upstreamVoiceSeen.add(payload.idx)
+  const spoken = summarizeUpstreamVoice(payload.text)
+  if (!spoken) return
+  voice.enqueue({
+    id: `step:5:upstream:frame:${payload.idx}`,
+    stepIndex: STEP_INDICES.RULE,
+    phase: 'upstream',
+    kind: 'highlight',
+    text: spoken,
+    priority: 1,
+  })
+}
+
+function ensureEvidenceIntroVoice() {
+  if (!voice.enabled.value || voiceSentForStep.has(STEP_INDICES.PROBLEM_EVIDENCE)) return
+  voiceSentForStep.add(STEP_INDICES.PROBLEM_EVIDENCE)
+  voice.enqueue(buildEvidenceIntroCue())
+}
+
+function flushPendingRuleEngineVoice() {
+  if (!voice.enabled.value || !pendingRuleEngineVoice) return
+  const cue = buildRuleCue(pendingRuleEngineVoice)
+  pendingRuleEngineVoice = null
+  if (cue) voice.enqueue(cue)
 }
 
 function ensureDataFetchGuideVoice() {
@@ -142,6 +241,12 @@ function ensureDataFetchGuideVoice() {
     text: VOICE_GUIDE.dataFetch,
     priority: 0,
   })
+}
+
+/** 治理建议步骤旁白：在 conclusion 呈现时主动调度，避免拖到技能固化步骤才播放。 */
+function ensureSuggestionGuideVoice() {
+  if (!voice.enabled.value || voiceSentForStep.has(STEP_INDICES.SUGGESTION)) return
+  void scheduleProcessStepVoice(STEP_INDICES.SUGGESTION)
 }
 
 function rememberIntersectionName(name: string) {
@@ -208,13 +313,20 @@ const {
   whenIdle: whenProcessIdle,
 } = useUnderstandingProcess({
   onStepStart(stepIndex) {
-    if (stepIndex === STEP_INDICES.DATA_FETCH) {
-      presentation.revealRuntimePanel()
-    }
     void scheduleProcessStepVoice(stepIndex)
+    if (stepIndex === STEP_INDICES.DATA_FETCH) {
+      scheduleRevealRuntimePanel()
+    }
+    if (stepIndex === STEP_INDICES.RULE) {
+      flushPendingRuleEngineVoice()
+    }
   },
   onStepComplete(stepIndex) {
     presentation.revealInsightsForProcessStep(stepIndex)
+    if (stepIndex === STEP_INDICES.COGNITION) {
+      flushDeferredPresentationStep()
+      scheduleRevealRuntimePanel()
+    }
   },
 })
 
@@ -237,12 +349,19 @@ const {
   reset: resetAbsorption,
 } = useExperienceAbsorption()
 
-const { whenSettled: whenPresentationSettled, whenProcessAndVoiceSettled } =
+const { whenSettled: whenPresentationSettled, whenProcessAndVoiceSettled, whenVoiceIdle } =
   createPresentationBarrier({
     whenProcessIdle,
     voice,
     getAbsorptionState: () => absorptionState,
   })
+
+/** 仅第一步「理解描述」语音播完后再进入锁定路口，避免「分析」被截断。 */
+async function awaitUnderstandVoiceGate() {
+  if (!voice.enabled.value) return
+  await waitForStepVoiceSent(STEP_INDICES.UNDERSTAND)
+  await voice.whenIdle()
+}
 
 /** 渠化全屏或技能固化/经验吸收演示时隐藏输入框，避免遮挡左侧终端 */
 const hideInputDock = computed(
@@ -541,7 +660,7 @@ function queueSuggestionConfirmPause(message: string) {
   docked.value = true
   analysisQueue.enqueue(async () => {
     suggestionConfirmQueued = false
-    await revealSuggestionStep(message)
+    await revealSuggestionStep(message, { silent: true })
     startSuggestionConfirmPause(message)
   }, STEP_PAUSE_MS)
 }
@@ -582,7 +701,12 @@ function stopSuggestionConfirmPause({ resumeQueue = true } = {}) {
 
 function syncPresentationFromAction(action?: Pick<MapActionEvent, 'phase' | 'focus_step_index'>) {
   if (action?.focus_step_index != null) {
-    presentationSequence.syncFromStepIndex(action.focus_step_index)
+    const target = action.focus_step_index
+    if (target > STEP_INDICES.COGNITION && !isCognitionStepDone()) {
+      pendingPresentationStepIndex = Math.max(pendingPresentationStepIndex ?? target, target)
+    } else {
+      presentationSequence.syncFromStepIndex(target)
+    }
   }
   if (action?.phase) {
     presentationSequence.syncFromPhase(action.phase as PipelinePhase)
@@ -596,8 +720,13 @@ function enqueueWithPresentation(
   silent = false,
   action?: Pick<MapActionEvent, 'step_summary' | 'focus_step_index' | 'phase'>,
 ) {
-  presentationSequence.syncFromStepIndex(index)
-  syncPresentationFromAction(action)
+  if (index > STEP_INDICES.COGNITION && !isCognitionStepDone()) {
+    pendingPresentationStepIndex = Math.max(pendingPresentationStepIndex ?? index, index)
+    syncPresentationFromAction({ phase: action?.phase })
+  } else {
+    presentationSequence.syncFromStepIndex(index)
+    syncPresentationFromAction(action)
+  }
   const summary = action?.step_summary?.trim()
   if (summary) {
     enqueueProcess(index, text, append, silent, { summary, detail: text })
@@ -646,9 +775,9 @@ async function revealSkillStep(message: string) {
   await whenPresentationSettled()
 }
 
-async function revealSuggestionStep(message: string) {
+async function revealSuggestionStep(message: string, { silent = false } = {}) {
   await whenPresentationSettled()
-  enqueueProcess(STEP_INDICES.SUGGESTION, message, true)
+  enqueueProcess(STEP_INDICES.SUGGESTION, message, true, silent)
   await whenPresentationSettled()
 }
 
@@ -693,6 +822,8 @@ async function presentSkillSolidificationConfirm(
     ) {
       return
     }
+    await waitForStepVoiceSent(STEP_INDICES.SUGGESTION)
+    await voice.whenIdle()
     if (!hasSkillStep()) {
       await revealSkillStep(message)
     }
@@ -791,10 +922,26 @@ function upsertStep(event: {
     const text =
       (d.text as string) ||
       (d.cause as string) ||
+      (d.measure as string) ||
       (d.quantified as string) ||
       (d.skill_id as string) ||
       ''
-    if (text) presentation.addExperienceSediment({ level, text })
+    // 认知画像：数据支撑则已验证(verified)，否则待验证(pending)
+    const status =
+      level === 'cognition'
+        ? d.status === 'verified'
+          ? 'verified'
+          : 'pending'
+        : undefined
+    const tagsFromServer = Array.isArray(d.tags) ? (d.tags as string[]) : undefined
+    const tags: string[] =
+      tagsFromServer ??
+      (level === 'cognition'
+        ? ['认知画像', '问题记录', d.status === 'verified' ? '已验证' : '待验证']
+        : level === 'diagnosis'
+          ? ['诊断经验', '用户口述', String(d.dimension || '用户观察')]
+          : ['方案经验', '治理措施'])
+    if (text) presentation.addExperienceSediment({ level, text, status, tags })
   }
   const idx = steps.value.findIndex((s) => s.step === event.step && s.status === 'running')
   const record: StepRecord = {
@@ -938,6 +1085,10 @@ function prepareNewAnalysisRun(userContent: string) {
   lastIntersectionName.value = null
   voiceSentForStep.clear()
   dataFetchGuideQueued = false
+  upstreamVoiceSeen.clear()
+  pendingPresentationStepIndex = null
+  pendingRuleEngineVoice = null
+  clearRuntimeRevealTimer()
   presentationSequence.reset()
   voice.resetSession()
   void workbenchRef.value?.mapStageRef?.prepareNewAnalysisRun()
@@ -1041,11 +1192,12 @@ function handleNarration(action: MapActionEvent) {
   ) {
     ensureDataFetchGuideVoice()
     const prefix = action.title ? `${action.title}：` : ''
+    const silentBeat = isDataFetchSubBeat(action.phase)
     enqueueWithPresentation(
       STEP_INDICES.DATA_FETCH,
       `${prefix}${text}`,
       true,
-      false,
+      silentBeat,
       narrOpts,
     )
     enqueueNarrationPhaseVoice(action)
@@ -1056,6 +1208,7 @@ function handleNarration(action: MapActionEvent) {
     presentationSequence.syncFromPhase('rule')
     presentationSequence.syncFromStepIndex(STEP_INDICES.RULE)
     enqueueWithPresentation(STEP_INDICES.RULE, text, false, false, narrOpts)
+    void scheduleProcessStepVoice(STEP_INDICES.RULE)
     return
   }
   if (action.phase === 'conclusion') {
@@ -1064,6 +1217,7 @@ function handleNarration(action: MapActionEvent) {
     presentationSequence.syncFromStepIndex(STEP_INDICES.SUGGESTION)
     patchSuggestionPayload(action.suggestion)
     enqueueWithPresentation(STEP_INDICES.SUGGESTION, text, false, false, narrOpts)
+    ensureSuggestionGuideVoice()
     return
   }
   if (action.phase === 'locate') {
@@ -1120,6 +1274,7 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
     }
 
     if (action.action === 'fly_to_intersection') {
+      await awaitUnderstandVoiceGate()
       const inter = action.intersection
       if (inter?.name) {
         rememberIntersectionName(inter.name)
@@ -1218,7 +1373,11 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       }
       applySceneHighlight(action)
       enqueueSceneVoice(action)
-      await whenPresentationSettled()
+      if (isDataFetchSubBeat(action.phase)) {
+        await whenVoiceIdle()
+      } else {
+        await whenPresentationSettled()
+      }
       pushMapAction(action)
       return
     }
@@ -1233,11 +1392,26 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       return
     }
 
+    if (action.action === 'upstream_tree') {
+      presentation.setPhase('rule')
+      presentationSequence.syncFromPhase('rule')
+      presentationSequence.syncFromStepIndex(STEP_INDICES.RULE)
+      upstreamVoiceSeen.clear()
+      enqueueUpstreamIntroVoice()
+      pushMapAction(action)
+      const durationMs = upstreamStoryboardDurationMs(action.storyboard?.frames)
+      if (durationMs > 0) {
+        await sleep(durationMs)
+      }
+      await whenPresentationSettled()
+      return
+    }
+
     if (action.action === 'confirm_bubble') {
       if (action.action_type === 'generate_suggestion') {
         const message = action.message ?? '问题诊断成立，是否需要生成治理建议？'
         suggestionConfirmQueued = false
-        await revealSuggestionStep(message)
+        await revealSuggestionStep(message, { silent: true })
         startSuggestionConfirmPause(message)
         return
       }
@@ -1256,6 +1430,7 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
 function handleProblemEvidenceStep(data: Record<string, unknown>) {
   const text = formatEvidenceStepText(data)
   analysisQueue.enqueue(async () => {
+    ensureEvidenceIntroVoice()
     const partial = data as unknown as ProblemEvidence & {
       quantitative_constraints?: QuantitativeConstraints
     }
@@ -1319,7 +1494,6 @@ function handlePipelineStep(
         enqueueProcess(STEP_INDICES.DATA_FETCH, '正在拉取路口运行数据…', false, false, {
           summary: '正在获取运行数据',
         })
-        presentationSequence.syncFromStepIndex(STEP_INDICES.DATA_FETCH)
       }, 0)
     } else {
       ensureDataFetchGuideVoice()
@@ -1369,6 +1543,7 @@ function handlePipelineStep(
   if (event.step === 'intersection' && data.inter_name) {
     rememberIntersectionName(String(data.inter_name))
     analysisQueue.enqueue(async () => {
+      await awaitUnderstandVoiceGate()
       const name = String(data.inter_name)
       enqueueProcess(STEP_INDICES.INTERSECTION, `路口匹配：${name}`, true, true, {
         summary: formatIntersectionMatchSummary(name),
@@ -1404,8 +1579,15 @@ function handlePipelineStep(
           true,
           true,
         )
+        if (data.diagnosed) {
+          pendingRuleEngineVoice = data
+        }
         await whenPresentationSettled()
       }, STEP_PAUSE_MS)
+    } else {
+      if (data.diagnosed) {
+        pendingRuleEngineVoice = data
+      }
     }
     return
   }
@@ -1444,6 +1626,10 @@ async function initSession() {
   lastIntersectionName.value = null
   voiceSentForStep.clear()
   dataFetchGuideQueued = false
+  upstreamVoiceSeen.clear()
+  pendingPresentationStepIndex = null
+  pendingRuleEngineVoice = null
+  clearRuntimeRevealTimer()
   presentationSequence.reset()
   panelMode.value = 'idle'
   sessionState.value = 'idle'
@@ -1649,6 +1835,7 @@ function onSkillBuildFinish() {
 }
 
 async function onReturnHome() {
+  analysisRunKey.value += 1
   await initSession()
 }
 
@@ -1717,6 +1904,7 @@ onUnmounted(() => {
       :suggestion-confirm-banner="suggestionConfirmBanner"
       :presentation-layers="presentationSequence.layers.value"
       :focus-step-index="presentationSequence.focusStepIndex.value"
+      :runtime-metrics-unlocked="runtimeMetricsUnlocked"
       :leaderboard-refresh-key="leaderboardRefreshKey"
       @toggle-voice="voice.toggleEnabled()"
       @channelization-active="channelizationActive = $event"
@@ -1735,6 +1923,7 @@ onUnmounted(() => {
       @select-skill-file="selectSkillFile"
       @skill-build-finish="onSkillBuildFinish"
       @corridor-select="handleCorridorSelect"
+      @upstream-narration="handleUpstreamNarration"
     />
   </div>
 </template>

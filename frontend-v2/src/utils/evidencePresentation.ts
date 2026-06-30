@@ -3,6 +3,15 @@ import type { CognitionPayload, IntersectionLink, MapSceneMarker } from '../type
 import { THRESHOLDS } from '../constants'
 import { isEntrance, linkSegmentAnchor, normalizeDir } from './mapMarkers'
 
+/** 绿灯利用率：与数仓原值一致，不做 ×100 百分比换算。 */
+export function formatGreenUtilizationRaw(
+  value: number | null | undefined,
+  digits = 2,
+): string {
+  if (value == null || Number.isNaN(value)) return '—'
+  return value.toFixed(digits)
+}
+
 export function formatPercent(value: number | null | undefined, digits = 0): string {
   if (value == null || Number.isNaN(value)) return '—'
   return `${(value * 100).toFixed(digits)}%`

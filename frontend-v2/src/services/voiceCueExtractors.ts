@@ -1,11 +1,9 @@
-import type { ProblemEvidence } from '../types/evidence'
 import type { VoiceCue } from '../types/voice'
 import { STEP_INDICES } from '../constants'
 import { summarizeNarrationForVoice } from '../utils/voiceTextSummarize'
 import {
   imbalanceTailLabel,
   saturationStateLabel,
-  voiceConfig,
   voiceGuide,
   voiceTemplate,
 } from './voiceConfig'
@@ -21,62 +19,9 @@ function cue(
   return { id, stepIndex, phase, kind, text, priority }
 }
 
-/** One strongest evidence highlight — not the full panel text. */
-export function buildEvidenceVoiceCue(data: Record<string, unknown>): VoiceCue {
-  const evidence = data as ProblemEvidence
-  const chronic = evidence.chronic
-  if (chronic?.is_chronic && chronic.congested_days != null) {
-    const window = chronic.window_days ?? 7
-    return cue(
-      'step:4:evidence:chronic',
-      STEP_INDICES.PROBLEM_EVIDENCE,
-      'evidence',
-      voiceTemplate('evidenceChronic', { window, days: chronic.congested_days }),
-      'highlight',
-      1,
-    )
-  }
-
-  const dow = evidence.dow_pattern
-  if (dow?.dow_label) {
-    const label = dow.dow_label.replace(/^周/, '')
-    const rateSuffix =
-      dow.hit_rate != null
-        ? voiceTemplate('evidenceDowRateSuffix', { rate: Math.round(dow.hit_rate * 100) })
-        : ''
-    return cue(
-      'step:4:evidence:dow',
-      STEP_INDICES.PROBLEM_EVIDENCE,
-      'evidence',
-      voiceTemplate('evidenceDow', { label, rateSuffix }),
-      'highlight',
-      1,
-    )
-  }
-
-  const story = evidence.diagnosis_story?.[0]
-  if (story?.title || story?.text) {
-    const title = (story.title ?? '').replace(/[：:]\s*$/, '')
-    const text = (story.text ?? '').split(/[。；]/)[0] ?? ''
-    const combined = [title, text].filter(Boolean).join('，').slice(0, 48)
-    return cue(
-      'step:4:evidence:story',
-      STEP_INDICES.PROBLEM_EVIDENCE,
-      'evidence',
-      combined || voiceGuide('evidenceIntro'),
-      'highlight',
-      1,
-    )
-  }
-
-  return cue(
-    'step:4:evidence:fallback',
-    STEP_INDICES.PROBLEM_EVIDENCE,
-    'evidence',
-    voiceConfig.templates.evidenceFallback,
-    'guide',
-    0,
-  )
+/** 问题印证步骤仅播引导语，结论留给面板展示。 */
+export function buildEvidenceVoiceCue(_data: Record<string, unknown>): VoiceCue {
+  return buildEvidenceIntroCue()
 }
 
 export function buildEvidenceIntroCue(): VoiceCue {
@@ -101,7 +46,7 @@ export function buildImbalanceCue(
       ? voiceTemplate('imbalanceWithGreenUtil', {
           value: imbalance.toFixed(2),
           tail,
-          greenUtil: Math.round(greenUtil * 100),
+          greenUtil: Number(greenUtil).toFixed(2),
         })
       : voiceTemplate('imbalance', { value: imbalance.toFixed(2), tail })
   return cue(
@@ -142,19 +87,17 @@ function isStructureOnlyVoice(text: string): boolean {
   return !DATA_DEPENDENT_VOICE_RE.test(body)
 }
 
-/** TTS for links/cognition phase with axis road names. */
+/** TTS for links/cognition phase with axis road names only (no counts / metrics). */
 export function buildCognitionVoiceCue(payload: AxisRoadsPayload): VoiceCue | null {
   const axis = payload.axis_roads ?? {}
   const ew = axis['东西向']
   const ns = axis['南北向']
-  const interName = payload.intersectionName ?? ''
   let text = payload.speakable?.trim() ?? ''
   if (!text && (ew || ns)) {
-    text = voiceTemplate('axisRoads', {
-      interName: interName || '该路口',
-      ewRoad: ew || '—',
-      nsRoad: ns || '—',
-    })
+    const parts: string[] = []
+    if (ew) parts.push(`东西向为${ew}`)
+    if (ns) parts.push(`南北向为${ns}`)
+    text = parts.length ? `${parts.join('，')}。` : ''
   }
   if (!text || !isStructureOnlyVoice(text)) return null
   return cue('step:2:cognition:roads', STEP_INDICES.COGNITION, 'links', text, 'highlight', 1)

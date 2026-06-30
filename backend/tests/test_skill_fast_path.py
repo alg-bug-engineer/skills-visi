@@ -203,7 +203,8 @@ async def test_fast_path_supplement_merges_constraints_on_persist(client):
 
 
 @pytest.mark.asyncio
-async def test_first_diagnosis_awaits_suggestion_generation(client):
+async def test_first_diagnosis_auto_generates_cross_intersection(client):
+    """RT-CONF-AUTO-01: 无用户建议时主路径零确认，溯源后直接生成跨路口协调建议、不固化。"""
     create = await client.post("/api/v1/sessions")
     sid = create.json()["session_id"]
     resp = await client.post(
@@ -211,10 +212,11 @@ async def test_first_diagnosis_awaits_suggestion_generation(client):
         json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵"},
     )
     body = resp.json()
-    assert body["state"] == "awaiting_confirm"
-    assert body["meta"].get("suggestion_action") == "awaiting_generate"
-    # 过饱和触发上游溯源后，确认文案改为跨路口协调建议
-    assert "协调建议" in body["reply"]["content"]
+    assert body["state"] == "done"
+    assert body["reply"]["type"] == "diagnosis"
+    assert body["suggestion"] is not None
+    assert body["meta"].get("suggestion_action") == "generated_cross_intersection"
+    assert body["meta"].get("skill_action") == "skipped_no_user_suggestion"
 
 
 async def _persist_sample_skill(client) -> None:

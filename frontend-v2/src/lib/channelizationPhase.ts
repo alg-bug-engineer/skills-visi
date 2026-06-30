@@ -20,6 +20,10 @@ import {
   buildArmLabelsFromDirectionGroups,
   buildArmLabelsFromEntranceLinks,
   buildArmLabelsFromQueue,
+  isPlaceholderLabelLine,
+  parseSaturationFromLabelLine,
+  saturationHintColor,
+  saturationProblemHint,
 } from '../utils/channelArmLabels'
 import { highlightDirsForGroup } from '../utils/evidencePresentation'
 import type { ArmSceneLabel, HighlightEvidence, TurnHighlightSpec } from './channelizationAmap'
@@ -33,6 +37,7 @@ export interface PhaseHighlightTarget {
   applyCheckHighlight(indicatorId: string, verdict: string, evidence: HighlightEvidence): void
   applyDirectionRoleHighlight(focusDirs: string[], protectDirs: string[]): void
   applyArmSceneLabels(labels: ArmSceneLabel[]): void
+  applyQueueLengthHighlight(queueArms: ChannelQueueArm[]): void
 }
 
 export interface PhaseHighlightParams {
@@ -48,6 +53,8 @@ export interface PhaseHighlightParams {
   queueArms?: ChannelQueueArm[]
   /** 后端按问题类型推导的呈现维度，门控排队等图层是否相关 */
   activeDimensions?: string[]
+  /** 运行数据步骤已揭示后才展示排队/饱和度等运行指标标注 */
+  allowRuntimeMetrics?: boolean
 }
 
 const ARM_LABEL_PHASES: PipelinePhase[] = [
@@ -59,8 +66,49 @@ const ARM_LABEL_PHASES: PipelinePhase[] = [
   'imbalance',
 ]
 
-/** 这些阶段在「排队」维度相关时叠加排队长度标签（拥堵/溢出） */
-const QUEUE_LABEL_PHASES: PipelinePhase[] = ['traffic', 'saturation', 'granularity', 'imbalance']
+/** 仅在这些阶段于渠化地图上展示饱和度数值（避免 traffic 与左侧面板重复） */
+const SATURATION_ON_MAP_PHASES: PipelinePhase[] = ['direction', 'saturation']
+
+function isSaturationLabelLine(line2: string): boolean {
+  const t = line2.trim()
+  return (
+    /^饱和[\d.]+/.test(t) ||
+    /^饱和度 /.test(t) ||
+    /^[\d.]+$/.test(t)
+  )
+}
+
+function stripSaturationFromLabels(labels: ArmSceneLabel[]): ArmSceneLabel[] {
+  return labels
+    .map((l) => {
+      if (!isSaturationLabelLine(l.line2)) {
+        return isPlaceholderLabelLine(l.line2) ? null : l
+      }
+      const line2 = l.line2.replace(/^饱和[\d.]+ · /, '').trim()
+      if (!line2 || isSaturationLabelLine(line2) || isPlaceholderLabelLine(line2)) {
+        return null
+      }
+      return { ...l, line2 }
+    })
+    .filter((l): l is ArmSceneLabel => l != null && Boolean(l.line1 || l.line2?.trim()))
+}
+
+function enrichSaturationHints(labels: ArmSceneLabel[]): ArmSceneLabel[] {
+  return labels
+    .map((l) => {
+      const sat = parseSaturationFromLabelLine(l.line2)
+      if (sat == null) return isPlaceholderLabelLine(l.line2) ? null : l
+      return {
+        ...l,
+        line2: saturationProblemHint(sat),
+        colorHex: saturationHintColor(sat),
+      }
+    })
+    .filter((l): l is ArmSceneLabel => l != null && Boolean(l.line1 || l.line2?.trim()))
+}
+
+/** traffic 展示排队；direction/saturation 在饱和度提示旁可叠加排队长度 */
+const QUEUE_LABEL_PHASES: PipelinePhase[] = ['traffic', 'direction', 'saturation']
 
 function sceneMarkersForPhase(phase: PipelinePhase, markers: MapSceneMarker[]): MapSceneMarker[] {
   if (phase === 'direction') return markers
@@ -85,7 +133,11 @@ function baseArmLabels(
   cognition: CognitionPayload | null,
 ): ArmSceneLabel[] {
   const fromMarkers = buildArmLabelsFromScene(sceneMarkersForPhase(phase, sceneMarkers), null)
-  if (phase !== 'direction' && phase !== 'traffic') return fromMarkers
+  // traffic：仅进口/排队标识，不补充分向饱和度（留到 direction 阶段一次性呈现）
+  if (phase === 'traffic') {
+    return stripSaturationFromLabels(fromMarkers)
+  }
+  if (phase !== 'direction' && phase !== 'saturation') return fromMarkers
   const covered = new Set(fromMarkers.map((l) => l.dir))
   const fromGroups = buildArmLabelsFromDirectionGroups(cognition).filter((l) => !covered.has(l.dir))
   for (const l of fromGroups) covered.add(l.dir)
@@ -102,10 +154,22 @@ function mergeQueueLabels(
 ): ArmSceneLabel[] {
   if (!QUEUE_LABEL_PHASES.includes(phase)) return base
   if (!isPresentationDimActive(activeDimensions, 'queue')) return base
-  const queueLabels = buildArmLabelsFromQueue(queueArms)
+  const includeSaturation = SATURATION_ON_MAP_PHASES.includes(phase)
+  const queueLabels = buildArmLabelsFromQueue(queueArms, { includeSaturation })
   if (!queueLabels.length) return base
   const byDir = new Map(base.map((l) => [l.dir, l]))
-  for (const q of queueLabels) byDir.set(q.dir, q)
+  for (const q of queueLabels) {
+    const existing = byDir.get(q.dir)
+    const queueText = q.line2.replace(/^饱和[\d.]+ · /, '').trim()
+    if (existing?.line2 && queueText) {
+      const mergedLine2 = existing.line2.includes('排队')
+        ? existing.line2
+        : `${existing.line2} · ${queueText}`
+      byDir.set(q.dir, { ...existing, line2: mergedLine2, colorHex: q.colorHex || existing.colorHex })
+    } else {
+      byDir.set(q.dir, q)
+    }
+  }
   return [...byDir.values()]
 }
 
@@ -167,13 +231,27 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
   }
 
   applyDirectionRoleOnArms(layer, phase, params.highlightDirs ?? [], params.protectedDirs ?? [])
-  layer.applyArmSceneLabels(
-    armLabelsForPhase(
-      phase,
-      params.sceneMarkers ?? [],
-      params.cognition,
-      params.queueArms ?? [],
-      params.activeDimensions,
-    ),
+  let labels = armLabelsForPhase(
+    phase,
+    params.sceneMarkers ?? [],
+    params.cognition,
+    params.queueArms ?? [],
+    params.activeDimensions,
   )
+  if (SATURATION_ON_MAP_PHASES.includes(phase)) {
+    labels = enrichSaturationHints(labels)
+  } else {
+    labels = stripSaturationFromLabels(labels)
+  }
+  layer.applyArmSceneLabels(labels)
+
+  const hasQueueText = labels.some((l) => l.line2?.includes('排队'))
+  if (
+    hasQueueText &&
+    QUEUE_LABEL_PHASES.includes(phase) &&
+    isPresentationDimActive(params.activeDimensions, 'queue')
+  ) {
+    const activeQueues = (params.queueArms ?? []).filter((q) => q.queueM > 0)
+    if (activeQueues.length) layer.applyQueueLengthHighlight(activeQueues)
+  }
 }

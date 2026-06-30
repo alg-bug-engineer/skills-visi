@@ -63,7 +63,8 @@ async def test_nlu_follow_up(client):
 
 
 @pytest.mark.asyncio
-async def test_deny_suggestion_confirmation(client):
+async def test_first_diagnosis_auto_generates_without_confirm(client):
+    """RT-CONF-AUTO-02: 无用户建议时主路径零确认，溯源后直接出建议、问题证据齐备、不固化。"""
     create = await client.post("/api/v1/sessions")
     sid = create.json()["session_id"]
     first = await client.post(
@@ -71,22 +72,12 @@ async def test_deny_suggestion_confirmation(client):
         json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵"},
     )
     first_body = first.json()
-    assert first_body["state"] == "awaiting_confirm"
-    assert first_body["reply"]["type"] == "follow_up"
-    assert first_body["suggestion"] is None
-    assert first_body["meta"].get("suggestion_action") == "awaiting_generate"
-    # 过饱和进口道触发上游溯源后，确认文案改为跨路口协调建议
-    assert "上游治理落点" in first_body["reply"]["content"]
-    assert "跨路口协调建议" in first_body["reply"]["content"]
+    assert first_body["state"] == "done"
+    assert first_body["reply"]["type"] == "diagnosis"
+    assert first_body["suggestion"] is not None
+    assert first_body["meta"].get("suggestion_action") == "generated_cross_intersection"
+    assert first_body["meta"].get("skill_action") == "skipped_no_user_suggestion"
     assert first_body["meta"].get("problem_evidence")
-    assert "问题验证" in first_body["reply"]["content"] or "常发" in first_body["reply"]["content"]
-    assert "建议增加绿灯时长" not in first_body["reply"]["content"]
-    deny = await client.post(
-        f"/api/v1/sessions/{sid}/messages",
-        json={"content": "否"},
-    )
-    assert deny.json()["state"] == "done"
-    assert "未生成治理建议" in deny.json()["reply"]["content"]
 
 
 def test_problem_confirm_message_strips_rule_suggestion_wording():
@@ -118,7 +109,8 @@ def test_problem_confirm_message_strips_rule_suggestion_wording():
 
 
 @pytest.mark.asyncio
-async def test_green_light_complaint_without_explicit_advice_still_requires_confirmation(client):
+async def test_green_light_complaint_without_explicit_advice_auto_generates(client):
+    """RT-CONF-AUTO-03: 抱怨"绿灯不够"但未给明确约束时，仍按主路径零确认自动生成、不固化。"""
     create = await client.post("/api/v1/sessions")
     sid = create.json()["session_id"]
 
@@ -128,46 +120,38 @@ async def test_green_light_complaint_without_explicit_advice_still_requires_conf
     )
 
     body = resp.json()
-    assert body["state"] == "awaiting_confirm"
-    assert body["reply"]["type"] == "follow_up"
-    assert body["suggestion"] is None
-    assert body["nlu"]["user_suggestion"] is None
-    assert body["meta"].get("suggestion_action") == "awaiting_generate"
-
-
-@pytest.mark.asyncio
-async def test_plain_confirmation_generates_suggestion_without_skill(client):
-    create = await client.post("/api/v1/sessions")
-    sid = create.json()["session_id"]
-    await client.post(
-        f"/api/v1/sessions/{sid}/messages",
-        json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵"},
-    )
-
-    confirm = await client.post(
-        f"/api/v1/sessions/{sid}/messages",
-        json={"content": "是"},
-    )
-    body = confirm.json()
     assert body["state"] == "done"
     assert body["reply"]["type"] == "diagnosis"
     assert body["suggestion"] is not None
-    assert body["meta"].get("suggestion_action") == "generated"
+    assert body["nlu"]["user_suggestion"] is None
     assert body["meta"].get("skill_action") == "skipped_no_user_suggestion"
 
 
 @pytest.mark.asyncio
-async def test_confirmation_with_constraint_generates_suggestion_then_awaits_skill_confirm(client):
+async def test_plain_diagnosis_generates_suggestion_without_skill(client):
+    """RT-CONF-AUTO-04: 纯诊断（无约束）零确认生成建议但不固化技能。"""
     create = await client.post("/api/v1/sessions")
     sid = create.json()["session_id"]
-    await client.post(
+    resp = await client.post(
         f"/api/v1/sessions/{sid}/messages",
         json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵"},
     )
+    body = resp.json()
+    assert body["state"] == "done"
+    assert body["reply"]["type"] == "diagnosis"
+    assert body["suggestion"] is not None
+    assert body["meta"].get("skill_action") == "skipped_no_user_suggestion"
+
+
+@pytest.mark.asyncio
+async def test_diagnosis_with_constraint_generates_suggestion_then_awaits_skill_confirm(client):
+    """RT-CONF-AUTO-05: 首轮即带用户约束 → 零确认生成建议后进入固化确认。"""
+    create = await client.post("/api/v1/sessions")
+    sid = create.json()["session_id"]
 
     confirm = await client.post(
         f"/api/v1/sessions/{sid}/messages",
-        json={"content": "是，优先保障南北向直行，绿灯可以延长"},
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵，优先保障南北向直行，绿灯可以延长"},
     )
     body = confirm.json()
     assert body["state"] == "awaiting_confirm"
@@ -211,14 +195,10 @@ async def test_declined_skill_create(client):
 async def test_constraint_is_reflected_in_suggestion_and_persisted_skill(client, skill_dir_path):
     create = await client.post("/api/v1/sessions")
     sid = create.json()["session_id"]
-    await client.post(
-        f"/api/v1/sessions/{sid}/messages",
-        json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵"},
-    )
 
     confirm = await client.post(
         f"/api/v1/sessions/{sid}/messages",
-        json={"content": "要考虑垂直方向不能溢出"},
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵，要考虑垂直方向不能溢出"},
     )
     body = confirm.json()
 
