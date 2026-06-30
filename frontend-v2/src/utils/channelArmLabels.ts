@@ -83,6 +83,81 @@ export function buildTurnLabelsFromCognition(
   return labels
 }
 
+/** 从 cognition 取单进口饱和度（优先 metrics_by_arm，其次 by_turn 转向最大值）。 */
+export function saturationForDir(
+  cognition: CognitionPayload | null,
+  dir: string,
+): number | null {
+  if (!cognition) return null
+  const key = dirKeyFromLabel(dir)
+  if (!key) return null
+  for (const arm of cognition.metrics_by_arm ?? []) {
+    const d = dirKeyFromLabel(arm.dir4_label)
+    if (d === key && arm.saturation != null) return Number(arm.saturation)
+  }
+  let best: number | null = null
+  for (const row of cognition.metrics_by_turn ?? []) {
+    const d = dirKeyFromLabel(row.dir4_label || row.label)
+    if (d !== key || row.turn_saturation == null) continue
+    const sat = Number(row.turn_saturation)
+    if (best == null || sat > best) best = sat
+  }
+  return best
+}
+
+/** 关注/保护方向臂标：饱和 + 失衡 + 排队合并为一行。 */
+export function buildRoleArmLabels(
+  highlightDirs: string[],
+  protectedDirs: string[],
+  cognition: CognitionPayload | null,
+  queueArms: ChannelQueueArm[] = [],
+  imbalanceIndex?: number | null,
+): ArmSceneLabel[] {
+  const byDir = new Map<string, ArmSceneLabel>()
+  const queueByDir = new Map<string, ChannelQueueArm>()
+  for (const q of queueArms) {
+    const key = dirKeyFromLabel(q.dir4) ?? dirKeyFromLabel(q.label)
+    if (key && q.queueM > 0) queueByDir.set(key, q)
+  }
+
+  function metricLine(dirKey: string, sat: number | null, isFocus: boolean): string {
+    const parts: string[] = []
+    if (sat != null) parts.push(`饱和 ${sat.toFixed(2)}`)
+    if (isFocus && imbalanceIndex != null && Number.isFinite(imbalanceIndex)) {
+      parts.push(`失衡 ${Number(imbalanceIndex).toFixed(2)}`)
+    }
+    const q = queueByDir.get(dirKey)
+    if (q && q.queueM > 0) parts.push(`排队~${Math.round(q.queueM)}m`)
+    return parts.length ? parts.join(' · ') : isFocus ? '重点关注' : '保护'
+  }
+
+  for (const dir of highlightDirs) {
+    const key = dirKeyFromLabel(dir)
+    if (!key) continue
+    const sat = saturationForDir(cognition, key)
+    byDir.set(key, {
+      dir: key,
+      line1: `关注 ${key}进口`,
+      line2: metricLine(key, sat, true),
+      colorHex: saturationHintColor(sat ?? 1.0),
+    })
+  }
+  for (const group of protectedDirs) {
+    for (const dir of group.replace('向', '').split('').filter(Boolean)) {
+      const key = dirKeyFromLabel(dir)
+      if (!key || byDir.has(key)) continue
+      const sat = saturationForDir(cognition, key)
+      byDir.set(key, {
+        dir: key,
+        line1: `保护 ${group}`,
+        line2: metricLine(key, sat, false),
+        colorHex: '#6dffb5',
+      })
+    }
+  }
+  return [...byDir.values()]
+}
+
 /** 从 direction_groups 补全四向饱和度标签（metrics_by_turn 缺项时 fallback）。 */
 export function buildArmLabelsFromDirectionGroups(
   cognition: CognitionPayload | null,

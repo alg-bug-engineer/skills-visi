@@ -1,5 +1,30 @@
 # 变更日志
 
+## v3.4 · 流量溯源拓扑 geom 单链 (2026-06-30)
+
+### 溯源与地图
+
+- 新增 `UpstreamTopologyService`：link 邻接 + `dim_link_info.geom` 折线为主，correlate 流量占比为辅（白名单 + 方位角）。
+- `UpstreamGovernanceTraceService` 改为沿 `corridor_dir8` 单链上溯；storyboard `edge.path` 来自 `hop_path`。
+- 前端 `upstreamTraceLayer`：发光干线 / 节点脉冲 / 极简标签；溯源期禁止红色诊断遮罩与两点飞线 fallback。
+- `buildRoleArmLabels`：饱和 · 失衡 · 排队合并为一行。
+
+### 工具与回归
+
+- `backend/scripts/probe_upstream_topology.py`；`scripts/verify-upstream-trace.mjs`（RT-TRACE-07/08）。
+- `REGRESSION_TEST_SPEC.md` 增补 RT-TRACE-07/08/09。
+
+### 文档
+
+- [`docs/plans/2026-06-30-流量溯源干线geom重构计划.md`](../../docs/plans/2026-06-30-流量溯源干线geom重构计划.md)
+- [`docs/plans/2026-06-30-流量溯源干线geom重构-复盘.md`](../../docs/plans/2026-06-30-流量溯源干线geom重构-复盘.md)
+- [`docs/流量溯源表结构信息.md`](../../docs/流量溯源表结构信息.md) §应用层
+- [`backend/docs/PROJECT_LOGIC.md`](PROJECT_LOGIC.md) §8
+
+- 后端 pytest **272**；前端 vitest **211**。
+
+---
+
 ## develop · 信控演示叙事精简 (2026-06-29)
 
 > 分支 `develop` 首个可用版本 · **勿合并 `main`**

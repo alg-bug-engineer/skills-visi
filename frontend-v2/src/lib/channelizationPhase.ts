@@ -20,6 +20,7 @@ import {
   buildArmLabelsFromDirectionGroups,
   buildArmLabelsFromEntranceLinks,
   buildArmLabelsFromQueue,
+  buildRoleArmLabels,
   isPlaceholderLabelLine,
   parseSaturationFromLabelLine,
   saturationHintColor,
@@ -109,6 +110,9 @@ function enrichSaturationHints(labels: ArmSceneLabel[]): ArmSceneLabel[] {
     .filter((l): l is ArmSceneLabel => l != null && Boolean(l.line1 || l.line2?.trim()))
 }
 
+/** 关注/保护高亮与臂标在运行数据相关阶段持续展示，避免一闪而过。 */
+const ROLE_HIGHLIGHT_PHASES: PipelinePhase[] = ['direction', 'traffic', 'saturation', 'granularity']
+
 /** traffic 展示排队；direction/saturation 在饱和度提示旁可叠加排队长度 */
 const QUEUE_LABEL_PHASES: PipelinePhase[] = ['traffic', 'direction', 'saturation']
 
@@ -123,8 +127,21 @@ function armLabelsForPhase(
   cognition: CognitionPayload | null,
   queueArms: ChannelQueueArm[] = [],
   activeDimensions?: string[],
+  highlightDirs: string[] = [],
+  protectedDirs: string[] = [],
+  imbalanceIndex?: number | null,
 ): ArmSceneLabel[] {
   if (!ARM_LABEL_PHASES.includes(phase)) return []
+  if (highlightDirs.length || protectedDirs.length) {
+    const role = buildRoleArmLabels(
+      highlightDirs,
+      protectedDirs,
+      cognition,
+      queueArms,
+      imbalanceIndex,
+    )
+    if (role.length) return role
+  }
   const base = baseArmLabels(phase, sceneMarkers, cognition)
   return mergeQueueLabels(phase, base, queueArms, activeDimensions)
 }
@@ -181,7 +198,7 @@ function applyDirectionRoleOnArms(
   highlightDirs: string[],
   protectedDirs: string[],
 ) {
-  if (phase !== 'direction') {
+  if (!ROLE_HIGHLIGHT_PHASES.includes(phase)) {
     layer.applyDirectionRoleHighlight([], [])
     return
   }
@@ -239,10 +256,14 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
     params.cognition,
     params.queueArms ?? [],
     params.activeDimensions,
+    params.highlightDirs ?? [],
+    params.protectedDirs ?? [],
+    params.runtimeMetrics?.imbalance_index ?? params.runtimeMetrics?.unbalance_index ?? null,
   )
-  if (SATURATION_ON_MAP_PHASES.includes(phase)) {
+  const usingRoleLabels = Boolean(params.highlightDirs?.length || params.protectedDirs?.length)
+  if (!usingRoleLabels && SATURATION_ON_MAP_PHASES.includes(phase)) {
     labels = enrichSaturationHints(labels)
-  } else {
+  } else if (!usingRoleLabels) {
     labels = stripSaturationFromLabels(labels)
   }
   layer.applyArmSceneLabels(labels)

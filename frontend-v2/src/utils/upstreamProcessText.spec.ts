@@ -28,6 +28,18 @@ describe('buildUpstreamProcessText', () => {
     expect(text).not.toContain('治理落点')
   })
 
+  it('numbers each upstream hop', () => {
+    const text = buildUpstreamProcessText(SB)
+    expect(text).toContain('上游1 经十路路口')
+    expect(text).toContain('上游2 龙奥北路路口')
+  })
+
+  it('uses provided target turn label as the headline', () => {
+    const text = buildUpstreamProcessText(SB, '西左转')
+    expect(text).toContain('西左转 沿干线追溯上游来车。')
+    expect(text).toContain('西左转 → 上游1 经十路路口')
+  })
+
   it('returns empty for missing storyboard', () => {
     expect(buildUpstreamProcessText(null)).toBe('')
   })

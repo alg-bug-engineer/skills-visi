@@ -125,6 +125,25 @@ def _dir8s_from_directions(
     return [d for d in out if d in available]
 
 
+_TURN_HINTS = ("左", "直", "右", "调", "掉头")
+
+
+def _turn_specific_dir8s(
+    directions: list[str] | None, available: set[int]
+) -> list[int]:
+    """含转向语义的方向（如「西左转」）→ 仅对应进口，避免把附带提及的其它进口一并溯源。"""
+    out: set[int] = set()
+    for raw in directions or []:
+        token = str(raw).strip()
+        if not any(h in token for h in _TURN_HINTS):
+            continue
+        for code, label in DIR8_LABELS.items():
+            if token.startswith(label):
+                out.add(code)
+                break
+    return [d for d in sorted(out) if d in available]
+
+
 def _row_dir8(row: dict[str, Any]) -> int | None:
     """从 by_turn 行解析进口道 dir8：优先 dir8_code，否则按 label 首方位回退。"""
     d8 = row.get("dir8_code")
@@ -1613,11 +1632,27 @@ class Orchestrator:
             if (r.get("turn_saturation") or 0.0) >= trigger
             and (d8 := _row_dir8(r)) is not None
         }
-        # 用户明示方向（如「南北向」→北+南）即便未全过饱和也一并溯源
-        directed = _dir8s_from_directions(
-            session.nlu.directions if session.nlu else None, available
-        )
-        dir8s = sorted(saturated | set(directed))
+        # 收口：用户明示方向/转向（如「西进口」「南北向」）为最高优先级，命中时只溯该方向；
+        # 用户未指定时，默认只聚焦诊断命中的「首个（最饱和）问题进口」一条链路，
+        # 不再把其余过饱和进口自动并入，保证流量溯源始终是单一来流溯源。
+        nlu_dirs = session.nlu.directions if session.nlu else None
+        # 「西左转」等带转向语义时只溯该进口，不把同句里顺带提到的其它进口并入。
+        turn_specific = _turn_specific_dir8s(nlu_dirs, available)
+        directed = _dir8s_from_directions(nlu_dirs, available)
+        if turn_specific:
+            dir8s = turn_specific
+        elif directed:
+            dir8s = sorted(directed)
+        elif saturated:
+            top_row = max(
+                (r for r in by_turn if _row_dir8(r) in saturated),
+                key=lambda r: r.get("turn_saturation") or 0.0,
+                default=None,
+            )
+            top_dir = _row_dir8(top_row) if top_row else None
+            dir8s = [top_dir] if top_dir is not None else []
+        else:
+            dir8s = []
         approaches = [f"{DIR8_LABELS[d]}进口" for d in dir8s if d in DIR8_LABELS]
         if not approaches:
             return 0

@@ -7,6 +7,9 @@ def _tree(tree_id, approach):
         "root": {
             "inter_id": "U1", "inter_name": "上游U1", "decision": "继续上溯",
             "hop": 1, "lng": 1.0, "lat": 1.0, "feeding_dir8": 0,
+            "hop_path": [[1.0, 1.0], [0.5, 0.5], [0.0, 0.0]],
+            "path_source": "link_geom",
+            "coverage": 73.0,
             "approach_profiles": [{"dir8_code": 0, "turn_saturation_max": 0.95}],
             "turn_split": [
                 {"turn": "直行", "share_pct": 60.0},
@@ -73,6 +76,16 @@ def test_frames_single_tree_serial():
     assert n_frames[-1]["frame_type"] == "fit"
     assert n_frames[-1]["fit"] is True
     assert n_frames[-1]["center"] is None
+
+
+def test_edges_carry_geom_paths_from_hop_path():
+    sb = build_upstream_storyboard([_tree("N", "北进口")], cognition={})
+    n_tree = next(t for t in sb["trees"] if t["tree_id"] == "N")
+    edge = next(e for e in n_tree["edges"] if e["to"] == "U1")
+    assert len(edge["path"]) >= 2
+    assert edge.get("path_source") == "link_geom"
+    assert edge["path"][0] == [1.0, 1.0]
+    assert edge["path"][-1] == [0.0, 0.0]
 
 
 def test_nodes_carry_saturation_and_turn_split():

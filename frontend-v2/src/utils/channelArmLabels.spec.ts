@@ -4,6 +4,7 @@ import {
   buildArmLabelsFromDirectionGroups,
   buildArmLabelsFromEntranceLinks,
   buildArmLabelsFromQueue,
+  buildRoleArmLabels,
   saturationProblemHint,
 } from './channelArmLabels'
 import type { ChannelQueueArm } from './cognitionChannelAdapter'
@@ -33,6 +34,39 @@ describe('buildArmLabelsFromQueue', () => {
 
   it('returns empty when no queue', () => {
     expect(buildArmLabelsFromQueue([])).toEqual([])
+  })
+})
+
+describe('buildRoleArmLabels', () => {
+  it('merges saturation imbalance and queue in one line for focus arm', () => {
+    const cognition = {
+      intersection: { inter_id: '1', name: '测试', lon: 117, lat: 36 },
+      arms: [],
+      metrics_by_arm: [{ link_id: 'w1', dir4_label: '西', saturation: 1.94 }],
+    } as CognitionPayload
+    const queueArms: ChannelQueueArm[] = [
+      { armAngle: 270, queueM: 120, satPct: 194, satRatio: 1.94, dir4: '西', label: '西进口' },
+    ]
+    const labels = buildRoleArmLabels(['西'], [], cognition, queueArms, 0.38)
+    const west = labels.find((l) => l.dir === '西')
+    expect(west?.line2).toContain('饱和 1.94')
+    expect(west?.line2).toContain('失衡 0.38')
+    expect(west?.line2).toContain('排队~120m')
+    expect(west?.line2?.split('饱和').length).toBe(2)
+  })
+
+  it('keeps protected arm saturation without imbalance', () => {
+    const cognition = {
+      intersection: { inter_id: '1', name: '测试', lon: 117, lat: 36 },
+      arms: [],
+      metrics_by_arm: [
+        { link_id: 'w1', dir4_label: '西', saturation: 1.94 },
+        { link_id: 'n1', dir4_label: '北', saturation: 0.42 },
+      ],
+    } as CognitionPayload
+    const labels = buildRoleArmLabels(['西'], ['南北向'], cognition)
+    expect(labels.find((l) => l.dir === '北')?.line1).toBe('保护 南北向')
+    expect(labels.find((l) => l.dir === '西')?.line2).toContain('饱和 1.94')
   })
 })
 

@@ -1,5 +1,25 @@
 # frontend-v2 进度记录
 
+## v3.4（2026-06-30）— 拓扑 geom 单链发光溯源
+
+### 已完成
+
+- [x] **拓扑一跳**：西左转上一跳「经十路与转山西路」；路径来自 link geom（禁飞线）
+- [x] **单链路渲染**：`upstreamTraceLayer` 发光干线 + 节点脉冲 + 极简标签；溯源期无红遮罩
+- [x] **指标合并**：关注进口臂标 `饱和 · 失衡 · 排队` 一行
+- [x] **E2E**：`scripts/verify-upstream-trace.mjs`（`LABEL=westleft`）
+
+### 文档
+
+- [docs/plans/2026-06-30-流量溯源干线geom重构计划.md](../../docs/plans/2026-06-30-流量溯源干线geom重构计划.md)
+- [docs/plans/2026-06-30-流量溯源干线geom重构-复盘.md](../../docs/plans/2026-06-30-流量溯源干线geom重构-复盘.md)
+
+### 单测
+
+- vitest **211** 项（含 `traceParticles.spec`、`channelArmLabels` 合并指标）
+
+---
+
 ## v3.3（2026-06-30）— 上游溯源地图运镜 · 案例库闭环
 
 > 已合并 `main`（含 `feat/map-zoom-debug`、`feat/case-library-and-absorption-loop`）

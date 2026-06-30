@@ -11,6 +11,7 @@ from intersection_agent.utils.direction_groups import (
     primary_groups_from_nlu,
     protected_groups_for_vertical_constraint,
 )
+from intersection_agent.utils.traffic_labels import DIR8_LABELS
 from intersection_agent.utils.turn_metrics import normalize_turn_metrics
 
 
@@ -138,8 +139,64 @@ def _road_path_for_entry(
             best_len = len(path)
             best_path = path
     if best_path:
-        return best_path
+        return _orient_path_endpoints(best_path, up_lon, up_lat, float(clon), float(clat))
     return [[up_lon, up_lat], [float(clon), float(clat)]]
+
+
+def _orient_path_endpoints(
+    path: list[list[float]],
+    start_lon: float,
+    start_lat: float,
+    end_lon: float,
+    end_lat: float,
+) -> list[list[float]]:
+    """确保折线从上游路口 (start) 指向目标路口 (end)。"""
+    if len(path) < 2:
+        return path
+    d0s = (path[0][0] - start_lon) ** 2 + (path[0][1] - start_lat) ** 2
+    d0e = (path[0][0] - end_lon) ** 2 + (path[0][1] - end_lat) ** 2
+    if d0e < d0s:
+        return list(reversed(path))
+    return path
+
+
+_APPROACH_TO_DIR8 = {f"{label}进口": code for code, label in DIR8_LABELS.items()}
+
+
+def _upstream_edge_path(
+    cognition: dict[str, Any] | None,
+    *,
+    approach: str,
+    from_lon: float | None,
+    from_lat: float | None,
+    to_lon: float | None,
+    to_lat: float | None,
+    target_edge: bool,
+) -> list[list[float]]:
+    if (
+        from_lon is None
+        or from_lat is None
+        or to_lon is None
+        or to_lat is None
+    ):
+        return []
+    if target_edge:
+        dir8 = _APPROACH_TO_DIR8.get(approach)
+        if dir8 is not None:
+            return _road_path_for_entry(
+                cognition,
+                dir8,
+                {"lon": to_lon, "lat": to_lat},
+                from_lon,
+                from_lat,
+            )
+    return _orient_path_endpoints(
+        [[from_lon, from_lat], [to_lon, to_lat]],
+        from_lon,
+        from_lat,
+        to_lon,
+        to_lat,
+    )
 
 
 def pick_narration_step(steps: list[dict[str, Any]], phase: str) -> dict[str, Any] | None:
@@ -1738,6 +1795,7 @@ def _merge_upstream_frames(frames: list[dict[str, Any]], frame_idx: int) -> dict
 
 def _build_single_tree_phases(
     tree: dict[str, Any],
+    cognition: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """单进口道溯源树 → 侧卡数据 + 分相位帧（pullback/target/hops/fit）。"""
     tid = tree["tree_id"]
@@ -1745,6 +1803,11 @@ def _build_single_tree_phases(
     root = tree["root"]
     target = tree.get("target") or {}
     target_id = target.get("inter_id")
+    target_lon = target.get("lon")
+    target_lat = target.get("lat")
+    node_coords: dict[str, tuple[float | None, float | None]] = {
+        str(target_id): (target_lon, target_lat),
+    }
 
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
@@ -1785,13 +1848,19 @@ def _build_single_tree_phases(
         }
         nodes.append(view)
         path_nodes.append(view)
+        node_coords[str(nid)] = (view.get("lon"), view.get("lat"))
         if parent_id is not None:
+            hop_path = node.get("hop_path") or []
+            path_source = node.get("path_source") or (
+                "link_geom" if len(hop_path) >= 2 else "none"
+            )
             edges.append(
                 {
                     "id": f"edge:{tid}:{parent_id}-{nid}",
                     "from": parent_id,
                     "to": nid,
-                    "path": [],
+                    "path": hop_path,
+                    "path_source": path_source,
                     "flow_pct": node.get("coverage"),
                     "dominant_turn": node.get("feeding_dir8"),
                 }
@@ -1929,7 +1998,7 @@ def build_upstream_storyboard(
     out_trees: list[dict[str, Any]] = []
     all_phases: list[dict[str, Any]] = []
     for tree in trees:
-        out_tree, phases = _build_single_tree_phases(tree)
+        out_tree, phases = _build_single_tree_phases(tree, cognition)
         out_trees.append(out_tree)
         all_phases.append(phases)
 

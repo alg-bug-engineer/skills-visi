@@ -4,17 +4,13 @@ import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, M
 import { isEdgeId, visibleAtFrame } from '../utils/upstreamFrame'
 import { assignLabelAnchors } from '../utils/upstreamLayout'
 import {
-  colorAtGradientProgress,
-  segmentPathWithGradient,
-  sleepMs,
-} from '../utils/upstreamGradient'
-import {
   UPSTREAM_CHAN_FADE_MS,
   UPSTREAM_CORRIDOR_ZOOM,
   UPSTREAM_ROAD_HOLD_MS,
   upstreamFrameDuration,
 } from '../utils/upstreamTiming'
-import { prepareUpstreamStoryboard, upstreamEdgeStrokeWeight } from '../utils/upstreamStoryboard'
+import { prepareUpstreamStoryboard } from '../utils/upstreamStoryboard'
+import { createUpstreamTraceLayer, type UpstreamTraceLayer } from '../lib/upstreamTraceLayer'
 import { severityColor } from '../utils/ringSeverity'
 import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
 import type { PipelinePhase, HighlightTurn, RuntimeMetrics } from '../types/presentation'
@@ -170,13 +166,8 @@ const linkOverlays: InstanceType<typeof AMap.Polyline>[] = []
 const glowOverlays: InstanceType<typeof AMap.Polyline>[] = []
 const markers: InstanceType<typeof AMap.Marker>[] = []
 
-// —— 上游治理溯源：全自动逐路口运镜（无控制条 / 用户全程不操作） ——
-const upstreamOverlays: Array<InstanceType<typeof AMap.Polyline> | InstanceType<typeof AMap.Marker>> = []
-const upstreamOverlayById = new Map<
-  string,
-  InstanceType<typeof AMap.Polyline> | InstanceType<typeof AMap.Marker>
->()
-const upstreamEdgeSegments = new Map<string, InstanceType<typeof AMap.Polyline>[]>()
+// —— 上游治理溯源：单链路发光干线，全自动逐路口运镜（无控制条 / 用户全程不操作） ——
+let traceLayer: UpstreamTraceLayer | null = null
 let upstreamStoryboard: UpstreamStoryboard | null = null
 /** 递增以作废进行中的溯源动画/运镜任务 */
 let upstreamEpoch = 0
@@ -184,7 +175,6 @@ const upstreamIdx = ref(0)
 let upstreamTimer: ReturnType<typeof setTimeout> | null = null
 let lastUpstreamCenter: [number, number] | null = null
 let lastUpstreamZoom: number | null = null
-const upstreamSpreadTasks = new Map<string, Promise<void>>()
 
 const sceneOpts = ref({
   highlightDirs: [] as string[],
@@ -289,25 +279,17 @@ function centerMapOnIntersection(lon: number, lat: number, zoom?: number) {
   panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
 }
 
-// ===== 上游治理溯源：全自动逐路口运镜 =====
-function clearUpstreamOverlays() {
-  upstreamOverlayById.forEach((o) => (o as { setMap: (m: null) => void }).setMap(null))
-  upstreamOverlayById.clear()
-  upstreamEdgeSegments.clear()
-  upstreamOverlays.length = 0
-}
-
+// ===== 上游治理溯源：单链路发光干线，全自动逐路口运镜 =====
 function disposeUpstream() {
   upstreamEpoch += 1
   if (upstreamTimer) {
     clearTimeout(upstreamTimer)
     upstreamTimer = null
   }
-  clearUpstreamOverlays()
+  traceLayer?.dispose()
+  traceLayer = null
   upstreamStoryboard = null
   upstreamIdx.value = 0
-  upstreamSpreadTasks.clear()
-  upstreamEdgeSegments.clear()
   lastUpstreamCenter = null
   lastUpstreamZoom = null
 }
@@ -321,67 +303,41 @@ function findUpstreamNode(sb: UpstreamStoryboard, key: string): UpstreamTreeNode
   return null
 }
 
-function turnSplitChips(node: UpstreamTreeNode): string {
-  return (node.turn_split ?? [])
-    .map((s) => {
-      if (s.data_gap) {
-        return `<span class="us-chip us-chip-gap">${s.turn}待核查</span>`
-      }
-      if (s.share_pct == null) return ''
-      return `<span class="us-chip">${s.turn}${s.share_pct}%</span>`
-    })
-    .filter(Boolean)
-    .join('')
-}
-
-function syncUpstreamOverlayDim(sb: UpstreamStoryboard, activeTree: string) {
-  if (sb.parallel) return
-  for (const tree of sb.trees) {
-    const dimTree = tree.tree_id !== activeTree
-    for (const edge of tree.edges) {
-      for (const line of upstreamEdgeSegments.get(edge.id) ?? []) {
-        line.setOptions?.({ strokeOpacity: dimTree ? 0.25 : 0.9 })
-      }
-    }
-    for (const node of tree.nodes) {
-      const id = node.id ?? node.inter_id ?? ''
-      if (!id) continue
-      for (const suffix of ['dot', 'label'] as const) {
-        const key = `${suffix}:${id}`
-        const marker = upstreamOverlayById.get(key) as
-          | { getContent?: () => string; setContent?: (h: string) => void }
-          | undefined
-        if (!marker?.getContent || !marker.setContent) continue
-        const html = marker.getContent()
-        if (typeof html !== 'string') continue
-        const shouldDim = dimTree && node.role !== 'target'
-        const hasDim = html.includes('is-dim')
-        if (shouldDim === hasDim) continue
-        marker.setContent(
-          shouldDim
-            ? html.replace(/class="([^"]*)"/, 'class="$1 is-dim"')
-            : html.replace(/\s*is-dim/g, ''),
-        )
-      }
-    }
-  }
-}
-
 function resolveEdgePath(
   sb: UpstreamStoryboard,
   edge: { from?: string | null; to?: string | null; path?: Array<[number, number]> },
 ): Array<[number, number]> {
+  const upstream = edge.to ? findUpstreamNode(sb, edge.to) : null
+  const downstream = edge.from ? findUpstreamNode(sb, edge.from) : null
   let path = (edge.path ?? []).map((p) => [p[0], p[1]] as [number, number])
-  if (path.length >= 2) return path
-  const a = edge.from ? findUpstreamNode(sb, edge.from) : null
-  const b = edge.to ? findUpstreamNode(sb, edge.to) : null
-  if (a?.lon != null && a.lat != null && b?.lon != null && b.lat != null) {
-    return [
-      [a.lon, a.lat],
-      [b.lon, b.lat],
-    ]
+  if (path.length >= 2 && upstream?.lon != null && upstream.lat != null && downstream?.lon != null && downstream.lat != null) {
+    path = orientPathEndpoints(
+      path,
+      [upstream.lon as number, upstream.lat as number],
+      [downstream.lon as number, downstream.lat as number],
+    )
+    return path
   }
-  return path
+  if (path.length >= 2) return path
+  // 禁止飞线：无 geom 折线时不渲染
+  return []
+}
+
+function orientPathEndpoints(
+  path: Array<[number, number]>,
+  start: [number, number],
+  end: [number, number],
+): Array<[number, number]> {
+  if (path.length < 2) return path
+  const dist = (a: [number, number], b: [number, number]) =>
+    (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+  const forward = dist(path[0], start) + dist(path[path.length - 1], end)
+  const reverse = dist(path[path.length - 1], start) + dist(path[0], end)
+  const oriented = forward <= reverse ? path : [...path].reverse()
+  if (dist(oriented[0], start) > dist(oriented[oriented.length - 1], start)) {
+    return [...oriented].reverse()
+  }
+  return oriented
 }
 
 function incomingEdgeForNode(sb: UpstreamStoryboard, nodeId: string): UpstreamTreeEdge | null {
@@ -404,160 +360,62 @@ function labelsVisibleAtFrame(sb: UpstreamStoryboard, n: number, nodeId: string)
   return false
 }
 
-async function animateGradientEdge(
-  edge: UpstreamTreeEdge,
-  path: Array<[number, number]>,
-  dimTree: boolean,
-): Promise<void> {
-  if (!map || !AMapLib || path.length < 2) return
-  const edgeId = edge.id
-  if (upstreamOverlayById.has(edgeId)) return
-
-  const segments = segmentPathWithGradient(path)
-  if (!segments.length) return
-  const groupKey = `${edgeId}:group`
-  const lines: InstanceType<typeof AMap.Polyline>[] = []
-  const strokeWeight = upstreamEdgeStrokeWeight(edge.flow_pct)
-
-  const task = (async () => {
-    const epoch = upstreamEpoch
-    for (let i = 0; i < segments.length; i++) {
-      if (epoch !== upstreamEpoch) {
-        lines.forEach((line) => line.setMap(null))
-        return
-      }
-      const seg = segments[i]
-      const color = colorAtGradientProgress(seg.progress)
-      const line = new AMapLib.Polyline({
-        path: seg.path,
-        strokeColor: color,
-        strokeWeight,
-        strokeOpacity: dimTree ? 0.28 : 0.92,
-        lineJoin: 'round',
-        lineCap: 'round',
-        showDir: i === segments.length - 1,
-        zIndex: 70 + i,
-      })
-      line.setMap(map!)
-      lines.push(line)
-      upstreamOverlays.push(line)
-      if (i < segments.length - 1) {
-        await sleepMs(55)
-      }
-    }
-    upstreamOverlayById.set(edgeId, lines[lines.length - 1]!)
-    upstreamOverlayById.set(groupKey, lines[0]!)
-    upstreamEdgeSegments.set(edgeId, lines)
-  })()
-
-  upstreamSpreadTasks.set(edgeId, task)
-  await task
-  upstreamSpreadTasks.delete(edgeId)
-}
-
-function renderUpstreamTargetRipple(node: UpstreamTreeNode, dim: boolean) {
-  if (!map || !AMapLib || node.lon == null || node.lat == null) return
-  const id = node.id ?? node.inter_id ?? ''
-  const rippleKey = `ripple:${id}`
-  if (upstreamOverlayById.has(rippleKey)) return
-  const ripple = new AMapLib.Marker({
-    position: [node.lon, node.lat],
-    anchor: 'center',
-    zIndex: 80,
-    content: `<div class="us-ripple${dim ? ' is-dim' : ''}"></div>`,
-  })
-  ripple.setMap(map)
-  upstreamOverlayById.set(rippleKey, ripple)
-  upstreamOverlays.push(ripple)
-}
-
-/** 帧增量揭示：渐变蔓延连线，指标卡在 node 帧再落。 */
+/** 帧增量揭示：单链路发光干线 + 流动粒子 + 节点脉冲 + 极简标签（仅当前进口树）。 */
 function renderUpstreamFrame(n: number) {
   const epoch = upstreamEpoch
   const sb = upstreamStoryboard
-  if (!sb || !map || !AMapLib || epoch !== upstreamEpoch) return
+  if (!sb || !map || !AMapLib || !traceLayer || epoch !== upstreamEpoch) return
   const frame = sb.frames[Math.max(0, Math.min(n, sb.frames.length - 1))]
   const { overlayIds, activeTree } = visibleAtFrame(sb, n)
 
-  for (const tree of sb.trees) {
-    const dimTree = tree.tree_id !== activeTree
+  // 单链路收口：非并行时只渲染当前活动进口树，避免多方向同画。
+  const trees = sb.parallel ? sb.trees : sb.trees.filter((t) => t.tree_id === activeTree)
+
+  for (const tree of trees) {
     for (const edge of tree.edges) {
-      if (!overlayIds.has(edge.id) || upstreamOverlayById.has(edge.id)) continue
+      if (!overlayIds.has(edge.id) || traceLayer.hasOverlay(edge.id)) continue
       const path = resolveEdgePath(sb, edge)
       if (path.length < 2) continue
-      void animateGradientEdge(edge, path, dimTree)
+      traceLayer.revealEdge(edge.id, path, { flowPct: edge.flow_pct })
     }
   }
 
-  const visible: Array<{ tree: string; node: UpstreamTreeNode; id: string }> = []
-  for (const tree of sb.trees) {
+  const visible: Array<{ node: UpstreamTreeNode; id: string }> = []
+  for (const tree of trees) {
     for (const node of tree.nodes) {
       const id = node.id ?? node.inter_id ?? ''
       if (!id || !overlayIds.has(id)) continue
       if (node.lon == null || node.lat == null) continue
-      visible.push({ tree: tree.tree_id, node, id })
+      visible.push({ node, id })
     }
   }
   const anchors = assignLabelAnchors(visible.map((v) => ({ id: v.id, hop: v.node.hop })))
 
-  for (const { tree, node, id } of visible) {
-    const dim = tree !== activeTree
-    const dotKey = `dot:${id}`
-    const labelKey = `label:${id}`
+  for (const { node, id } of visible) {
     const isTarget = node.role === 'target'
-    const showLabels = labelsVisibleAtFrame(sb, n, id)
-
-    if (isTarget && !upstreamOverlayById.has(`ripple:${id}`)) {
-      renderUpstreamTargetRipple(node, dim)
-    }
-
-    if (!upstreamOverlayById.has(dotKey)) {
-      const isGov = node.role === 'governance' || node.decision === '治理落点'
-      const sat = node.saturation ?? null
-      const color = isTarget ? '#ff5a5a' : isGov ? '#6dffb5' : severityColor(sat)
-      const dot = new AMapLib.Marker({
-        position: [node.lon as number, node.lat as number],
-        anchor: 'center',
-        zIndex: 81,
-        content: `<div class="us-dot${dim ? ' is-dim' : ''}${isTarget ? ' is-target' : ''}" style="background:${color}"></div>`,
-      })
-      dot.setMap(map)
-      upstreamOverlayById.set(dotKey, dot)
-      upstreamOverlays.push(dot)
-    }
-
-    // 目标（问题进口）路口只保留中心红色脉冲，不再落「问题进口」指标卡，
-    // 避免与上游标注一起在主路口堆叠（与后端"目标路口暂不展示指标卡"一致）。
-    if (isTarget || !showLabels || upstreamOverlayById.has(labelKey)) continue
-
     const isGov = node.role === 'governance' || node.decision === '治理落点'
+    const role = isTarget ? 'target' : isGov ? 'governance' : 'upstream'
+    traceLayer.revealNode(id, node.lon as number, node.lat as number, { role })
+
+    // 目标（问题进口）路口只保留红色脉冲，不落指标卡，避免主路口堆叠。
+    if (isTarget || !labelsVisibleAtFrame(sb, n, id)) continue
+
     const sat = node.saturation ?? null
     const color = isGov ? '#6dffb5' : severityColor(sat)
-    const [dx, dy] = anchors[id] ?? [0, -58]
-    const satTxt =
-      typeof sat === 'number' && sat > 0.01 ? `饱和 ${sat.toFixed(2)}` : '待核查数仓'
+    const [dx, dy] = anchors[id] ?? [0, -54]
+    const satTxt = typeof sat === 'number' && sat > 0.01 ? `饱和 ${sat.toFixed(2)}` : '待核查'
     const flowPct = incomingEdgeForNode(sb, id)?.flow_pct
     const flowTxt =
-      typeof flowPct === 'number' && flowPct > 0
-        ? `<div class="us-flow">流量 ${Math.round(flowPct)}辆/100</div>`
-        : ''
-    const chips = `<div class="us-chips">${turnSplitChips(node)}</div>`
-    const label = new AMapLib.Marker({
-      position: [node.lon as number, node.lat as number],
-      anchor: 'center',
-      offset: new AMapLib.Pixel(dx, dy),
-      zIndex: 82,
-      content:
-        `<div class="us-card${dim ? ' is-dim' : ''}${isGov ? ' is-gov' : ''}">` +
-        `<div class="us-name">${isGov ? '★ ' : ''}${node.name ?? id}</div>` +
-        `<div class="us-sat" style="color:${color}">${satTxt}</div>${flowTxt}${chips}</div>`,
-    })
-    label.setMap(map)
-    upstreamOverlayById.set(labelKey, label)
-    upstreamOverlays.push(label)
+      typeof flowPct === 'number' && flowPct > 0 ? ` · 流量占比 ${Math.round(flowPct)}%` : ''
+    const hopTxt = typeof node.hop === 'number' ? `上游${node.hop}` : '上游'
+    const html =
+      `<div class="us-label${isGov ? ' is-gov' : ''}">` +
+      `<div class="us-hop">${hopTxt}</div>` +
+      `<div class="us-name">${isGov ? '★ ' : ''}${node.name ?? id}</div>` +
+      `<div class="us-metric" style="color:${color}">${satTxt}${flowTxt}</div></div>`
+    traceLayer.revealLabel(id, node.lon as number, node.lat as number, html, [dx, dy])
   }
 
-  syncUpstreamOverlayDim(sb, activeTree)
   const narr = frame?.narration ?? null
   emit('upstreamNarration', { idx: n, text: narr })
 }
@@ -606,10 +464,7 @@ async function applyUpstreamFrameCamera(n: number) {
   const frame = state.frame
 
   if (state.fit || frame?.frame_type === 'fit') {
-    if (upstreamSpreadTasks.size) {
-      await Promise.all([...upstreamSpreadTasks.values()])
-    }
-    const fitTargets = upstreamOverlays.filter(Boolean)
+    const fitTargets = traceLayer?.overlays() ?? []
     if (fitTargets.length) {
       await withProgrammatic(async () => {
         map!.setFitView(fitTargets, true, [90, 120, 150, 120])
@@ -628,7 +483,7 @@ async function applyUpstreamFrameCamera(n: number) {
   await flyToUpstreamCorridor(center, zoom, duration)
 }
 
-/** 流量溯源：从渠化视角起步，先隐渠化、只留道路 link，再平滑过渡到溯源 zoom。 */
+/** 流量溯源：从渠化视角起步，先隐渠化、清空旧高亮，再平滑过渡到溯源 zoom。 */
 async function enterUpstreamFromChannelization(center: [number, number]) {
   if (!map || !AMapLib) return
   const startZoom = map.getZoom()
@@ -639,13 +494,13 @@ async function enterUpstreamFromChannelization(center: [number, number]) {
   viewMode.value = 'map'
   await upstreamCameraSleep(UPSTREAM_CHAN_FADE_MS)
 
-  // 2) 移除车道级渠化几何，恢复道路 link 高亮
+  // 2) 移除车道级渠化几何，并清空上一阶段的虚线框 / 进口道高亮 / 浮动结果卡，
+  // 让单链路发光干线在干净底图上呈现（对齐参考项目「干线诊断」表达）。
   disposeChannelization()
   channelizationLocked.value = false
   chanSceneMarkers.value = []
-  // 清理上一分析阶段遗留在主路口的浮动结果卡（失衡系数/保护/建议等），
-  // 流量溯源只保留蔓延连线与上游路口标注。
   clearMarkers()
+  clearOverlays()
   extraEvidenceMarkers = []
   scenePhase.value = 'links'
   sceneOpts.value = {
@@ -655,7 +510,6 @@ async function enterUpstreamFromChannelization(center: [number, number]) {
     flashDirs: [],
     dimOthers: false,
   }
-  drawHighlights()
   await upstreamCameraSleep(UPSTREAM_ROAD_HOLD_MS)
 
   // 3) 从渠化 zoom（~18.5）单次平滑过渡到溯源主视角 16.00
@@ -709,6 +563,7 @@ function scheduleUpstreamTick() {
 
 async function beginUpstreamStoryboard(sb: UpstreamStoryboard, targetHint?: HighlightTurn | null) {
   disposeUpstream()
+  if (map && AMapLib) traceLayer = createUpstreamTraceLayer(AMapLib, map)
   const prepared = prepareUpstreamStoryboard(sb, targetHint)
   upstreamStoryboard = prepared.storyboard
   const first = upstreamStoryboard.frames[0]
@@ -770,6 +625,9 @@ function boundsFromLinks(links: IntersectionLink[], center: [number, number]) {
 
 function drawHighlights() {
   if (!map || !AMapLib || !cognition.value?.intersection || channelizationLocked.value) return
+  // 流量溯源开始后，全程禁止诊断高亮框（红色遮罩）/进口道高亮重绘，
+  // 让地图从溯源阶段起只保留单链路发光干线，直到下一轮分析重置。
+  if (upstreamStoryboard) return
   clearOverlays()
 
   const inter = cognition.value.intersection
@@ -1591,108 +1449,101 @@ watch(
 </style>
 
 <style>
-/* 上游溯源：路口锚点圆点 + 偏移浮动标注卡（全局，注入 HTML） */
-.us-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
-  transition: opacity 0.45s ease, transform 0.45s ease;
-}
-.us-dot.is-dim {
-  opacity: 0.4;
-}
-.us-dot.is-target {
+/* 上游溯源（单链路发光干线）：节点脉冲 + 流动粒子 + 极简标签（全局，注入 HTML） */
+.us-node {
   width: 14px;
   height: 14px;
-  box-shadow: 0 0 12px rgba(255, 90, 90, 0.75);
-}
-.us-ripple {
-  width: 44px;
-  height: 44px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 90, 90, 0.85);
-  box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.45);
-  animation: us-ripple-pulse 1.8s ease-out infinite;
+  background: #f5a623;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 14px rgba(245, 166, 35, 0.78), 0 0 34px rgba(245, 166, 35, 0.26);
+  transition: opacity 0.45s ease;
 }
-.us-ripple.is-dim {
+.us-node::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  color: rgba(245, 166, 35, 0.72);
+  animation: us-node-ripple 2.2s ease-out infinite;
+}
+.us-node.is-gov {
+  background: #2ed573;
+  box-shadow: 0 0 16px rgba(46, 213, 115, 0.78), 0 0 36px rgba(46, 213, 115, 0.22);
+}
+.us-node.is-gov::after {
+  color: rgba(46, 213, 115, 0.68);
+}
+.us-node.is-target {
+  width: 18px;
+  height: 18px;
+  background: #ff4757;
+  box-shadow: 0 0 18px rgba(255, 71, 87, 0.9), 0 0 44px rgba(255, 71, 87, 0.32);
+}
+.us-node.is-target::after {
+  inset: -11px;
+  color: rgba(255, 71, 87, 0.82);
+}
+.us-node.is-dim {
   opacity: 0.35;
 }
-@keyframes us-ripple-pulse {
+.us-node.is-dim::after {
+  animation: none;
+}
+@keyframes us-node-ripple {
   0% {
-    transform: scale(0.55);
-    opacity: 0.95;
-    box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.5);
+    opacity: 0.88;
+    transform: scale(0.45);
   }
-  70% {
-    transform: scale(1);
-    opacity: 0.35;
-    box-shadow: 0 0 0 14px rgba(255, 90, 90, 0);
-  }
+  75%,
   100% {
-    transform: scale(1.05);
-    opacity: 0.15;
-    box-shadow: 0 0 0 18px rgba(255, 90, 90, 0);
+    opacity: 0;
+    transform: scale(2.15);
   }
 }
-.us-card {
-  min-width: 86px;
-  max-width: 168px;
-  padding: 5px 9px;
-  border-radius: 9px;
-  border: 1.5px solid #7ec8ff;
-  background: rgba(9, 13, 21, 0.94);
-  white-space: normal;
+.us-particle {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff4d6;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 12px rgba(255, 207, 122, 0.95), 0 0 24px rgba(245, 166, 35, 0.5);
+}
+.us-label {
+  min-width: 78px;
+  max-width: 150px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 166, 35, 0.42);
+  background: rgba(6, 12, 24, 0.94);
+  white-space: nowrap;
   font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.42);
 }
-.us-card.is-dim {
-  opacity: 0.4;
+.us-label.is-gov {
+  border-color: rgba(46, 213, 115, 0.5);
 }
-.us-card.is-gov {
-  border-color: #6dffb5;
+.us-label .us-hop {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #ffcf7a;
 }
-.us-card.is-target {
-  border-color: #ff5a5a;
+.us-label.is-gov .us-hop {
+  color: #6dffb5;
 }
-.us-card .us-name {
+.us-label .us-name {
   font-size: 12px;
   font-weight: 700;
   color: #eaf4ff;
   line-height: 1.3;
 }
-.us-card .us-sat {
-  font-size: 11px;
-  font-weight: 600;
-  margin-top: 1px;
-}
-.us-card .us-flow {
-  margin-top: 2px;
-  color: #ffe7b3;
+.us-label .us-metric {
   font-size: 10px;
   font-weight: 700;
+  margin-top: 1px;
   line-height: 1.35;
-}
-.us-card .us-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 4px;
-}
-.us-card .us-chip {
-  padding: 1px 5px;
-  border-radius: 6px;
-  background: rgba(126, 200, 255, 0.16);
-  color: #bfe0ff;
-  font-size: 10px;
-  line-height: 1.5;
-  white-space: nowrap;
-}
-.us-card .us-chip-gap {
-  background: rgba(255, 193, 120, 0.14);
-  color: #ffd9a8;
 }
 
 /* 高德 Marker 气泡（全局，注入 HTML） */

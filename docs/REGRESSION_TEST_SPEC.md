@@ -235,6 +235,23 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 
 **口径红线**：文案禁用「贡献」「占比」，统一「途经/来自」；展示「近月同时段规律」。
 
+## 7c. RT-TRACE · 单链路发光溯源重构（2026-06-30）
+
+> 设计/计划：[`plans/2026-06-30-单链路发光溯源重构计划.md`](plans/2026-06-30-单链路发光溯源重构计划.md)
+> 目标：流量溯源收口为「单一进口/转向一条链路（≤5 跳）」，地图以发光干线 + 流动粒子 + 节点脉冲 + 极简标签呈现，去除红色遮罩 / 虚线框 / 多方向同画 / 密集指标卡。
+
+| TC-ID | 优先级 | 场景 | 期望 | 现有测试 |
+|-------|--------|------|------|---------|
+| RT-TRACE-01 | P0 | 用户明示进口/转向 | `_run_upstream_trace` 只溯该方向（approaches 仅该进口） | test_orchestrator_upstream_phase::test_user_direction_takes_priority |
+| RT-TRACE-02 | P0 | 用户未指定方向 | 默认只聚焦诊断命中的首个（最饱和）问题进口一条链 | test_orchestrator_upstream_phase::test_no_user_direction_defaults_to_top_saturated |
+| RT-TRACE-03 | P1 | 上游链路截断 | 节点/边/帧限制在 ≤5 跳 | upstreamStoryboard.spec.ts |
+| RT-TRACE-04 | P1 | 粒子插值/采样 | interpolatePath/sampleAlongPath 端点夹紧、计数正确、时长夹紧 | traceParticles.spec.ts |
+| RT-TRACE-05 | P1 | 左侧理解过程 | 「进口/转向 → 上游N」编号链路，无治理结论 | upstreamProcessText.spec.ts |
+| RT-TRACE-06 | P1 | 画面去旧视觉 | 溯源期间无 .us-card/.us-dot/.us-ripple/.us-chip、无红色遮罩/虚线框 | scripts/verify-upstream-trace.mjs（截图验收） |
+| RT-TRACE-07 | P0 | 拓扑一跳 | 西左转 @ 奥体西路×经十路：地图标签含「转山西路」（link 邻接，非 correlate 东侧误跳） | `test_upstream_topology.py` + verify `topo-hop-west-left` |
+| RT-TRACE-08 | P0 | 禁飞线 | storyboard `edge.path` 来自 `dim_link_info.geom`；前端 `resolveEdgePath` 无两点 fallback；E2E 无 `.us-flyline` | `test_upstream_storyboard.py` + verify `geom-path-not-flyline` |
+| RT-TRACE-09 | P1 | 粒子（软） | headless 下 `.us-particle` 可缺失，不作为阻断；实机以发光干线为准 | verify `has-particles`（非 gate） |
+
 ---
 
 ## 8. RT-CONF · 二次确认

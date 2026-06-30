@@ -755,8 +755,8 @@ def aggregate_approach_profiles(
 def _mock_approach_profiles(
     inter_id: str, dir8_filter: list[int] | None = None
 ) -> list[dict[str, Any]]:
-    """MOCK_DB：可治理上游(含 'gov')留一进口未饱和，其余路口四向全饱和。"""
-    if "gov" in inter_id:
+    """MOCK_DB：可治理上游(含 'gov' / mock_up_)留一进口未饱和，其余路口四向全饱和。"""
+    if "gov" in inter_id or inter_id.startswith("mock_up_"):
         profiles = [
             {"dir8_code": 0, "turn_saturation_max": 0.70, "green_util_min": 0.62,
              "queue_len_est_m": 40.0},

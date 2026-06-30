@@ -1408,7 +1408,11 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       presentation.setPhase('rule')
       presentationSequence.syncFromPhase('rule')
       presentationSequence.syncFromStepIndex(STEP_INDICES.RULE)
-      const traceText = buildUpstreamProcessText(action.storyboard)
+      const targetTurn =
+        (action.highlight_turn ? parseHighlightTurn(action.highlight_turn)?.label : null) ??
+        presentation.state.highlightTurn?.label ??
+        null
+      const traceText = buildUpstreamProcessText(action.storyboard, targetTurn)
       if (traceText) {
         enqueueProcess(STEP_INDICES.RULE, traceText, true, true)
       }

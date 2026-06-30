@@ -243,6 +243,7 @@ export interface UpstreamTreeEdge {
   from?: string | null
   to?: string | null
   path?: Array<[number, number]>
+  path_source?: 'link_geom' | 'none' | string
   flow_pct?: number | null
   dominant_turn?: number | null
 }

@@ -1,4 +1,4 @@
-"""上游治理溯源：递归找可信控治理落点（≤2 跳）。"""
+"""上游治理溯源：沿进口道拓扑 geom 单链上溯，定位治理落点（≤5 跳）。"""
 from __future__ import annotations
 
 import asyncio
@@ -11,12 +11,11 @@ from intersection_agent.models.domain import NluResult
 from intersection_agent.services.data_fetcher import DataFetcher
 from intersection_agent.services.flow_trace_service import (
     FlowTraceService,
-    day_labels_for_filter,
-    one_hop_for_approach,
     period_type_from_label,
     turn_split_for_upstream,
 )
 from intersection_agent.services.map_presentation_service import build_upstream_storyboard
+from intersection_agent.services.upstream_topology_service import UpstreamTopologyService
 from intersection_agent.utils.data_window import DataWindow, build_data_window
 from intersection_agent.utils.thresholds_loader import threshold_value
 from intersection_agent.utils.traffic_labels import DIR8_LABELS
@@ -44,17 +43,19 @@ def is_governable(
 def build_tree(
     inter_id: str,
     *,
+    corridor_dir8: int,
     feeding_dir8: int,
     hop: int,
     window: Any,
     get_profiles: Callable[[str, Any], list[dict[str, Any]]],
-    get_upstream: Callable[[str, int, Any], dict[str, Any] | None],
-    get_other_approaches: Callable[[str, int], list[int]],
+    get_upstream: Callable[[str, int, int | None], dict[str, Any] | None],
     full_sat: float,
     green_util: float,
     max_hops: int,
     inter_name: str | None = None,
+    turn_no: int | None = None,
 ) -> dict[str, Any]:
+    """沿同一走廊 dir8 单链递归上溯（不再多 arm 分叉）。"""
     profiles = get_profiles(inter_id, window)
     governable = is_governable(profiles, full_sat=full_sat, green_util=green_util)
     node: dict[str, Any] = {
@@ -72,36 +73,38 @@ def build_tree(
     if hop >= max_hops:
         node["decision"] = "二跳截止"
         return node
+
+    up = get_upstream(inter_id, corridor_dir8, turn_no if hop == 1 else None)
+    if not up:
+        node["decision"] = "干线端点"
+        return node
+
     node["decision"] = "继续上溯"
-    for ap in get_other_approaches(inter_id, feeding_dir8):
-        up = get_upstream(inter_id, ap, window)
-        if not up:
-            continue
-        child = build_tree(
-            up["cor_inter_id"],
-            feeding_dir8=up["feeding_dir8"],
-            hop=hop + 1,
-            window=window,
-            get_profiles=get_profiles,
-            get_upstream=get_upstream,
-            get_other_approaches=get_other_approaches,
-            full_sat=full_sat,
-            green_util=green_util,
-            max_hops=max_hops,
-            inter_name=up.get("cor_inter_name"),
-        )
-        node["children"].append(child)
+    child = build_tree(
+        up["cor_inter_id"],
+        corridor_dir8=corridor_dir8,
+        feeding_dir8=up["feeding_dir8"],
+        hop=hop + 1,
+        window=window,
+        get_profiles=get_profiles,
+        get_upstream=get_upstream,
+        full_sat=full_sat,
+        green_util=green_util,
+        max_hops=max_hops,
+        inter_name=up.get("cor_inter_name"),
+        turn_no=turn_no,
+    )
+    node["children"] = [child]
     return node
 
 
 def _mock_upstream_rows(inter_id: str, dir8: int) -> list[dict[str, Any]]:
-    """MOCK_DB：构造确定性上游拓扑。target→hub(全饱和)→{南向可治理,其余全饱和}。"""
     if not inter_id.startswith("mock_"):
         cor_id, name = "mock_hub", "上游枢纽路口"
     elif dir8 == 4:
         cor_id, name = f"mock_gov_{dir8}", "可治理上游路口"
     else:
-        cor_id, name = f"mock_full_{dir8}", "上游路口(全饱和)"
+        cor_id, name = f"mock_up_{dir8}", "经十路与转山西路路口"
     lng = 117.1 + dir8 * 0.01
     lat = 36.65 + dir8 * 0.01
     base = {
@@ -109,7 +112,6 @@ def _mock_upstream_rows(inter_id: str, dir8: int) -> list[dict[str, Any]]:
         "cor_inter_id": cor_id, "cor_f_dir8_no": dir8,
         "cor_inter_name": name, "cor_lng": lng, "cor_lat": lat,
     }
-    # 上一路口流量按转向拆分：直行为主，左右转辅（供地图标注演示）
     return [
         {**base, "cor_turn_dir_no": 2, "flow_share_ratio": 67.0},
         {**base, "cor_turn_dir_no": 1, "flow_share_ratio": 22.0},
@@ -120,7 +122,6 @@ def _mock_upstream_rows(inter_id: str, dir8: int) -> list[dict[str, Any]]:
 def _collect_points(
     node: dict[str, Any], tree_id: str, approach: str
 ) -> list[dict[str, Any]]:
-    """收集树内治理落点，标注所属树/进口道，供侧卡使用。"""
     out: list[dict[str, Any]] = []
     if node.get("decision") == "治理落点":
         out.append(
@@ -140,24 +141,51 @@ def _collect_points(
     return out
 
 
+def _turn_no_for_approach(approach: str, nlu: NluResult | None) -> int | None:
+    """从 NLU directions 解析转向号（西左转→1）。"""
+    if not nlu or not nlu.directions:
+        return None
+    code = _APPROACH_TO_DIR8.get(approach)
+    if code is None:
+        return None
+    label = DIR8_LABELS.get(code, "")
+    for raw in nlu.directions:
+        token = str(raw).strip()
+        if not token.startswith(label):
+            continue
+        if "左" in token:
+            return 1
+        if "直" in token:
+            return 2
+        if "右" in token:
+            return 3
+        if "调" in token:
+            return 4
+    return None
+
+
 class UpstreamGovernanceTraceService:
-    """对过饱和进口道递归溯源上游、定位可信控治理落点，并产出 storyboard。"""
+    """对过饱和进口道沿拓扑 geom 单链溯源，定位治理落点，并产出 storyboard。"""
 
     def __init__(
         self,
         fetcher: DataFetcher | None = None,
         flow_trace: FlowTraceService | None = None,
+        topology: UpstreamTopologyService | None = None,
         settings: Settings | None = None,
     ) -> None:
         self._settings = settings or get_settings()
         self._fetcher = fetcher or DataFetcher(settings=self._settings)
         self._flow_trace = flow_trace or FlowTraceService(settings=self._settings)
+        self._topology = topology or UpstreamTopologyService(settings=self._settings)
         self._full_sat = threshold_value("upstream_trace", "full_saturation", default=0.85)
         self._green_util = threshold_value(
             "upstream_trace", "governable_green_util", default=0.50
         )
         self._max_hops = int(threshold_value("upstream_trace", "max_hops", default=5))
         self._period_label: str | None = None
+        self._cognition: dict[str, Any] | None = None
+        self._correlate_cache: dict[str, list[dict[str, Any]]] = {}
 
     async def build(
         self,
@@ -169,19 +197,20 @@ class UpstreamGovernanceTraceService:
         cognition: dict[str, Any] | None = None,
         reference_date: Any = None,
     ) -> dict[str, Any]:
-        """对一个或多个过饱和进口道溯源，返回 {trees, governance_points, storyboard}。"""
         labels = approaches if approaches is not None else ([approach] if approach else [])
         empty = {"trees": [], "governance_points": [], "storyboard": {"trees": [], "frames": []}}
         if not labels or nlu is None or nlu.time_period is None:
             return empty
         self._period_label = nlu.time_period.label
+        self._cognition = cognition
+        self._correlate_cache = {}
         window = build_data_window(nlu.time_period, reference_date=reference_date)
 
         try:
             results = await asyncio.gather(
-                *[self._build_one(inter_id, ap, window, cognition) for ap in labels]
+                *[self._build_one(inter_id, ap, window, cognition, nlu) for ap in labels]
             )
-        except Exception as exc:  # noqa: BLE001 - 溯源失败不应阻断主诊断
+        except Exception as exc:  # noqa: BLE001
             logger.warning("upstream_trace build failed: %s", exc)
             return empty
 
@@ -204,11 +233,13 @@ class UpstreamGovernanceTraceService:
         approach: str,
         window: DataWindow,
         cognition: dict[str, Any] | None,
+        nlu: NluResult | None,
     ) -> dict[str, Any] | None:
         dir8 = _APPROACH_TO_DIR8.get(approach)
         if dir8 is None:
             return None
-        hop1 = await self._get_upstream(inter_id, dir8, window)
+        turn_no = _turn_no_for_approach(approach, nlu)
+        hop1 = await self._get_upstream(inter_id, dir8, window, turn_no=turn_no)
         if not hop1:
             return None
         root_id = hop1["cor_inter_id"]
@@ -216,30 +247,30 @@ class UpstreamGovernanceTraceService:
         profiles_cache: dict[str, list[dict[str, Any]]] = {}
         upstream_cache: dict[tuple[str, int], dict[str, Any] | None] = {}
         await self._prefetch(
-            root_id, hop1["feeding_dir8"], 1, window, profiles_cache, upstream_cache
+            root_id, dir8, hop1["feeding_dir8"], 1, window, profiles_cache, upstream_cache, turn_no
         )
 
         root = build_tree(
             root_id,
+            corridor_dir8=dir8,
             feeding_dir8=hop1["feeding_dir8"],
             hop=1,
             window=window,
             get_profiles=lambda i, _w: profiles_cache.get(i, []),
-            get_upstream=lambda i, d, _w: upstream_cache.get((i, d)),
-            get_other_approaches=lambda i, ex: _other_approaches(
-                profiles_cache.get(i, []), ex
-            ),
+            get_upstream=lambda i, d, t: upstream_cache.get((i, d)),
             full_sat=self._full_sat,
             green_util=self._green_util,
             max_hops=self._max_hops,
             inter_name=hop1.get("cor_inter_name"),
+            turn_no=turn_no,
         )
-        # 一跳节点经纬度/转向拆分回填（build_tree 不持有 hop1 这些字段）
         root.setdefault("lng", hop1.get("lng"))
         root.setdefault("lat", hop1.get("lat"))
         root["turn_split"] = hop1.get("turn_split") or []
         root["coverage"] = hop1.get("coverage")
-        _backfill_coords(root, upstream_cache)
+        root["hop_path"] = hop1.get("path") or []
+        root["path_source"] = hop1.get("path_source")
+        _backfill_hop_meta(root, upstream_cache, dir8)
 
         intersection = (cognition or {}).get("intersection") or {}
         return {
@@ -259,13 +290,14 @@ class UpstreamGovernanceTraceService:
     async def _prefetch(
         self,
         inter_id: str,
+        corridor_dir8: int,
         feeding_dir8: int,
         hop: int,
         window: DataWindow,
         profiles_cache: dict[str, list[dict[str, Any]]],
         upstream_cache: dict[tuple[str, int], dict[str, Any] | None],
+        turn_no: int | None,
     ) -> None:
-        """镜像 build_tree 的遍历，提前异步取齐 profiles / upstream，供同步构树。"""
         if inter_id in profiles_cache:
             profiles = profiles_cache[inter_id]
         else:
@@ -275,55 +307,86 @@ class UpstreamGovernanceTraceService:
             return
         if hop >= self._max_hops:
             return
-        for ap in _other_approaches(profiles, feeding_dir8):
-            up = await self._get_upstream(inter_id, ap, window)
-            upstream_cache[(inter_id, ap)] = up
-            if up:
-                await self._prefetch(
-                    up["cor_inter_id"],
-                    up["feeding_dir8"],
-                    hop + 1,
-                    window,
-                    profiles_cache,
-                    upstream_cache,
-                )
+        up = await self._get_upstream(inter_id, corridor_dir8, window, turn_no=None)
+        upstream_cache[(inter_id, corridor_dir8)] = up
+        if up and str(up.get("cor_inter_id")) != str(inter_id):
+            await self._prefetch(
+                up["cor_inter_id"],
+                corridor_dir8,
+                up["feeding_dir8"],
+                hop + 1,
+                window,
+                profiles_cache,
+                upstream_cache,
+                turn_no,
+            )
 
     async def _get_profiles(
         self, inter_id: str, window: DataWindow
     ) -> list[dict[str, Any]]:
         return await self._fetcher.approach_profiles(inter_id, window=window)
 
-    async def _get_upstream(
-        self, inter_id: str, dir8: int, window: DataWindow
-    ) -> dict[str, Any] | None:
+    async def _correlate_rows(self, inter_id: str, window: DataWindow) -> list[dict[str, Any]]:
+        if inter_id in self._correlate_cache:
+            return self._correlate_cache[inter_id]
         if self._settings.mock_db:
-            rows = _mock_upstream_rows(inter_id, dir8)
+            rows = _mock_upstream_rows(inter_id, 6)
         else:
+            from intersection_agent.services.flow_trace_service import day_labels_for_filter
+
             period_type = period_type_from_label(self._period_label)
             day_labels = day_labels_for_filter(window.dow_filter)
             rows = await self._flow_trace._fetch_upstream(inter_id, period_type, day_labels)
-        hop = one_hop_for_approach(rows, dir8)
+        self._correlate_cache[inter_id] = rows
+        return rows
+
+    async def _get_upstream(
+        self,
+        inter_id: str,
+        dir8: int,
+        window: DataWindow,
+        *,
+        turn_no: int | None = None,
+    ) -> dict[str, Any] | None:
+        rows = await self._correlate_rows(inter_id, window)
+        tgt = (self._cognition or {}).get("intersection") or {}
+        tgt_lon = tgt.get("lng") or tgt.get("lon")
+        tgt_lat = tgt.get("lat")
+        if inter_id != tgt.get("inter_id"):
+            center = await self._topology.inter_center(inter_id)
+            if center:
+                tgt_lon, tgt_lat = center
+
+        hop = await self._topology.pick_upstream_hop(
+            inter_id,
+            dir8,
+            turn=turn_no,
+            correlate_rows=rows,
+            cognition=self._cognition,
+            target_lon=float(tgt_lon) if tgt_lon is not None else None,
+            target_lat=float(tgt_lat) if tgt_lat is not None else None,
+        )
         if hop:
-            hop["turn_split"] = turn_split_for_upstream(rows, dir8, hop["cor_inter_id"])
+            self._topology.enrich_hop_turn_split(hop, rows, dir8)
         return hop
 
 
-def _other_approaches(profiles: list[dict[str, Any]], exclude: int) -> list[int]:
-    """该路口实际存在的其余进口道（非固定 4，排除来流方向）。"""
-    return [int(p["dir8_code"]) for p in profiles if int(p["dir8_code"]) != exclude]
-
-
-def _backfill_coords(
+def _backfill_hop_meta(
     node: dict[str, Any],
     upstream_cache: dict[tuple[str, int], dict[str, Any] | None],
+    corridor_dir8: int,
 ) -> None:
-    """从 upstream_cache 回填子节点经纬度（构树时仅有 cor_inter_id）。"""
     for child in node.get("children") or []:
-        for (_pid, _ap), up in upstream_cache.items():
-            if up and up.get("cor_inter_id") == child.get("inter_id"):
-                child.setdefault("lng", up.get("lng"))
-                child.setdefault("lat", up.get("lat"))
-                child.setdefault("turn_split", up.get("turn_split") or [])
-                child.setdefault("coverage", up.get("coverage"))
+        up = upstream_cache.get((node.get("inter_id"), corridor_dir8))
+        for (_pid, _d), cached in upstream_cache.items():
+            if cached and cached.get("cor_inter_id") == child.get("inter_id"):
+                up = cached
                 break
-        _backfill_coords(child, upstream_cache)
+        if up:
+            child.setdefault("lng", up.get("lng"))
+            child.setdefault("lat", up.get("lat"))
+            child.setdefault("turn_split", up.get("turn_split") or [])
+            child.setdefault("coverage", up.get("coverage"))
+            child["hop_path"] = up.get("path") or []
+            child["path_source"] = up.get("path_source")
+        _backfill_hop_meta(child, upstream_cache, corridor_dir8)

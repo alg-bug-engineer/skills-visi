@@ -35,6 +35,10 @@ frontend-v2/*.local
 
 # --- 参考原型（不接入主项目）---
 前端可视化技能创建/
+signalControl_agent-ui-design/
+
+# --- E2E / 嗅探产物（本地验收，勿提交）---
+artifacts/
 
 # --- 密钥（勿提交）---
 docs/AccessKey.csv

@@ -25,5 +25,5 @@ export function buildFlowTraceSummaryLines(
 export function formatEntryMovementBrief(entry: FlowTraceEntry): string {
   const dom = entry.dominant_movement
   if (!dom) return entry.narrative
-  return `${entry.entry} ← ${entry.upstream_inter_name ?? '上一路口'} ${dom.turn} ${dom.vehicles_of_100}辆/100`
+  return `${entry.entry} ← ${entry.upstream_inter_name ?? '上一路口'} ${dom.turn} 占比${dom.vehicles_of_100}%`
 }

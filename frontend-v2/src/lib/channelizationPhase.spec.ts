@@ -105,7 +105,32 @@ describe('applyPhaseHighlight', () => {
     expect(labels?.every((l) => !/^[\d.]+$/.test(l.line2.trim()))).toBe(true)
   })
 
-  it('direction 阶段展示分向饱和度臂标', () => {
+  it('direction 阶段有 highlightDirs 时用关注/保护臂标替代分组数值', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'direction',
+      allowRuntimeMetrics: true,
+      highlightDirs: ['西'],
+      protectedDirs: ['南北向'],
+      cognition: {
+        ...COG,
+        metrics_by_arm: [
+          { link_id: 'w1', dir4_label: '西', saturation: 1.94 },
+          { link_id: 'n1', dir4_label: '北', saturation: 0.42 },
+        ],
+        direction_groups: [
+          { group: '南北向', saturation_max: 1.2, arm_labels: ['南', '北'] },
+        ],
+      },
+    })
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ dir: string; line1: string; line2: string }>
+    expect(labels?.find((l) => l.dir === '西')?.line1).toBe('关注 西进口')
+    expect(labels?.find((l) => l.dir === '西')?.line2).toBe('饱和 1.94')
+    expect(labels?.find((l) => l.dir === '北')?.line1).toBe('保护 南北向')
+    expect(labels?.some((l) => l.line2 === '1.20')).toBe(false)
+  })
+
+  it('direction 阶段无 highlightDirs 时仍展示分向饱和度臂标', () => {
     const { layer, calls } = makeFakeLayer()
     applyPhaseHighlight(layer, {
       phase: 'direction',
