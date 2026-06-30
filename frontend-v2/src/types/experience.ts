@@ -70,3 +70,63 @@ export interface ExperienceLibrary {
   diagnosis: ExperienceDiagnosisItem[]
   solution: ExperienceSolutionItem[]
 }
+
+/* ── 案例库（/cases/industry 与 /cases/intersections） ─────────────────── */
+
+export interface RepresentativeCase {
+  id: string
+  title: string
+  snippet: string
+}
+
+export interface IndustryCaseSolution {
+  name: string
+  frequency: number
+  measures: string[]
+  applicability: string
+  caution: string
+  representative_cases: RepresentativeCase[]
+}
+
+export interface IndustryCaseProblem {
+  problem: string
+  occurrence: number
+  symptoms: string[]
+  solutions: IndustryCaseSolution[]
+}
+
+export interface IndustryCaseScenario {
+  scenario_id: string
+  scenario_name: string
+  description: string
+  case_count: number
+  problems: IndustryCaseProblem[]
+}
+
+export interface IntersectionCaseSolution {
+  skill_id: string
+  qualitative?: string | null
+  quantified?: string | null
+  solution_measure?: string | null
+  download_url?: string | null
+  ts: string
+}
+
+export interface IntersectionCase {
+  inter_id: string
+  intersection: string
+  time_period_label: string
+  cognition: ExperienceCognitionItem[]
+  diagnosis: ExperienceDiagnosisItem[]
+  solutions: IntersectionCaseSolution[]
+  ts: string
+}
+
+/** 治理建议溯源依据（对应后端 SuggestionReference）。 */
+export interface SuggestionReference {
+  type: 'industry' | 'intersection' | string
+  id: string
+  title: string
+  summary?: string
+  scenario_id?: string | null
+}
