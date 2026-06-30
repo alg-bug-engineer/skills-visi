@@ -27,6 +27,36 @@ def test_diagnosis_and_solution_ref(tmp_path):
     assert prof.solution_ref[0].quantified == "东进口 +8s"
 
 
+def test_add_cognition_returns_outcome(tmp_path):
+    store = IntersectionProfileStore(base_dir=tmp_path)
+    _, o1 = store.add_cognition("i1", text="早高峰空放", status="data_doubt", source="user")
+    assert o1 == "inserted"
+    _, o2 = store.add_cognition("i1", text="早高峰空放", status="data_doubt", source="user")
+    assert o2 == "exists"
+    _, o3 = store.add_cognition(
+        "i1", text="早高峰空放", status="verified", source="data", evidence={"sat": 0.9}
+    )
+    assert o3 == "updated"
+
+
+def test_add_diagnosis_returns_outcome(tmp_path):
+    store = IntersectionProfileStore(base_dir=tmp_path)
+    _, o1 = store.add_diagnosis("i1", cause="放学", dimension="event", source="user", confidence=0.0)
+    assert o1 == "inserted"
+    _, o2 = store.add_diagnosis("i1", cause="放学", dimension="event", source="user", confidence=0.0)
+    assert o2 == "exists"
+    _, o3 = store.add_diagnosis("i1", cause="放学", dimension="event", source="data", confidence=0.7)
+    assert o3 == "updated"
+
+
+def test_add_solution_ref_returns_outcome(tmp_path):
+    store = IntersectionProfileStore(base_dir=tmp_path)
+    _, o1 = store.add_solution_ref("i1", skill_id="sk1", quantified="东进口 +8s")
+    assert o1 == "inserted"
+    _, o2 = store.add_solution_ref("i1", skill_id="sk1", quantified="东进口 +8s")
+    assert o2 in ("exists", "updated")
+
+
 def test_missing_profile_returns_empty(tmp_path):
     store = IntersectionProfileStore(base_dir=tmp_path)
     prof = store.load("never_seen")
