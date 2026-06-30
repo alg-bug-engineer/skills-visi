@@ -146,3 +146,78 @@ class ExecutionStepEvent(BaseModel):
     label: str
     data: dict[str, Any] = Field(default_factory=dict)
     timestamp: str
+
+
+class UpstreamFrame(BaseModel):
+    """Storyboard 单帧（逐树串讲 + 帧重建底座）。"""
+
+    idx: int
+    tree: str
+    kind: str
+    focus: Any = None
+    reveal: list[str] = Field(default_factory=list)
+    camera: str | None = None
+    narration: str | None = None
+
+
+class UpstreamTreeNode(BaseModel):
+    """溯源树节点（target / upstream / governance）。"""
+
+    id: str | None = None
+    inter_id: str | None = None
+    name: str | None = None
+    lon: float | None = None
+    lat: float | None = None
+    role: str | None = None
+    hop: int | None = None
+    decision: str | None = None
+    feeding_dir8: int | None = None
+    approach_profiles: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class UpstreamTreeEdge(BaseModel):
+    """溯源树有向边（按 link path 绘制，禁止中心飞线）。"""
+
+    id: str
+    from_: str | None = Field(default=None, alias="from")
+    to: str | None = None
+    path: list[list[float]] = Field(default_factory=list)
+    flow_pct: float | None = None
+    dominant_turn: int | None = None
+
+
+class UpstreamTreeView(BaseModel):
+    """单棵溯源树（一个进口道）的节点/边视图。"""
+
+    tree_id: str
+    approach: str
+    nodes: list[UpstreamTreeNode] = Field(default_factory=list)
+    edges: list[UpstreamTreeEdge] = Field(default_factory=list)
+
+
+class UpstreamStoryboard(BaseModel):
+    """完整 storyboard：后端一次产出、前端本地播放。"""
+
+    trees: list[UpstreamTreeView] = Field(default_factory=list)
+    frames: list[UpstreamFrame] = Field(default_factory=list)
+
+
+class UpstreamGovernancePoint(BaseModel):
+    """可信控治理落点。"""
+
+    tree_id: str
+    approach: str
+    inter_id: str | None = None
+    inter_name: str | None = None
+    hop: int | None = None
+    feeding_dir8: int | None = None
+    decision: str
+    approach_profiles: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class UpstreamTraceResponse(BaseModel):
+    """上游治理溯源结果。"""
+
+    trees: list[dict[str, Any]] = Field(default_factory=list)
+    governance_points: list[UpstreamGovernancePoint] = Field(default_factory=list)
+    storyboard: UpstreamStoryboard = Field(default_factory=UpstreamStoryboard)

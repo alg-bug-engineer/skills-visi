@@ -75,7 +75,9 @@ async def test_deny_suggestion_confirmation(client):
     assert first_body["reply"]["type"] == "follow_up"
     assert first_body["suggestion"] is None
     assert first_body["meta"].get("suggestion_action") == "awaiting_generate"
-    assert "是否需要生成治理建议" in first_body["reply"]["content"]
+    # 过饱和进口道触发上游溯源后，确认文案改为跨路口协调建议
+    assert "上游治理落点" in first_body["reply"]["content"]
+    assert "跨路口协调建议" in first_body["reply"]["content"]
     assert first_body["meta"].get("problem_evidence")
     assert "问题验证" in first_body["reply"]["content"] or "常发" in first_body["reply"]["content"]
     assert "建议增加绿灯时长" not in first_body["reply"]["content"]

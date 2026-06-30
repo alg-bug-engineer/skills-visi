@@ -94,10 +94,10 @@ def build_tree(
 
 
 def _mock_upstream_rows(inter_id: str, dir8: int) -> list[dict[str, Any]]:
-    """MOCK_DB：构造确定性上游拓扑。target→hub(全饱和)→{东进口可治理,其余全饱和}。"""
+    """MOCK_DB：构造确定性上游拓扑。target→hub(全饱和)→{南向可治理,其余全饱和}。"""
     if not inter_id.startswith("mock_"):
         cor_id, name = "mock_hub", "上游枢纽路口"
-    elif dir8 == 2:
+    elif dir8 == 4:
         cor_id, name = f"mock_gov_{dir8}", "可治理上游路口"
     else:
         cor_id, name = f"mock_full_{dir8}", "上游路口(全饱和)"

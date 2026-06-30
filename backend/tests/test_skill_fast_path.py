@@ -213,7 +213,8 @@ async def test_first_diagnosis_awaits_suggestion_generation(client):
     body = resp.json()
     assert body["state"] == "awaiting_confirm"
     assert body["meta"].get("suggestion_action") == "awaiting_generate"
-    assert "生成治理建议" in body["reply"]["content"]
+    # 过饱和触发上游溯源后，确认文案改为跨路口协调建议
+    assert "协调建议" in body["reply"]["content"]
 
 
 async def _persist_sample_skill(client) -> None:

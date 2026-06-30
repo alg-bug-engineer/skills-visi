@@ -53,6 +53,11 @@ from intersection_agent.services.suggestion_service import SuggestionService
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
 from intersection_agent.services.sustained_metrics_service import SustainedMetricsService
 from intersection_agent.services.timing_profile_service import TimingProfileService
+from intersection_agent.services.upstream_governance_trace_service import (
+    UpstreamGovernanceTraceService,
+)
+from intersection_agent.utils.thresholds_loader import threshold_value
+from intersection_agent.utils.traffic_labels import DIR8_LABELS
 from intersection_agent.utils.terminal_report import (
     format_evidence_report,
     format_evidence_summary_markdown,
@@ -60,6 +65,25 @@ from intersection_agent.utils.terminal_report import (
 from intersection_agent.utils.demo_config import demo_meta_for_intersection, is_demo_mode
 
 logger = logging.getLogger(__name__)
+
+# 长方位标签优先匹配（"东北" 先于 "东"），用于 by_turn label 缺 dir8_code 时回退。
+_DIR8_BY_LABEL = sorted(
+    ((name, code) for code, name in DIR8_LABELS.items()),
+    key=lambda kv: len(kv[0]),
+    reverse=True,
+)
+
+
+def _row_dir8(row: dict[str, Any]) -> int | None:
+    """从 by_turn 行解析进口道 dir8：优先 dir8_code，否则按 label 首方位回退。"""
+    d8 = row.get("dir8_code")
+    if d8 is not None:
+        return int(d8)
+    label = str(row.get("label") or "")
+    for name, code in _DIR8_BY_LABEL:
+        if label.startswith(name):
+            return code
+    return None
 
 
 class Orchestrator:
@@ -83,6 +107,7 @@ class Orchestrator:
         flow_governance: FlowTimingGovernanceService | None = None,
         sustained: SustainedMetricsService | None = None,
         profile_store: IntersectionProfileStore | None = None,
+        upstream_trace: UpstreamGovernanceTraceService | None = None,
     ) -> None:
         self._nlu = nlu or NluService()
         self._resolver = resolver or IntersectionResolver()
@@ -103,6 +128,7 @@ class Orchestrator:
         self._profile_store = profile_store or IntersectionProfileStore()
         self._experience_reuse = ExperienceReuseService(self._profile_store)
         self._case_library = CaseLibraryService()
+        self._upstream_trace = upstream_trace or UpstreamGovernanceTraceService()
         self._settings = get_settings()
 
     async def handle_message(
@@ -1099,6 +1125,9 @@ class Orchestrator:
             msg = _no_diagnosis_message(reason, data)
             return self._build_response(session, ReplyType.TEXT, msg, extra={"reason_code": reason})
 
+        # 上游治理溯源：对过饱和进口道递归定位可信控治理落点（失败不阻断主诊断）
+        gov_point_count = await self._run_upstream_trace(session, cognition, emitter)
+
         if session.skill_reuse_mode and session.matched_skill_id:
             reuse_note = skill_reuse_notice or ""
             if reuse_note and resolution_note:
@@ -1153,6 +1182,14 @@ class Orchestrator:
 
         session.pending_suggestion_action = "generate"
         session.state = SessionState.AWAITING_CONFIRM
+        if gov_point_count > 0:
+            confirm_message = f"已定位 {gov_point_count} 个上游治理落点，是否生成跨路口协调建议？"
+            confirm_tail = (
+                f"已定位 {gov_point_count} 个上游治理落点，是否需要生成跨路口协调建议？"
+            )
+        else:
+            confirm_message = "问题诊断成立，是否生成治理建议？"
+            confirm_tail = "问题诊断成立，是否需要生成治理建议？"
         if emitter:
             await self._emit_map_sequence(
                 emitter,
@@ -1160,7 +1197,7 @@ class Orchestrator:
                 data={
                     "action_type": "generate_suggestion",
                     "intersection": cognition.get("intersection"),
-                    "message": "问题诊断成立，是否生成治理建议？",
+                    "message": confirm_message,
                 },
             )
             await self._emit_map_sequence(
@@ -1170,7 +1207,7 @@ class Orchestrator:
             )
         content = self._format_problem_confirm_message(session, resolution_note)
         content = (
-            f"{content}\n\n---\n问题诊断成立，是否需要生成治理建议？"
+            f"{content}\n\n---\n{confirm_tail}"
             "回复「是」生成，或直接补充治理约束/建议；回复「否」结束本次会话。"
         )
         return self._build_response(
@@ -1475,6 +1512,64 @@ class Orchestrator:
             ),
             extra=base_extra,
         )
+
+    async def _run_upstream_trace(
+        self,
+        session: Session,
+        cognition: dict[str, Any],
+        emitter: ExecutionEmitter | None,
+    ) -> int:
+        """对过饱和进口道溯源上游、定位可信控治理落点。返回落点数；失败返回 0。"""
+        if not session.inter_id:
+            return 0
+        data = session.data_payload
+        by_turn = (data.get("granularity") or {}).get("by_turn") or []
+        trigger = threshold_value("upstream_trace", "trigger_saturation", default=0.90)
+        dir8s = sorted(
+            {
+                d8
+                for r in by_turn
+                if (r.get("turn_saturation") or 0.0) >= trigger
+                and (d8 := _row_dir8(r)) is not None
+            }
+        )
+        approaches = [f"{DIR8_LABELS[d]}进口" for d in dir8s if d in DIR8_LABELS]
+        if not approaches:
+            return 0
+
+        if emitter:
+            await emitter.emit(
+                "upstream_trace", "running", data={"approaches": approaches}
+            )
+        try:
+            trace = await self._upstream_trace.build(
+                session.inter_id,
+                approaches=approaches,
+                nlu=session.nlu,
+                cognition=cognition,
+            )
+        except Exception as exc:  # noqa: BLE001 - 溯源失败不应阻断主诊断
+            log_event(logger, logging.WARNING, "upstream_trace.failed", error=str(exc))
+            return 0
+
+        session.data_payload["upstream_trace"] = trace
+        points = trace.get("governance_points") or []
+        session.data_payload["upstream_governance_point_count"] = len(points)
+        if emitter:
+            await emitter.emit(
+                "upstream_trace",
+                "completed",
+                data={
+                    "governance_points": points,
+                    "trees": len(trace.get("trees") or []),
+                },
+            )
+            storyboard = trace.get("storyboard") or {}
+            if storyboard.get("frames"):
+                await self._emit_map_sequence(
+                    emitter, action="upstream_tree", data={"storyboard": storyboard}
+                )
+        return len(points)
 
     @staticmethod
     async def _emit_map_sequence(

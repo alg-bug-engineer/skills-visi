@@ -20,6 +20,7 @@ STEP_LABELS: dict[str, str] = {
     "map_action": "地图动作",
     "data_fetch": "查询路口运行数据",
     "rule_engine": "业务规则诊断",
+    "upstream_trace": "上游流量溯源",
     "suggestion": "生成治理建议",
     "confirm_intent": "识别确认意图",
     "skill_create": "固化路口 Skill",
