@@ -40,6 +40,11 @@ const props = defineProps<{
   hideLeftPanel?: boolean
 }>()
 
+const emit = defineEmits<{ openCase: [id: string] }>()
+
+/** 治理建议的可溯源依据（案例/经验）。 */
+const suggestionReferences = computed(() => props.governanceSuggestion?.references ?? [])
+
 /* ── 认知头 ─────────────────────────────────────────────────────────────── */
 const intersection = computed(() => props.cognition?.intersection ?? null)
 const armCount = computed(() => props.cognition?.arms?.length ?? 0)
@@ -233,6 +238,22 @@ function sevClass(sev?: string): string {
                 <span class="tick">→</span><span class="text">{{ item }}</span>
               </li>
             </ul>
+            <div v-if="suggestionReferences.length" class="references">
+              <span class="ref-label">参考依据</span>
+              <div class="ref-chips">
+                <button
+                  v-for="ref in suggestionReferences"
+                  :key="ref.id"
+                  type="button"
+                  class="ref-chip"
+                  :class="`ref-${ref.type}`"
+                  :title="`${ref.type === 'industry' ? '行业案例' : '路口案例'} · ${ref.id}\n${ref.summary ?? ''}\n点击查看案例库`"
+                  @click="emit('openCase', ref.id)"
+                >
+                  <span class="ref-dot" />{{ ref.title }}
+                </button>
+              </div>
+            </div>
           </section>
         </aside>
       </div>
@@ -371,6 +392,61 @@ function sevClass(sev?: string): string {
 
 .suggestion-card {
   border-color: rgba(109, 255, 181, 0.28);
+}
+
+.references {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(120, 180, 150, 0.28);
+}
+
+.ref-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: rgba(170, 220, 190, 0.8);
+}
+
+.ref-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(109, 255, 181, 0.32);
+  background: rgba(109, 255, 181, 0.08);
+  color: #d6ffe9;
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.ref-chip:hover {
+  background: rgba(109, 255, 181, 0.18);
+}
+
+.ref-chip .ref-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #6dffb5;
+}
+
+.ref-chip.ref-intersection {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.08);
+  color: #d6f0ff;
+}
+
+.ref-chip.ref-intersection .ref-dot {
+  background: #38bdf8;
 }
 
 .experience-card {

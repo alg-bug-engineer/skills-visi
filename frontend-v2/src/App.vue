@@ -397,6 +397,9 @@ function patchSuggestionPayload(raw: Record<string, unknown> | null | undefined)
       typeof raw.delta_seconds === 'number' ? raw.delta_seconds : undefined,
     direction: typeof raw.direction === 'string' ? raw.direction : undefined,
     rule_id: typeof raw.rule_id === 'string' ? raw.rule_id : undefined,
+    references: Array.isArray(raw.references)
+      ? (raw.references as GovernanceSuggestionPayload['references'])
+      : undefined,
   }
   if (payload.narrative || payload.delta_seconds != null) {
     presentation.patchGovernanceSuggestion(payload)

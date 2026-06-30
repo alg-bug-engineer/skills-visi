@@ -72,6 +72,13 @@ const emit = defineEmits<{
 }>()
 
 const mapStageRef = ref<InstanceType<typeof MapStage> | null>(null)
+const processPanelRef = ref<InstanceType<typeof UnderstandingProcessPanel> | null>(null)
+
+/** 治理建议参考依据点击 → 切到案例库并定位条目。 */
+function onOpenCase(id: string) {
+  if (props.presentation.processCollapsed) emit('toggleProcess')
+  processPanelRef.value?.openCase(id)
+}
 
 defineExpose({ mapStageRef })
 
@@ -223,6 +230,7 @@ const canToggleCorridor = computed(
             :runtime-panel-revealed="runtimeMetricsUnlocked"
             :phase="presentation.phase"
             :run-key="analysisRunKey ?? 0"
+            @open-case="onOpenCase"
           />
         </div>
 
@@ -278,6 +286,7 @@ const canToggleCorridor = computed(
 
       <aside v-show="!presentation.processCollapsed" class="process-column" :class="{ stacked: panelLayout === 'stacked' }">
         <UnderstandingProcessPanel
+          ref="processPanelRef"
           class="process-panel process-panel-top"
           embedded
           :steps="processSteps"

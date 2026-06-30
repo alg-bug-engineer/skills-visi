@@ -69,6 +69,8 @@ export interface GovernanceSuggestionPayload {
   delta_seconds?: number
   direction?: string
   rule_id?: string
+  /** 治理建议的可溯源依据（案例/经验），可跳转案例库 */
+  references?: import('./experience').SuggestionReference[]
 }
 
 export interface PresentationState {
