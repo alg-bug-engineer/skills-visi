@@ -40,3 +40,15 @@ def test_derive_dedup_and_cap():
 
 def test_derive_empty():
     assert derive_suggestion_references([], [], inter_id=None) == []
+
+
+def test_prompt_enforces_three_source_fusion():
+    from intersection_agent.services.suggestion_service import NARRATIVE_PROMPT
+
+    # 三源占位符齐全
+    assert "{user_experience}" in NARRATIVE_PROMPT
+    assert "{case_experience}" in NARRATIVE_PROMPT
+    assert "{upstream_trace}" in NARRATIVE_PROMPT
+    # 明确要求深度融合并标注依据来源
+    assert "融合" in NARRATIVE_PROMPT
+    assert "依据来源" in NARRATIVE_PROMPT
