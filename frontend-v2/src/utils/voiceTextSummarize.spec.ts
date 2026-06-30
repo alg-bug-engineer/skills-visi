@@ -11,14 +11,14 @@ describe('summarizeNarrationForVoice', () => {
     expect(out).toBe('')
   })
 
-  it('timing: keeps cycle hint only', () => {
+  it('timing: cycle/seconds broadcast is removed (no "周期 N 秒")', () => {
     const out = summarizeNarrationForVoice(
       'timing',
       '当前方案周期约 120s，日计划时段 4 个。',
       '配时适配性',
     )
-    expect(out).toContain('120')
-    expect(out).not.toContain('时段')
+    expect(out).toBe('')
+    expect(out).not.toContain('120')
   })
 
   it('traffic: speaks delay only, not saturation (saturation uses dedicated cue)', () => {
@@ -30,5 +30,16 @@ describe('summarizeNarrationForVoice', () => {
   it('saturation phase is suppressed', () => {
     const out = summarizeNarrationForVoice('saturation', '路口饱和度 1.50，已达过饱和。')
     expect(out).toBe('')
+  })
+
+  it('long narration is clamped at sentence boundary, never mid-clause', () => {
+    const out = summarizeNarrationForVoice(
+      'structure',
+      '该路口为四进口交叉。东西向为主干道，承担过境交通。南北向为次干道，连接居住区。',
+      '路口结构',
+    )
+    // 不在句中切断：结尾必须是完整句标点
+    expect(out.endsWith('。') || out.endsWith('交叉')).toBe(true)
+    expect(out.length).toBeGreaterThan(10)
   })
 })

@@ -196,6 +196,7 @@ def _record_from_meta(meta_path: Path, pkg_dir: Path) -> SkillRecord:
         user_constraints=data.get("user_constraints"),
         quantitative_constraints=data.get("quantitative_constraints"),
         tags=data.get("tags"),
+        solution_measure=data.get("solution_measure"),
     )
 
 
@@ -226,6 +227,7 @@ def _record_from_skill_md(skill_md: Path, pkg_dir: Path) -> SkillRecord | None:
         created_at=str(front.get("created_at", "")),
         updated_at=front.get("updated_at"),
         user_constraints=front.get("user_constraints"),
+        solution_measure=front.get("solution_measure"),
     )
 
 
@@ -256,6 +258,7 @@ time_period_label: {record.time_period_label}
 match_keywords: {keywords_yaml}
 rule_ids: {rule_ids_yaml}
 suggestion_formula: "{record.suggestion_formula}"
+solution_measure: {json.dumps(record.solution_measure, ensure_ascii=False)}
 user_constraints: {json.dumps(record.user_constraints, ensure_ascii=False)}
 created_at: {record.created_at}
 updated_at: {record.updated_at or record.created_at}
@@ -283,13 +286,12 @@ updated_at: {record.updated_at or record.created_at}
 
 2. **应用诊断规则** — 见 [reference.md](reference.md) 中固化的规则 ID 与结论
 
-3. **生成治理建议** — 使用公式：
+3. **生成治理建议** — 固化量化措施（由 action_plan 数据推导，结合案例库经验）：
 
-   ```
-   {record.suggestion_formula}
-   ```
+   > {record.solution_measure or "见 reference.md「固化治理措施」"}
 
    若用户约束/建议不为空，治理建议必须优先体现：{record.user_constraints or "无"}。
+   （内部量化参考：`{record.suggestion_formula}`，仅作回退计算，不作为对外建议表述。）
 
 ## 诊断结论（固化快照）
 
@@ -345,12 +347,26 @@ def _render_reference_md(
             lines.append(f"- 结论：{rule.get('conclusion', '')}")
             action = rule.get("action") or {}
             lines.append(f"- 建议类型：{action.get('type', '')}")
-            lines.append(f"- 公式：`{action.get('formula', record.suggestion_formula)}`")
+            lines.append(
+                f"- 量化回退参考（仅内部）：`{action.get('formula', record.suggestion_formula)}`"
+            )
             lines.append("")
     else:
         for rid in record.rule_ids:
             lines.append(f"- `{rid}`")
         lines.append("")
+
+    if record.solution_measure:
+        lines.extend(
+            [
+                "## 固化治理措施（量化）",
+                "",
+                f"- {record.solution_measure}",
+                "",
+                "> 量化来源：action_plan 数据推导；表述方向参考案例库同类场景经验。",
+                "",
+            ]
+        )
 
     if session and session.suggestion:
         lines.extend(
@@ -361,6 +377,10 @@ def _render_reference_md(
                 "",
             ]
         )
+
+    case_experience = _case_experience_block(session)
+    if case_experience:
+        lines.extend(["## 同类场景经验（案例库）", "", case_experience, ""])
 
     if record.user_constraints:
         lines.extend(
@@ -376,7 +396,7 @@ def _render_reference_md(
 
     lines.extend(
         [
-            "## 建议计算公式",
+            "## 量化回退公式（仅内部计算，不作对外建议）",
             "",
             "```",
             record.suggestion_formula,
@@ -385,6 +405,37 @@ def _render_reference_md(
         ]
     )
     return "\n".join(lines)
+
+
+def _case_experience_block(session: Session | None) -> str:
+    """Render matched case-library experience (scene → typical problem → solution)."""
+    if not session or not session.data_payload:
+        return ""
+    matches = session.data_payload.get("case_experience")
+    if not isinstance(matches, list) or not matches:
+        return ""
+    rows: list[str] = []
+    for match in matches[:2]:
+        if not isinstance(match, dict):
+            continue
+        scene = str(match.get("scenario_name") or "").strip()
+        if scene:
+            rows.append(f"- **{scene}**")
+        for problem in (match.get("problems") or [])[:2]:
+            if not isinstance(problem, dict):
+                continue
+            name = str(problem.get("problem") or "").strip()
+            solutions = [
+                str(s.get("name") or "").strip()
+                for s in (problem.get("solutions") or [])
+                if isinstance(s, dict) and s.get("name")
+            ]
+            sol_text = "；".join(solutions[:2])
+            if name and sol_text:
+                rows.append(f"  - {name} → {sol_text}")
+            elif name:
+                rows.append(f"  - {name}")
+    return "\n".join(rows)
 
 
 def _render_fetch_sql(record: SkillRecord) -> str:

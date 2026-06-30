@@ -16,7 +16,7 @@ import {
 } from '../utils/amap'
 import { isEntrance, linkStrokeColor, markerHtml, mergeSceneMarkers, normalizeDir } from '../utils/mapMarkers'
 import { buildEvidenceDirectionMarkers, buildProtectedDirectionMarkers, highlightDirsForGroup } from '../utils/evidencePresentation'
-import { buildInterItemFromCognition } from '../utils/cognitionChannelAdapter'
+import { buildInterItemFromCognition, buildQueueDataFromEvidence } from '../utils/cognitionChannelAdapter'
 import { createChannelizationController, type ChannelizationController } from '../lib/channelizationController'
 import { LOD_THRESHOLDS } from '../lib/channelizationGeometry'
 
@@ -45,6 +45,8 @@ const props = defineProps<{
   presentationLayers?: PresentationLayerGates
   /** 路口信息卡激活时，抑制渠化舞台重复的顶部身份/HUD 条 */
   suppressStageHud?: boolean
+  /** 后端按问题类型推导的呈现维度，门控渠化排队等图层 */
+  activeDimensions?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -167,6 +169,12 @@ function channelizationPhaseParams() {
     highlightDirs: channelHighlightDirs.value,
     protectedDirs: props.protectedDirs ?? [],
     sceneMarkers: chanSceneMarkers.value,
+    queueArms: buildQueueDataFromEvidence(
+      effectiveCognition.value,
+      props.evidence ?? null,
+      props.runtimeMetrics ?? null,
+    ),
+    activeDimensions: props.activeDimensions,
   }
 }
 

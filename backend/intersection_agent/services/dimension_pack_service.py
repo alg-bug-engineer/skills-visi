@@ -21,10 +21,21 @@ class DimensionPackService:
 
     def focus_categories(self, problem_types: list[str]) -> list[str]:
         """Return base categories plus all activated packs' categories (deduped)."""
-        cats: list[str] = list(self._cfg.get("base", {}).get("focus_categories", []))
+        return self._union("focus_categories", problem_types)
+
+    def presentation_dimensions(self, problem_types: list[str]) -> list[str]:
+        """Return base + activated packs' UI presentation dimensions (deduped).
+
+        Drives the frontend's "show only relevant cards/layers/voice" gating —
+        e.g. 配时方案/环图(timing_plan/ring) only surface for 空放(empty_green).
+        """
+        return self._union("presentation_dimensions", problem_types)
+
+    def _union(self, key: str, problem_types: list[str]) -> list[str]:
+        items: list[str] = list(self._cfg.get("base", {}).get(key, []))
         packs = self._cfg.get("packs", {})
         for pt in problem_types:
-            for c in packs.get(pt, {}).get("focus_categories", []):
-                if c not in cats:
-                    cats.append(c)
-        return cats
+            for c in packs.get(pt, {}).get(key, []):
+                if c not in items:
+                    items.append(c)
+        return items

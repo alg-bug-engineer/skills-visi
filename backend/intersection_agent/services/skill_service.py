@@ -21,6 +21,7 @@ from intersection_agent.skills.interleaved_skill_persist_visualizer import (
 )
 from intersection_agent.skills.package_builder import SkillPackageBuilder, skill_dir_name
 from intersection_agent.services.skill_matcher import build_skill_tags, compare_content_tags, match_skill
+from intersection_agent.services.suggestion_service import SuggestionService
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
 from intersection_agent.skills.tag_helpers import increment_usage_meta, merge_usage_meta, read_hit_count, read_last_hit_at
 
@@ -154,6 +155,15 @@ class SkillService:
         )
         if existing and existing.tags:
             tags = merge_usage_meta(existing.tags, tags)
+        solution_measure = None
+        if session.suggestion:
+            solution_measure = (
+                SuggestionService.build_measure_line(
+                    session.suggestion,
+                    session.data_payload.get("flow_timing_governance"),
+                )
+                or None
+            )
         return SkillRecord(
             skill_id=skill_id,
             skill_dir=skill_dir_name(session.inter_id or "", DEFAULT_PROBLEM_TYPE, label),
@@ -179,6 +189,7 @@ class SkillService:
             user_constraints=user_constraints,
             quantitative_constraints=quantitative_constraints,
             tags=tags,
+            solution_measure=solution_measure,
         )
 
     def upsert_from_session(self, session: Session) -> SkillUpsertResult:
@@ -204,6 +215,7 @@ class SkillService:
                 user_constraints=candidate.user_constraints,
                 quantitative_constraints=candidate.quantitative_constraints,
                 tags=candidate.tags,
+                solution_measure=candidate.solution_measure,
             )
             if _snapshot_equal(existing, candidate):
                 return SkillUpsertResult(record=existing, action="unchanged")
@@ -242,6 +254,7 @@ class SkillService:
                 user_constraints=candidate.user_constraints,
                 quantitative_constraints=candidate.quantitative_constraints,
                 tags=candidate.tags,
+                solution_measure=candidate.solution_measure,
             )
 
         interleaved = InterleavedSkillPersistVisualizer(self, self._builder)
@@ -270,6 +283,7 @@ class SkillService:
             user_constraints=candidate.user_constraints,
             quantitative_constraints=candidate.quantitative_constraints,
             tags=merge_usage_meta(existing.tags if existing else None, report.tags),
+            solution_measure=candidate.solution_measure,
         )
 
         if result.action == "unchanged":
@@ -347,6 +361,7 @@ class SkillService:
             user_constraints=record.user_constraints,
             quantitative_constraints=record.quantitative_constraints,
             tags=tags,
+            solution_measure=record.solution_measure,
         )
         files = self._builder.build_file_contents(updated, session=None)
         self._builder.write_package_files(updated, files)
@@ -391,6 +406,7 @@ def _snapshot_equal(left: SkillRecord, right: SkillRecord) -> bool:
     return (
         left.rule_ids == right.rule_ids
         and left.suggestion_formula == right.suggestion_formula
+        and left.solution_measure == right.solution_measure
         and left.user_constraints == right.user_constraints
         and left.quantitative_constraints == right.quantitative_constraints
         and left.data_query_spec == right.data_query_spec

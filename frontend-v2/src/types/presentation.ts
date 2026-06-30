@@ -114,6 +114,22 @@ export interface PresentationState {
   reusedExperience: string[]
   /** 同类场景专家治理经验 */
   caseExperience: CaseScenario[]
+  /** 后端按问题类型推导的呈现维度：驱动「无关卡片/图层不出现」（空=未知，permissive） */
+  activeDimensions: string[]
+  /** 本轮诊断命中的问题类型（拥堵/溢出/空放/冲突，可叠加） */
+  problemTypes: string[]
+}
+
+/**
+ * 某呈现维度在当前问题下是否相关。
+ * activeDimensions 为空（后端未下发/未知）时一律 permissive，避免误隐藏。
+ */
+export function isPresentationDimActive(
+  activeDimensions: string[] | undefined | null,
+  dim: string,
+): boolean {
+  if (!activeDimensions || activeDimensions.length === 0) return true
+  return activeDimensions.includes(dim)
 }
 
 export interface RuntimeMetrics {
@@ -165,6 +181,8 @@ export function createInitialPresentation(): PresentationState {
     experienceSediment: [],
     reusedExperience: [],
     caseExperience: [],
+    activeDimensions: [],
+    problemTypes: [],
   }
 }
 
@@ -177,10 +195,15 @@ export function shouldShowChannelizationOverlay(
 
 export function shouldShowTimingRingMini(
   phase: PipelinePhase,
-  state: Pick<PresentationState, 'timingRingMiniOpen' | 'timingRingMiniDismissed' | 'evidence'>,
+  state: Pick<
+    PresentationState,
+    'timingRingMiniOpen' | 'timingRingMiniDismissed' | 'evidence' | 'activeDimensions'
+  >,
 ): boolean {
   const hasRing = Boolean(state.evidence?.timing_profile?.ring_diagram?.available)
   if (!hasRing) return false
+  // 配时环图仅在当前问题用到「环图」维度时出现（如空放）；拥堵等不展示
+  if (!isPresentationDimActive(state.activeDimensions, 'ring')) return false
   if (state.timingRingMiniDismissed && !state.timingRingMiniOpen) return false
   if (state.timingRingMiniOpen) return true
   return TIMING_RING_AUTO_PHASES.includes(phase)

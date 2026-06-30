@@ -16,6 +16,24 @@ def test_multiple_types_union_no_dup():
     assert len(cats) == len(set(cats))
 
 
+def test_presentation_dimensions_gate_ring_to_empty_green():
+    svc = DimensionPackService()
+    # 拥堵：不含配时方案/环图维度
+    congestion = svc.presentation_dimensions(["congestion"])
+    assert "ring" not in congestion and "timing_plan" not in congestion
+    assert "queue" in congestion and "flow" in congestion  # base + 拥堵
+    # 空放：配时方案/环图维度出现
+    empty = svc.presentation_dimensions(["empty_green"])
+    assert "ring" in empty and "timing_plan" in empty
+
+
+def test_presentation_dimensions_union_dedup():
+    svc = DimensionPackService()
+    dims = svc.presentation_dimensions(["congestion", "spillback"])
+    assert "queue" in dims  # 两类共有，去重
+    assert len(dims) == len(set(dims))
+
+
 def test_unknown_type_falls_back_to_base():
     svc = DimensionPackService()
     cats = svc.focus_categories(["__nope__"])

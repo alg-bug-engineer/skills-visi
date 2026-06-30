@@ -14,9 +14,21 @@ from intersection_agent.models.experience import (
     DiagnosisEntry,
     IntersectionProfile,
     SolutionRef,
+    _now,
 )
 
 _SAFE = re.compile(r"\W+", re.UNICODE)
+_PUNCT = re.compile(r"[\s，。、；;,.!！?？:：·\-—_/\\()（）\[\]【】\"'“”‘’]+", re.UNICODE)
+
+# 认知状态优先级：去重时高状态覆盖低状态（数据验证升级）。
+_STATUS_RANK: dict[str, int] = {"verified": 2, "data_doubt": 1, "manual": 0}
+
+
+def _norm(text: str | None) -> str:
+    """归一化文本：去空白/标点、转小写，用于路口内同桶判重。"""
+    if not text:
+        return ""
+    return _PUNCT.sub("", text).lower()
 
 
 class IntersectionProfileStore:
@@ -39,6 +51,19 @@ class IntersectionProfileStore:
         with open(path, encoding="utf-8") as f:
             return IntersectionProfile.model_validate(json.load(f))
 
+    def load_all(self) -> list[IntersectionProfile]:
+        """扫描档案目录，返回全部路口认知档案（供经验库聚合）。"""
+        if not self._base.is_dir():
+            return []
+        profiles: list[IntersectionProfile] = []
+        for path in sorted(self._base.glob("*.json")):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    profiles.append(IntersectionProfile.model_validate(json.load(f)))
+            except (json.JSONDecodeError, OSError, ValueError):
+                continue
+        return profiles
+
     def _save(self, profile: IntersectionProfile) -> None:
         self._base.mkdir(parents=True, exist_ok=True)
         path = self._path(profile.inter_id)
@@ -55,11 +80,21 @@ class IntersectionProfileStore:
         evidence: dict[str, Any] | None = None,
     ) -> IntersectionProfile:
         profile = self.load(inter_id)
-        profile.cognition.append(
-            CognitionEntry(
-                text=text, status=status, source=source, evidence=evidence or {}
+        key = _norm(text)
+        existing = next((c for c in profile.cognition if _norm(c.text) == key), None)
+        if existing is not None:
+            # 数据验证升级：高状态覆盖低状态，evidence 非空覆盖空。
+            if _STATUS_RANK.get(status, 0) > _STATUS_RANK.get(existing.status, 0):
+                existing.status = status
+            if evidence and not existing.evidence:
+                existing.evidence = evidence
+            existing.ts = _now()
+        else:
+            profile.cognition.append(
+                CognitionEntry(
+                    text=text, status=status, source=source, evidence=evidence or {}
+                )
             )
-        )
         self._save(profile)
         return profile
 
@@ -74,15 +109,32 @@ class IntersectionProfileStore:
         confidence: float = 0.0,
     ) -> IntersectionProfile:
         profile = self.load(inter_id)
-        profile.diagnosis.append(
-            DiagnosisEntry(
-                cause=cause,
-                dimension=dimension,
-                scope=scope,
-                source=source,
-                confidence=confidence,
-            )
+        key = (_norm(cause), dimension, _norm(scope))
+        existing = next(
+            (
+                d
+                for d in profile.diagnosis
+                if (_norm(d.cause), d.dimension, _norm(d.scope)) == key
+            ),
+            None,
         )
+        if existing is not None:
+            # 保留高 confidence；data 来源优先于 user。
+            if confidence > existing.confidence:
+                existing.confidence = confidence
+            if source == "data" and existing.source != "data":
+                existing.source = source
+            existing.ts = _now()
+        else:
+            profile.diagnosis.append(
+                DiagnosisEntry(
+                    cause=cause,
+                    dimension=dimension,
+                    scope=scope,
+                    source=source,
+                    confidence=confidence,
+                )
+            )
         self._save(profile)
         return profile
 
@@ -95,10 +147,25 @@ class IntersectionProfileStore:
         quantified: str | None = None,
     ) -> IntersectionProfile:
         profile = self.load(inter_id)
-        profile.solution_ref.append(
-            SolutionRef(
-                skill_id=skill_id, qualitative=qualitative, quantified=quantified
-            )
+        key = (skill_id, _norm(quantified))
+        existing = next(
+            (
+                s
+                for s in profile.solution_ref
+                if (s.skill_id, _norm(s.quantified)) == key
+            ),
+            None,
         )
+        if existing is not None:
+            # 同方案以最新内容更新。
+            existing.qualitative = qualitative
+            existing.quantified = quantified
+            existing.ts = _now()
+        else:
+            profile.solution_ref.append(
+                SolutionRef(
+                    skill_id=skill_id, qualitative=qualitative, quantified=quantified
+                )
+            )
         self._save(profile)
         return profile

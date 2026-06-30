@@ -1,12 +1,19 @@
-version: 1.0.0
-base:            # 所有问题共有底座（流量/渠化/POI/AOI 在 cognition 阶段加载，此处为诊断类目）
+version: 1.1.0
+# focus_categories：驱动规则诊断维度子集（后端）
+# presentation_dimensions：驱动前端卡片/图层/播报「按需出现」（仅在相关问题下渲染）
+base:            # 所有问题共有底座（流量/渠化为底图始终在）
   focus_categories: [saturation]
+  presentation_dimensions: [flow, channelization]
 packs:
-  congestion:    # 拥堵：饱和度/绿灯利用率/排队/延误
-    focus_categories: [saturation, imbalance]
+  congestion:    # 拥堵：饱和度/绿灯利用率/排队/延误/周期
+    focus_categories: [saturation, imbalance, green_util, delay, cycle]
+    presentation_dimensions: [saturation, green_util, queue, delay, demand]
   spillback:     # 溢出：排队长度/溢出/下游阻塞
     focus_categories: [spillback]
-  empty_green:   # 空放：绿灯利用率/配时/环图/失衡
-    focus_categories: [empty_green, imbalance]
-  conflict:      # 冲突：相位相序/渠化匹配
+    presentation_dimensions: [queue, spillback, downstream_block]
+  empty_green:   # 空放：绿灯利用率/配时/环图/失衡（配时方案与环图仅此类出现）
+    focus_categories: [empty_green, imbalance, green_util, granularity, cycle]
+    presentation_dimensions: [green_util, timing_plan, ring, green_split, cycle]
+  conflict:      # 冲突：相位相序/渠化匹配/机非冲突
     focus_categories: [channelization]
+    presentation_dimensions: [phase_sequence, channel_match, nonmotor_conflict]

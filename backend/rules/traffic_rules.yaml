@@ -20,6 +20,7 @@ rules:
   - id: rule_green_insufficient
     name: 绿灯时长不足导致拥堵
     problem_type: congestion
+    focus_category: green_util
     priority: 10
     conditions:
       - metric: evaluation.delay_index
@@ -107,6 +108,7 @@ rules:
   - id: rule_green_below_min
     name: 计划绿灯低于理论最小绿
     problem_type: signal_timing
+    focus_category: green_util
     priority: 12
     conditions:
       - metric: timing.green_deficit_ratio_max
@@ -128,6 +130,7 @@ rules:
   - id: rule_cycle_too_long
     name: 信号周期过长
     problem_type: signal_timing
+    focus_category: cycle
     priority: 25
     conditions:
       - metric: timing.cycle_issue
@@ -144,6 +147,7 @@ rules:
   - id: rule_cycle_too_short
     name: 信号周期过短
     problem_type: signal_timing
+    focus_category: cycle
     priority: 26
     conditions:
       - metric: timing.cycle_issue
@@ -160,6 +164,7 @@ rules:
   - id: rule_plan_granularity
     name: 时段方案精细度不足
     problem_type: signal_timing
+    focus_category: granularity
     priority: 35
     conditions:
       - metric: timing.plan_granularity_low
@@ -201,6 +206,7 @@ rules:
   - id: rule_approach_high_delay
     name: 进口延误与停车偏高
     problem_type: congestion
+    focus_category: delay
     priority: 28
     conditions:
       - metric: granularity.approach_stop_time_max
@@ -222,6 +228,7 @@ rules:
   - id: rule_green_wave_break
     name: 干线协调绿波断裂风险
     problem_type: corridor
+    focus_category: corridor
     priority: 16
     conditions:
       - metric: corridor.green_wave_break_risk
@@ -242,6 +249,7 @@ rules:
   - id: rule_public_complaint_demo
     name: 民意投诉（演示模式）
     problem_type: external
+    focus_category: external
     priority: 38
     conditions:
       - metric: meta.demo_mode
@@ -262,6 +270,7 @@ rules:
   - id: rule_public_complaint
     name: 民意投诉与运行数据交叉印证
     problem_type: external
+    focus_category: external
     priority: 40
     conditions:
       - metric: external_evidence.complaint_total

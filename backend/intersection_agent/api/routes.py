@@ -10,6 +10,10 @@ from fastapi.responses import Response, StreamingResponse
 
 from intersection_agent import __version__
 from intersection_agent.api.schemas import (
+    ExperienceCognitionItem,
+    ExperienceDiagnosisItem,
+    ExperienceLibraryResponse,
+    ExperienceSolutionItem,
     HealthResponse,
     MessageRequest,
     MessageResponse,
@@ -26,6 +30,7 @@ from intersection_agent.services.orchestrator import Orchestrator
 from intersection_agent.services.skill_service import SkillService
 from intersection_agent.services.skill_matcher import backfill_tags
 from intersection_agent.skills.tag_helpers import read_hit_count, read_last_hit_at
+from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
 from intersection_agent.stores.session_store import SessionStore
 
 logger = logging.getLogger(__name__)
@@ -248,6 +253,77 @@ async def list_skill_leaderboard(
         raise HTTPException(status_code=422, detail="Invalid sort")
     records = _skills.list_leaderboard(sort=sort, intersection=intersection)
     return [_leaderboard_item(r) for r in records]
+
+
+@router.get("/experience/library", response_model=ExperienceLibraryResponse)
+async def get_experience_library(
+    inter_id: str | None = Query(
+        default=None, description="路口 ID；省略则聚合全部路口"
+    ),
+) -> ExperienceLibraryResponse:
+    """经验库三桶：认知 / 诊断 / 方案（方案经验由 skill 富化）。"""
+    # 每请求新建，确保读取当前配置（测试隔离 PROFILE_DIR_PATH）
+    store = IntersectionProfileStore()
+    profiles = [store.load(inter_id)] if inter_id else store.load_all()
+
+    cognition: list[ExperienceCognitionItem] = []
+    diagnosis: list[ExperienceDiagnosisItem] = []
+    solution: list[ExperienceSolutionItem] = []
+
+    for profile in profiles:
+        pid = profile.inter_id
+        for c in profile.cognition:
+            cognition.append(
+                ExperienceCognitionItem(
+                    inter_id=pid,
+                    text=c.text,
+                    status=c.status,
+                    source=c.source,
+                    evidence=c.evidence,
+                    ts=c.ts,
+                )
+            )
+        for d in profile.diagnosis:
+            diagnosis.append(
+                ExperienceDiagnosisItem(
+                    inter_id=pid,
+                    cause=d.cause,
+                    dimension=d.dimension,
+                    scope=d.scope,
+                    source=d.source,
+                    confidence=d.confidence,
+                    ts=d.ts,
+                )
+            )
+        for s in profile.solution_ref:
+            record = _skills.get_by_id(s.skill_id)
+            solution.append(
+                ExperienceSolutionItem(
+                    inter_id=pid,
+                    skill_id=s.skill_id,
+                    qualitative=s.qualitative,
+                    quantified=s.quantified,
+                    ts=s.ts,
+                    intersection=record.intersection if record else "",
+                    time_period_label=record.time_period_label if record else "",
+                    solution_measure=record.solution_measure if record else None,
+                    download_url=(
+                        f"/api/v1/skills/{s.skill_id}/download" if record else None
+                    ),
+                )
+            )
+
+    # 时间倒序，最新沉淀在前
+    cognition.sort(key=lambda x: x.ts, reverse=True)
+    diagnosis.sort(key=lambda x: x.ts, reverse=True)
+    solution.sort(key=lambda x: x.ts, reverse=True)
+
+    return ExperienceLibraryResponse(
+        inter_id=inter_id,
+        cognition=cognition,
+        diagnosis=diagnosis,
+        solution=solution,
+    )
 
 
 @router.get("/skills/{skill_id}/download")

@@ -426,11 +426,58 @@ def build_axis_roads_speakable(
     return "，".join(segments) + "。"
 
 
+def build_links_speakable(
+    cognition: dict[str, Any],
+    axis_roads: dict[str, str],
+    inter_name: str = "",
+) -> str:
+    """完整的路口结构播报：路口名 + 主轴道路 + 进口/车道概览。
+
+    仅播主轴道路会让语音在面板还显示进口/车道信息时显得「被截断」，
+    这里把结构概览一并纳入，保证口播与面板结构一致。
+    """
+    segments: list[str] = []
+    if inter_name:
+        segments.append(str(inter_name))
+    axis_parts = [
+        f"{group}为{axis_roads[group]}"
+        for group in ("东西向", "南北向")
+        if axis_roads.get(group)
+    ]
+    if axis_parts:
+        segments.append("，".join(axis_parts))
+
+    inter = cognition.get("intersection") or {}
+    links = cognition.get("links") or []
+    entrances = [
+        link
+        for link in links
+        if str(link.get("link_role") or "") in ("entrance", "进口")
+    ]
+    arm_count = (
+        len(entrances)
+        or len(cognition.get("arms") or [])
+        or inter.get("arm_count")
+    )
+    total_lanes = inter.get("total_lanes")
+    overview: list[str] = []
+    if arm_count:
+        overview.append(f"共{arm_count}个进口方向")
+    if total_lanes:
+        overview.append(f"总计{total_lanes}条车道")
+    if overview:
+        segments.append("，".join(overview))
+
+    if not segments:
+        return ""
+    return "，".join(segments) + "。"
+
+
 def build_links_narration_payload(cognition: dict[str, Any]) -> dict[str, Any]:
     """Narration card for links phase with axis road names and TTS speakable."""
     inter = cognition.get("intersection") or {}
     axis = axis_roads_summary(cognition)
-    speakable = build_axis_roads_speakable(axis, str(inter.get("name") or ""))
+    speakable = build_links_speakable(cognition, axis, str(inter.get("name") or ""))
     body = links_summary(cognition)
     if axis:
         header = "，".join(f"{group}为{road}" for group, road in axis.items())

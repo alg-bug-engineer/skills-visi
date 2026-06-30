@@ -170,7 +170,7 @@ function sevClass(sev?: string): string {
 
       <!-- 右侧：问题验证、治理建议各为独立卡片（治理建议在验证下方） -->
       <div
-        v-if="showEvidence || showSuggestion || showExperience"
+        v-if="showEvidence || showSuggestion"
         class="narrative-right-column"
         aria-label="问题验证与治理建议"
       >
@@ -207,57 +207,58 @@ function sevClass(sev?: string): string {
             </ul>
           </section>
         </aside>
+      </div>
 
-        <aside
-          v-if="showExperience"
-          class="narrative-stack narrative-card experience-card"
-          aria-label="经验沉淀与复用"
-        >
-          <section v-if="sedimentItems.length" class="block sediment">
-            <span class="block-title sediment-title">经验沉淀</span>
-            <TransitionGroup name="item-in" tag="ul" class="list">
-              <li
-                v-for="(item, i) in sedimentItems"
-                :key="`${item.level}-${i}`"
-                class="row plain"
-              >
-                <span class="level-badge" :class="`lvl-${item.level}`">{{ levelLabel(item.level) }}</span>
-                <span class="text">{{ item.text }}</span>
-              </li>
-            </TransitionGroup>
-          </section>
+      <!-- 经验沉淀卡：地图舞台左下角独立卡片 -->
+      <aside
+        v-if="showExperience"
+        class="narrative-stack narrative-card experience-card experience-card--bottom-left"
+        aria-label="经验沉淀与复用"
+      >
+        <section v-if="sedimentItems.length" class="block sediment">
+          <span class="block-title sediment-title">经验沉淀</span>
+          <TransitionGroup name="item-in" tag="ul" class="list">
+            <li
+              v-for="(item, i) in sedimentItems"
+              :key="`${item.level}-${i}`"
+              class="row plain"
+            >
+              <span class="level-badge" :class="`lvl-${item.level}`">{{ levelLabel(item.level) }}</span>
+              <span class="text">{{ item.text }}</span>
+            </li>
+          </TransitionGroup>
+        </section>
 
-          <section v-if="reusedItems.length" class="block reused">
-            <span class="block-title reused-title">经验复用</span>
+        <section v-if="reusedItems.length" class="block reused">
+          <span class="block-title reused-title">经验复用</span>
+          <ul class="list">
+            <li v-for="(item, i) in reusedItems" :key="i" class="row plain">
+              <span class="tick reuse-tick">↺</span><span class="text">{{ item }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section v-if="caseItems.length" class="block case">
+          <span class="block-title case-title">同类场景专家经验</span>
+          <div v-for="(sc, i) in caseItems" :key="i" class="case-scenario">
+            <p class="case-name">{{ sc.scenario_name }}</p>
             <ul class="list">
-              <li v-for="(item, i) in reusedItems" :key="i" class="row plain">
-                <span class="tick reuse-tick">↺</span><span class="text">{{ item }}</span>
+              <li
+                v-for="(p, pi) in sc.problems"
+                :key="pi"
+                class="row plain case-problem"
+              >
+                <span class="text">
+                  <strong>{{ p.problem }}</strong>
+                  <template v-if="p.solutions?.length">
+                    —— {{ p.solutions.map((s) => s.name).join('、') }}
+                  </template>
+                </span>
               </li>
             </ul>
-          </section>
-
-          <section v-if="caseItems.length" class="block case">
-            <span class="block-title case-title">同类场景专家经验</span>
-            <div v-for="(sc, i) in caseItems" :key="i" class="case-scenario">
-              <p class="case-name">{{ sc.scenario_name }}</p>
-              <ul class="list">
-                <li
-                  v-for="(p, pi) in sc.problems"
-                  :key="pi"
-                  class="row plain case-problem"
-                >
-                  <span class="text">
-                    <strong>{{ p.problem }}</strong>
-                    <template v-if="p.solutions?.length">
-                      —— {{ p.solutions.map((s) => s.name).join('、') }}
-                    </template>
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </section>
-        </aside>
-      </div>
+          </div>
+        </section>
+      </aside>
     </div>
   </Transition>
 </template>
@@ -333,6 +334,15 @@ function sevClass(sev?: string): string {
 
 .experience-card {
   border-color: rgba(201, 162, 39, 0.4);
+}
+
+/* 经验沉淀卡固定在地图舞台左下角，与左上身份卡互不重叠（最高 60% 高度，溢出内部滚动）。 */
+.experience-card--bottom-left {
+  left: 12px;
+  bottom: 12px;
+  top: auto;
+  right: auto;
+  max-height: calc(60% - 24px);
 }
 .block-title.sediment-title {
   color: #c9a227;

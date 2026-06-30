@@ -1514,6 +1514,13 @@ class Orchestrator:
             "inter_id": session.inter_id,
             "skill_reused": session.skill_reuse_mode or bool(session.matched_skill_id),
         }
+        problem_types = list(session.nlu.problem_types) if session.nlu and session.nlu.problem_types else []
+        if problem_types:
+            meta["problem_types"] = problem_types
+            # 驱动前端「无关卡片/图层/播报不出现」（_build_response 为 staticmethod，用模块级单例）
+            meta["active_dimensions"] = _presentation_dimension_packs().presentation_dimensions(
+                problem_types
+            )
         if session.data_payload:
             data_meta = session.data_payload.get("meta", {})
             dw = data_meta.get("data_window")
@@ -1557,6 +1564,17 @@ class Orchestrator:
             "suggestion": session.suggestion.model_dump() if session.suggestion else None,
             "meta": meta,
         }
+
+
+_PRESENTATION_DIMENSION_PACKS: DimensionPackService | None = None
+
+
+def _presentation_dimension_packs() -> DimensionPackService:
+    """Module-level singleton (cheap YAML) for static _build_response usage."""
+    global _PRESENTATION_DIMENSION_PACKS
+    if _PRESENTATION_DIMENSION_PACKS is None:
+        _PRESENTATION_DIMENSION_PACKS = DimensionPackService()
+    return _PRESENTATION_DIMENSION_PACKS
 
 
 def _no_diagnosis_message(reason_code: str, data: dict[str, Any]) -> str:

@@ -80,6 +80,8 @@ export function usePresentation() {
     state.experienceSediment = []
     state.reusedExperience = []
     state.caseExperience = []
+    state.activeDimensions = []
+    state.problemTypes = []
     state.focusedDirs = []
     state.protectedDirs = []
     state.revealedInsightSteps = {
@@ -107,6 +109,12 @@ export function usePresentation() {
 
   function reset() {
     Object.assign(state, createInitialPresentation())
+  }
+
+  /** 后端按问题类型推导的呈现维度，驱动「无关卡片/图层/播报不出现」 */
+  function setActiveDimensions(dims: string[], problemTypes: string[]) {
+    state.activeDimensions = Array.isArray(dims) ? dims : []
+    state.problemTypes = Array.isArray(problemTypes) ? problemTypes : []
   }
 
   function setPhase(phase: PipelinePhase) {
@@ -395,6 +403,7 @@ export function usePresentation() {
     clearInsights,
     prepareNewAnalysisRun,
     reset,
+    setActiveDimensions,
     setPhase,
     mergeDataInsight,
     revealDataCard,

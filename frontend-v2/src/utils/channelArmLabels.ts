@@ -1,4 +1,5 @@
 import type { CognitionPayload, MapSceneMarker } from '../types/map'
+import type { ChannelQueueArm } from './cognitionChannelAdapter'
 import { normalizeDir } from './mapMarkers'
 
 export interface ArmSceneLabel {
@@ -51,6 +52,34 @@ export function buildArmLabelsFromDirectionGroups(
         colorHex: sat >= 0.85 ? '#ff6b4a' : sat >= 0.65 ? '#ffaa44' : '#00e5ff',
       })
     }
+  }
+  return labels
+}
+
+/**
+ * 排队长度标签：在渠化进口显示估算排队长度（米）+ 饱和度。
+ * 解决「排队长度在渠化上缺少显示」——数据取自 buildQueueDataFromEvidence。
+ */
+export function buildArmLabelsFromQueue(queueArms: ChannelQueueArm[]): ArmSceneLabel[] {
+  const labels: ArmSceneLabel[] = []
+  for (const arm of queueArms) {
+    if (!(arm.queueM > 0)) continue
+    const dir = dirKeyFromLabel(arm.dir4) ?? dirKeyFromLabel(arm.label)
+    if (!dir) continue
+    const meters = Math.round(arm.queueM)
+    const sat = arm.satRatio
+    const satText = sat != null ? `饱和${sat.toFixed(2)} · ` : ''
+    labels.push({
+      dir,
+      line1: arm.label || `${dir}进口`,
+      line2: `${satText}排队~${meters}m`,
+      colorHex:
+        sat != null && sat >= 0.85
+          ? '#ff6b4a'
+          : sat != null && sat >= 0.65
+            ? '#ffaa44'
+            : '#00e5ff',
+    })
   }
   return labels
 }

@@ -195,6 +195,7 @@ const canToggleCorridor = computed(
             :corridor-selected-inter-id="presentation.corridorScan?.selectedInterId ?? null"
             :visual-pan-offset-x="corridorPanOffsetX"
             :suppress-stage-hud="showNarrativeStack"
+            :active-dimensions="presentation.activeDimensions"
             @channelization-active="emit('channelizationActive', $event)"
             @close-timing-ring="emit('closeTimingRing')"
             @close-corridor-wave="emit('closeCorridorWave')"

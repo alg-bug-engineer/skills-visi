@@ -30,6 +30,10 @@ export interface MessageMeta {
   skill_action?: string
   reused_experience?: string[]
   case_experience?: import('./experience').CaseScenario[]
+  /** 本轮命中的问题类型（拥堵/溢出/空放/冲突） */
+  problem_types?: string[]
+  /** 按问题类型推导的呈现维度，驱动前端「无关卡片/图层/播报不出现」 */
+  active_dimensions?: string[]
   [key: string]: unknown
 }
 
