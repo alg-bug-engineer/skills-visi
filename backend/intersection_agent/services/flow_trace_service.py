@@ -93,6 +93,28 @@ def lock_one_hop(rows: list[dict[str, Any]]) -> dict[tuple[int, int], list[dict[
     return grouped
 
 
+def one_hop_for_approach(
+    rows: list[dict[str, Any]], dir8: int
+) -> dict[str, Any] | None:
+    """对指定进口道，返回 coverage 最大的一跳上游节点（含 feeding_dir8）。"""
+    grouped = lock_one_hop(rows)
+    candidates: list[dict[str, Any]] = []
+    for (d8, _turn), nodes in grouped.items():
+        if d8 == dir8:
+            candidates.extend(nodes)
+    if not candidates:
+        return None
+    best = max(candidates, key=lambda n: n["coverage"])
+    return {
+        "cor_inter_id": best["cor_inter_id"],
+        "cor_inter_name": best.get("cor_inter_name"),
+        "feeding_dir8": best["cor_dir8"],
+        "coverage": best["coverage"],
+        "lng": best.get("lng"),
+        "lat": best.get("lat"),
+    }
+
+
 def classify_sources(
     nodes: list[dict[str, Any]],
     *,
