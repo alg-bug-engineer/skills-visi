@@ -83,6 +83,8 @@ export interface PresentationState {
   insightCards: InsightCardEntry[]
   revealedInsightSteps: {
     data: boolean
+    /** 左侧叙事卡「运行数据」区块：理解过程进入「运行数据」步骤后揭示 */
+    runtimePanel: boolean
     evidence: boolean
     constraints: boolean
     extended: boolean
@@ -135,6 +137,7 @@ export function createInitialPresentation(): PresentationState {
     insightCards: mkCards(),
     revealedInsightSteps: {
       data: false,
+      runtimePanel: false,
       evidence: false,
       constraints: false,
       extended: false,

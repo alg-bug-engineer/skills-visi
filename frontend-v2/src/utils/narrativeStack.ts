@@ -11,6 +11,7 @@ import type {
 import type { RuntimeMetrics } from '../types/presentation'
 import type { DataInsight } from '../types/insight'
 import { THRESHOLDS } from '../constants'
+import { normalizeTurnMetrics, sortTurnMetrics } from './turnMetrics'
 
 /** 已在运行数据其他条目展示的 HUD 指标，避免重复罗列 */
 export const RUNTIME_METRIC_SKIP_LABELS = new Set([
@@ -103,6 +104,36 @@ function appendTurnSide(
   }
 }
 
+function appendAllTurnMetricItems(
+  push: (item: NarrativeRuntimeItem) => void,
+  evidence?: ProblemEvidence | null,
+) {
+  const turns = normalizeTurnMetrics(evidence?.by_turn)
+  if (!turns.length) return
+  for (const turn of sortTurnMetrics(turns)) {
+    const sat = turn.turn_saturation
+    if (sat != null) {
+      push({
+        id: `turn-${turn.label}-sat`,
+        label: `${turn.label}饱和度`,
+        value: formatTurnSatValue(sat),
+        severity: saturationSeverity(sat),
+        category: 'metrics',
+      })
+    }
+    const gu = turn.green_utilization
+    if (gu != null) {
+      push({
+        id: `turn-${turn.label}-gu`,
+        label: `${turn.label}绿灯利用`,
+        value: formatGreenUtil(gu),
+        severity: gu >= 0.9 ? 'high' : gu <= 0.6 ? 'low' : 'medium',
+        category: 'metrics',
+      })
+    }
+  }
+}
+
 function appendTurnBalanceItems(
   push: (item: NarrativeRuntimeItem) => void,
   governance?: FlowTimingGovernance | null,
@@ -142,7 +173,10 @@ export function buildNarrativeRuntimeItems(input: {
     })
   }
 
-  appendTurnBalanceItems(push, input.flowTimingGovernance)
+  appendAllTurnMetricItems(push, ev)
+  if (!ev?.by_turn?.length) {
+    appendTurnBalanceItems(push, input.flowTimingGovernance)
+  }
 
   const imb =
     rm?.imbalance_index ??

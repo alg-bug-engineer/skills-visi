@@ -46,6 +46,18 @@ export interface ArmMetric {
   level?: string
 }
 
+/** 转向级饱和度（与 granularity.by_turn / cognition.metrics_by_turn 对齐） */
+export interface TurnMetric {
+  label: string
+  dir4_label: string
+  turn?: string
+  dir8_code?: number | null
+  turn_dir_no?: number | null
+  turn_saturation?: number | null
+  green_utilization?: number | null
+  level?: string
+}
+
 export interface CognitionPayload {
   city?: { lon: number; lat: number; zoom: number }
   intersection: CognitionIntersection
@@ -53,6 +65,7 @@ export interface CognitionPayload {
   links?: IntersectionLink[]
   direction_groups?: DirectionGroup[]
   metrics_by_arm?: ArmMetric[]
+  metrics_by_turn?: TurnMetric[]
   available_directions?: string[]
 }
 
@@ -105,6 +118,7 @@ export interface MapActionEvent {
   links?: IntersectionLink[]
   direction_groups?: DirectionGroup[]
   metrics_by_arm?: ArmMetric[]
+  metrics_by_turn?: TurnMetric[]
   title?: string
   text?: string
   index?: number

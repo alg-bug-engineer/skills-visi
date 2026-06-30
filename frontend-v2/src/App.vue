@@ -151,6 +151,22 @@ function rememberIntersectionName(name: string) {
   void scheduleProcessStepVoice(STEP_INDICES.INTERSECTION)
 }
 
+async function waitForStepVoiceSent(stepIndex: number, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs
+  while (!voiceSentForStep.has(stepIndex)) {
+    if (Date.now() >= deadline) return
+    await sleep(50)
+  }
+}
+
+async function waitForPriorStepVoices(stepIndex: number) {
+  for (let i = 0; i < stepIndex; i++) {
+    if (i === STEP_INDICES.DATA_FETCH) continue
+    await waitForStepVoiceSent(i)
+    await voice.whenIdle()
+  }
+}
+
 function handleProcessStepVoice(stepIndex: number) {
   if (!voice.enabled.value || voiceSentForStep.has(stepIndex)) return
   if (stepIndex === STEP_INDICES.DATA_FETCH) return
@@ -171,8 +187,11 @@ function handleProcessStepVoice(stepIndex: number) {
 
 async function scheduleProcessStepVoice(stepIndex: number) {
   if (!voice.enabled.value || voiceSentForStep.has(stepIndex)) return
+  if (stepIndex === STEP_INDICES.DATA_FETCH) return
+
+  await waitForPriorStepVoices(stepIndex)
+
   if (stepIndex === STEP_INDICES.INTERSECTION) {
-    await voice.whenIdle()
     const gap = voiceConfig.playback.intersectionGuideGapMs ?? 900
     if (gap > 0) await sleep(gap)
     if (voiceSentForStep.has(stepIndex)) return
@@ -189,11 +208,10 @@ const {
   whenIdle: whenProcessIdle,
 } = useUnderstandingProcess({
   onStepStart(stepIndex) {
-    if (stepIndex === STEP_INDICES.INTERSECTION) {
-      void scheduleProcessStepVoice(stepIndex)
-      return
+    if (stepIndex === STEP_INDICES.DATA_FETCH) {
+      presentation.revealRuntimePanel()
     }
-    handleProcessStepVoice(stepIndex)
+    void scheduleProcessStepVoice(stepIndex)
   },
   onStepComplete(stepIndex) {
     presentation.revealInsightsForProcessStep(stepIndex)
@@ -1038,6 +1056,7 @@ function updateCognitionFromAction(action: MapActionEvent) {
     arms: action.arms ?? prev?.arms ?? [],
     links: action.links ?? prev?.links ?? [],
     metrics_by_arm: action.metrics_by_arm ?? prev?.metrics_by_arm,
+    metrics_by_turn: action.metrics_by_turn ?? prev?.metrics_by_turn,
     direction_groups: action.direction_groups ?? prev?.direction_groups,
     available_directions: prev?.available_directions,
   })

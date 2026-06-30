@@ -23,6 +23,8 @@ const props = defineProps<{
   governanceSuggestion?: GovernanceSuggestionPayload | null
   flowTimingGovernance?: FlowTimingGovernance | null
   focusStepIndex: number
+  /** 理解过程进入「运行数据」步骤后为 true（与 focusStepIndex 解耦，避免地图阶段抢跑） */
+  runtimePanelRevealed?: boolean
   phase?: PipelinePhase
   /** 新一轮分析递增，重置粘性揭示 */
   runKey?: number
@@ -47,7 +49,6 @@ const focusRole = computed(() => formatDirRoles(props.highlightDirs))
 const protectRole = computed(() => formatDirRoles(props.protectedDirs))
 
 /* ── 运行数据（逐项追加）────────────────────────────────────────────────── */
-const runtimeRevealed = ref(false)
 const runtimeItems = computed(() =>
   buildNarrativeRuntimeItems({
     runtimeMetrics: props.runtimeMetrics,
@@ -56,7 +57,9 @@ const runtimeItems = computed(() =>
     flowTimingGovernance: props.flowTimingGovernance,
   }),
 )
-const showRuntime = computed(() => runtimeRevealed.value && runtimeItems.value.length > 0)
+const showRuntime = computed(
+  () => Boolean(props.runtimePanelRevealed) && runtimeItems.value.length > 0,
+)
 
 /* ── 问题验证（默认展开，可手动折叠）──────────────────────────────────────── */
 const evidenceRevealed = ref(false)
@@ -80,7 +83,6 @@ const showSuggestion = computed(
 watch(
   () => props.focusStepIndex,
   (idx) => {
-    if (idx >= STEP_INDICES.DATA_FETCH) runtimeRevealed.value = true
     if (idx >= STEP_INDICES.PROBLEM_EVIDENCE) {
       evidenceRevealed.value = true
     }
@@ -94,7 +96,6 @@ watch(
 watch(
   () => props.runKey,
   () => {
-    runtimeRevealed.value = false
     evidenceRevealed.value = false
     evidenceCollapsed.value = false
     suggestionRevealed.value = false

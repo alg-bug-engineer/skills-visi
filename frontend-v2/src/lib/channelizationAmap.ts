@@ -557,6 +557,44 @@ export class ChannelizationAmapLayer {
     }
   }
 
+  /* ── applyTurnSaturationLabels（各转向车道饱和度数值，与运行数据面板口径一致） ─ */
+  applyTurnSaturationLabels(
+    specs: Array<{ dir: string; turnCode: string; label: string; saturation: number }> = [],
+  ) {
+    if (!this.arms.length || !specs.length) return
+    for (const spec of specs) {
+      if (!spec?.dir || !spec?.turnCode || spec.saturation == null) continue
+      for (const arm of this.arms) {
+        if (!armMatchesDir(arm.angle, spec.dir)) continue
+        const inLanes = arm.inLink ? parseLaneInfo(arm.inLink) : []
+        const laneIdx = inLanes.findIndex((code) => code === spec.turnCode)
+        if (laneIdx < 0) continue
+        const u0 = this.boxR
+        const vIn = -(laneIdx * LANE_W)
+        const vOut = -((laneIdx + 1) * LANE_W)
+        const sat = Number(spec.saturation)
+        const flowColor = sat >= 1.0 ? '#ff1100' : sat >= 0.85 ? '#ff5500' : sat >= 0.65 ? '#ffaa00' : '#6dffb5'
+        this.addCheck(
+          new this.amap.Polygon({
+            path: this.rect(arm, u0, u0 + ARM_LEN * 0.55, vOut, vIn),
+            strokeOpacity: 0,
+            fillColor: flowColor,
+            fillOpacity: 0.45,
+            bubble: true,
+            zIndex: 44,
+          }),
+        )
+        const labelPos = this.ll(u0 + ARM_LEN * 0.32, (vIn + vOut) / 2, arm.angle)
+        const line1 = spec.label || `${spec.dir}向`
+        const line2 = sat.toFixed(2)
+        this.addCheck(
+          this.makeTextMarker(labelPos, line1, line2, flowColor, -8),
+        )
+        break
+      }
+    }
+  }
+
   /* ── applyTurnHighlight（指定进口转向：车道色带 + 黄环 + 文本框） ───────── */
   applyTurnHighlight(spec: TurnHighlightSpec) {
     this.clearCheck()

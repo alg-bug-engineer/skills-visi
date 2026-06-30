@@ -14,7 +14,7 @@ import {
   panToVisualCenter,
   type AMapMap,
 } from '../utils/amap'
-import { isEntrance, linkStrokeColor, markerHtml, mergeSceneMarkers, normalizeDir } from '../utils/mapMarkers'
+import { isEntrance, linkStrokeColor, markerHtml, mergeSceneMarkers, normalizeDir, RUNTIME_METRIC_MAP_PHASES } from '../utils/mapMarkers'
 import { buildEvidenceDirectionMarkers, buildProtectedDirectionMarkers, highlightDirsForGroup } from '../utils/evidencePresentation'
 import { buildInterItemFromCognition } from '../utils/cognitionChannelAdapter'
 import { createChannelizationController, type ChannelizationController } from '../lib/channelizationController'
@@ -45,6 +45,8 @@ const props = defineProps<{
   presentationLayers?: PresentationLayerGates
   /** 路口信息卡激活时，抑制渠化舞台重复的顶部身份/HUD 条 */
   suppressStageHud?: boolean
+  /** 理解过程进入「运行数据」步骤后为 true；此前不展示地图饱和度卡 */
+  runtimePanelRevealed?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -109,6 +111,7 @@ const effectiveCognition = computed((): CognitionPayload | null => {
     arms: (local?.arms?.length ? local.arms : fromProps?.arms) ?? base.arms ?? [],
     links: (local?.links?.length ? local.links : fromProps?.links) ?? base.links,
     metrics_by_arm: local?.metrics_by_arm ?? fromProps?.metrics_by_arm ?? base.metrics_by_arm,
+    metrics_by_turn: local?.metrics_by_turn ?? fromProps?.metrics_by_turn ?? base.metrics_by_turn,
     direction_groups:
       local?.direction_groups ?? fromProps?.direction_groups ?? base.direction_groups,
   }
@@ -131,6 +134,7 @@ const FOCUS_ZOOM = 17.8
 const CITY_ZOOM = 11
 
 let lastCorridorAction: MapActionEvent | null = null
+let lastMetricSceneAction: MapActionEvent | null = null
 
 let map: AMapMap | null = null
 let AMapLib: typeof AMap | null = null
@@ -167,6 +171,7 @@ function channelizationPhaseParams() {
     highlightDirs: channelHighlightDirs.value,
     protectedDirs: props.protectedDirs ?? [],
     sceneMarkers: chanSceneMarkers.value,
+    allowRuntimeMetrics: Boolean(props.runtimePanelRevealed),
   }
 }
 
@@ -196,7 +201,18 @@ function disposeChannelization() {
 function syncChanSceneMarkers(action?: MapActionEvent) {
   if (!channelizationLocked.value) return
   if (action) {
-    chanSceneMarkers.value = mergeSceneMarkers(action, cognition.value)
+    if (action.phase && RUNTIME_METRIC_MAP_PHASES.has(action.phase)) {
+      lastMetricSceneAction = action
+    }
+    if (!props.runtimePanelRevealed) {
+      chanSceneMarkers.value = []
+      syncChannelizationPhase()
+      return
+    }
+    chanSceneMarkers.value = mergeSceneMarkers(action, cognition.value, {
+      allowRuntimeMetrics: true,
+    })
+    syncChannelizationPhase()
   }
 }
 
@@ -416,7 +432,12 @@ function renderMarkers(action: MapActionEvent) {
   clearMarkers()
   const isCorridor = scenePhase.value === 'corridor_scan'
   const selectedId = props.corridorSelectedInterId
-  const merged = [...mergeSceneMarkers(action, cognition.value), ...extraEvidenceMarkers].map((m) => {
+  const merged = [
+    ...mergeSceneMarkers(action, cognition.value, {
+      allowRuntimeMetrics: Boolean(props.runtimePanelRevealed),
+    }),
+    ...extraEvidenceMarkers,
+  ].map((m) => {
     if (!isCorridor || !m.inter_id) return m
     return { ...m, selected: m.inter_id === selectedId }
   })
@@ -505,6 +526,7 @@ async function prepareNewAnalysisRun() {
   hud.value = null
   scenePhase.value = null
   lastCorridorAction = null
+  lastMetricSceneAction = null
   extraEvidenceMarkers = []
   chanSceneMarkers.value = []
   sceneOpts.value = {
@@ -658,6 +680,7 @@ async function handleAction(action: MapActionEvent) {
         arms: action.arms ?? cognition.value?.arms ?? [],
         links: action.links ?? cognition.value?.links ?? [],
         metrics_by_arm: action.metrics_by_arm ?? cognition.value?.metrics_by_arm,
+        metrics_by_turn: action.metrics_by_turn ?? cognition.value?.metrics_by_turn,
       }
       await drillToIntersection(inter.lon, inter.lat)
       break
@@ -668,6 +691,7 @@ async function handleAction(action: MapActionEvent) {
         arms: action.arms ?? [],
         links: action.links ?? [],
         metrics_by_arm: action.metrics_by_arm ?? cognition.value?.metrics_by_arm,
+        metrics_by_turn: action.metrics_by_turn ?? cognition.value?.metrics_by_turn,
         direction_groups: action.direction_groups ?? cognition.value?.direction_groups,
       }
       const inter = action.intersection!
@@ -688,6 +712,7 @@ async function handleAction(action: MapActionEvent) {
       cognition.value = {
         ...cognition.value,
         metrics_by_arm: action.metrics_by_arm ?? cognition.value.metrics_by_arm,
+        metrics_by_turn: action.metrics_by_turn ?? cognition.value.metrics_by_turn,
         direction_groups: action.direction_groups ?? cognition.value.direction_groups,
         arms: action.arms?.length ? action.arms : cognition.value.arms,
       }
@@ -745,6 +770,7 @@ watch(
     props.runtimeMetrics,
     props.highlightDirs,
     props.protectedDirs,
+    props.runtimePanelRevealed,
     chanSceneMarkers.value,
     effectiveCognition.value,
   ],
@@ -753,6 +779,26 @@ watch(
     mountChannelization()
   },
   { deep: true },
+)
+
+watch(
+  () => props.runtimePanelRevealed,
+  (revealed) => {
+    if (!channelizationLocked.value) return
+    if (!revealed) {
+      chanSceneMarkers.value = []
+      syncChannelizationPhase()
+      return
+    }
+    if (lastMetricSceneAction) {
+      syncChanSceneMarkers(lastMetricSceneAction)
+    } else {
+      syncChannelizationPhase()
+    }
+    if (cognition.value && scenePhase.value && !channelizationLocked.value) {
+      renderMarkers({ action: 'map_scene', phase: scenePhase.value ?? 'evidence' })
+    }
+  },
 )
 
 watch(

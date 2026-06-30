@@ -11,6 +11,7 @@ from intersection_agent.utils.direction_groups import (
     primary_groups_from_nlu,
     protected_groups_for_vertical_constraint,
 )
+from intersection_agent.utils.turn_metrics import normalize_turn_metrics
 
 
 def build_understanding_card(
@@ -659,6 +660,111 @@ def _link_anchor(
     return anchor
 
 
+def _resolve_metrics_by_turn(
+    cognition: dict[str, Any],
+    data: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Turn-level saturation rows from cognition or data.granularity."""
+    turns = cognition.get("metrics_by_turn") or []
+    if turns:
+        return turns
+    by_turn = ((data or {}).get("granularity") or {}).get("by_turn") or []
+    return normalize_turn_metrics(by_turn)
+
+
+def _dir_from_turn_label(label: str) -> str:
+    m = re.match(r"([东南西北]+)", str(label or "").strip())
+    return m.group(1) if m else ""
+
+
+def _markers_for_turn_saturation(
+    links: list[dict[str, Any]],
+    center_lon: float,
+    center_lat: float,
+    metrics_by_turn: list[dict[str, Any]],
+    *,
+    title_prefix_by_dir: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """One marker per turn movement; dirs without turn data are omitted."""
+    prefixes = title_prefix_by_dir or {}
+    turns_by_dir: dict[str, list[dict[str, Any]]] = {}
+    for turn in metrics_by_turn:
+        dir_key = _normalize_dir(
+            str(turn.get("dir4_label") or _dir_from_turn_label(str(turn.get("label") or "")))
+        )
+        if not dir_key:
+            continue
+        turns_by_dir.setdefault(dir_key, []).append(turn)
+
+    markers: list[dict[str, Any]] = []
+    seen_dirs: set[str] = set()
+    for link in links:
+        if str(link.get("link_role") or "") not in ("entrance", "进口"):
+            continue
+        dir_key = _normalize_dir(str(link.get("dir4_label") or link.get("dir8_label") or ""))
+        if not dir_key or dir_key in seen_dirs:
+            continue
+        seen_dirs.add(dir_key)
+        lon, lat = _link_anchor(link, center_lon, center_lat)
+        turns = turns_by_dir.get(dir_key, [])
+        prefix = prefixes.get(dir_key, "")
+        if turns:
+            for turn in turns:
+                label = str(turn.get("label") or "")
+                sat_raw = turn.get("turn_saturation")
+                if sat_raw is None:
+                    continue
+                sat_f = float(sat_raw)
+                title = f"{prefix}{label}" if prefix else label
+                markers.append(
+                    {
+                        "id": f"turn-{dir_key}-{turn.get('turn_dir_no', label)}",
+                        "lon": lon,
+                        "lat": lat,
+                        "dir": dir_key,
+                        "link_id": link.get("link_id"),
+                        "kind": "metric",
+                        "variant": "turn",
+                        "title": title,
+                        "subtitle": "转向饱和度",
+                        "value": _fmt_sat(sat_f),
+                        "severity": _severity(sat_f),
+                        "turn_dir_no": turn.get("turn_dir_no"),
+                    }
+                )
+    return markers
+
+
+def _title_prefix_by_dir_from_groups(
+    groups: list[dict[str, Any]],
+    *,
+    focus_groups: list[str] | None = None,
+    protected_groups: list[str] | None = None,
+) -> dict[str, str]:
+    """Map compass dir → marker title prefix (关注/保护) from direction groups."""
+    focus_set = set(focus_groups or [])
+    protect_set = set(protected_groups or [])
+    prefixes: dict[str, str] = {}
+    for group in groups:
+        group_name = str(group.get("group") or "")
+        if not group_name:
+            continue
+        if group_name in focus_set:
+            prefix = f"关注·"
+        elif group_name in protect_set:
+            prefix = f"保护·"
+        else:
+            continue
+        dirs = GROUP_TO_DIRS.get(group_name) or [
+            _normalize_dir(str(a)) for a in (group.get("arm_labels") or [])
+        ]
+        for d in dirs:
+            norm = _normalize_dir(d)
+            if norm:
+                prefixes[norm] = prefix
+    return prefixes
+
+
 def _saturation_for_dir(
     dir_key: str,
     metrics_by_arm: list[dict[str, Any]],
@@ -893,9 +999,15 @@ def build_map_scene(
         if nlu and nlu.time_period:
             time_label = nlu.time_period.label or ""
         arm_metrics = cognition.get("metrics_by_arm") or []
-        entrance_markers = _markers_for_traffic_phase(
-            links, center_lon, center_lat, arm_metrics, groups
-        )
+        metrics_by_turn = _resolve_metrics_by_turn(cognition, data)
+        if metrics_by_turn:
+            entrance_markers = _markers_for_turn_saturation(
+                links, center_lon, center_lat, metrics_by_turn
+            )
+        else:
+            entrance_markers = _markers_for_traffic_phase(
+                links, center_lon, center_lat, arm_metrics, groups
+            )
         if not entrance_markers and saturation is not None:
             entrance_markers = _markers_for_dirs(links, center_lon, center_lat, worst_dirs)
             for m in entrance_markers:
@@ -943,14 +1055,29 @@ def build_map_scene(
         worst_sat = float(worst_sat_raw) if worst_sat_raw is not None else None
         if worst_sat is None and saturation is not None:
             worst_sat = float(saturation)
-        markers = _markers_for_direction_groups(
-            groups,
-            links,
-            center_lon,
-            center_lat,
-            focus_groups=focus_groups,
-            protected_groups=protected_groups,
-        )
+        metrics_by_turn = _resolve_metrics_by_turn(cognition, data)
+        if metrics_by_turn:
+            prefix_by_dir = _title_prefix_by_dir_from_groups(
+                groups,
+                focus_groups=focus_groups,
+                protected_groups=protected_groups,
+            )
+            markers = _markers_for_turn_saturation(
+                links,
+                center_lon,
+                center_lat,
+                metrics_by_turn,
+                title_prefix_by_dir=prefix_by_dir,
+            )
+        else:
+            markers = _markers_for_direction_groups(
+                groups,
+                links,
+                center_lon,
+                center_lat,
+                focus_groups=focus_groups,
+                protected_groups=protected_groups,
+            )
         focus = next(
             (m for m in markers if role_group and role_group in str(m.get("title") or "")),
             markers[0] if markers else None,

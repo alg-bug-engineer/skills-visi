@@ -5,6 +5,7 @@ import type { CognitionArm, CognitionPayload, IntersectionLink } from '../types/
 import type { ProblemEvidence } from '../types/evidence'
 import type { HighlightTurn, RuntimeMetrics } from '../types/presentation'
 import { normalizeDir } from './mapMarkers'
+import { maxTurnSatForDir, resolveTurnMetrics } from './turnMetrics'
 
 const DIR_BEARING: Record<string, number> = {
   北: 0,
@@ -174,11 +175,20 @@ function resolveArmSaturation(
   evidence: ProblemEvidence | null,
   runtime?: RuntimeMetrics | null,
 ): number | null {
+  const turnMetrics = resolveTurnMetrics(cognition, evidence?.by_turn)
+  const turnMax = maxTurnSatForDir(turnMetrics, arm.dir4_label)
+  if (turnMax != null && turnMax > 0) return turnMax
+
   const metric = cognition?.metrics_by_arm?.find(
     (m) => m.link_id === arm.link_id || m.dir4_label === arm.dir4_label,
   )
   if (metric?.saturation != null && Number(metric.saturation) > 0) {
     return Number(metric.saturation)
+  }
+
+  const turnOnArm = evidence?.by_turn?.find((t) => t.label?.includes(arm.dir4_label))
+  if (turnOnArm?.turn_saturation != null && Number(turnOnArm.turn_saturation) > 0) {
+    return Number(turnOnArm.turn_saturation)
   }
 
   const group = cognition?.direction_groups?.find(
@@ -194,11 +204,6 @@ function resolveArmSaturation(
   )
   if (dirRow?.saturation != null && Number(dirRow.saturation) > 0) {
     return Number(dirRow.saturation)
-  }
-
-  const turnOnArm = evidence?.by_turn?.find((t) => t.label?.includes(arm.dir4_label))
-  if (turnOnArm?.turn_saturation != null && Number(turnOnArm.turn_saturation) > 0) {
-    return Number(turnOnArm.turn_saturation)
   }
 
   const overall =
@@ -260,7 +265,7 @@ export function buildHighlightEvidence(
     maxArmSat ??
     undefined
 
-  const topTurn = evidence?.by_turn?.[0]
+  const topTurn = resolveTurnMetrics(cognition, evidence?.by_turn)[0]
   return {
     saturation_max: sat,
     max_turn_saturation: topTurn?.turn_saturation ?? sat ?? undefined,

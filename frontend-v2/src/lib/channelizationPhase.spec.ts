@@ -7,6 +7,7 @@ function makeFakeLayer() {
   const calls: Record<string, unknown[][]> = {
     clearCheck: [],
     applyTurnHighlight: [],
+    applyTurnSaturationLabels: [],
     applyCheckHighlight: [],
     applyDirectionRoleHighlight: [],
     applyArmSceneLabels: [],
@@ -14,6 +15,7 @@ function makeFakeLayer() {
   const layer: PhaseHighlightTarget = {
     clearCheck: () => calls.clearCheck.push([]),
     applyTurnHighlight: (s) => calls.applyTurnHighlight.push([s]),
+    applyTurnSaturationLabels: (s) => calls.applyTurnSaturationLabels.push([s]),
     applyCheckHighlight: (a, b, c) => calls.applyCheckHighlight.push([a, b, c]),
     applyDirectionRoleHighlight: (a, b) => calls.applyDirectionRoleHighlight.push([a, b]),
     applyArmSceneLabels: (a) => calls.applyArmSceneLabels.push([a]),
@@ -36,7 +38,8 @@ describe('applyPhaseHighlight', () => {
     expect(calls.clearCheck).toHaveLength(1)
     expect(calls.applyCheckHighlight).toHaveLength(0)
     expect(calls.applyDirectionRoleHighlight).toHaveLength(0)
-    expect(calls.applyArmSceneLabels).toHaveLength(0)
+    expect(calls.applyArmSceneLabels).toHaveLength(1)
+    expect(calls.applyArmSceneLabels[0][0]).toEqual([])
   })
 
   it('highlightTurn 非结构阶段 → 走 applyTurnHighlight 并提前返回', () => {
@@ -63,7 +66,43 @@ describe('applyPhaseHighlight', () => {
     expect(calls.applyCheckHighlight[0][0]).toBe('saturation')
     expect(calls.applyCheckHighlight[0][1]).toBe('fail') // 0.95 >= 0.85
     expect(calls.applyDirectionRoleHighlight).toHaveLength(1)
+    expect(calls.applyArmSceneLabels).toHaveLength(2)
+    expect(calls.applyArmSceneLabels[1][0]).toEqual([])
+  })
+
+  it('traffic 阶段有转向数据时仅用车道转向卡，不叠路臂卡', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'traffic',
+      allowRuntimeMetrics: true,
+      cognition: {
+        ...COG,
+        metrics_by_turn: [
+          { label: '西直行', dir4_label: '西', turn_dir_no: 2, turn_saturation: 0.03 },
+        ],
+      },
+    })
+    expect(calls.applyTurnSaturationLabels).toHaveLength(1)
     expect(calls.applyArmSceneLabels).toHaveLength(1)
+    expect(calls.applyArmSceneLabels[0][0]).toEqual([])
+  })
+
+  it('运行数据未揭示时 traffic 阶段不展示饱和度车道卡', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'traffic',
+      allowRuntimeMetrics: false,
+      cognition: {
+        ...COG,
+        metrics_by_turn: [
+          { label: '西直行', dir4_label: '西', turn_dir_no: 2, turn_saturation: 0.03 },
+        ],
+      },
+    })
+    expect(calls.clearCheck).toHaveLength(1)
+    expect(calls.applyTurnSaturationLabels).toHaveLength(0)
+    expect(calls.applyArmSceneLabels).toHaveLength(1)
+    expect(calls.applyArmSceneLabels[0][0]).toEqual([])
   })
 
   it('saturation 阶段无饱和度 → 提前返回（不调用角色/臂标签）', () => {
@@ -71,7 +110,8 @@ describe('applyPhaseHighlight', () => {
     applyPhaseHighlight(layer, { phase: 'saturation', cognition: COG })
     expect(calls.applyCheckHighlight).toHaveLength(0)
     expect(calls.applyDirectionRoleHighlight).toHaveLength(0)
-    expect(calls.applyArmSceneLabels).toHaveLength(0)
+    expect(calls.applyArmSceneLabels).toHaveLength(1)
+    expect(calls.applyArmSceneLabels[0][0]).toEqual([])
   })
 
   it('imbalance 阶段有失衡 → applyCheckHighlight(imbalance)', () => {
@@ -107,6 +147,6 @@ describe('applyPhaseHighlight', () => {
     expect(calls.applyCheckHighlight).toHaveLength(0)
     expect(calls.applyDirectionRoleHighlight).toHaveLength(1)
     expect(calls.applyDirectionRoleHighlight[0]).toEqual([[], []])
-    expect(calls.applyArmSceneLabels).toHaveLength(1)
+    expect(calls.applyArmSceneLabels).toHaveLength(2)
   })
 })

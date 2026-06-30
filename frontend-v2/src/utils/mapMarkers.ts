@@ -1,5 +1,7 @@
 import { TA_THEME } from '../theme'
 import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneMarker } from '../types/map'
+import { resolveTurnMetrics, sortTurnMetrics, dirFromTurnLabel } from './turnMetrics'
+import { formatSaturation } from './evidencePresentation'
 
 export function normalizeDir(label: string): string {
   const text = String(label || '').replace(/进口|出口/g, '').trim()
@@ -57,7 +59,21 @@ export function linkSegmentAnchor(
 /** @deprecated use linkSegmentAnchor */
 export const linkAnchor = linkSegmentAnchor
 
-const METRIC_PHASES = new Set(['traffic', 'direction', 'saturation', 'imbalance'])
+export const RUNTIME_METRIC_MAP_PHASES = new Set([
+  'traffic',
+  'direction',
+  'saturation',
+  'imbalance',
+  'granularity',
+  'timing',
+])
+
+/** @deprecated use RUNTIME_METRIC_MAP_PHASES */
+const METRIC_PHASES = RUNTIME_METRIC_MAP_PHASES
+
+export function isRuntimeMetricMarker(marker: MapSceneMarker): boolean {
+  return marker.kind === 'metric' || marker.variant === 'turn' || marker.variant === 'saturation'
+}
 
 export function buildLinkCognitionMarkers(cognition: CognitionPayload | null): MapSceneMarker[] {
   if (!cognition?.intersection) return []
@@ -116,6 +132,59 @@ function saturationForDir(
   return null
 }
 
+export function buildTurnMetricMarkers(cognition: CognitionPayload | null): MapSceneMarker[] {
+  if (!cognition?.intersection) return []
+  const center: [number, number] = [cognition.intersection.lon, cognition.intersection.lat]
+  const links = cognition.links ?? []
+  const turns = resolveTurnMetrics(cognition)
+  if (!turns.length) return buildArmMetricMarkers(cognition)
+
+  const turnsByDir = new Map<string, ReturnType<typeof sortTurnMetrics>>()
+  for (const t of sortTurnMetrics(turns)) {
+    const dir = normalizeDir(t.dir4_label || dirFromTurnLabel(t.label))
+    if (!dir) continue
+    if (!turnsByDir.has(dir)) turnsByDir.set(dir, [])
+    turnsByDir.get(dir)!.push(t)
+  }
+
+  const markers: MapSceneMarker[] = []
+  const seen = new Set<string>()
+  for (const link of links) {
+    if (!isEntrance(link.link_role) || !link.path?.length) continue
+    const dir = normalizeDir(link.dir4_label || link.dir8_label || '')
+    if (!dir || seen.has(dir)) continue
+    seen.add(dir)
+    const [lon, lat] = linkSegmentAnchor(link, center)
+    const dirTurns = turnsByDir.get(dir) ?? []
+    for (const t of dirTurns) {
+      const sat = t.turn_saturation
+      if (sat == null) continue
+      const severity =
+        sat == null
+          ? 'unknown'
+          : sat >= 0.85
+            ? 'high'
+            : sat >= 0.65
+              ? 'medium'
+              : 'low'
+      markers.push({
+        id: `turn-${dir}-${t.turn_dir_no ?? t.label}`,
+        lon,
+        lat,
+        kind: 'metric',
+        variant: 'turn',
+        title: t.label,
+        value: formatSaturation(sat),
+        subtitle: '转向饱和度',
+        severity,
+        dir,
+        link_id: link.link_id,
+      })
+    }
+  }
+  return markers
+}
+
 export function buildArmMetricMarkers(cognition: CognitionPayload | null): MapSceneMarker[] {
   if (!cognition?.intersection) return []
   const center: [number, number] = [cognition.intersection.lon, cognition.intersection.lat]
@@ -131,6 +200,7 @@ export function buildArmMetricMarkers(cognition: CognitionPayload | null): MapSc
     if (!dir || seen.has(dir)) continue
     seen.add(dir)
     const sat = saturationForDir(dir, metrics, groups)
+    if (sat == null) continue
     const [lon, lat] = linkSegmentAnchor(link, center)
     const severity =
       sat == null
@@ -160,13 +230,24 @@ export function buildArmMetricMarkers(cognition: CognitionPayload | null): MapSc
 export function mergeSceneMarkers(
   action: MapActionEvent,
   cognition: CognitionPayload | null,
+  options?: { allowRuntimeMetrics?: boolean },
 ): MapSceneMarker[] {
-  const sceneMarkers = action.markers ?? []
+  const sceneMarkers = (action.markers ?? []).filter(
+    (m) => m.value != null && m.value !== '—' && m.subtitle !== '无数据',
+  )
   if (sceneMarkers.length > 0) {
+    if (options?.allowRuntimeMetrics === false) {
+      return sceneMarkers.filter((m) => !isRuntimeMetricMarker(m))
+    }
     return sceneMarkers
   }
-  if (cognition && action.phase && METRIC_PHASES.has(action.phase)) {
-    return buildArmMetricMarkers(cognition)
+  if (
+    cognition &&
+    action.phase &&
+    METRIC_PHASES.has(action.phase) &&
+    options?.allowRuntimeMetrics !== false
+  ) {
+    return buildTurnMetricMarkers(cognition)
   }
   return sceneMarkers
 }
@@ -327,6 +408,14 @@ export function markerHtml(m: {
       <div class="marker-value">${escapeHtml(m.value || '')}</div>
       <div class="marker-title">${escapeHtml(m.title || '')}</div>
       <div class="marker-sub">${escapeHtml(m.subtitle || '')}</div>
+    </div>`
+  }
+  if (variant === 'turn') {
+    return `<div class="map-marker metric turn ${sev} ${dirClass}">
+      <div class="marker-badge">转向</div>
+      <div class="marker-value">${escapeHtml(m.value || '')}</div>
+      <div class="marker-title">${escapeHtml(m.title || '')}</div>
+      <div class="marker-sub">${escapeHtml(m.subtitle || '转向饱和度')}</div>
     </div>`
   }
   if (variant === 'direction') {

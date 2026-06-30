@@ -88,7 +88,21 @@ describe('buildNarrativeRuntimeItems', () => {
     expect(items.find((i) => i.label === '节点位置')).toBeUndefined()
   })
 
-  it('shows turn-level metrics from flow timing governance turn_balance', () => {
+  it('shows all turn-level metrics from evidence.by_turn', () => {
+    const items = buildNarrativeRuntimeItems({
+      evidence: {
+        by_turn: [
+          { label: '东左转', turn_saturation: 1.77, green_utilization: 1.77 },
+          { label: '西直行', turn_saturation: 0.03, green_utilization: 0.35 },
+        ],
+      } as ProblemEvidence,
+    })
+    expect(items.find((i) => i.label === '东左转饱和度')?.value).toContain('1.77')
+    expect(items.find((i) => i.label === '西直行饱和度')?.value).toContain('0.03')
+    expect(items.find((i) => i.label === '西直行绿灯利用')?.value).toBe('35%')
+  })
+
+  it('shows turn-level metrics from flow timing governance turn_balance when no by_turn', () => {
     const governance = {
       match_verdict: 'mismatch',
       primary_diagnosis: {

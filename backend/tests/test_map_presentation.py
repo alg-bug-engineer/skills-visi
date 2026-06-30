@@ -293,16 +293,22 @@ def test_build_map_scene_traffic_merges_direction_groups_when_arm_metrics_partia
         {"dir4_label": "东进口", "link_id": "e1", "saturation": 1.5},
         {"dir4_label": "西进口", "link_id": "w1", "saturation": 1.44},
     ]
+    cognition["metrics_by_turn"] = [
+        {"label": "东左转", "dir4_label": "东", "turn_dir_no": 1, "turn_saturation": 1.5},
+        {"label": "西左转", "dir4_label": "西", "turn_dir_no": 1, "turn_saturation": 1.44},
+        {"label": "南直行", "dir4_label": "南", "turn_dir_no": 2, "turn_saturation": 1.2},
+        {"label": "北直行", "dir4_label": "北", "turn_dir_no": 2, "turn_saturation": 1.2},
+    ]
     scene = build_map_scene(
         "traffic",
         cognition=cognition,
         data={"traffic_flow": {"saturation_rate": 1.5}, "evaluation": {"delay_index": 1.47}},
     )
-    dirs = {m["dir"] for m in scene["markers"] if m.get("kind") == "metric"}
-    assert dirs == {"东", "西", "南", "北"}
-    by_dir = {m["dir"]: m for m in scene["markers"] if m.get("kind") == "metric"}
+    turn_markers = [m for m in scene["markers"] if m.get("variant") == "turn"]
+    assert len(turn_markers) == 4
+    by_dir = {m["dir"]: m for m in turn_markers}
+    assert by_dir["东"]["value"] == "1.50"
     assert by_dir["南"]["value"] == "1.20"
-    assert by_dir["北"]["value"] == "1.20"
 
 
 def test_build_map_scene_traffic_shows_missing_dirs_when_no_group_data():
@@ -320,17 +326,19 @@ def test_build_map_scene_traffic_shows_missing_dirs_when_no_group_data():
         {"dir4_label": "东进口", "link_id": "e1", "saturation": 1.5},
         {"dir4_label": "西进口", "link_id": "w1", "saturation": 1.44},
     ]
+    cognition["metrics_by_turn"] = [
+        {"label": "东左转", "dir4_label": "东", "turn_dir_no": 1, "turn_saturation": 1.5},
+        {"label": "西左转", "dir4_label": "西", "turn_dir_no": 1, "turn_saturation": 1.44},
+    ]
     scene = build_map_scene(
         "traffic",
         cognition=cognition,
         data={"traffic_flow": {"saturation_rate": 1.5}, "evaluation": {"delay_index": 1.47}},
     )
-    dirs = {m["dir"] for m in scene["markers"] if m.get("kind") == "metric"}
-    assert dirs == {"东", "西", "南", "北"}
-    by_dir = {m["dir"]: m for m in scene["markers"] if m.get("kind") == "metric"}
-    assert by_dir["南"]["value"] == "—"
-    assert by_dir["北"]["value"] == "—"
-    assert by_dir["南"]["subtitle"] == "无数据"
+    turn_markers = [m for m in scene["markers"] if m.get("variant") == "turn"]
+    by_dir = {m["dir"]: m for m in turn_markers}
+    assert "南" not in by_dir
+    assert "北" not in by_dir
 
 
 def test_build_map_scene_timing_has_cycle_hud_only():

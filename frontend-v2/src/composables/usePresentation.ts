@@ -80,6 +80,7 @@ export function usePresentation() {
     state.protectedDirs = []
     state.revealedInsightSteps = {
       data: false,
+      runtimePanel: false,
       evidence: false,
       constraints: false,
       extended: false,
@@ -149,6 +150,10 @@ export function usePresentation() {
     if (insight.title) buf.title = insight.title
     if (insight.icon) buf.icon = insight.icon
     buf.metrics = mergeMetrics(buf.metrics, insight.metrics)
+  }
+
+  function revealRuntimePanel() {
+    state.revealedInsightSteps.runtimePanel = true
   }
 
   function revealDataCard() {
@@ -374,6 +379,7 @@ export function usePresentation() {
     reset,
     setPhase,
     mergeDataInsight,
+    revealRuntimePanel,
     revealDataCard,
     patchEvidence,
     revealEvidenceCard,

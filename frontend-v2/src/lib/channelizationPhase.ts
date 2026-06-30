@@ -19,12 +19,16 @@ import {
   buildArmLabelsFromDirectionGroups,
   buildArmLabelsFromEntranceLinks,
 } from '../utils/channelArmLabels'
+import { turnSatLabelsFromMetrics, resolveTurnMetrics } from '../utils/turnMetrics'
 import { highlightDirsForGroup } from '../utils/evidencePresentation'
 import type { ArmSceneLabel, HighlightEvidence, TurnHighlightSpec } from './channelizationAmap'
 
 export interface PhaseHighlightTarget {
   clearCheck(): void
   applyTurnHighlight(spec: TurnHighlightSpec): void
+  applyTurnSaturationLabels(
+    specs: Array<{ dir: string; turnCode: string; label: string; saturation: number }>,
+  ): void
   applyCheckHighlight(indicatorId: string, verdict: string, evidence: HighlightEvidence): void
   applyDirectionRoleHighlight(focusDirs: string[], protectDirs: string[]): void
   applyArmSceneLabels(labels: ArmSceneLabel[]): void
@@ -39,6 +43,8 @@ export interface PhaseHighlightParams {
   highlightDirs?: string[]
   protectedDirs?: string[]
   sceneMarkers?: MapSceneMarker[]
+  /** 与理解过程「运行数据」步骤对齐；未揭示前不展示饱和度车道卡 */
+  allowRuntimeMetrics?: boolean
 }
 
 const ARM_LABEL_PHASES: PipelinePhase[] = [
@@ -54,6 +60,14 @@ function sceneMarkersForPhase(phase: PipelinePhase, markers: MapSceneMarker[]): 
   if (phase === 'direction') return markers
   return markers.filter((m) => m.variant !== 'protected' && !(m.title?.includes('保护')))
 }
+
+const TURN_SAT_LABEL_PHASES: PipelinePhase[] = [
+  'traffic',
+  'direction',
+  'saturation',
+  'granularity',
+  'imbalance',
+]
 
 function armLabelsForPhase(
   phase: PipelinePhase,
@@ -88,10 +102,12 @@ function applyDirectionRoleOnArms(
 /** 阶段→标注调度，复刻 ChannelizationCanvas3D.applyPhaseHighlight。 */
 export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHighlightParams): void {
   layer.clearCheck()
+  layer.applyArmSceneLabels([])
   const phase = params.phase ?? 'idle'
   const isStructure = COGNITION_STRUCTURE_PHASES.includes(phase)
+  const allowRuntimeMetrics = params.allowRuntimeMetrics !== false
 
-  if (params.highlightTurn && !isStructure) {
+  if (params.highlightTurn && !isStructure && allowRuntimeMetrics) {
     layer.applyTurnHighlight({
       dir: params.highlightTurn.dir,
       turnCode: turnCodeFromLabel(params.highlightTurn.turn),
@@ -107,7 +123,7 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
     params.runtimeMetrics ?? null,
   )
 
-  if (isStructure) return
+  if (isStructure || !allowRuntimeMetrics) return
 
   if (phase === 'saturation') {
     const sat = ev.saturation_max ?? null
@@ -126,5 +142,16 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
   }
 
   applyDirectionRoleOnArms(layer, phase, params.highlightDirs ?? [], params.protectedDirs ?? [])
-  layer.applyArmSceneLabels(armLabelsForPhase(phase, params.sceneMarkers ?? [], params.cognition))
+  const turnSpecs = turnSatLabelsFromMetrics(resolveTurnMetrics(params.cognition))
+  const useTurnLaneLabels =
+    turnSpecs.length > 0 &&
+    Boolean(params.phase) &&
+    TURN_SAT_LABEL_PHASES.includes(params.phase!) &&
+    !params.highlightTurn
+
+  if (useTurnLaneLabels) {
+    layer.applyTurnSaturationLabels(turnSpecs)
+  } else {
+    layer.applyArmSceneLabels(armLabelsForPhase(phase, params.sceneMarkers ?? [], params.cognition))
+  }
 }

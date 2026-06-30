@@ -195,6 +195,7 @@ const canToggleCorridor = computed(
             :corridor-selected-inter-id="presentation.corridorScan?.selectedInterId ?? null"
             :visual-pan-offset-x="corridorPanOffsetX"
             :suppress-stage-hud="showNarrativeStack"
+            :runtime-panel-revealed="presentation.revealedInsightSteps.runtimePanel"
             @channelization-active="emit('channelizationActive', $event)"
             @close-timing-ring="emit('closeTimingRing')"
             @close-corridor-wave="emit('closeCorridorWave')"
@@ -213,6 +214,7 @@ const canToggleCorridor = computed(
             :governance-suggestion="presentation.governanceSuggestion"
             :flow-timing-governance="presentation.flowTimingGovernance"
             :focus-step-index="focusStepIndex ?? -1"
+            :runtime-panel-revealed="presentation.revealedInsightSteps.runtimePanel"
             :phase="presentation.phase"
             :run-key="analysisRunKey ?? 0"
           />

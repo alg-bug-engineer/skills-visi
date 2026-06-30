@@ -1,5 +1,7 @@
 import type { CognitionPayload, MapSceneMarker } from '../types/map'
 import { normalizeDir } from './mapMarkers'
+import { formatSaturation } from './evidencePresentation'
+import { resolveTurnMetrics, sortTurnMetrics, dirFromTurnLabel } from './turnMetrics'
 
 export interface ArmSceneLabel {
   dir: string
@@ -25,7 +27,28 @@ function severityColor(sev?: string): string {
   return '#00e5ff'
 }
 
-/** 从 direction_groups 补全四向饱和度标签（metrics_by_arm 缺项时）。 */
+/** 从 metrics_by_turn 生成渠化转向饱和度标签（每转向一条，按车道侧标注）。 */
+export function buildTurnLabelsFromCognition(
+  cognition: CognitionPayload | null,
+): ArmSceneLabel[] {
+  const turns = resolveTurnMetrics(cognition)
+  const labels: ArmSceneLabel[] = []
+  for (const t of sortTurnMetrics(turns)) {
+    if (t.turn_saturation == null) continue
+    const dir = normalizeDir(t.dir4_label || dirFromTurnLabel(t.label))
+    if (!dir) continue
+    const sat = Number(t.turn_saturation)
+    labels.push({
+      dir,
+      line1: t.label,
+      line2: formatSaturation(sat),
+      colorHex: sat >= 0.85 ? '#ff6b4a' : sat >= 0.65 ? '#ffaa44' : '#6dffb5',
+    })
+  }
+  return labels
+}
+
+/** 从 direction_groups 补全四向饱和度标签（metrics_by_turn 缺项时 fallback）。 */
 export function buildArmLabelsFromDirectionGroups(
   cognition: CognitionPayload | null,
 ): ArmSceneLabel[] {
@@ -55,27 +78,14 @@ export function buildArmLabelsFromDirectionGroups(
   return labels
 }
 
-/** 为渠化 3D 补全无运行数据的进口方向（显示 —）。 */
+/** 为渠化 3D 补全无运行数据的进口方向 — 默认不展示占位卡。 */
 export function buildArmLabelsFromEntranceLinks(
   cognition: CognitionPayload | null,
   coveredDirs: Set<string>,
 ): ArmSceneLabel[] {
-  const labels: ArmSceneLabel[] = []
-  const seen = new Set<string>()
-  for (const link of cognition?.links ?? []) {
-    const role = link.link_role || ''
-    if (role !== 'entrance' && role !== '进口') continue
-    const dir = dirKeyFromLabel(link.dir4_label || link.dir8_label)
-    if (!dir || seen.has(dir) || coveredDirs.has(dir)) continue
-    seen.add(dir)
-    labels.push({
-      dir,
-      line1: `${dir}进口`,
-      line2: '—',
-      colorHex: severityColor('unknown'),
-    })
-  }
-  return labels
+  void cognition
+  void coveredDirs
+  return []
 }
 export function buildArmLabelsFromScene(
   markers: MapSceneMarker[],
@@ -89,9 +99,15 @@ export function buildArmLabelsFromScene(
     const dir = dirKeyFromLabel(m.dir)
     if (!dir) continue
     const line1 = (m.title || m.kind || '指标').slice(0, 20)
-    const line2 = (m.value || m.subtitle || '').slice(0, 24)
+    const line2 =
+      m.variant === 'turn'
+        ? (m.value || '').slice(0, 24)
+        : (m.value || m.subtitle || '').slice(0, 24)
     if (!line1 && !line2) continue
-    byDir.set(dir, {
+    // 同进口多转向：保留转向级标签（不覆盖）
+    const key = m.variant === 'turn' ? `${dir}:${line1}` : dir
+    if (m.variant !== 'turn' && byDir.has(dir)) continue
+    byDir.set(key, {
       dir,
       line1,
       line2,
@@ -100,6 +116,13 @@ export function buildArmLabelsFromScene(
   }
 
   if (options?.fillFromCognition) {
+    const turnLabels = buildTurnLabelsFromCognition(cognition)
+    for (const l of turnLabels) {
+      const key = `${l.dir}:${l.line1}`
+      if (!byDir.has(key) && !byDir.has(l.dir)) {
+        byDir.set(key, l)
+      }
+    }
     for (const arm of cognition?.metrics_by_arm ?? []) {
       const dir = dirKeyFromLabel(arm.dir4_label)
       if (!dir || byDir.has(dir)) continue

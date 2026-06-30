@@ -56,19 +56,15 @@ describe('buildArmLabelsFromScene', () => {
     expect(labels.find((l) => l.dir === '南')?.line2).toBe('1.20')
   })
 
-  it('fills missing entrance dirs with placeholder labels', () => {
+  it('does not emit placeholder labels for entrances without data', () => {
     const cognition = {
       intersection: { inter_id: '1', name: '测试', lon: 117, lat: 36 },
       arms: [],
       links: [
         { link_id: 'e1', link_role: 'entrance', dir4_label: '东进口', path: [[117.1, 36.6]] },
-        { link_id: 'w1', link_role: 'entrance', dir4_label: '西进口', path: [[117.0, 36.6]] },
         { link_id: 's1', link_role: 'entrance', dir4_label: '南进口', path: [[117.05, 36.59]] },
-        { link_id: 'n1', link_role: 'entrance', dir4_label: '北进口', path: [[117.05, 36.61]] },
       ],
     } as CognitionPayload
-    const labels = buildArmLabelsFromEntranceLinks(cognition, new Set(['东', '西']))
-    expect(labels.map((l) => l.dir).sort()).toEqual(['北', '南'])
-    expect(labels[0].line2).toBe('—')
+    expect(buildArmLabelsFromEntranceLinks(cognition, new Set(['东']))).toEqual([])
   })
 })

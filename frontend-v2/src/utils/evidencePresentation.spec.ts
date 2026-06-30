@@ -69,6 +69,7 @@ describe('presentation state', () => {
     expect(s.dataInsightBuffer).toBeNull()
     expect(s.revealedInsightSteps).toEqual({
       data: false,
+      runtimePanel: false,
       evidence: false,
       constraints: false,
       extended: false,

@@ -27,6 +27,7 @@ from intersection_agent.services.intersection_cognition_service import (
     _build_direction_groups,
     fill_arm_metrics_from_overall,
 )
+from intersection_agent.utils.turn_metrics import attach_turn_metrics_to_cognition
 from intersection_agent.services.intersection_resolver import IntersectionResolver
 from intersection_agent.services.map_presentation_service import (
     build_links_narration_payload,
@@ -969,15 +970,18 @@ class Orchestrator:
                     float(overall_sat),
                 )
             cognition["metrics_by_arm"] = merged_metrics
-            cognition["direction_groups"] = _build_direction_groups(
-                cognition.get("arms") or [], merged_metrics
-            )
+            metrics_by_turn = attach_turn_metrics_to_cognition(cognition, data)
+            if not metrics_by_turn:
+                cognition["direction_groups"] = _build_direction_groups(
+                    cognition.get("arms") or [], merged_metrics
+                )
             session.data_payload["cognition"] = cognition
             await self._emit_map_sequence(
                 emitter,
                 action="update_metrics",
                 data={
                     "metrics_by_arm": merged_metrics,
+                    "metrics_by_turn": metrics_by_turn,
                     "direction_groups": cognition.get("direction_groups"),
                     "evaluation": data.get("evaluation"),
                     "traffic_flow": data.get("traffic_flow"),
