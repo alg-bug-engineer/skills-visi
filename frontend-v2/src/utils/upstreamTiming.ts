@@ -1,6 +1,7 @@
 import type { UpstreamFrame } from './upstreamFrame'
 
-export const UPSTREAM_CORRIDOR_ZOOM = 13
+/** 流量溯源主视角 zoom（自渠化 ~18.5 平滑过渡到该值，蔓延过程保持恒定） */
+export const UPSTREAM_CORRIDOR_ZOOM = 17
 export const UPSTREAM_FRAME_MS = 2600
 export const UPSTREAM_SPREAD_MS = 1500
 export const UPSTREAM_PULLBACK_MS = 1200

@@ -89,7 +89,10 @@ function lodForZoom(zoom: number): 'L0' | 'L1' | 'L2' {
 function emitView() {
   if (!map) return
   const zoom = map.getZoom()
-  emit('viewChange', { zoom, lod: lodForZoom(zoom) })
+  const lod = lodForZoom(zoom)
+  debugZoom.value = zoom
+  debugLod.value = lod
+  emit('viewChange', { zoom, lod })
 }
 
 /** 分析推进只前进不回退：目标 zoom 不低于当前 zoom（reset 城市视图除外） */
@@ -112,6 +115,8 @@ async function withProgrammatic(fn: () => Promise<void> | void) {
 }
 
 const mapContainer = ref<HTMLElement | null>(null)
+const debugZoom = ref<number | null>(null)
+const debugLod = ref<'L0' | 'L1' | 'L2' | null>(null)
 const ready = ref(false)
 const error = ref<string | null>(null)
 const cognition = ref<CognitionPayload | null>(null)
@@ -175,9 +180,10 @@ const upstreamOverlayById = new Map<
 let upstreamStoryboard: UpstreamStoryboard | null = null
 /** beginUpstreamStoryboard 已完成「渠化隐去 → 道路 → 拉远」，pullback 帧不再重复运镜 */
 let upstreamRoadTransitionDone = false
+/** 递增以作废进行中的溯源动画/运镜任务 */
+let upstreamEpoch = 0
 const upstreamIdx = ref(0)
 let upstreamTimer: ReturnType<typeof setTimeout> | null = null
-let upstreamCameraTask: Promise<void> = Promise.resolve()
 let lastUpstreamCenter: [number, number] | null = null
 let lastUpstreamZoom: number | null = null
 const upstreamSpreadTasks = new Map<string, Promise<void>>()
@@ -293,6 +299,7 @@ function clearUpstreamOverlays() {
 }
 
 function disposeUpstream() {
+  upstreamEpoch += 1
   if (upstreamTimer) {
     clearTimeout(upstreamTimer)
     upstreamTimer = null
@@ -300,7 +307,6 @@ function disposeUpstream() {
   clearUpstreamOverlays()
   upstreamStoryboard = null
   upstreamIdx.value = 0
-  upstreamCameraTask = Promise.resolve()
   upstreamSpreadTasks.clear()
   lastUpstreamCenter = null
   lastUpstreamZoom = null
@@ -404,7 +410,12 @@ async function animateGradientEdge(
   const lines: InstanceType<typeof AMap.Polyline>[] = []
 
   const task = (async () => {
+    const epoch = upstreamEpoch
     for (let i = 0; i < segments.length; i++) {
+      if (epoch !== upstreamEpoch) {
+        lines.forEach((line) => line.setMap(null))
+        return
+      }
       const seg = segments[i]
       const color = colorAtGradientProgress(seg.progress)
       const line = new AMapLib.Polyline({
@@ -450,8 +461,9 @@ function renderUpstreamTargetRipple(node: UpstreamTreeNode, dim: boolean) {
 
 /** 帧增量揭示：渐变蔓延连线，指标卡在 node 帧再落。 */
 function renderUpstreamFrame(n: number) {
+  const epoch = upstreamEpoch
   const sb = upstreamStoryboard
-  if (!sb || !map || !AMapLib) return
+  if (!sb || !map || !AMapLib || epoch !== upstreamEpoch) return
   const frame = sb.frames[Math.max(0, Math.min(n, sb.frames.length - 1))]
   const { overlayIds, activeTree } = visibleAtFrame(sb, n)
 
@@ -531,7 +543,6 @@ function renderUpstreamFrame(n: number) {
   }
 
   syncUpstreamOverlayDim(sb, activeTree)
-  scheduleUpstreamCamera(sb, n)
   const narr = frame?.narration ?? null
   emit('upstreamNarration', { idx: n, text: narr })
 }
@@ -540,21 +551,41 @@ function upstreamCameraSleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+function cameraNearTarget(
+  center: [number, number],
+  zoom: number,
+  centerEps = 0.0009,
+  zoomEps = 0.2,
+): boolean {
+  if (!map) return false
+  const anchor = lastUpstreamCenter
+  const z = lastUpstreamZoom ?? map.getZoom()
+  if (!anchor) return false
+  const dist = Math.hypot(center[0] - anchor[0], center[1] - anchor[1])
+  return dist < centerEps && Math.abs(zoom - z) < zoomEps
+}
+
 /** 上游溯源允许拉远 zoom（突破分析推进的 clampZoomUp 约束）。 */
 async function flyToUpstreamCorridor(center: [number, number], zoom: number, duration = 1100) {
   if (!map || !AMapLib) return
+  if (cameraNearTarget(center, zoom)) return
+  const epoch = upstreamEpoch
   await withProgrammatic(async () => {
+    if (epoch !== upstreamEpoch) return
     await flyTo(map!, AMapLib!, center, zoom, duration)
+    if (epoch !== upstreamEpoch) return
     panToVisualCenter(map!, center, visualPanOffsetX(), 0)
     lastUpstreamCenter = center
     lastUpstreamZoom = zoom
   })
 }
 
-/** 流量溯源：从渠化视角起步，先隐渠化、只留道路 link，再分步拉远后进入蔓延帧。 */
+/** 流量溯源：从渠化视角起步，先隐渠化、只留道路 link，再平滑过渡到溯源 zoom。 */
 async function enterUpstreamFromChannelization(center: [number, number]) {
   if (!map || !AMapLib) return
   const startZoom = map.getZoom()
+  lastUpstreamCenter = center
+  lastUpstreamZoom = startZoom
 
   // 1) 淡出渠化舞台（保留当前镜头位姿）
   viewMode.value = 'map'
@@ -575,63 +606,11 @@ async function enterUpstreamFromChannelization(center: [number, number]) {
   drawHighlights()
   await upstreamCameraSleep(UPSTREAM_ROAD_HOLD_MS)
 
-  // 3) 从渠化 zoom 分步拉远到干线走廊
+  // 3) 从渠化 zoom（~18.5）单次平滑过渡到溯源主视角 17.00
   const targetZoom = UPSTREAM_CORRIDOR_ZOOM
-  if (startZoom > targetZoom + 0.4) {
-    const steps = 4
-    const gap = startZoom - targetZoom
-    for (let i = 1; i <= steps; i++) {
-      const z = startZoom - (gap * i) / steps
-      await flyToUpstreamCorridor(center, z, 680)
-    }
-  }
-  await flyToUpstreamCorridor(center, targetZoom, 900)
+  const duration = Math.abs(startZoom - targetZoom) > 1 ? 1100 : 700
+  await flyToUpstreamCorridor(center, targetZoom, duration)
   upstreamRoadTransitionDone = true
-}
-
-/** 逐帧丝滑运镜：先拉远再平移下钻，禁止瞬移到目标路口。 */
-async function driveUpstreamCameraSmooth(sb: UpstreamStoryboard, n: number) {
-  if (!map || !AMapLib) return
-  const frame = sb.frames[Math.max(0, Math.min(n, sb.frames.length - 1))]
-  const { center, zoom, fit } = visibleAtFrame(sb, n)
-  await withProgrammatic(async () => {
-    if (fit && upstreamOverlays.length) {
-      map!.setStatus({ animateEnable: true })
-      map!.setFitView([...upstreamOverlays], false, [140, 140, 220, 140])
-      await upstreamCameraSleep(920)
-      return
-    }
-    if (!center || center[0] == null || center[1] == null) return
-    const target: [number, number] = [center[0], center[1]]
-    const targetZoom =
-      typeof zoom === 'number' ? zoom : frame.frame_type === 'pullback' ? UPSTREAM_CORRIDOR_ZOOM : map!.getZoom()
-    if (frame.frame_type === 'pullback') {
-      if (!upstreamRoadTransitionDone) {
-        await flyToUpstreamCorridor(target, targetZoom, 1000)
-      }
-      return
-    }
-    const currentZoom = map!.getZoom()
-    const jumpDist = lastUpstreamCenter
-      ? Math.hypot(target[0] - lastUpstreamCenter[0], target[1] - lastUpstreamCenter[1])
-      : 0
-    const longJump = jumpDist > 0.012
-    const zoomGap = Math.abs(targetZoom - currentZoom)
-    if (longJump || zoomGap > 2.5) {
-      const pullBack = Math.min(currentZoom, targetZoom, UPSTREAM_CORRIDOR_ZOOM + 1.5)
-      await flyTo(map!, AMapLib!, target, pullBack, 720)
-    }
-    await flyTo(map!, AMapLib!, target, targetZoom, 880)
-    panToVisualCenter(map!, target, visualPanOffsetX(), 0)
-    lastUpstreamCenter = target
-    lastUpstreamZoom = targetZoom
-  })
-}
-
-function scheduleUpstreamCamera(sb: UpstreamStoryboard, n: number) {
-  upstreamCameraTask = upstreamCameraTask
-    .then(() => driveUpstreamCameraSmooth(sb, n))
-    .catch(() => undefined)
 }
 
 function startUpstreamAuto() {
@@ -644,10 +623,15 @@ function startUpstreamAuto() {
 function scheduleUpstreamTick() {
   if (upstreamTimer) clearTimeout(upstreamTimer)
   if (!upstreamStoryboard) return
+  const epoch = upstreamEpoch
   const frame = upstreamStoryboard.frames[upstreamIdx.value]
   const delay = upstreamFrameDuration(frame)
   upstreamTimer = setTimeout(() => {
-    const last = (upstreamStoryboard?.frames.length ?? 1) - 1
+    if (epoch !== upstreamEpoch || !upstreamStoryboard) {
+      upstreamTimer = null
+      return
+    }
+    const last = upstreamStoryboard.frames.length - 1
     if (upstreamIdx.value >= last) {
       upstreamTimer = null
       return
@@ -980,6 +964,9 @@ async function resetMapVisualState(options?: { clearCognition?: boolean }) {
   clearMarkers()
   clearOverlays()
   clearFlowSources()
+  if (map) {
+    map.clearMap()
+  }
   if (options?.clearCognition !== false) {
     cognition.value = null
   }
@@ -1302,6 +1289,11 @@ onMounted(async () => {
     map = createDarkMap(mapContainer.value, AMapLib)
     ready.value = true
 
+    map.on('zoomchange', () => {
+      if (!map) return
+      debugZoom.value = map.getZoom()
+      debugLod.value = lodForZoom(map.getZoom())
+    })
     // 渠化态随地图缩放下钻（L0 路网 / L1 轮廓 / L2 车道渠化）
     map.on('zoomend', () => {
       if (channelizationLocked.value) chanController?.applyLOD(map!.getZoom())
@@ -1416,6 +1408,10 @@ watch(
     />
 
     <div v-if="!ready && !error && viewMode === 'map'" class="map-loading">地图加载中…</div>
+
+    <div v-if="ready && debugZoom != null" class="map-zoom-debug" aria-hidden="true">
+      zoom {{ debugZoom.toFixed(2) }}<span v-if="debugLod"> · {{ debugLod }}</span>
+    </div>
   </div>
 </template>
 
@@ -1426,6 +1422,23 @@ watch(
   height: 100%;
   background: #020810;
   overflow: hidden;
+}
+
+.map-zoom-debug {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 40;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(0, 10, 20, 0.82);
+  border: 1px solid rgba(0, 212, 240, 0.35);
+  color: #9ee8ff;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  line-height: 1.2;
+  pointer-events: none;
+  user-select: none;
 }
 
 .upstream-narration {
