@@ -40,6 +40,35 @@ describe('buildUpstreamProcessText', () => {
     expect(text).toContain('西左转 → 上游1 经十路路口')
   })
 
+  it('appends turn split percentages for upstream nodes', () => {
+    const sb: UpstreamStoryboard = {
+      trees: [
+        {
+          tree_id: 'W',
+          approach: '西进口',
+          nodes: [
+            { id: 'T', role: 'target', name: '目标' },
+            {
+              id: 'U1',
+              role: 'upstream',
+              name: '转山西路路口',
+              hop: 1,
+              saturation: 0.73,
+              turn_split: [
+                { turn: '直行', share_pct: 60 },
+                { turn: '左转', share_pct: 40 },
+              ],
+            },
+          ],
+          edges: [],
+        },
+      ],
+      frames: [],
+    }
+    const text = buildUpstreamProcessText(sb)
+    expect(text).toContain('转山西路路口（饱和 0.73，左转40% · 直行60%）')
+  })
+
   it('returns empty for missing storyboard', () => {
     expect(buildUpstreamProcessText(null)).toBe('')
   })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker, UpstreamStoryboard, UpstreamTreeEdge, UpstreamTreeNode } from '../types/map'
+import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker, UpstreamStoryboard, UpstreamTreeNode } from '../types/map'
 import { isEdgeId, visibleAtFrame } from '../utils/upstreamFrame'
 import { assignLabelAnchors } from '../utils/upstreamLayout'
 import {
@@ -10,6 +10,7 @@ import {
   upstreamFrameDuration,
 } from '../utils/upstreamTiming'
 import { prepareUpstreamStoryboard } from '../utils/upstreamStoryboard'
+import { formatUpstreamTurnSplit } from '../utils/upstreamTurnSplit'
 import { createUpstreamTraceLayer, type UpstreamTraceLayer } from '../lib/upstreamTraceLayer'
 import { severityColor } from '../utils/ringSeverity'
 import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
@@ -340,14 +341,6 @@ function orientPathEndpoints(
   return oriented
 }
 
-function incomingEdgeForNode(sb: UpstreamStoryboard, nodeId: string): UpstreamTreeEdge | null {
-  for (const tree of sb.trees) {
-    const edge = tree.edges.find((item: UpstreamTreeEdge) => item.to === nodeId)
-    if (edge) return edge
-  }
-  return null
-}
-
 function labelsVisibleAtFrame(sb: UpstreamStoryboard, n: number, nodeId: string): boolean {
   const clamped = Math.max(0, Math.min(n, sb.frames.length - 1))
   for (let i = 0; i <= clamped; i++) {
@@ -404,15 +397,15 @@ function renderUpstreamFrame(n: number) {
     const color = isGov ? '#6dffb5' : severityColor(sat)
     const [dx, dy] = anchors[id] ?? [0, -54]
     const satTxt = typeof sat === 'number' && sat > 0.01 ? `饱和 ${sat.toFixed(2)}` : '待核查'
-    const flowPct = incomingEdgeForNode(sb, id)?.flow_pct
-    const flowTxt =
-      typeof flowPct === 'number' && flowPct > 0 ? ` · 流量占比 ${Math.round(flowPct)}%` : ''
+    const splitTxt = formatUpstreamTurnSplit(node.turn_split)
+    const splitLine = splitTxt ? `<div class="us-split">${splitTxt}</div>` : ''
     const hopTxt = typeof node.hop === 'number' ? `上游${node.hop}` : '上游'
     const html =
       `<div class="us-label${isGov ? ' is-gov' : ''}">` +
       `<div class="us-hop">${hopTxt}</div>` +
       `<div class="us-name">${isGov ? '★ ' : ''}${node.name ?? id}</div>` +
-      `<div class="us-metric" style="color:${color}">${satTxt}${flowTxt}</div></div>`
+      `<div class="us-metric" style="color:${color}">${satTxt}</div>` +
+      `${splitLine}</div>`
     traceLayer.revealLabel(id, node.lon as number, node.lat as number, html, [dx, dy])
   }
 
@@ -1544,6 +1537,14 @@ watch(
   font-weight: 700;
   margin-top: 1px;
   line-height: 1.35;
+}
+.us-label .us-split {
+  font-size: 9px;
+  font-weight: 600;
+  margin-top: 2px;
+  color: #c8d8ee;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 /* 高德 Marker 气泡（全局，注入 HTML） */

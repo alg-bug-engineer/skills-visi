@@ -1,11 +1,20 @@
 import type { UpstreamStoryboard, UpstreamTreeNode } from '../types/map'
+import { formatUpstreamTurnSplit } from './upstreamTurnSplit'
 
 function formatUpstreamNode(node: UpstreamTreeNode, hopIndex: number): string {
   const name = (node.name ?? node.inter_id ?? '上游路口').trim()
   const sat = node.saturation
+  const split = formatUpstreamTurnSplit(node.turn_split)
   const prefix = `上游${hopIndex} `
+  const details: string[] = []
   if (typeof sat === 'number' && sat > 0.01) {
-    return `${prefix}${name}（饱和 ${sat.toFixed(2)}）`
+    details.push(`饱和 ${sat.toFixed(2)}`)
+  }
+  if (split) {
+    details.push(split)
+  }
+  if (details.length) {
+    return `${prefix}${name}（${details.join('，')}）`
   }
   return `${prefix}${name}`
 }

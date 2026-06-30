@@ -76,6 +76,8 @@ export function buildEvidenceDirectionMarkers(
   const markers: MapSceneMarker[] = []
 
   for (const row of evidence.by_direction ?? []) {
+    // 关注方向分向卡与渠化/转向饱和度重复，不在地图上重复落标。
+    if (row.focused) continue
     const group = row.group
     const dirs = group.replace('向', '').split('').filter(Boolean)
     const link = links.find(

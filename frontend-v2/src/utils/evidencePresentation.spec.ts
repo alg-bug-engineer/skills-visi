@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ANALYSIS_STEP_LABELS, STEP_INDICES, THRESHOLDS } from '../constants'
 import {
+  buildEvidenceDirectionMarkers,
   constraintProgress,
   formatPercent,
   formatSaturation,
@@ -57,6 +58,42 @@ describe('evidencePresentation', () => {
     })
     expect(p.baseline).toBe(0.42)
     expect(p.cap).toBe(0.47)
+  })
+
+  it('skips focused direction markers on map (avoid duplicate 关注方向 HUD)', () => {
+    const markers = buildEvidenceDirectionMarkers(
+      {
+        by_direction: [
+          { group: '南北向', saturation: 0.9, focused: true },
+          { group: '东西向', saturation: 1.8, focused: false },
+        ],
+      },
+      {
+        intersection: { lon: 117.1, lat: 36.6, inter_id: 'x', inter_name: '测试' },
+        links: [
+          {
+            link_id: 'n1',
+            link_role: 'entrance',
+            dir4_label: '北',
+            path: [
+              [117.1, 36.61],
+              [117.1, 36.6],
+            ],
+          },
+          {
+            link_id: 'e1',
+            link_role: 'entrance',
+            dir4_label: '东',
+            path: [
+              [117.11, 36.6],
+              [117.1, 36.6],
+            ],
+          },
+        ],
+      },
+    )
+    expect(markers.some((m) => m.subtitle === '关注方向')).toBe(false)
+    expect(markers.some((m) => m.title === '东西向')).toBe(true)
   })
 })
 
