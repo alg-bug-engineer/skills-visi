@@ -15,6 +15,8 @@ export interface UpstreamFrame {
 export interface UpstreamStoryboard {
   trees: unknown[]
   frames: UpstreamFrame[]
+  /** 多进口道并行呈现时为 true，前端不按 tree 变暗 */
+  parallel?: boolean
 }
 
 /**

@@ -271,6 +271,8 @@ export interface UpstreamFrame {
 export interface UpstreamStoryboard {
   trees: UpstreamTreeView[]
   frames: UpstreamFrame[]
+  /** 多进口道并行呈现 */
+  parallel?: boolean
 }
 
 export interface UpstreamGovernancePoint {

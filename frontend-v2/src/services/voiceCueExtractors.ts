@@ -35,20 +35,10 @@ export function buildEvidenceIntroCue(): VoiceCue {
   )
 }
 
-export function buildImbalanceCue(
-  imbalance: number | null | undefined,
-  greenUtil?: number | null,
-): VoiceCue | null {
+export function buildImbalanceCue(imbalance: number | null | undefined): VoiceCue | null {
   if (imbalance == null) return null
   const tail = imbalanceTailLabel(imbalance)
-  const text =
-    greenUtil != null
-      ? voiceTemplate('imbalanceWithGreenUtil', {
-          value: imbalance.toFixed(2),
-          tail,
-          greenUtil: Number(greenUtil).toFixed(2),
-        })
-      : voiceTemplate('imbalance', { value: imbalance.toFixed(2), tail })
+  const text = voiceTemplate('imbalance', { value: imbalance.toFixed(2), tail })
   return cue(
     'step:3:imbalance',
     STEP_INDICES.DATA_FETCH,

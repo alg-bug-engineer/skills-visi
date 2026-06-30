@@ -8,11 +8,7 @@ import type {
   RuntimeMetrics,
 } from '../../types/presentation'
 import type { DataInsight } from '../../types/insight'
-import type { CaseScenario, ExperienceLevel, ExperienceSedimentItem } from '../../types/experience'
-import {
-  dedupeExperienceSediment,
-  filterReusedExperienceBadges,
-} from '../../utils/experienceDedup'
+import type { CaseScenario, ExperienceSedimentItem } from '../../types/experience'
 import { STEP_INDICES } from '../../constants'
 import { buildNarrativeRuntimeItems } from '../../utils/narrativeStack'
 import { buildEvidenceListItems, buildSuggestionListItems } from '../../utils/channelizationCopy'
@@ -68,6 +64,7 @@ const runtimeItems = computed(() =>
     dataInsight: props.dataInsight,
     evidence: props.evidence,
     flowTimingGovernance: props.flowTimingGovernance,
+    cognition: props.cognition,
   }),
 )
 const showRuntime = computed(
@@ -91,45 +88,6 @@ const suggestionItems = computed(() =>
 const showSuggestion = computed(
   () => suggestionRevealed.value && suggestionItems.value.length > 0,
 )
-
-/* ── 经验沉淀与复用 ─────────────────────────────────────────────────────── */
-const sedimentItems = computed(() =>
-  dedupeExperienceSediment(props.experienceSediment ?? []),
-)
-const reusedItems = computed(() =>
-  filterReusedExperienceBadges(props.reusedExperience ?? [], sedimentItems.value),
-)
-const caseItems = computed(() => props.caseExperience ?? [])
-const showExperience = computed(
-  () => sedimentItems.value.length > 0 || reusedItems.value.length > 0 || caseItems.value.length > 0,
-)
-const LEVEL_DEFAULT_TAGS: Record<ExperienceLevel, string[]> = {
-  cognition: ['认知画像', '问题记录'],
-  diagnosis: ['诊断经验', '用户口述'],
-  solution: ['方案经验', '治理措施'],
-}
-function itemTags(item: ExperienceSedimentItem): string[] {
-  const base = item.tags?.length ? [...item.tags] : [...(LEVEL_DEFAULT_TAGS[item.level] ?? [])]
-  if (item.level === 'cognition') {
-    base.push(item.status === 'verified' ? '已验证' : '待验证')
-  }
-  return [...new Set(base)]
-}
-/* 三类经验分组：认知画像（问题记录）/ 诊断经验（用户口述原因）/ 方案诊断经验（用户治理经验）。 */
-const EXPERIENCE_GROUPS: Array<{ level: ExperienceLevel; title: string }> = [
-  { level: 'cognition', title: '认知画像' },
-  { level: 'diagnosis', title: '诊断经验' },
-  { level: 'solution', title: '方案诊断经验' },
-]
-const groupedSediment = computed(() =>
-  EXPERIENCE_GROUPS.map((g) => ({
-    ...g,
-    items: sedimentItems.value.filter((it) => it.level === g.level),
-  })).filter((g) => g.items.length > 0),
-)
-function statusLabel(status?: 'verified' | 'pending'): string {
-  return status === 'verified' ? '已验证' : '待验证'
-}
 
 /* ── 粘性揭示（只增不减，避免阶段切换闪烁）──────────────────────────────── */
 watch(
@@ -258,69 +216,6 @@ function sevClass(sev?: string): string {
         </aside>
       </div>
 
-      <!-- 经验沉淀卡：地图舞台右下角独立卡片 -->
-      <aside
-        v-if="showExperience"
-        class="narrative-stack narrative-card experience-card experience-card--bottom-right"
-        aria-label="经验沉淀与复用"
-      >
-        <span v-if="sedimentItems.length" class="card-title sediment-title">经验沉淀</span>
-        <section
-          v-for="grp in groupedSediment"
-          :key="grp.level"
-          class="block sediment"
-        >
-          <span class="block-title" :class="`lvl-title-${grp.level}`">{{ grp.title }}</span>
-          <TransitionGroup name="item-in" tag="ul" class="list">
-            <li
-              v-for="(item, i) in grp.items"
-              :key="`${grp.level}-${i}`"
-              class="row plain"
-            >
-              <span
-                v-for="tag in itemTags(item)"
-                :key="tag"
-                class="exp-tag"
-                :class="{
-                  'is-verified': tag === '已验证',
-                  'is-pending': tag === '待验证',
-                }"
-              >{{ tag }}</span>
-              <span class="text">{{ item.text }}</span>
-            </li>
-          </TransitionGroup>
-        </section>
-
-        <section v-if="reusedItems.length" class="block reused">
-          <span class="block-title reused-title">经验复用</span>
-          <ul class="list">
-            <li v-for="(item, i) in reusedItems" :key="i" class="row plain">
-              <span class="tick reuse-tick">↺</span><span class="text">{{ item }}</span>
-            </li>
-          </ul>
-        </section>
-
-        <section v-if="caseItems.length" class="block case">
-          <span class="block-title case-title">同类场景专家经验</span>
-          <div v-for="(sc, i) in caseItems" :key="i" class="case-scenario">
-            <p class="case-name">{{ sc.scenario_name }}</p>
-            <ul class="list">
-              <li
-                v-for="(p, pi) in sc.problems"
-                :key="pi"
-                class="row plain case-problem"
-              >
-                <span class="text">
-                  <strong>{{ p.problem }}</strong>
-                  <template v-if="p.solutions?.length">
-                    —— {{ p.solutions.map((s) => s.name).join('、') }}
-                  </template>
-                </span>
-              </li>
-            </ul>
-          </div>
-        </section>
-      </aside>
     </div>
   </Transition>
 </template>

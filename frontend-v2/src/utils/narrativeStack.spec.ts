@@ -21,6 +21,20 @@ describe('buildNarrativeRuntimeItems', () => {
     expect(items.find((i) => i.label === '饱和度')).toBeUndefined()
   })
 
+  it('shows per-approach saturation from cognition metrics_by_arm', () => {
+    const items = buildNarrativeRuntimeItems({
+      cognition: {
+        metrics_by_arm: [
+          { dir4_label: '西', saturation: 1.44 },
+          { dir4_label: '北', saturation: 0.62 },
+        ],
+      },
+    })
+    expect(items.find((i) => i.label === '西进口饱和度')?.value).toContain('1.44')
+    expect(items.find((i) => i.label === '北进口饱和度')?.value).toContain('0.62')
+    expect(items.find((i) => i.label === '饱和度')).toBeUndefined()
+  })
+
   it('orders items: metrics → imbalance → chronic', () => {
     const evidence = {
       chronic: { is_chronic: true, congested_days: 5, window_days: 7 },

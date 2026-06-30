@@ -28,13 +28,27 @@ def _tree(tree_id, approach):
     }
 
 
-def test_frames_serialized_per_tree_with_camera_and_turn_split():
+def test_frames_parallel_when_multiple_approaches():
     sb = build_upstream_storyboard([_tree("N", "北进口"), _tree("E", "东进口")], cognition={})
+    assert sb["parallel"] is True
+    frames = sb["frames"]
+    assert frames[0]["tree"] == "*"
+    assert frames[0]["frame_type"] == "pullback"
+    # 并行合并后帧数远少于两树串行（每树约 7 帧 → 合并后约 7 帧）
+    sb_n = build_upstream_storyboard([_tree("N", "北进口")], cognition={})
+    assert len(frames) <= len(sb_n["frames"]) + 2
+    assert frames[-1]["frame_type"] == "fit"
+    assert frames[-1]["tree"] == "*"
+
+
+def test_frames_single_tree_serial():
+    sb = build_upstream_storyboard([_tree("N", "北进口")], cognition={})
+    assert sb.get("parallel") is False
     frames = sb["frames"]
     trees_in_order = [f["tree"] for f in frames]
-    assert trees_in_order[0] == "N" and trees_in_order[-1] == "E"
+    assert all(t == "N" for t in trees_in_order)
 
-    n_frames = [f for f in frames if f["tree"] == "N"]
+    n_frames = frames
     assert n_frames[0]["frame_type"] == "pullback"
     assert n_frames[0]["zoom"] == 17
     assert n_frames[0]["show_labels"] is False

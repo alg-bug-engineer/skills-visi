@@ -145,11 +145,34 @@ function appendTurnBalanceItems(
   appendTurnSide(push, tb.spare, 'spare')
 }
 
+const APPROACH_DIR_ORDER = ['东', '南', '西', '北'] as const
+
+function appendApproachSaturationItems(
+  push: (item: NarrativeRuntimeItem) => void,
+  cognition?: { metrics_by_arm?: Array<{ dir4_label?: string; saturation?: number; level?: string }> } | null,
+) {
+  const arms = cognition?.metrics_by_arm ?? []
+  if (!arms.length) return
+  for (const dir of APPROACH_DIR_ORDER) {
+    const arm = arms.find((a) => String(a.dir4_label ?? '').startsWith(dir))
+    if (arm?.saturation == null) continue
+    const sat = Number(arm.saturation)
+    push({
+      id: `approach-${dir}-sat`,
+      label: `${dir}进口饱和度`,
+      value: formatTurnSatValue(sat),
+      severity: saturationSeverity(sat),
+      category: 'metrics',
+    })
+  }
+}
+
 export function buildNarrativeRuntimeItems(input: {
   runtimeMetrics?: RuntimeMetrics | null
   dataInsight?: DataInsight | null
   evidence?: ProblemEvidence | null
   flowTimingGovernance?: FlowTimingGovernance | null
+  cognition?: { metrics_by_arm?: Array<{ dir4_label?: string; saturation?: number }> } | null
 }): NarrativeRuntimeItem[] {
   const items: NarrativeRuntimeItem[] = []
   const seen = new Set<string>()
@@ -173,6 +196,8 @@ export function buildNarrativeRuntimeItems(input: {
       category: 'metrics',
     })
   }
+
+  appendApproachSaturationItems(push, input.cognition)
 
   appendAllTurnMetricItems(push, ev)
   if (!ev?.by_turn?.length) {

@@ -61,7 +61,6 @@ import {
   formatSkillReuseLines,
 } from './config/presentationCopy'
 import { voiceConfig, voiceTemplate } from './services/voiceConfig'
-import { summarizeUpstreamVoice, shouldVoiceUpstreamFrame } from './utils/upstreamVoice'
 import { buildUpstreamProcessText } from './utils/upstreamProcessText'
 import { upstreamStoryboardDurationMs } from './utils/upstreamTiming'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
@@ -139,7 +138,6 @@ const presentationSequence = usePresentationSequence()
 const lastIntersectionName = ref<string | null>(null)
 const voiceSentForStep = new Set<number>()
 let dataFetchGuideQueued = false
-const upstreamVoiceSeen = new Set<number>()
 let pendingPresentationStepIndex: number | null = null
 let runtimeRevealTimer: ReturnType<typeof setTimeout> | null = null
 let pendingRuleEngineVoice: Record<string, unknown> | null = null
@@ -190,20 +188,21 @@ function isDataFetchSubBeat(phase?: string | null): boolean {
   return Boolean(phase && ['traffic', 'direction', 'timing', 'imbalance'].includes(phase))
 }
 
-function handleUpstreamNarration(payload: { idx: number; text: string | null }) {
-  if (!voice.enabled.value || !payload.text?.trim()) return
-  if (!shouldVoiceUpstreamFrame(payload.text)) return
-  if (upstreamVoiceSeen.has(payload.idx)) return
-  upstreamVoiceSeen.add(payload.idx)
-  const spoken = summarizeUpstreamVoice(payload.text)
-  if (!spoken) return
+/** 流量溯源逐帧旁白仅驱动地图，不再追加 TTS（入口一句 upstreamIntro 即可）。 */
+function handleUpstreamNarration(_payload: { idx: number; text: string | null }) {
+  return
+}
+
+/** 流量溯源概要讲解：进入溯源时主动播报一句引导。 */
+function enqueueUpstreamIntroVoice() {
+  if (!voice.enabled.value) return
   voice.enqueue({
-    id: `step:5:upstream:frame:${payload.idx}`,
+    id: 'step:5:upstream:intro',
     stepIndex: STEP_INDICES.RULE,
     phase: 'upstream',
-    kind: 'highlight',
-    text: spoken,
-    priority: 1,
+    kind: 'guide',
+    text: VOICE_GUIDE.upstreamIntro,
+    priority: 0,
   })
 }
 
@@ -1100,7 +1099,6 @@ function prepareNewAnalysisRun(userContent: string) {
   lastIntersectionName.value = null
   voiceSentForStep.clear()
   dataFetchGuideQueued = false
-  upstreamVoiceSeen.clear()
   pendingPresentationStepIndex = null
   pendingRuleEngineVoice = null
   clearRuntimeRevealTimer()
@@ -1180,8 +1178,7 @@ function enqueueSceneVoice(action: MapActionEvent) {
   }
   if (action.phase === 'imbalance') {
     const imb = presentation.state.runtimeMetrics?.imbalance_index
-    const green = presentation.state.runtimeMetrics?.green_utilization
-    const cue = buildImbalanceCue(imb, green)
+    const cue = buildImbalanceCue(imb)
     if (cue) voice.enqueue(cue)
   }
 }
@@ -1336,12 +1333,21 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       const tf = action.traffic_flow as Record<string, unknown> | undefined
       if (ev || tf) {
         const metrics: Array<{ label: string; value: string; severity?: string }> = []
-        const sat = tf?.saturation_rate ?? ev?.saturation_rate
-        if (sat != null) {
-          const n = Number(sat)
+        const armMetrics =
+          (action.metrics_by_arm as Array<{ dir4_label?: string; saturation?: number }> | undefined) ??
+          presentation.state.cognition?.metrics_by_arm ??
+          []
+        const approachOrder = ['东', '南', '西', '北'] as const
+        for (const dir of approachOrder) {
+          const arm = armMetrics.find((a) => {
+            const label = String(a.dir4_label ?? '')
+            return label.startsWith(dir)
+          })
+          if (arm?.saturation == null) continue
+          const n = Number(arm.saturation)
           metrics.push({
-            label: '饱和度',
-            value: `${Number(sat).toFixed(2)}`,
+            label: `${dir}进口饱和度`,
+            value: n.toFixed(2),
             severity: n >= 0.8 ? 'high' : n >= 0.65 ? 'medium' : 'low',
           })
         }
@@ -1411,11 +1417,15 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       presentation.setPhase('rule')
       presentationSequence.syncFromPhase('rule')
       presentationSequence.syncFromStepIndex(STEP_INDICES.RULE)
-      upstreamVoiceSeen.clear()
       const traceText = buildUpstreamProcessText(action.storyboard)
       if (traceText) {
         enqueueProcess(STEP_INDICES.RULE, traceText, true, true)
       }
+      // RULE 步骤以 silent 方式入队（不触发 onStepStart），此处显式恢复
+      // 原因诊断口播（步骤旁白 + 规则引擎结论）与流量溯源概要讲解。
+      enqueueUpstreamIntroVoice()
+      void scheduleProcessStepVoice(STEP_INDICES.RULE)
+      flushPendingRuleEngineVoice()
       pushMapAction(action)
       const durationMs = upstreamStoryboardDurationMs(action.storyboard?.frames)
       if (durationMs > 0) {
@@ -1644,7 +1654,6 @@ async function initSession() {
   lastIntersectionName.value = null
   voiceSentForStep.clear()
   dataFetchGuideQueued = false
-  upstreamVoiceSeen.clear()
   pendingPresentationStepIndex = null
   pendingRuleEngineVoice = null
   clearRuntimeRevealTimer()

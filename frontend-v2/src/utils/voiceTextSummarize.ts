@@ -52,6 +52,10 @@ export function summarizeNarrationForVoice(
     return ''
   }
 
+  if (phase === 'imbalance') {
+    return ''
+  }
+
   if (phase === 'traffic') {
     const delay = body.match(/延误[^0-9]*([0-9.]+)/)?.[1]
     if (delay) return `延误指数${delay}`

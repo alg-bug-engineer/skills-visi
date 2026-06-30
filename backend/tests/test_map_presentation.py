@@ -218,8 +218,8 @@ def test_direction_metric_lines_role_prefix():
         nlu=nlu,
     )
     direction = next(step for step in steps if step["phase"] == "direction")
-    assert "【关注】南北向" in direction["text"]
-    assert "【保护】东西向" in direction["text"]
+    assert "【关注】南进口" in direction["text"] or "【关注】北进口" in direction["text"]
+    assert "【保护】东进口" in direction["text"] or "【保护】西进口" in direction["text"]
 
 
 def test_rule_narration_strips_suggestion_wording_before_confirmation():
@@ -274,7 +274,7 @@ def test_build_map_scene_direction_includes_all_groups():
     dirs = {m["dir"] for m in scene["markers"]}
     assert dirs == {"东", "西", "南", "北"}
     by_dir = {m["dir"]: m for m in scene["markers"]}
-    assert "南北向" in by_dir["南"]["title"] or by_dir["南"]["title"] == "南北向"
+    assert by_dir["南"]["title"] == "南进口"
     assert by_dir["南"]["value"] == "1.20"
 
 

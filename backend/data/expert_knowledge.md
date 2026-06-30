@@ -1,7 +1,5 @@
 # 交通治理专家经验库
 
-> **运行时主副本**：`backend/data/expert_knowledge.md`（`case_library_path`）。本文件为文档镜像，修改时请同步两处或只改 data 目录。
-
 - 数据来源: `/Users/zhangml/PycharmProjects/pythonProject1/webdata/knowledge_qa/knowledge_qa.jsonl`
 - 案例总数: 1314
 - 已标注: 1314

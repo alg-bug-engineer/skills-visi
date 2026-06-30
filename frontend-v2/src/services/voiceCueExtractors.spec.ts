@@ -15,11 +15,11 @@ describe('voiceCueExtractors', () => {
     expect(cue.stepIndex).toBe(4)
   })
 
-  it('builds imbalance cue with raw green utilization', () => {
-    const cue = buildImbalanceCue(0.42, 0.78)
+  it('builds imbalance cue without green utilization', () => {
+    const cue = buildImbalanceCue(0.42)
     expect(cue?.text).toContain('失衡系数')
-    expect(cue?.text).toContain('0.78')
-    expect(cue?.text).not.toContain('78%')
+    expect(cue?.text).toContain('0.42')
+    expect(cue?.text).not.toMatch(/绿灯利用率|绿利用/)
   })
 
   it('RT-VOICE-AXIS: builds cognition cue from axis roads', () => {

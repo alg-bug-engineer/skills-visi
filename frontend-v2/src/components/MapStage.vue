@@ -336,6 +336,7 @@ function turnSplitChips(node: UpstreamTreeNode): string {
 }
 
 function syncUpstreamOverlayDim(sb: UpstreamStoryboard, activeTree: string) {
+  if (sb.parallel) return
   for (const tree of sb.trees) {
     const dimTree = tree.tree_id !== activeTree
     for (const edge of tree.edges) {
@@ -514,26 +515,24 @@ function renderUpstreamFrame(n: number) {
       upstreamOverlays.push(dot)
     }
 
-    if (!showLabels || upstreamOverlayById.has(labelKey)) continue
+    // 目标（问题进口）路口只保留中心红色脉冲，不再落「问题进口」指标卡，
+    // 避免与上游标注一起在主路口堆叠（与后端"目标路口暂不展示指标卡"一致）。
+    if (isTarget || !showLabels || upstreamOverlayById.has(labelKey)) continue
 
     const isGov = node.role === 'governance' || node.decision === '治理落点'
     const sat = node.saturation ?? null
-    const color = isTarget ? '#ff5a5a' : isGov ? '#6dffb5' : severityColor(sat)
+    const color = isGov ? '#6dffb5' : severityColor(sat)
     const [dx, dy] = anchors[id] ?? [0, -58]
     const satTxt =
-      typeof sat === 'number' && sat > 0.01
-        ? `饱和 ${sat.toFixed(2)}`
-        : isTarget
-          ? '问题进口'
-          : '待核查数仓'
-    const chips = isTarget ? '' : `<div class="us-chips">${turnSplitChips(node)}</div>`
+      typeof sat === 'number' && sat > 0.01 ? `饱和 ${sat.toFixed(2)}` : '待核查数仓'
+    const chips = `<div class="us-chips">${turnSplitChips(node)}</div>`
     const label = new AMapLib.Marker({
       position: [node.lon as number, node.lat as number],
       anchor: 'center',
       offset: new AMapLib.Pixel(dx, dy),
       zIndex: 82,
       content:
-        `<div class="us-card${dim ? ' is-dim' : ''}${isGov ? ' is-gov' : ''}${isTarget ? ' is-target' : ''}">` +
+        `<div class="us-card${dim ? ' is-dim' : ''}${isGov ? ' is-gov' : ''}">` +
         `<div class="us-name">${isGov ? '★ ' : ''}${node.name ?? id}</div>` +
         `<div class="us-sat" style="color:${color}">${satTxt}</div>${chips}</div>`,
     })
@@ -595,6 +594,11 @@ async function enterUpstreamFromChannelization(center: [number, number]) {
   disposeChannelization()
   channelizationLocked.value = false
   chanSceneMarkers.value = []
+  // 清理上一分析阶段遗留在主路口的浮动结果卡（失衡系数/保护/建议等），
+  // 流量溯源只保留蔓延连线与上游路口标注。
+  clearMarkers()
+  clearFlowSources()
+  extraEvidenceMarkers = []
   scenePhase.value = 'links'
   sceneOpts.value = {
     highlightDirs: [],
@@ -606,7 +610,7 @@ async function enterUpstreamFromChannelization(center: [number, number]) {
   drawHighlights()
   await upstreamCameraSleep(UPSTREAM_ROAD_HOLD_MS)
 
-  // 3) 从渠化 zoom（~18.5）单次平滑过渡到溯源主视角 17.00
+  // 3) 从渠化 zoom（~18.5）单次平滑过渡到溯源主视角 16.00
   const targetZoom = UPSTREAM_CORRIDOR_ZOOM
   const duration = Math.abs(startZoom - targetZoom) > 1 ? 1100 : 700
   await flyToUpstreamCorridor(center, targetZoom, duration)

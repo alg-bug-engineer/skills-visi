@@ -11,6 +11,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from intersection_agent.config import get_settings
+
 # 场景 ID → 场景关键词（用于把当前路口认知文本映射到专家场景）
 _SCENE_KEYWORDS: dict[str, list[str]] = {
     "arterial_green_wave": ["干线", "绿波", "主干道", "协调", "带宽"],
@@ -44,7 +46,12 @@ _PROBLEM_TYPE_KEYWORDS: dict[str, list[str]] = {
 
 
 def _default_path() -> Path:
-    return Path(__file__).resolve().parents[3] / "docs" / "expert_knowledge.md"
+    settings = get_settings()
+    path = Path(settings.case_library_path)
+    if path.is_absolute():
+        return path
+    backend_root = Path(__file__).resolve().parents[2]
+    return backend_root / path
 
 
 class CaseLibraryService:
