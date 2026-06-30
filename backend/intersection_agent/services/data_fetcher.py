@@ -238,6 +238,34 @@ class DataFetcher:
             },
         }
 
+    async def approach_profiles(
+        self,
+        inter_id: str,
+        *,
+        window: DataWindow,
+        dir8_filter: list[int] | None = None,
+    ) -> list[dict[str, Any]]:
+        """取某路口四进口道 profile（turn_saturation_max / green_util_min / queue）。"""
+        if self._settings.mock_db:
+            return _mock_approach_profiles(inter_id, dir8_filter)
+        await self._pool.connect()
+        flow_schema = self._settings.pg_flow_schema
+        dow = window.dow_filter
+        query_trace: list[dict[str, Any]] = []
+        by_turn = await self._safe_granularity(
+            self._fetch_by_turn(flow_schema, inter_id, window, dow, query_trace),
+            label="by_turn",
+        )
+        by_approach = await self._safe_granularity(
+            self._fetch_by_approach(flow_schema, inter_id, window, dow, query_trace),
+            label="by_approach",
+        )
+        profiles = aggregate_approach_profiles(by_turn, by_approach)
+        if dir8_filter is not None:
+            allow = {int(d) for d in dir8_filter}
+            profiles = [p for p in profiles if p["dir8_code"] in allow]
+        return profiles
+
     async def _fetch_by_approach(
         self,
         schema: str,
@@ -722,3 +750,28 @@ def aggregate_approach_profiles(
     for d8, node in acc.items():
         node["queue_len_est_m"] = queue_by_dir8.get(d8)
     return sorted(acc.values(), key=lambda n: n["dir8_code"])
+
+
+def _mock_approach_profiles(
+    inter_id: str, dir8_filter: list[int] | None = None
+) -> list[dict[str, Any]]:
+    """MOCK_DB：可治理上游(含 'gov')留一进口未饱和，其余路口四向全饱和。"""
+    if "gov" in inter_id:
+        profiles = [
+            {"dir8_code": 0, "turn_saturation_max": 0.70, "green_util_min": 0.62,
+             "queue_len_est_m": 40.0},
+        ] + [
+            {"dir8_code": d, "turn_saturation_max": 0.95, "green_util_min": 0.60,
+             "queue_len_est_m": 120.0}
+            for d in (2, 4, 6)
+        ]
+    else:
+        profiles = [
+            {"dir8_code": d, "turn_saturation_max": 0.95, "green_util_min": 0.60,
+             "queue_len_est_m": 130.0}
+            for d in (0, 2, 4, 6)
+        ]
+    if dir8_filter is not None:
+        allow = {int(d) for d in dir8_filter}
+        profiles = [p for p in profiles if p["dir8_code"] in allow]
+    return profiles

@@ -49,3 +49,13 @@ flow_trace:
   trigger_saturation: 0.90
   # 单转向展示的一跳来源数上限。
   top_sources: 3
+
+upstream_trace:
+  # 进口道过饱和触发溯源的下限（与 flow_trace.trigger_saturation 对齐）。
+  trigger_saturation: 0.90
+  # 判定"该进口道全饱和、无本地信控空间"的单进口道饱和度下限。
+  full_saturation: 0.85
+  # 进口道绿灯利用率低于此值视为"绿灯空槽"，存在可调空间。
+  governable_green_util: 0.50
+  # 递归上溯最大跳数。
+  max_hops: 2
