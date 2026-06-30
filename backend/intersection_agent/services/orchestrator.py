@@ -51,7 +51,10 @@ from intersection_agent.services.context_tags_service import ContextTagsService
 from intersection_agent.services.intent_classifier_service import IntentClassifierService
 from intersection_agent.services.problem_evidence_service import ProblemEvidenceService
 from intersection_agent.services.suggestion_service import SuggestionService
-from intersection_agent.services.suggestion_context import prepare_suggestion_data
+from intersection_agent.services.suggestion_context import (
+    derive_suggestion_references,
+    prepare_suggestion_data,
+)
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
 from intersection_agent.services.sustained_metrics_service import SustainedMetricsService
 from intersection_agent.services.timing_profile_service import TimingProfileService
@@ -1355,6 +1358,14 @@ class Orchestrator:
             suggestion = suggestion.model_copy(
                 update={"narrative": f"{suggestion.narrative}（{clip_note}）"},
             )
+        # 可溯源依据：同类专家案例 + 本路口复用经验 → 案例库跳转锚点
+        references = derive_suggestion_references(
+            case_matches,
+            session.data_payload.get("reused_experience"),
+            inter_id=session.inter_id,
+        )
+        if references:
+            suggestion = suggestion.model_copy(update={"references": references})
         session.suggestion = suggestion
         log_event(
             logger,

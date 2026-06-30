@@ -79,6 +79,16 @@ class DiagnosisResult(BaseModel):
     metrics_snapshot: dict[str, Any] = Field(default_factory=dict)
 
 
+class SuggestionReference(BaseModel):
+    """治理建议的依据来源（可溯源到案例库）。"""
+
+    type: str  # "industry" | "intersection"
+    id: str  # 跳转锚点，如 industry:school_zone / intersection:inter_001
+    title: str
+    summary: str = ""
+    scenario_id: str | None = None
+
+
 class SuggestionResult(BaseModel):
     """Governance suggestion."""
 
@@ -89,6 +99,7 @@ class SuggestionResult(BaseModel):
     rule_id: str
     action_type: str = "green_light_adjustment"
     action_plan: dict[str, Any] | None = None
+    references: list[SuggestionReference] = Field(default_factory=list)
 
 
 class Session(BaseModel):

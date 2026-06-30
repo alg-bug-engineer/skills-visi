@@ -4,7 +4,64 @@ from __future__ import annotations
 
 from typing import Any
 
+from intersection_agent.models.domain import SuggestionReference
 from intersection_agent.services.governance_action_plan_service import build_action_plan
+
+
+def derive_suggestion_references(
+    case_matches: list[dict[str, Any]] | None,
+    reused_experience: list[str] | None,
+    *,
+    inter_id: str | None,
+    cap: int = 6,
+) -> list[SuggestionReference]:
+    """由同类专家案例 + 本路口复用经验确定性派生建议的可溯源依据。
+
+    - 专家场景 → industry 依据（跳转案例库·行业案例）。
+    - 本路口存在复用经验 → intersection 依据（跳转案例库·路口案例）。
+    去重（按 id），上限 cap。
+    """
+    refs: list[SuggestionReference] = []
+    seen: set[str] = set()
+
+    for sc in case_matches or []:
+        scenario_id = str(sc.get("scenario_id") or "").strip()
+        if not scenario_id:
+            continue
+        ref_id = f"industry:{scenario_id}"
+        if ref_id in seen:
+            continue
+        summary = str(sc.get("description") or "").strip()
+        if not summary:
+            problems = sc.get("problems") or []
+            summary = "、".join(
+                str(p.get("problem", "")) for p in problems[:2] if p.get("problem")
+            )
+        refs.append(
+            SuggestionReference(
+                type="industry",
+                id=ref_id,
+                title=str(sc.get("scenario_name") or scenario_id),
+                summary=summary[:120],
+                scenario_id=scenario_id,
+            )
+        )
+        seen.add(ref_id)
+
+    if reused_experience and inter_id:
+        ref_id = f"intersection:{inter_id}"
+        if ref_id not in seen:
+            refs.append(
+                SuggestionReference(
+                    type="intersection",
+                    id=ref_id,
+                    title=str(inter_id),
+                    summary=str(reused_experience[0])[:120],
+                )
+            )
+            seen.add(ref_id)
+
+    return refs[:cap]
 
 
 def _fmt_turn_split(split: list[dict[str, Any]] | None) -> str:
