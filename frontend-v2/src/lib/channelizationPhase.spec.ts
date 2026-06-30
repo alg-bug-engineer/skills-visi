@@ -70,7 +70,7 @@ describe('applyPhaseHighlight', () => {
     expect(calls.applyArmSceneLabels[1][0]).toEqual([])
   })
 
-  it('traffic 阶段有转向数据时仅用车道转向卡，不叠路臂卡', () => {
+  it('traffic 阶段有转向数据时用路臂标签，不叠车道转向饱和度卡', () => {
     const { layer, calls } = makeFakeLayer()
     applyPhaseHighlight(layer, {
       phase: 'traffic',
@@ -82,9 +82,9 @@ describe('applyPhaseHighlight', () => {
         ],
       },
     })
-    expect(calls.applyTurnSaturationLabels).toHaveLength(1)
-    expect(calls.applyArmSceneLabels).toHaveLength(1)
-    expect(calls.applyArmSceneLabels[0][0]).toEqual([])
+    expect(calls.applyTurnSaturationLabels).toHaveLength(0)
+    expect(calls.applyArmSceneLabels).toHaveLength(2)
+    expect(calls.applyDirectionRoleHighlight).toHaveLength(1)
   })
 
   it('运行数据未揭示时 traffic 阶段不展示饱和度车道卡', () => {
@@ -160,8 +160,8 @@ describe('applyPhaseHighlight', () => {
         { armAngle: 0, queueM: 85, satPct: 95, satRatio: 0.95, dir4: '东', label: '东进口' },
       ],
     })
-    const labels = calls.applyArmSceneLabels[0][0] as Array<{ dir: string; line2: string }>
-    const east = labels.find((l) => l.dir === '东')
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ dir: string; line2: string }>
+    const east = labels?.find((l) => l.dir === '东')
     expect(east?.line2).toContain('排队~85m')
   })
 
@@ -175,7 +175,7 @@ describe('applyPhaseHighlight', () => {
         { armAngle: 0, queueM: 85, satPct: 95, satRatio: 0.95, dir4: '东', label: '东进口' },
       ],
     })
-    const labels = calls.applyArmSceneLabels[0][0] as Array<{ dir: string; line2: string }>
-    expect(labels.some((l) => l.line2.includes('排队'))).toBe(false)
+    const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ dir: string; line2: string }>
+    expect(labels?.some((l) => l.line2.includes('排队'))).toBe(false)
   })
 })

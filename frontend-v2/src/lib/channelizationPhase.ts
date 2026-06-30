@@ -21,7 +21,6 @@ import {
   buildArmLabelsFromEntranceLinks,
   buildArmLabelsFromQueue,
 } from '../utils/channelArmLabels'
-import { turnSatLabelsFromMetrics, resolveTurnMetrics } from '../utils/turnMetrics'
 import { highlightDirsForGroup } from '../utils/evidencePresentation'
 import type { ArmSceneLabel, HighlightEvidence, TurnHighlightSpec } from './channelizationAmap'
 
@@ -67,14 +66,6 @@ function sceneMarkersForPhase(phase: PipelinePhase, markers: MapSceneMarker[]): 
   if (phase === 'direction') return markers
   return markers.filter((m) => m.variant !== 'protected' && !(m.title?.includes('保护')))
 }
-
-const TURN_SAT_LABEL_PHASES: PipelinePhase[] = [
-  'traffic',
-  'direction',
-  'saturation',
-  'granularity',
-  'imbalance',
-]
 
 function armLabelsForPhase(
   phase: PipelinePhase,
