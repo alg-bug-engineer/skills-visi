@@ -128,6 +128,67 @@ class ExperienceLibraryResponse(BaseModel):
     solution: list[ExperienceSolutionItem] = Field(default_factory=list)
 
 
+class RepresentativeCase(BaseModel):
+    """代表案例（来自专家库 #N 引用）。"""
+
+    id: str
+    title: str
+    snippet: str
+
+
+class IndustryCaseSolution(BaseModel):
+    """行业案例·治理方案。"""
+
+    name: str
+    frequency: int = 0
+    measures: list[str] = Field(default_factory=list)
+    applicability: str = ""
+    caution: str = ""
+    representative_cases: list[RepresentativeCase] = Field(default_factory=list)
+
+
+class IndustryCaseProblem(BaseModel):
+    """行业案例·典型问题。"""
+
+    problem: str
+    occurrence: int = 0
+    symptoms: list[str] = Field(default_factory=list)
+    solutions: list[IndustryCaseSolution] = Field(default_factory=list)
+
+
+class IndustryCaseScenario(BaseModel):
+    """行业案例·场景（结构化 expert_knowledge.md）。"""
+
+    scenario_id: str
+    scenario_name: str
+    description: str = ""
+    case_count: int = 0
+    problems: list[IndustryCaseProblem] = Field(default_factory=list)
+
+
+class IntersectionCaseSolution(BaseModel):
+    """路口案例·治理方案与量化成效。"""
+
+    skill_id: str
+    qualitative: str | None = None
+    quantified: str | None = None
+    solution_measure: str | None = None
+    download_url: str | None = None
+    ts: str = ""
+
+
+class IntersectionCase(BaseModel):
+    """路口案例：历史诊断→治理方案（由路口档案聚合，仅已形成方案者）。"""
+
+    inter_id: str
+    intersection: str = ""
+    time_period_label: str = ""
+    cognition: list[ExperienceCognitionItem] = Field(default_factory=list)
+    diagnosis: list[ExperienceDiagnosisItem] = Field(default_factory=list)
+    solutions: list[IntersectionCaseSolution] = Field(default_factory=list)
+    ts: str = ""
+
+
 class HealthResponse(BaseModel):
     """Health check."""
 

@@ -15,6 +15,9 @@ from intersection_agent.api.schemas import (
     ExperienceLibraryResponse,
     ExperienceSolutionItem,
     HealthResponse,
+    IndustryCaseScenario,
+    IntersectionCase,
+    IntersectionCaseSolution,
     MessageRequest,
     MessageResponse,
     ReplyPayload,
@@ -26,6 +29,7 @@ from intersection_agent.api.schemas import (
 from intersection_agent.api.sse import build_emitter, sse_event_stream
 from intersection_agent.config import get_settings
 from intersection_agent.logging.helpers import log_event, safe_preview
+from intersection_agent.services.case_library_service import CaseLibraryService
 from intersection_agent.services.orchestrator import Orchestrator
 from intersection_agent.services.skill_service import SkillService
 from intersection_agent.services.skill_matcher import backfill_tags
@@ -39,6 +43,7 @@ router = APIRouter()
 _sessions = SessionStore()
 _orchestrator = Orchestrator()
 _skills = SkillService()
+_case_library = CaseLibraryService()
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -324,6 +329,95 @@ async def get_experience_library(
         diagnosis=diagnosis,
         solution=solution,
     )
+
+
+@router.get("/cases/industry", response_model=list[IndustryCaseScenario])
+async def get_industry_cases(
+    q: str | None = Query(default=None, description="按场景名/描述/问题关键词过滤"),
+) -> list[IndustryCaseScenario]:
+    """行业案例库：结构化专家经验（expert_knowledge.md）。"""
+    scenarios = _case_library.list_all()
+    if q:
+        needle = q.strip()
+
+        def _hit(sc: dict[str, Any]) -> bool:
+            blob = sc["scenario_name"] + sc.get("description", "")
+            blob += "".join(p["problem"] for p in sc["problems"])
+            return needle in blob
+
+        scenarios = [sc for sc in scenarios if _hit(sc)]
+    return [IndustryCaseScenario.model_validate(sc) for sc in scenarios]
+
+
+@router.get("/cases/intersections", response_model=list[IntersectionCase])
+async def get_intersection_cases() -> list[IntersectionCase]:
+    """路口案例库：历史路口诊断→治理方案（仅已形成方案的路口）。"""
+    store = IntersectionProfileStore()
+    cases: list[IntersectionCase] = []
+    for profile in store.load_all():
+        if not profile.solution_ref:
+            continue
+        pid = profile.inter_id
+        solutions: list[IntersectionCaseSolution] = []
+        case_intersection = ""
+        case_time_label = ""
+        for s in profile.solution_ref:
+            record = _skills.get_by_id(s.skill_id)
+            if record:
+                case_intersection = case_intersection or record.intersection
+                case_time_label = case_time_label or record.time_period_label
+            solutions.append(
+                IntersectionCaseSolution(
+                    skill_id=s.skill_id,
+                    qualitative=s.qualitative,
+                    quantified=s.quantified,
+                    solution_measure=record.solution_measure if record else None,
+                    download_url=(
+                        f"/api/v1/skills/{s.skill_id}/download" if record else None
+                    ),
+                    ts=s.ts,
+                )
+            )
+        latest_ts = max(
+            [s.ts for s in profile.solution_ref]
+            + [c.ts for c in profile.cognition]
+            + [d.ts for d in profile.diagnosis],
+            default="",
+        )
+        cases.append(
+            IntersectionCase(
+                inter_id=pid,
+                intersection=case_intersection or pid,
+                time_period_label=case_time_label,
+                cognition=[
+                    ExperienceCognitionItem(
+                        inter_id=pid,
+                        text=c.text,
+                        status=c.status,
+                        source=c.source,
+                        evidence=c.evidence,
+                        ts=c.ts,
+                    )
+                    for c in profile.cognition
+                ],
+                diagnosis=[
+                    ExperienceDiagnosisItem(
+                        inter_id=pid,
+                        cause=d.cause,
+                        dimension=d.dimension,
+                        scope=d.scope,
+                        source=d.source,
+                        confidence=d.confidence,
+                        ts=d.ts,
+                    )
+                    for d in profile.diagnosis
+                ],
+                solutions=solutions,
+                ts=latest_ts,
+            )
+        )
+    cases.sort(key=lambda c: c.ts, reverse=True)
+    return cases
 
 
 @router.get("/skills/{skill_id}/download")
