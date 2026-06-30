@@ -63,6 +63,17 @@ export async function fetchSkillLeaderboard(
   return data
 }
 
+export async function fetchExperienceLibrary(
+  interId?: string | null,
+): Promise<import('../types/experience').ExperienceLibrary> {
+  const qs = interId ? `?inter_id=${encodeURIComponent(interId)}` : ''
+  const { data } = await requestJson<import('../types/experience').ExperienceLibrary>(
+    'GET',
+    `/api/v1/experience/library${qs}`,
+  )
+  return data
+}
+
 export async function createSession(): Promise<{ session_id: string; state: string }> {
   const { data } = await requestJson<{ session_id: string; state: string }>('POST', '/api/v1/sessions')
   logger.info('session', '会话已创建', data)

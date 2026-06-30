@@ -36,6 +36,10 @@ from intersection_agent.services.map_presentation_service import (
     build_understanding_card,
     pick_narration_step,
 )
+from intersection_agent.services.case_library_service import CaseLibraryService
+from intersection_agent.services.dimension_pack_service import DimensionPackService
+from intersection_agent.services.experience_reuse_service import ExperienceReuseService
+from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
 from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
 from intersection_agent.services.skill_service import SkillService, SkillUpsertResult
@@ -43,14 +47,7 @@ from intersection_agent.services.skill_matcher import backfill_tags
 from intersection_agent.config import get_settings
 from intersection_agent.services.constraint_resolver_service import ConstraintResolverService
 from intersection_agent.services.context_tags_service import ContextTagsService
-from intersection_agent.services.corridor_context_service import CorridorContextService
-from intersection_agent.services.corridor_narrative_service import CorridorNarrativeService
-from intersection_agent.services.corridor_pick_resolver import resolve_corridor_pick
-from intersection_agent.services.corridor_scan_nlu_service import CorridorScanNluService
-from intersection_agent.services.corridor_scan_scene import build_corridor_scan_scene
-from intersection_agent.services.corridor_scan_service import CorridorScanService
 from intersection_agent.services.intent_classifier_service import IntentClassifierService
-from intersection_agent.services.line_resolver import LineResolver
 from intersection_agent.services.problem_evidence_service import ProblemEvidenceService
 from intersection_agent.services.suggestion_service import SuggestionService
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
@@ -81,36 +78,31 @@ class Orchestrator:
         evidence: ProblemEvidenceService | None = None,
         constraints: ConstraintResolverService | None = None,
         timing: TimingProfileService | None = None,
-        corridor: CorridorContextService | None = None,
-        corridor_scan_nlu: CorridorScanNluService | None = None,
-        line_resolver: LineResolver | None = None,
-        corridor_scan: CorridorScanService | None = None,
-        corridor_narrative: CorridorNarrativeService | None = None,
         intent_classifier: IntentClassifierService | None = None,
         context_tags: ContextTagsService | None = None,
         flow_governance: FlowTimingGovernanceService | None = None,
         sustained: SustainedMetricsService | None = None,
+        profile_store: IntersectionProfileStore | None = None,
     ) -> None:
         self._nlu = nlu or NluService()
         self._resolver = resolver or IntersectionResolver()
         self._fetcher = fetcher or DataFetcher()
         self._cognition = cognition or IntersectionCognitionService()
         self._rules = rules or RuleEngine()
+        self._dimension_packs = DimensionPackService()
         self._suggestions = suggestions or SuggestionService()
         self._skills = skills or SkillService()
         self._follow_ups = follow_ups or FollowUpService()
         self._evidence = evidence or ProblemEvidenceService()
         self._constraints = constraints or ConstraintResolverService()
         self._timing = timing or TimingProfileService()
-        self._corridor = corridor or CorridorContextService()
-        self._corridor_scan_nlu = corridor_scan_nlu or CorridorScanNluService()
-        self._line_resolver = line_resolver or LineResolver()
-        self._corridor_scan = corridor_scan or CorridorScanService()
-        self._corridor_narrative = corridor_narrative or CorridorNarrativeService()
         self._intent_classifier = intent_classifier or IntentClassifierService()
         self._context_tags = context_tags or ContextTagsService()
         self._flow_governance = flow_governance or FlowTimingGovernanceService(rules=self._rules)
         self._sustained = sustained or SustainedMetricsService()
+        self._profile_store = profile_store or IntersectionProfileStore()
+        self._experience_reuse = ExperienceReuseService(self._profile_store)
+        self._case_library = CaseLibraryService()
         self._settings = get_settings()
 
     async def handle_message(
@@ -143,22 +135,111 @@ class Orchestrator:
         if session.state == SessionState.INTERSECTION_AMBIGUOUS:
             return await self._handle_candidate_pick(session, content, emitter)
 
-        if session.state == SessionState.AWAITING_CORRIDOR_PICK:
-            return await self._handle_corridor_pick(session, content, emitter)
-
-        if session.state == SessionState.CORRIDOR_NLU_INCOMPLETE:
-            return await self._continue_corridor_scan(session, emitter)
-
         if session.state == SessionState.NLU_INCOMPLETE:
             return await self._continue_nlu(session, emitter)
 
         if session.state in (SessionState.IDLE, SessionState.DONE):
-            if await self._intent_classifier.route_intent(content, session) == "corridor_scan":
-                session.state = SessionState.CORRIDOR_SCANNING
-                return await self._run_corridor_pipeline(session, emitter)
             session.state = SessionState.PROCESSING
 
         return await self._run_pipeline(session, emitter)
+
+    async def _record_problem_experience(
+        self,
+        session: Session,
+        diagnosis: DiagnosisResult,
+        governance: dict[str, Any] | None,
+        emitter: ExecutionEmitter | None = None,
+    ) -> None:
+        """三级经验逐级写入：识别问题步落 cognition、归因步落 diagnosis。
+
+        严格栅栏：每步先落库，再 emit 对应 step_conclusion。
+        """
+        inter_id = session.inter_id
+        if not inter_id:
+            return
+        nlu = session.nlu
+
+        # 识别问题步：数据可验证 → verified；人坚持但数据不显著 → data_doubt
+        cognition_entry = None
+        if diagnosis.diagnosed and diagnosis.matched_rules:
+            top = diagnosis.matched_rules[0]
+            profile = self._profile_store.add_cognition(
+                inter_id,
+                text=str(top.get("conclusion") or top.get("name") or "诊断命中问题"),
+                status="verified",
+                source="data",
+                evidence=diagnosis.metrics_snapshot or {},
+            )
+            cognition_entry = profile.cognition[-1]
+        elif nlu and nlu.user_suggestion:
+            profile = self._profile_store.add_cognition(
+                inter_id,
+                text=nlu.user_suggestion,
+                status="data_doubt",
+                source="user",
+                evidence={},
+            )
+            cognition_entry = profile.cognition[-1]
+        if cognition_entry is not None and emitter:
+            await emitter.emit(
+                "experience_cognition",
+                "completed",
+                data={
+                    "inter_id": inter_id,
+                    "text": cognition_entry.text,
+                    "status": cognition_entry.status,
+                },
+            )
+
+        # 归因步：供需匹配度主诊断 → diagnosis 先验
+        primary = (governance or {}).get("primary_diagnosis") or {}
+        dimension = primary.get("type")
+        cause = primary.get("headline") or primary.get("lever")
+        if dimension and dimension != "basically_matched" and cause:
+            self._profile_store.add_diagnosis(
+                inter_id,
+                cause=str(cause),
+                dimension=str(dimension),
+                source="data",
+                confidence=float(primary.get("confidence") or 0.0),
+            )
+            if emitter:
+                await emitter.emit(
+                    "experience_diagnosis",
+                    "completed",
+                    data={"inter_id": inter_id, "cause": str(cause), "dimension": str(dimension)},
+                )
+
+    async def _record_solution_ref(
+        self,
+        session: Session,
+        result: SkillUpsertResult,
+        emitter: ExecutionEmitter | None = None,
+    ) -> None:
+        """出方案步：skill 固化后在档案追加 solution_ref（落库后再播报）。"""
+        inter_id = session.inter_id
+        if not inter_id or not result or not result.record:
+            return
+        record = result.record
+        qualitative = (session.nlu.user_suggestion if session.nlu else None) or (
+            record.user_constraints
+        )
+        self._profile_store.add_solution_ref(
+            inter_id,
+            skill_id=record.skill_id,
+            qualitative=qualitative,
+            quantified=record.suggestion_formula or None,
+        )
+        if emitter:
+            await emitter.emit(
+                "experience_solution",
+                "completed",
+                data={
+                    "inter_id": inter_id,
+                    "skill_id": record.skill_id,
+                    "quantified": record.suggestion_formula or None,
+                },
+            )
 
     async def _handle_confirmation(
         self,
@@ -182,6 +263,7 @@ class Orchestrator:
                 result = await self._skills.upsert_from_session_visual(session, emitter)
             else:
                 result = self._skills.upsert_from_session(session)
+            await self._record_solution_ref(session, result, emitter)
             session.state = SessionState.DONE
             action = session.pending_skill_action or "create"
             log_event(
@@ -362,170 +444,6 @@ class Orchestrator:
 
         session.state = SessionState.PROCESSING
         return await self._run_pipeline(session, emitter)
-
-    async def _continue_corridor_scan(
-        self,
-        session: Session,
-        emitter: ExecutionEmitter | None,
-    ) -> dict[str, Any]:
-        session.state = SessionState.CORRIDOR_SCANNING
-        return await self._run_corridor_pipeline(session, emitter)
-
-    async def _run_corridor_pipeline(
-        self,
-        session: Session,
-        emitter: ExecutionEmitter | None,
-    ) -> dict[str, Any]:
-        line_candidates = session.data_payload.get("line_candidates") or []
-        if line_candidates:
-            pick = await self._line_resolver.resolve_candidate_selection(
-                session.messages[-1].content if session.messages else "",
-                line_candidates,
-            )
-            if pick and (pick.line_id or pick.intersection_rows):
-                session.data_payload.pop("line_candidates", None)
-            elif pick is None:
-                session.state = SessionState.CORRIDOR_NLU_INCOMPLETE
-                return self._build_response(
-                    session,
-                    ReplyType.FOLLOW_UP,
-                    "请从候选干线中选择，或回复完整干线名称。",
-                    extra={"missing_fields": ["corridor"]},
-                )
-
-        if emitter:
-            await emitter.emit("corridor_scan_nlu", "running")
-        scan_nlu_result = await self._corridor_scan_nlu.extract(session.raw_user_context)
-        if scan_nlu_result.get("status") == "error":
-            session.state = SessionState.DONE
-            return self._build_response(
-                session, ReplyType.ERROR, scan_nlu_result.get("error", "理解失败")
-            )
-
-        if scan_nlu_result["status"] == "incomplete":
-            session.corridor_scan_nlu = scan_nlu_result["data"]
-            session.state = SessionState.CORRIDOR_NLU_INCOMPLETE
-            if emitter:
-                await emitter.emit(
-                    "corridor_scan_nlu",
-                    "completed",
-                    data={"status": "incomplete", "missing": scan_nlu_result.get("missing")},
-                )
-            return self._build_response(
-                session,
-                ReplyType.FOLLOW_UP,
-                scan_nlu_result.get("follow_up", "请补充干线或时段信息。"),
-                extra={
-                    "missing_fields": scan_nlu_result.get("missing", []),
-                    "intent": "corridor_scan",
-                },
-            )
-
-        session.corridor_scan_nlu = scan_nlu_result["data"]
-        assert session.corridor_scan_nlu and session.corridor_scan_nlu.corridor
-
-        if emitter:
-            await emitter.emit("line_resolve", "running")
-        line_result = await self._line_resolver.resolve(session.corridor_scan_nlu.corridor)
-        if line_result.source == "candidates" and line_result.candidates:
-            session.data_payload["line_candidates"] = line_result.candidates
-            session.state = SessionState.CORRIDOR_NLU_INCOMPLETE
-            return self._build_response(
-                session,
-                ReplyType.FOLLOW_UP,
-                line_result.follow_up or "请选择干线。",
-                extra={"line_candidates": line_result.candidates, "intent": "corridor_scan"},
-            )
-        if not line_result.line_id and not line_result.intersection_rows:
-            session.state = SessionState.DONE
-            return self._build_response(
-                session,
-                ReplyType.ERROR,
-                line_result.follow_up or "未找到该干线。",
-            )
-
-        if emitter:
-            await emitter.emit("corridor_scan", "running")
-        scan_result = await self._corridor_scan.scan(line_result, session.corridor_scan_nlu)
-        session.data_payload["corridor_scan"] = scan_result
-        narrative = await self._corridor_narrative.build(scan_result)
-        scene = build_corridor_scan_scene(scan_result)
-        session.state = SessionState.AWAITING_CORRIDOR_PICK
-
-        if emitter:
-            await emitter.emit("corridor_scan", "completed", data={"top3": scan_result.get("top3_inter_ids")})
-            await self._emit_map_sequence(emitter, action="corridor_scan_scene", data=scene)
-
-        return self._build_response(
-            session,
-            ReplyType.CORRIDOR_SCAN,
-            narrative,
-            extra={
-                "corridor_scan": scan_result,
-                "corridor_scan_scene": scene,
-                "intent": "corridor_scan",
-            },
-        )
-
-    async def _handle_corridor_pick(
-        self,
-        session: Session,
-        content: str,
-        emitter: ExecutionEmitter | None,
-    ) -> dict[str, Any]:
-        scan = session.data_payload.get("corridor_scan") or {}
-        ranked = scan.get("intersections") or []
-        picked = resolve_corridor_pick(content, ranked)
-        if not picked:
-            follow_up = await self._follow_ups.for_corridor_pick(session.raw_user_context)
-            return self._build_response(
-                session,
-                ReplyType.FOLLOW_UP,
-                follow_up,
-                extra={"intent": "corridor_pick"},
-            )
-
-        assert session.corridor_scan_nlu and session.corridor_scan_nlu.time_period
-        session.nlu = NluResult(
-            intersection=str(picked.get("inter_name")),
-            time_period=TimePeriod(**session.corridor_scan_nlu.time_period.model_dump()),
-            problem_type="congestion",
-            directions=[],
-        )
-        session.inter_id = str(picked.get("inter_id")) if picked.get("inter_id") else None
-        session.resolved_intersection = str(picked.get("inter_name"))
-        session.resolution_source = "corridor_pick"
-
-        nlu_result = await self._nlu.extract(session.raw_user_context)
-        nlu_result = self._merge_preserved_nlu(session, nlu_result)
-        if nlu_result.get("status") == "complete" and nlu_result["data"].directions:
-            session.nlu.directions = nlu_result["data"].directions
-
-        if not session.nlu.directions:
-            session.state = SessionState.NLU_INCOMPLETE
-            session.pending_follow_up_field = "directions"
-            follow_up = await self._follow_ups.for_nlu(
-                session.raw_user_context,
-                missing=["directions"],
-                focus_field="directions",
-                partial=session.nlu,
-            )
-            return self._build_response(
-                session,
-                ReplyType.FOLLOW_UP,
-                f"已选定「{session.resolved_intersection}」。{follow_up}",
-                extra={
-                    "missing_fields": ["directions"],
-                    "picked_intersection": session.resolved_intersection,
-                },
-            )
-
-        session.state = SessionState.PROCESSING
-        return await self._diagnose(
-            session,
-            resolution_note=f"已从干线扫描选定：{session.resolved_intersection}",
-            emitter=emitter,
-        )
 
     @staticmethod
     def _merge_preserved_nlu(session: Session, nlu_result: dict[str, Any]) -> dict[str, Any]:
@@ -1063,13 +981,26 @@ class Orchestrator:
 
         data = session.data_payload
 
+        problem_types = list(session.nlu.problem_types) if session.nlu else []
+        focus_categories = (
+            self._dimension_packs.focus_categories(problem_types)
+            if problem_types
+            else []
+        )
         if emitter:
             await emitter.emit(
                 "rule_engine",
                 "running",
-                data={"problem_type": session.nlu.problem_type},
+                data={
+                    "problem_type": session.nlu.problem_type,
+                    "problem_types": problem_types,
+                    "focus_categories": focus_categories,
+                },
             )
-        diagnosis = self._rules.diagnose_comprehensive(data)
+        if focus_categories:
+            diagnosis = self._rules.diagnose_focused(focus_categories, data)
+        else:
+            diagnosis = self._rules.diagnose_comprehensive(data)
         if diagnosis.diagnosed and diagnosis.metrics_snapshot is not None:
             diagnosis.metrics_snapshot["matched_rule_count"] = len(diagnosis.matched_rules)
 
@@ -1120,6 +1051,20 @@ class Orchestrator:
             diagnosis = self._filter_skill_rules(diagnosis, skill_rule_ids)
 
         session.diagnosis = diagnosis
+
+        # 复用先于沉淀：先采集历史档案中各步可复用经验（本轮写入之前）
+        if session.inter_id:
+            reuse_badges: list[str] = []
+            for step in ("identify", "attribution", "solution"):
+                reuse_badges.extend(
+                    self._experience_reuse.for_step(session.inter_id, step).reuse_badges
+                )
+            if reuse_badges:
+                session.data_payload["reused_experience"] = reuse_badges
+
+        await self._record_problem_experience(
+            session, diagnosis, flow_timing_governance, emitter
+        )
 
         if session.skill_reuse_mode and session.matched_skill_id:
             skill = self._skills.get_by_id(session.matched_skill_id)
@@ -1259,6 +1204,21 @@ class Orchestrator:
                     "user_suggestion": safe_preview(session.nlu.user_suggestion),
                 },
             )
+        # 专家经验库匹配：按问题类型 + 路口场景文本注入同类场景治理经验
+        problem_types = session.nlu.problem_types or ["congestion"]
+        scene_text = " ".join(
+            str(part)
+            for part in (
+                session.resolved_intersection or "",
+                session.raw_user_context or "",
+                cognition,
+            )
+        )
+        case_matches = self._case_library.match(problem_types, scene_text=scene_text, k=2)
+        case_experience_block = self._case_library.format_experience_block(case_matches)
+        if case_matches:
+            session.data_payload["case_experience"] = case_matches
+
         raw_delta = evaluate_formula(rule["action"]["formula"], data)
         flow_gov = data.get("flow_timing_governance") or {}
         action_plan = flow_gov.get("action_plan") or {}
@@ -1282,6 +1242,7 @@ class Orchestrator:
             quantitative_constraints=session.data_payload.get("quantitative_constraints"),
             delta_override=clipped_delta,
             direction_override=str(direction_override) if direction_override else None,
+            case_experience=case_experience_block,
         )
         if clipped_delta != raw_delta and clip_note:
             suggestion = suggestion.model_copy(
@@ -1351,6 +1312,7 @@ class Orchestrator:
             result = await self._skills.upsert_from_session_visual(session, emitter)
         else:
             result = self._skills.upsert_from_session(session)
+        await self._record_solution_ref(session, result, emitter)
         session.pending_skill_action = None
         log_event(
             logger,
@@ -1556,6 +1518,13 @@ class Orchestrator:
             "inter_id": session.inter_id,
             "skill_reused": session.skill_reuse_mode or bool(session.matched_skill_id),
         }
+        problem_types = list(session.nlu.problem_types) if session.nlu and session.nlu.problem_types else []
+        if problem_types:
+            meta["problem_types"] = problem_types
+            # 驱动前端「无关卡片/图层/播报不出现」（_build_response 为 staticmethod，用模块级单例）
+            meta["active_dimensions"] = _presentation_dimension_packs().presentation_dimensions(
+                problem_types
+            )
         if session.data_payload:
             data_meta = session.data_payload.get("meta", {})
             dw = data_meta.get("data_window")
@@ -1581,9 +1550,12 @@ class Orchestrator:
                 meta["sustained_metrics"] = sustained
             if data_meta.get("demo_mode"):
                 meta["demo_mode"] = True
-            corridor_scan = session.data_payload.get("corridor_scan")
-            if corridor_scan:
-                meta["corridor_scan"] = corridor_scan
+            reused_experience = session.data_payload.get("reused_experience")
+            if reused_experience:
+                meta["reused_experience"] = reused_experience
+            case_experience = session.data_payload.get("case_experience")
+            if case_experience:
+                meta["case_experience"] = case_experience
         if extra:
             meta.update(extra)
 
@@ -1596,6 +1568,17 @@ class Orchestrator:
             "suggestion": session.suggestion.model_dump() if session.suggestion else None,
             "meta": meta,
         }
+
+
+_PRESENTATION_DIMENSION_PACKS: DimensionPackService | None = None
+
+
+def _presentation_dimension_packs() -> DimensionPackService:
+    """Module-level singleton (cheap YAML) for static _build_response usage."""
+    global _PRESENTATION_DIMENSION_PACKS
+    if _PRESENTATION_DIMENSION_PACKS is None:
+        _PRESENTATION_DIMENSION_PACKS = DimensionPackService()
+    return _PRESENTATION_DIMENSION_PACKS
 
 
 def _no_diagnosis_message(reason_code: str, data: dict[str, Any]) -> str:

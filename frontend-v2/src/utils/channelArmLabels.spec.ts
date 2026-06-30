@@ -1,6 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { buildArmLabelsFromScene, buildArmLabelsFromDirectionGroups, buildArmLabelsFromEntranceLinks } from './channelArmLabels'
+import {
+  buildArmLabelsFromScene,
+  buildArmLabelsFromDirectionGroups,
+  buildArmLabelsFromEntranceLinks,
+  buildArmLabelsFromQueue,
+} from './channelArmLabels'
+import type { ChannelQueueArm } from './cognitionChannelAdapter'
 import type { CognitionPayload, MapSceneMarker } from '../types/map'
+
+describe('buildArmLabelsFromQueue', () => {
+  it('renders queue length (m) + saturation for arms with queue', () => {
+    const arms: ChannelQueueArm[] = [
+      { armAngle: 0, queueM: 85, satPct: 95, satRatio: 0.95, dir4: '东进口', label: '东进口' },
+      { armAngle: 90, queueM: 0, satPct: 30, satRatio: 0.3, dir4: '南进口', label: '南进口' },
+    ]
+    const labels = buildArmLabelsFromQueue(arms)
+    // 仅排队>0 的进口出标签
+    expect(labels).toHaveLength(1)
+    expect(labels[0].dir).toBe('东')
+    expect(labels[0].line2).toContain('排队~85m')
+    expect(labels[0].line2).toContain('饱和0.95')
+  })
+
+  it('returns empty when no queue', () => {
+    expect(buildArmLabelsFromQueue([])).toEqual([])
+  })
+})
 
 describe('buildArmLabelsFromScene', () => {
   it('maps metric markers to arm dirs', () => {

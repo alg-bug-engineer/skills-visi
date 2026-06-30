@@ -173,6 +173,10 @@ def test_build_links_narration_payload_includes_speakable():
     assert payload["axis_roads"]["东西向"] == "经十路"
     assert "东西向为经十路" in payload["speakable"]
     assert "南北向为奥体西路" in payload["speakable"]
+    # 结构概览纳入口播，避免「被截断」：进口方向数 + 总车道数
+    assert "4个进口方向" in payload["speakable"]
+    assert "8条车道" in payload["speakable"]
+    assert payload["speakable"].endswith("。")
 
 
 def test_build_map_scene_direction_roles_with_nlu():

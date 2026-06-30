@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { ProcessStepState } from '../composables/useUnderstandingProcess'
 import { useSkillLeaderboard } from '../composables/useSkillLeaderboard'
-import SkillLeaderboardPanel from './SkillLeaderboardPanel.vue'
+import ExperienceLibraryPanel from './ExperienceLibraryPanel.vue'
 import { parseTerminalLine, splitTerminalLines } from '../utils/terminalLines'
 import { DETAIL_COLLAPSE_LABEL, DETAIL_TOGGLE_LABEL } from '../config/presentationCopy'
 
@@ -24,8 +24,10 @@ const props = defineProps<{
   embedded?: boolean
   /** 经验吸收阶段：默认折叠为摘要条，可点击展开回看 */
   stackSummaryMode?: boolean
-  /** 递增时刷新技能排行榜（如固化完成） */
+  /** 递增时刷新经验库（如固化完成） */
   leaderboardRefreshKey?: number
+  /** 当前路口 ID，用于经验库认知/诊断按路口聚合（空=全部） */
+  interId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -119,13 +121,13 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
         data-testid="skill-leaderboard-tab"
         @click="selectTab('leaderboard')"
       >
-        技能排行榜
+        经验库
         <span v-if="leaderboardCount" class="tab-count">{{ leaderboardCount }}</span>
       </button>
     </div>
 
     <template v-if="activeTab === 'leaderboard'">
-      <SkillLeaderboardPanel
+      <ExperienceLibraryPanel
         :items="leaderboard.items.value"
         :loading="leaderboard.loading.value"
         :error="leaderboard.error.value"
@@ -133,6 +135,7 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
         :expanded-id="leaderboard.expandedId.value"
         :active="activeTab === 'leaderboard'"
         :refresh-key="leaderboardRefreshKey"
+        :inter-id="interId ?? null"
         @set-sort="leaderboard.setSort"
         @toggle="leaderboard.toggleExpanded"
         @retry="leaderboard.refresh"

@@ -27,6 +27,9 @@ class SkillRecord:
     user_constraints: str | None = None
     quantitative_constraints: dict[str, Any] | None = None
     tags: dict[str, Any] | None = None
+    # 案例库 + action_plan 推导出的量化治理措施（治理建议的「新版」呈现，
+    # 取代仅展示 suggestion_formula 的旧法）。
+    solution_measure: str | None = None
 
 
 @dataclass

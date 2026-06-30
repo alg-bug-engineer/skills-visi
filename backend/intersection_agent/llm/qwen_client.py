@@ -198,12 +198,16 @@ class QwenClient:
         if "首轮意图分类器" in system:
             return self._mock_intent_classifier_json(user)
 
+        if "交通经验抽取器" in system:
+            return self._mock_experience_extract(user)
+
         if "只输出 JSON" in system or "必须严格使用以下字段名" in system:
             if "干线拥堵扫描" in system or '"corridor"' in system:
                 return self._mock_corridor_scan_json(user)
             result: dict[str, Any] = {
                 "intersection": None,
                 "time_period": None,
+                "problem_types": self._mock_problem_types(user),
                 "directions": [],
                 "user_suggestion": None,
             }
@@ -301,6 +305,41 @@ class QwenClient:
             return json.dumps(mock_narrative_from_facts(facts), ensure_ascii=False)
 
         return "好的。"
+
+    @staticmethod
+    def _mock_problem_types(user: str) -> list[str]:
+        """Keyword-based four-class classification for offline NLU tests."""
+        ptypes: list[str] = []
+        if "堵" in user or "拥堵" in user:
+            ptypes.append("congestion")
+        if "溢出" in user:
+            ptypes.append("spillback")
+        if "空放" in user:
+            ptypes.append("empty_green")
+        if "冲突" in user or "相位" in user or "相序" in user:
+            ptypes.append("conflict")
+        return ptypes or ["congestion"]
+
+    @staticmethod
+    def _mock_experience_extract(user: str) -> str:
+        """关键词 mock：定性反馈 → 结构化经验条目。"""
+        polarity = "none"
+        if "绿灯" in user and any(t in user for t in ("多", "增", "延长", "再给", "更长")):
+            polarity = "increase_green"
+        elif "绿灯" in user and any(t in user for t in ("太长", "缩短", "减少", "少给", "压缩")):
+            polarity = "decrease_green"
+        elif any(t in user for t in ("均衡", "分配", "让给", "协调")):
+            polarity = "rebalance"
+        dimension = "signal_timing" if "绿灯" in user else "control"
+        return json.dumps(
+            {
+                "dimension": dimension,
+                "polarity": polarity,
+                "target_turn": None,
+                "raw": user,
+            },
+            ensure_ascii=False,
+        )
 
     @staticmethod
     def _mock_intent_classifier_json(user: str) -> str:

@@ -8,16 +8,18 @@
 import type { CognitionPayload, MapSceneMarker } from '../types/map'
 import type { ProblemEvidence } from '../types/evidence'
 import type { HighlightTurn, PipelinePhase, RuntimeMetrics } from '../types/presentation'
-import { COGNITION_STRUCTURE_PHASES } from '../types/presentation'
+import { COGNITION_STRUCTURE_PHASES, isPresentationDimActive } from '../types/presentation'
 import {
   buildHighlightEvidence,
   highlightVerdict,
   turnCodeFromLabel,
+  type ChannelQueueArm,
 } from '../utils/cognitionChannelAdapter'
 import {
   buildArmLabelsFromScene,
   buildArmLabelsFromDirectionGroups,
   buildArmLabelsFromEntranceLinks,
+  buildArmLabelsFromQueue,
 } from '../utils/channelArmLabels'
 import { turnSatLabelsFromMetrics, resolveTurnMetrics } from '../utils/turnMetrics'
 import { highlightDirsForGroup } from '../utils/evidencePresentation'
@@ -43,8 +45,10 @@ export interface PhaseHighlightParams {
   highlightDirs?: string[]
   protectedDirs?: string[]
   sceneMarkers?: MapSceneMarker[]
-  /** 与理解过程「运行数据」步骤对齐；未揭示前不展示饱和度车道卡 */
-  allowRuntimeMetrics?: boolean
+  /** 每进口排队/饱和度数据，驱动渠化排队长度标签 */
+  queueArms?: ChannelQueueArm[]
+  /** 后端按问题类型推导的呈现维度，门控排队等图层是否相关 */
+  activeDimensions?: string[]
 }
 
 const ARM_LABEL_PHASES: PipelinePhase[] = [
@@ -55,6 +59,9 @@ const ARM_LABEL_PHASES: PipelinePhase[] = [
   'timing',
   'imbalance',
 ]
+
+/** 这些阶段在「排队」维度相关时叠加排队长度标签（拥堵/溢出） */
+const QUEUE_LABEL_PHASES: PipelinePhase[] = ['traffic', 'saturation', 'granularity', 'imbalance']
 
 function sceneMarkersForPhase(phase: PipelinePhase, markers: MapSceneMarker[]): MapSceneMarker[] {
   if (phase === 'direction') return markers
@@ -73,8 +80,19 @@ function armLabelsForPhase(
   phase: PipelinePhase,
   sceneMarkers: MapSceneMarker[],
   cognition: CognitionPayload | null,
+  queueArms: ChannelQueueArm[] = [],
+  activeDimensions?: string[],
 ): ArmSceneLabel[] {
   if (!ARM_LABEL_PHASES.includes(phase)) return []
+  const base = baseArmLabels(phase, sceneMarkers, cognition)
+  return mergeQueueLabels(phase, base, queueArms, activeDimensions)
+}
+
+function baseArmLabels(
+  phase: PipelinePhase,
+  sceneMarkers: MapSceneMarker[],
+  cognition: CognitionPayload | null,
+): ArmSceneLabel[] {
   const fromMarkers = buildArmLabelsFromScene(sceneMarkersForPhase(phase, sceneMarkers), null)
   if (phase !== 'direction' && phase !== 'traffic') return fromMarkers
   const covered = new Set(fromMarkers.map((l) => l.dir))
@@ -82,6 +100,22 @@ function armLabelsForPhase(
   for (const l of fromGroups) covered.add(l.dir)
   const fromLinks = buildArmLabelsFromEntranceLinks(cognition, covered)
   return [...fromMarkers, ...fromGroups, ...fromLinks]
+}
+
+/** 排队长度标签优先覆盖同进口的常规标签（仅排队维度相关的阶段）。 */
+function mergeQueueLabels(
+  phase: PipelinePhase,
+  base: ArmSceneLabel[],
+  queueArms: ChannelQueueArm[],
+  activeDimensions?: string[],
+): ArmSceneLabel[] {
+  if (!QUEUE_LABEL_PHASES.includes(phase)) return base
+  if (!isPresentationDimActive(activeDimensions, 'queue')) return base
+  const queueLabels = buildArmLabelsFromQueue(queueArms)
+  if (!queueLabels.length) return base
+  const byDir = new Map(base.map((l) => [l.dir, l]))
+  for (const q of queueLabels) byDir.set(q.dir, q)
+  return [...byDir.values()]
 }
 
 function applyDirectionRoleOnArms(
@@ -142,16 +176,13 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
   }
 
   applyDirectionRoleOnArms(layer, phase, params.highlightDirs ?? [], params.protectedDirs ?? [])
-  const turnSpecs = turnSatLabelsFromMetrics(resolveTurnMetrics(params.cognition))
-  const useTurnLaneLabels =
-    turnSpecs.length > 0 &&
-    Boolean(params.phase) &&
-    TURN_SAT_LABEL_PHASES.includes(params.phase!) &&
-    !params.highlightTurn
-
-  if (useTurnLaneLabels) {
-    layer.applyTurnSaturationLabels(turnSpecs)
-  } else {
-    layer.applyArmSceneLabels(armLabelsForPhase(phase, params.sceneMarkers ?? [], params.cognition))
-  }
+  layer.applyArmSceneLabels(
+    armLabelsForPhase(
+      phase,
+      params.sceneMarkers ?? [],
+      params.cognition,
+      params.queueArms ?? [],
+      params.activeDimensions,
+    ),
+  )
 }

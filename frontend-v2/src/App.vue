@@ -305,6 +305,14 @@ function applyMetaEvidence(meta: MessageResponse['meta'], options?: { setConclus
       presentation.setPhase('conclusion')
     }
   }
+  if (Array.isArray(meta?.reused_experience)) {
+    presentation.setReusedExperience(meta.reused_experience as string[])
+  }
+  if (Array.isArray(meta?.case_experience)) {
+    presentation.setCaseExperience(
+      meta.case_experience as import('./types/experience').CaseScenario[],
+    )
+  }
 }
 
 function formatEvidenceStepText(data: Record<string, unknown>): string {
@@ -774,6 +782,20 @@ function upsertStep(event: {
   timestamp?: string
 }) {
   if (!event.step) return
+  if (event.step.startsWith('experience_') && event.status === 'completed') {
+    const level = event.step.replace('experience_', '') as
+      | 'cognition'
+      | 'diagnosis'
+      | 'solution'
+    const d = event.data ?? {}
+    const text =
+      (d.text as string) ||
+      (d.cause as string) ||
+      (d.quantified as string) ||
+      (d.skill_id as string) ||
+      ''
+    if (text) presentation.addExperienceSediment({ level, text })
+  }
   const idx = steps.value.findIndex((s) => s.step === event.step && s.status === 'running')
   const record: StepRecord = {
     step: event.step,
@@ -968,7 +990,8 @@ function enqueueLinksVoice(action: MapActionEvent) {
   voice.enqueue(cue)
 }
 
-const NARRATION_TEXT_VOICE_PHASES = new Set(['traffic', 'timing'])
+// 配时（timing）不再随数据铺陈口播「周期 N 秒」；其相关读法将按问题类型按需触发
+const NARRATION_TEXT_VOICE_PHASES = new Set(['traffic'])
 
 function enqueueNarrationPhaseVoice(action: MapActionEvent) {
   if (!voice.enabled.value) return
@@ -1537,6 +1560,13 @@ async function handleSend(content: string) {
             if (isSuggestionGenerateConfirm(result)) {
               docked.value = true
             }
+          }
+
+          if (result.meta?.active_dimensions || result.meta?.problem_types) {
+            presentation.setActiveDimensions(
+              (result.meta.active_dimensions as string[] | undefined) ?? [],
+              (result.meta.problem_types as string[] | undefined) ?? [],
+            )
           }
 
           if (result.meta?.cognition) {

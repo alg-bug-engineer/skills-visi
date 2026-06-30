@@ -8,6 +8,7 @@ import type {
   RuntimeMetrics,
 } from '../../types/presentation'
 import type { DataInsight } from '../../types/insight'
+import type { CaseScenario, ExperienceLevel, ExperienceSedimentItem } from '../../types/experience'
 import { STEP_INDICES } from '../../constants'
 import { buildNarrativeRuntimeItems } from '../../utils/narrativeStack'
 import { buildEvidenceListItems, buildSuggestionListItems } from '../../utils/channelizationCopy'
@@ -22,6 +23,9 @@ const props = defineProps<{
   evidence?: ProblemEvidence | null
   governanceSuggestion?: GovernanceSuggestionPayload | null
   flowTimingGovernance?: FlowTimingGovernance | null
+  reusedExperience?: string[]
+  caseExperience?: CaseScenario[]
+  experienceSediment?: ExperienceSedimentItem[]
   focusStepIndex: number
   /** 理解过程进入「运行数据」步骤后为 true（与 focusStepIndex 解耦，避免地图阶段抢跑） */
   runtimePanelRevealed?: boolean
@@ -78,6 +82,22 @@ const suggestionItems = computed(() =>
 const showSuggestion = computed(
   () => suggestionRevealed.value && suggestionItems.value.length > 0,
 )
+
+/* ── 经验沉淀与复用 ─────────────────────────────────────────────────────── */
+const sedimentItems = computed(() => props.experienceSediment ?? [])
+const reusedItems = computed(() => props.reusedExperience ?? [])
+const caseItems = computed(() => props.caseExperience ?? [])
+const showExperience = computed(
+  () => sedimentItems.value.length > 0 || reusedItems.value.length > 0 || caseItems.value.length > 0,
+)
+const LEVEL_LABELS: Record<ExperienceLevel, string> = {
+  cognition: '认知',
+  diagnosis: '诊断',
+  solution: '方案',
+}
+function levelLabel(level: ExperienceLevel): string {
+  return LEVEL_LABELS[level] ?? level
+}
 
 /* ── 粘性揭示（只增不减，避免阶段切换闪烁）──────────────────────────────── */
 watch(
@@ -189,6 +209,57 @@ function sevClass(sev?: string): string {
           </section>
         </aside>
       </div>
+
+      <!-- 经验沉淀卡：地图舞台左下角独立卡片 -->
+      <aside
+        v-if="showExperience"
+        class="narrative-stack narrative-card experience-card experience-card--bottom-left"
+        aria-label="经验沉淀与复用"
+      >
+        <section v-if="sedimentItems.length" class="block sediment">
+          <span class="block-title sediment-title">经验沉淀</span>
+          <TransitionGroup name="item-in" tag="ul" class="list">
+            <li
+              v-for="(item, i) in sedimentItems"
+              :key="`${item.level}-${i}`"
+              class="row plain"
+            >
+              <span class="level-badge" :class="`lvl-${item.level}`">{{ levelLabel(item.level) }}</span>
+              <span class="text">{{ item.text }}</span>
+            </li>
+          </TransitionGroup>
+        </section>
+
+        <section v-if="reusedItems.length" class="block reused">
+          <span class="block-title reused-title">经验复用</span>
+          <ul class="list">
+            <li v-for="(item, i) in reusedItems" :key="i" class="row plain">
+              <span class="tick reuse-tick">↺</span><span class="text">{{ item }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section v-if="caseItems.length" class="block case">
+          <span class="block-title case-title">同类场景专家经验</span>
+          <div v-for="(sc, i) in caseItems" :key="i" class="case-scenario">
+            <p class="case-name">{{ sc.scenario_name }}</p>
+            <ul class="list">
+              <li
+                v-for="(p, pi) in sc.problems"
+                :key="pi"
+                class="row plain case-problem"
+              >
+                <span class="text">
+                  <strong>{{ p.problem }}</strong>
+                  <template v-if="p.solutions?.length">
+                    —— {{ p.solutions.map((s) => s.name).join('、') }}
+                  </template>
+                </span>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </aside>
     </div>
   </Transition>
 </template>
@@ -260,6 +331,68 @@ function sevClass(sev?: string): string {
 
 .suggestion-card {
   border-color: rgba(109, 255, 181, 0.28);
+}
+
+.experience-card {
+  border-color: rgba(201, 162, 39, 0.4);
+}
+
+/* 经验沉淀卡固定在地图舞台左下角，与左上身份卡互不重叠（最高 60% 高度，溢出内部滚动）。 */
+.experience-card--bottom-left {
+  left: 12px;
+  bottom: 12px;
+  top: auto;
+  right: auto;
+  max-height: calc(60% - 24px);
+}
+.block-title.sediment-title {
+  color: #c9a227;
+}
+.block-title.reused-title {
+  color: #ffb86b;
+}
+.block-title.case-title {
+  color: rgba(0, 229, 255, 0.7);
+}
+.level-badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  line-height: 1.5;
+}
+.level-badge.lvl-cognition {
+  color: #6dd0ff;
+  border-color: rgba(109, 208, 255, 0.4);
+  background: rgba(109, 208, 255, 0.1);
+}
+.level-badge.lvl-diagnosis {
+  color: #ffc266;
+  border-color: rgba(255, 194, 102, 0.4);
+  background: rgba(255, 194, 102, 0.1);
+}
+.level-badge.lvl-solution {
+  color: #6dffb5;
+  border-color: rgba(109, 255, 181, 0.4);
+  background: rgba(109, 255, 181, 0.1);
+}
+.reuse-tick {
+  color: #ffb86b !important;
+}
+.case-scenario {
+  margin-bottom: 8px;
+}
+.case-name {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9fe0ff;
+}
+.case-problem .text {
+  font-size: 10px;
+  line-height: 1.5;
+  color: rgba(210, 230, 245, 0.85);
 }
 
 .narrative-stack::-webkit-scrollbar {

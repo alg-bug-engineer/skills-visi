@@ -81,6 +81,53 @@ class SkillLeaderboardResponse(BaseModel):
     download_url: str
 
 
+class ExperienceCognitionItem(BaseModel):
+    """认知经验：问题记录。"""
+
+    inter_id: str
+    text: str
+    status: str = "manual"
+    source: str = "data"
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    ts: str = ""
+
+
+class ExperienceDiagnosisItem(BaseModel):
+    """诊断经验：成因先验。"""
+
+    inter_id: str
+    cause: str
+    dimension: str
+    scope: str | None = None
+    source: str = "data"
+    confidence: float = 0.0
+    ts: str = ""
+
+
+class ExperienceSolutionItem(BaseModel):
+    """方案经验：量化方案（关联 skill）。"""
+
+    inter_id: str
+    skill_id: str
+    qualitative: str | None = None
+    quantified: str | None = None
+    ts: str = ""
+    # 由 skill 包富化，便于面板展示
+    intersection: str = ""
+    time_period_label: str = ""
+    solution_measure: str | None = None
+    download_url: str | None = None
+
+
+class ExperienceLibraryResponse(BaseModel):
+    """经验库三桶：认知 / 诊断 / 方案。"""
+
+    inter_id: str | None = None
+    cognition: list[ExperienceCognitionItem] = Field(default_factory=list)
+    diagnosis: list[ExperienceDiagnosisItem] = Field(default_factory=list)
+    solution: list[ExperienceSolutionItem] = Field(default_factory=list)
+
+
 class HealthResponse(BaseModel):
     """Health check."""
 

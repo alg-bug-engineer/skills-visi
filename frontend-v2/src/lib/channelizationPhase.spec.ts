@@ -149,4 +149,33 @@ describe('applyPhaseHighlight', () => {
     expect(calls.applyDirectionRoleHighlight[0]).toEqual([[], []])
     expect(calls.applyArmSceneLabels).toHaveLength(2)
   })
+
+  it('排队维度相关时叠加排队长度标签（traffic）', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'traffic',
+      cognition: COG,
+      activeDimensions: ['flow', 'queue'],
+      queueArms: [
+        { armAngle: 0, queueM: 85, satPct: 95, satRatio: 0.95, dir4: '东', label: '东进口' },
+      ],
+    })
+    const labels = calls.applyArmSceneLabels[0][0] as Array<{ dir: string; line2: string }>
+    const east = labels.find((l) => l.dir === '东')
+    expect(east?.line2).toContain('排队~85m')
+  })
+
+  it('排队维度不相关时不叠加排队标签（如空放：activeDimensions 无 queue）', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'traffic',
+      cognition: COG,
+      activeDimensions: ['green_util', 'ring'],
+      queueArms: [
+        { armAngle: 0, queueM: 85, satPct: 95, satRatio: 0.95, dir4: '东', label: '东进口' },
+      ],
+    })
+    const labels = calls.applyArmSceneLabels[0][0] as Array<{ dir: string; line2: string }>
+    expect(labels.some((l) => l.line2.includes('排队'))).toBe(false)
+  })
 })

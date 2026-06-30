@@ -51,6 +51,7 @@ data/skills/*/
 !data/skills/.gitkeep
 !data/skills/_template/
 data/logs/
+data/profiles/
 *.log
 
 # SQLite (legacy)

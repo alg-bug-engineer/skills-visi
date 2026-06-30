@@ -20,6 +20,7 @@ backend/.ruff_cache/
 backend/.coverage
 backend/htmlcov/
 backend/data/logs/
+backend/data/profiles/
 backend/data/skills/*/
 !backend/data/skills/.gitkeep
 !backend/data/skills/_template/

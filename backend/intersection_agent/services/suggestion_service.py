@@ -28,6 +28,8 @@ NARRATIVE_PROMPT = """
 {action_plan_block}
 - 用户约束或建议：{user_suggestion}
 - 量化约束：{quantitative_constraints}
+- 同类场景专家治理经验（来自经验库，仅供表述与方向参考，不可改写量化动作）：
+{case_experience}
 
 ## 专业原则（必须遵守）
 1. 若绿灯利用率已偏高或存在空放/失衡，禁止简单建议「一律加绿灯」；应优先绿信比再分配、压缩空放相位。
@@ -57,6 +59,7 @@ class SuggestionService:
         quantitative_constraints: dict[str, Any] | None = None,
         delta_override: int | None = None,
         direction_override: str | None = None,
+        case_experience: str | None = None,
     ) -> SuggestionResult:
         """Build suggestion from matched rule."""
         action = rule["action"]
@@ -105,6 +108,7 @@ class SuggestionService:
                 if quantitative_constraints
                 else "无"
             ),
+            case_experience=case_experience or "无同类场景经验。",
         )
 
         try:
@@ -164,6 +168,48 @@ class SuggestionService:
         return f"{base}，建议{direction_text}主要方向绿灯 {delta} 秒。{suffix}"
 
     @staticmethod
+    def build_measure_line(
+        suggestion: SuggestionResult,
+        flow_timing_governance: dict[str, Any] | None = None,
+    ) -> str:
+        """量化治理措施核心句（不含「📋 参考措施：」前缀）。
+
+        以 action_plan（数据/规则推导）为准生成具体动作，取代仅暴露
+        ``min(...)`` 公式的旧表述。供诊断消息与 skill 固化共用。
+        """
+        primary = (flow_timing_governance or {}).get("primary_diagnosis") or {}
+        action_plan = (flow_timing_governance or {}).get("action_plan") or {}
+        primary_type = str(primary.get("type") or "")
+        sign = "+" if suggestion.direction == "increase" else "-"
+        plan_type = str(action_plan.get("action_type") or "")
+        if plan_type == "reallocate_green" and suggestion.delta_seconds:
+            donor = (action_plan.get("donor_turn") or {}).get("label", "低利用转向")
+            recipient = (action_plan.get("recipient_turn") or {}).get("label", "主饱和转向")
+            return (
+                f"从**{donor}**向**{recipient}**挪绿约 "
+                f"**{suggestion.delta_seconds} 秒**（周期不变）"
+            )
+        if plan_type == "increase_green" and suggestion.delta_seconds:
+            label = (action_plan.get("recipient_turn") or {}).get("label", "主饱和转向")
+            return f"为**{label}**增加有效绿灯约 **{suggestion.delta_seconds} 秒**"
+        if plan_type == "upstream_coordination":
+            up_name = action_plan.get("upstream_inter_name") or "上游来源路口"
+            return (
+                f"本路口已过饱和、单点加绿空间有限；"
+                f"建议在上游**{up_name}**协同优化放行节奏，从源头削减进入车流"
+            )
+        if plan_type in ("spillback_control", "capacity_non_timing"):
+            return str(action_plan.get("headline") or "优先非加绿手段")
+        if primary_type == "capacity_bottleneck":
+            return "优先从周期、协调、渠化或需求调控入手，单点加绿空间有限"
+        if primary_type not in ("basically_matched",):
+            return (
+                f"主要方向绿灯时长**{sign}{suggestion.delta_seconds} 秒**"
+                "（须结合绿信比与空放情况综合研判）"
+            )
+        return ""
+
+    @staticmethod
     def format_diagnosis_message(
         suggestion: SuggestionResult,
         nlu_intersection: str,
@@ -173,41 +219,12 @@ class SuggestionService:
         flow_timing_governance: dict[str, Any] | None = None,
     ) -> str:
         """Format user-facing diagnosis markdown."""
-        primary = (flow_timing_governance or {}).get("primary_diagnosis") or {}
-        action_plan = (flow_timing_governance or {}).get("action_plan") or {}
-        primary_type = str(primary.get("type") or "")
-        sign = "+" if suggestion.direction == "increase" else "-"
         note = f"\n{resolution_note}" if resolution_note else ""
 
-        measure_line = ""
-        plan_type = str(action_plan.get("action_type") or "")
-        if plan_type == "reallocate_green" and suggestion.delta_seconds:
-            donor = (action_plan.get("donor_turn") or {}).get("label", "低利用转向")
-            recipient = (action_plan.get("recipient_turn") or {}).get("label", "主饱和转向")
-            measure_line = (
-                f"\n\n📋 参考措施：从**{donor}**向**{recipient}**挪绿约 "
-                f"**{suggestion.delta_seconds} 秒**（周期不变）"
-            )
-        elif plan_type == "increase_green" and suggestion.delta_seconds:
-            label = (action_plan.get("recipient_turn") or {}).get("label", "主饱和转向")
-            measure_line = (
-                f"\n\n📋 参考措施：为**{label}**增加有效绿灯约 **{suggestion.delta_seconds} 秒**"
-            )
-        elif plan_type == "upstream_coordination":
-            up_name = action_plan.get("upstream_inter_name") or "上游来源路口"
-            measure_line = (
-                f"\n\n📋 参考措施：本路口已过饱和、单点加绿空间有限；"
-                f"建议在上游**{up_name}**协同优化放行节奏，从源头削减进入车流"
-            )
-        elif plan_type in ("spillback_control", "capacity_non_timing"):
-            measure_line = f"\n\n📋 参考措施：{action_plan.get('headline') or '优先非加绿手段'}"
-        elif primary_type not in ("capacity_bottleneck", "basically_matched"):
-            measure_line = (
-                f"\n\n📋 参考措施：主要方向绿灯时长**{sign}{suggestion.delta_seconds} 秒**"
-                "（须结合绿信比与空放情况综合研判）"
-            )
-        elif primary_type == "capacity_bottleneck":
-            measure_line = "\n\n📋 参考措施：优先从周期、协调、渠化或需求调控入手，单点加绿空间有限"
+        core_measure = SuggestionService.build_measure_line(
+            suggestion, flow_timing_governance
+        )
+        measure_line = f"\n\n📋 参考措施：{core_measure}" if core_measure else ""
 
         supplement = str((flow_timing_governance or {}).get("flow_trace_supplement") or "").strip()
         supplement_line = f"\n\n🔗 {supplement}" if supplement else ""
