@@ -2,7 +2,7 @@ export interface UpstreamFrame {
   idx: number
   tree: string
   kind: string
-  focus: unknown
+  focus?: unknown
   reveal: string[]
   camera?: string
   narration?: string

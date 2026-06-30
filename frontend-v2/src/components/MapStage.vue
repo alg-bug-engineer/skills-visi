@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker } from '../types/map'
+import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker, UpstreamStoryboard, UpstreamTreeNode } from '../types/map'
+import { visibleAtFrame } from '../utils/upstreamFrame'
+import { severityColor } from '../utils/ringSeverity'
 import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
 import type { PipelinePhase, HighlightTurn, RuntimeMetrics } from '../types/presentation'
 import type { PresentationLayerGates } from '../composables/usePresentationSequence'
@@ -55,6 +57,16 @@ const emit = defineEmits<{
   closeCorridorWave: []
   corridorIntersectionSelect: [interId: string]
   viewChange: [view: { zoom: number; lod: 'L0' | 'L1' | 'L2' }]
+  upstreamProgress: [
+    state: {
+      idx: number
+      total: number
+      playing: boolean
+      activeTree: string | null
+      narration: string | null
+      showHop2: boolean
+    },
+  ]
 }>()
 
 /** 程序化镜头移动期间为 true，用于区分"用户手动操作"与"系统下钻" */
@@ -145,6 +157,16 @@ const glowOverlays: InstanceType<typeof AMap.Polyline>[] = []
 const markers: InstanceType<typeof AMap.Marker>[] = []
 const flowSourceMarkers: InstanceType<typeof AMap.Marker>[] = []
 const flowSourceLines: InstanceType<typeof AMap.Polyline>[] = []
+
+// —— 上游治理溯源本地播放器（帧重建：渲染纯由帧号 n 决定） ——
+const upstreamOverlays: Array<InstanceType<typeof AMap.Polyline> | InstanceType<typeof AMap.Marker>> = []
+let upstreamStoryboard: UpstreamStoryboard | null = null
+const upstreamIdx = ref(0)
+const upstreamPlaying = ref(false)
+const upstreamShowHop2 = ref(true)
+const upstreamSpeed = ref(1)
+let upstreamTimer: ReturnType<typeof setTimeout> | null = null
+const UPSTREAM_BASE_MS = 2600
 
 const sceneOpts = ref({
   highlightDirs: [] as string[],
@@ -239,6 +261,195 @@ function centerMapOnIntersection(lon: number, lat: number, zoom?: number) {
   }
   panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
 }
+
+// ===== 上游治理溯源本地播放器 =====
+function clearUpstreamOverlays() {
+  upstreamOverlays.forEach((o) => o.setMap(null))
+  upstreamOverlays.length = 0
+}
+
+function disposeUpstream() {
+  if (upstreamTimer) {
+    clearTimeout(upstreamTimer)
+    upstreamTimer = null
+  }
+  upstreamPlaying.value = false
+  clearUpstreamOverlays()
+  upstreamStoryboard = null
+  upstreamIdx.value = 0
+}
+
+function findUpstreamNode(sb: UpstreamStoryboard, key: string): UpstreamTreeNode | null {
+  for (const tree of sb.trees) {
+    for (const node of tree.nodes) {
+      if (node.id === key || node.inter_id === key) return node
+    }
+  }
+  return null
+}
+
+/** 帧重建：清空后按 frames[0..n] 的 reveal 并集重绘，幂等无副作用残留。 */
+function renderUpstreamFrame(n: number) {
+  const sb = upstreamStoryboard
+  if (!sb || !map || !AMapLib) return
+  const { overlayIds, activeTree, frame } = visibleAtFrame(sb, n)
+  clearUpstreamOverlays()
+
+  for (const tree of sb.trees) {
+    const dim = tree.tree_id !== activeTree
+    // 边：沿 link path，缺失退节点直连（禁止中心飞线）
+    for (const edge of tree.edges) {
+      if (!overlayIds.has(edge.id)) continue
+      const target = edge.to ? findUpstreamNode(sb, edge.to) : null
+      if (!upstreamShowHop2.value && (target?.hop ?? 1) >= 2) continue // 折叠二跳减负
+      let path = (edge.path ?? []).map((p) => [p[0], p[1]] as [number, number])
+      if (path.length < 2) {
+        const a = edge.from ? findUpstreamNode(sb, edge.from) : null
+        const b = edge.to ? findUpstreamNode(sb, edge.to) : null
+        if (a?.lon != null && a.lat != null && b?.lon != null && b.lat != null) {
+          path = [
+            [a.lon, a.lat],
+            [b.lon, b.lat],
+          ]
+        }
+      }
+      if (path.length < 2) continue
+      const weight = 2.5 + Math.min(4, Number(edge.flow_pct ?? 50) / 25)
+      const line = new AMapLib.Polyline({
+        path,
+        strokeColor: '#7ec8ff',
+        strokeWeight: weight,
+        strokeOpacity: dim ? 0.25 : 0.85,
+        lineJoin: 'round',
+        lineCap: 'round',
+        showDir: true,
+        zIndex: 70,
+      })
+      line.setMap(map)
+      upstreamOverlays.push(line)
+    }
+    // 环 / 落点 badge：以节点为锚
+    for (const node of tree.nodes) {
+      const id = node.id ?? node.inter_id ?? ''
+      if (node.lon == null || node.lat == null) continue
+      const showRing = overlayIds.has(`ring:${id}`)
+      const showBadge = overlayIds.has(`badge:${id}★`)
+      if (!showRing && !showBadge) continue
+      if (!upstreamShowHop2.value && (node.hop ?? 1) >= 2 && !showBadge) continue // 折叠二跳环
+      const worst = (node.approach_profiles ?? []).reduce(
+        (m, p) => Math.max(m, Number(p.turn_saturation_max ?? 0)),
+        0,
+      )
+      const color = showBadge ? '#6dffb5' : severityColor(worst || null)
+      const star = showBadge ? '★' : ''
+      const marker = new AMapLib.Marker({
+        position: [node.lon, node.lat],
+        anchor: 'center',
+        zIndex: 80,
+        content:
+          `<div class="upstream-node-badge${dim ? ' is-dim' : ''}" ` +
+          `style="border-color:${color};color:${color}">` +
+          `${star}${node.name ?? id}</div>`,
+      })
+      marker.setMap(map)
+      upstreamOverlays.push(marker)
+    }
+  }
+
+  // 运镜：用户介入则让位，不强制对位
+  if (!userInteracted.value && upstreamOverlays.length) {
+    const camera = frame?.camera ?? ''
+    if (camera.startsWith('fit_tree') || camera === 'corridor' || camera === 'resolve') {
+      try {
+        void withProgrammatic(() => {
+          map!.setFitView([...upstreamOverlays], true, [120, 120, 200, 120])
+        })
+      } catch {
+        /* best-effort */
+      }
+    }
+  }
+
+  emitUpstreamProgress()
+}
+
+function emitUpstreamProgress() {
+  const sb = upstreamStoryboard
+  const frame = sb?.frames[upstreamIdx.value]
+  emit('upstreamProgress', {
+    idx: upstreamIdx.value,
+    total: sb?.frames.length ?? 0,
+    playing: upstreamPlaying.value,
+    activeTree: frame?.tree ?? null,
+    narration: frame?.narration ?? null,
+    showHop2: upstreamShowHop2.value,
+  })
+}
+
+function scheduleUpstreamTick() {
+  if (upstreamTimer) clearTimeout(upstreamTimer)
+  if (!upstreamPlaying.value || !upstreamStoryboard) return
+  upstreamTimer = setTimeout(() => {
+    const last = (upstreamStoryboard?.frames.length ?? 1) - 1
+    if (upstreamIdx.value >= last) {
+      upstreamPlaying.value = false
+      emitUpstreamProgress()
+      return
+    }
+    upstreamIdx.value += 1
+    renderUpstreamFrame(upstreamIdx.value)
+    scheduleUpstreamTick()
+  }, UPSTREAM_BASE_MS / upstreamSpeed.value)
+}
+
+function upstreamPlay() {
+  if (!upstreamStoryboard) return
+  const last = upstreamStoryboard.frames.length - 1
+  if (upstreamIdx.value >= last) upstreamSeek(0)
+  upstreamPlaying.value = true
+  emitUpstreamProgress()
+  scheduleUpstreamTick()
+}
+
+function upstreamPause() {
+  upstreamPlaying.value = false
+  if (upstreamTimer) {
+    clearTimeout(upstreamTimer)
+    upstreamTimer = null
+  }
+  emitUpstreamProgress()
+}
+
+function upstreamStep(delta: number) {
+  upstreamPause()
+  upstreamSeek(upstreamIdx.value + delta)
+}
+
+function upstreamSeek(n: number) {
+  if (!upstreamStoryboard) return
+  const last = upstreamStoryboard.frames.length - 1
+  upstreamIdx.value = Math.max(0, Math.min(n, last))
+  renderUpstreamFrame(upstreamIdx.value)
+}
+
+function upstreamSetSpeed(speed: number) {
+  upstreamSpeed.value = speed
+  if (upstreamPlaying.value) scheduleUpstreamTick()
+}
+
+function upstreamToggleHop2(show: boolean) {
+  upstreamShowHop2.value = show
+  renderUpstreamFrame(upstreamIdx.value)
+}
+
+defineExpose({
+  upstreamPlay,
+  upstreamPause,
+  upstreamStep,
+  upstreamSeek,
+  upstreamSetSpeed,
+  upstreamToggleHop2,
+})
 
 let linkFlashTimer: ReturnType<typeof setInterval> | null = null
 
@@ -738,6 +949,16 @@ async function handleAction(action: MapActionEvent) {
       await applyCorridorScanScene(action)
       break
     }
+    case 'upstream_tree': {
+      disposeUpstream()
+      const sb = action.storyboard
+      if (!sb || !sb.frames?.length) break
+      upstreamStoryboard = sb
+      upstreamIdx.value = 0
+      renderUpstreamFrame(0)
+      upstreamPlay() // 默认自动播放，用户介入即让位
+      break
+    }
     default:
       break
   }
@@ -865,12 +1086,16 @@ onMounted(async () => {
     // 渠化态随地图缩放下钻（L0 路网 / L1 轮廓 / L2 车道渠化）
     map.on('zoomend', () => {
       if (channelizationLocked.value) chanController?.applyLOD(map!.getZoom())
-      if (!programmaticMove) userInteracted.value = true
+      if (!programmaticMove) {
+        userInteracted.value = true
+        if (upstreamPlaying.value) upstreamPause() // 让位：用户滚轮缩放即暂停
+      }
       emitView()
     })
     // 用户手动拖拽后，后续步骤不再强制回拉视角
     map.on('dragend', () => {
       userInteracted.value = true
+      if (upstreamPlaying.value) upstreamPause() // 让位：用户介入即暂停溯源回放
     })
     emitView()
 
@@ -888,6 +1113,7 @@ onMounted(async () => {
 onUnmounted(() => {
   stopLinkFlash()
   disposeChannelization()
+  disposeUpstream()
   clearMarkers()
   clearOverlays()
   resizeObs?.disconnect()
@@ -1120,6 +1346,24 @@ watch(
   color: #ffe8cc;
   white-space: nowrap;
   font-family: 'Inter', system-ui, sans-serif;
+}
+
+.upstream-node-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1.5px solid #7ec8ff;
+  background: rgba(10, 14, 22, 0.92);
+  font-size: 11px;
+  font-weight: 700;
+  color: #7ec8ff;
+  white-space: nowrap;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s ease;
+}
+
+.upstream-node-badge.is-dim {
+  opacity: 0.35;
 }
 
 /* 高德 Marker 气泡（全局，注入 HTML） */

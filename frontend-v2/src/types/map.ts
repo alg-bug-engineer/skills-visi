@@ -193,6 +193,8 @@ export interface MapActionEvent {
     envelope_style?: string
   }
   camera?: { center: [number, number]; zoom: number }
+  /** upstream_tree：完整溯源 storyboard，前端本地播放 */
+  storyboard?: UpstreamStoryboard
 }
 
 export interface NarrationCard {
@@ -201,4 +203,67 @@ export interface NarrationCard {
   title: string
   text: string
   visible: boolean
+}
+
+/** 上游治理溯源 storyboard（与后端 build_upstream_storyboard 对齐） */
+export interface UpstreamApproachProfile {
+  dir8_code: number
+  turn_saturation_max?: number | null
+  green_util_min?: number | null
+  queue_len_est_m?: number | null
+}
+
+export interface UpstreamTreeNode {
+  id?: string
+  inter_id?: string
+  name?: string | null
+  lon?: number | null
+  lat?: number | null
+  role?: string
+  hop?: number
+  decision?: string | null
+  feeding_dir8?: number | null
+  approach_profiles?: UpstreamApproachProfile[]
+}
+
+export interface UpstreamTreeEdge {
+  id: string
+  from?: string | null
+  to?: string | null
+  path?: Array<[number, number]>
+  flow_pct?: number | null
+  dominant_turn?: number | null
+}
+
+export interface UpstreamTreeView {
+  tree_id: string
+  approach: string
+  nodes: UpstreamTreeNode[]
+  edges: UpstreamTreeEdge[]
+}
+
+export interface UpstreamFrameView {
+  idx: number
+  tree: string
+  kind: string
+  focus?: unknown
+  reveal: string[]
+  camera?: string
+  narration?: string
+}
+
+export interface UpstreamStoryboard {
+  trees: UpstreamTreeView[]
+  frames: UpstreamFrameView[]
+}
+
+export interface UpstreamGovernancePoint {
+  tree_id: string
+  approach: string
+  inter_id?: string
+  inter_name?: string | null
+  hop?: number
+  feeding_dir8?: number | null
+  decision: string
+  approach_profiles?: UpstreamApproachProfile[]
 }
