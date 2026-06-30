@@ -272,6 +272,7 @@ class DataFetcher:
         return [
             {
                 "link_id": r.get("link_id"),
+                "dir8_code": r.get("dir8_code"),
                 "dir8_label": turn_label(int(r.get("dir8_code") or 0), 2)[:1] + "进口",
                 "stop_time_sec": _float(r, "stop_time_sec"),
                 "stop_times": _float(r, "stop_times"),
@@ -686,3 +687,38 @@ def _serialize_raw(value: Any) -> Any:
     from intersection_agent.utils.json_safe import to_json_safe
 
     return to_json_safe(value)
+
+
+def aggregate_approach_profiles(
+    by_turn: list[dict[str, Any]],
+    by_approach: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """聚合为每进口道一条 profile：取该进口道最大 turn_saturation 与最小 green_util。"""
+    queue_by_dir8: dict[int, float] = {}
+    for r in by_approach:
+        d8 = r.get("dir8_code")
+        if d8 is None:
+            continue
+        q = r.get("queue_len_est_m")
+        if q is not None:
+            queue_by_dir8[int(d8)] = max(queue_by_dir8.get(int(d8), 0.0), float(q))
+
+    acc: dict[int, dict[str, Any]] = {}
+    for r in by_turn:
+        d8 = r.get("dir8_code")
+        if d8 is None:
+            continue
+        d8 = int(d8)
+        sat = r.get("turn_saturation")
+        gu = r.get("green_utilization")
+        node = acc.setdefault(
+            d8, {"dir8_code": d8, "turn_saturation_max": None, "green_util_min": None}
+        )
+        if sat is not None:
+            node["turn_saturation_max"] = max(node["turn_saturation_max"] or 0.0, float(sat))
+        if gu is not None:
+            cur = node["green_util_min"]
+            node["green_util_min"] = float(gu) if cur is None else min(cur, float(gu))
+    for d8, node in acc.items():
+        node["queue_len_est_m"] = queue_by_dir8.get(d8)
+    return sorted(acc.values(), key=lambda n: n["dir8_code"])
