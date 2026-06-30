@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { ProcessStepState } from '../composables/useUnderstandingProcess'
 import { useSkillLeaderboard } from '../composables/useSkillLeaderboard'
 import ExperienceLibraryPanel from './ExperienceLibraryPanel.vue'
+import CaseLibraryPanel from './CaseLibraryPanel.vue'
 import { parseTerminalLine, splitTerminalLines } from '../utils/terminalLines'
+import { parseCaseReferenceId } from '../utils/caseReference'
 import { DETAIL_COLLAPSE_LABEL, DETAIL_TOGGLE_LABEL } from '../config/presentationCopy'
 
 export interface ConversationTurn {
@@ -12,7 +14,7 @@ export interface ConversationTurn {
   tag?: string
 }
 
-type PanelTab = 'process' | 'leaderboard'
+type PanelTab = 'process' | 'leaderboard' | 'cases'
 
 const props = defineProps<{
   steps: ProcessStepState[]
@@ -38,6 +40,18 @@ const emit = defineEmits<{
 const activeTab = ref<PanelTab>('process')
 const panelExpanded = ref(true)
 const leaderboard = useSkillLeaderboard()
+const caseLibraryRef = ref<InstanceType<typeof CaseLibraryPanel> | null>(null)
+
+/** 供外部（治理建议参考依据点击）切到案例库并定位条目。 */
+async function openCase(refId: string) {
+  const parsed = parseCaseReferenceId(refId)
+  if (!parsed) return
+  activeTab.value = 'cases'
+  await nextTick()
+  caseLibraryRef.value?.openRef(parsed)
+}
+
+defineExpose({ openCase })
 
 const leaderboardCount = computed(() => leaderboard.items.value.length)
 
@@ -124,9 +138,22 @@ function stepIconKind(step: ProcessStepState): 'diamond' | 'square' | 'dot' {
         经验库
         <span v-if="leaderboardCount" class="tab-count">{{ leaderboardCount }}</span>
       </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab-btn"
+        :class="{ active: activeTab === 'cases' }"
+        :aria-selected="activeTab === 'cases'"
+        data-testid="case-library-tab"
+        @click="selectTab('cases')"
+      >
+        案例库
+      </button>
     </div>
 
-    <template v-if="activeTab === 'leaderboard'">
+    <CaseLibraryPanel v-if="activeTab === 'cases'" ref="caseLibraryRef" />
+
+    <template v-else-if="activeTab === 'leaderboard'">
       <ExperienceLibraryPanel
         :items="leaderboard.items.value"
         :loading="leaderboard.loading.value"

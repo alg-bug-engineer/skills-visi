@@ -30,6 +30,8 @@ import { createPresentationBarrier } from './composables/usePresentationBarrier'
 import { useUnderstandingProcess } from './composables/useUnderstandingProcess'
 import { useSkillBuildProcess } from './composables/useSkillBuildProcess'
 import { useExperienceAbsorption } from './composables/useExperienceAbsorption'
+import { useAbsorptionToasts } from './composables/useAbsorptionToasts'
+import ExperienceAbsorptionToast from './components/ExperienceAbsorptionToast.vue'
 import { useVoiceNarration } from './composables/useVoiceNarration'
 import { SKILL_BUILD_STAGES } from './types/skillBuild'
 import type { ChatMessage, MessageResponse, StepRecord } from './types/api'
@@ -338,6 +340,9 @@ const {
   reset: resetAbsorption,
 } = useExperienceAbsorption()
 
+// 经验验证浮层 Toast（右下角向上弹出）：替代经验吸收卡片
+const absorptionToasts = useAbsorptionToasts()
+
 const { whenSettled: whenPresentationSettled, whenProcessAndVoiceSettled, whenVoiceIdle } =
   createPresentationBarrier({
     whenProcessIdle,
@@ -392,6 +397,9 @@ function patchSuggestionPayload(raw: Record<string, unknown> | null | undefined)
       typeof raw.delta_seconds === 'number' ? raw.delta_seconds : undefined,
     direction: typeof raw.direction === 'string' ? raw.direction : undefined,
     rule_id: typeof raw.rule_id === 'string' ? raw.rule_id : undefined,
+    references: Array.isArray(raw.references)
+      ? (raw.references as GovernanceSuggestionPayload['references'])
+      : undefined,
   }
   if (payload.narrative || payload.delta_seconds != null) {
     presentation.patchGovernanceSuggestion(payload)
@@ -931,6 +939,24 @@ function upsertStep(event: {
           ? ['诊断经验', '用户口述', String(d.dimension || '用户观察')]
           : ['方案经验', '治理措施'])
     if (text) presentation.addExperienceSediment({ level, text, status, tags })
+
+    // 认知/诊断经验：右下角浮层 Toast 显式反馈吸收/去重结果
+    if (text && (level === 'cognition' || level === 'diagnosis')) {
+      const action = ['inserted', 'exists', 'updated'].includes(String(d.action))
+        ? (d.action as 'inserted' | 'exists' | 'updated')
+        : 'inserted'
+      absorptionToasts.push(
+        level === 'cognition'
+          ? {
+              kind: 'cognition',
+              status: d.status === 'verified' ? 'verified' : 'data_doubt',
+              action,
+              tags,
+              text,
+            }
+          : { kind: 'diagnosis', action, tags, text },
+      )
+    }
   }
   const idx = steps.value.findIndex((s) => s.step === event.step && s.status === 'running')
   const record: StepRecord = {
@@ -1888,7 +1914,6 @@ onUnmounted(() => {
       :channelization-active="channelizationActive"
       :analysis-run-key="analysisRunKey"
       :panel-layout="panelLayout"
-      :absorption-state="absorptionState"
       :skill-build-state="skillBuildState"
       :voice-enabled="voice.enabled.value"
       :voice-playing="voice.playing.value"
@@ -1916,6 +1941,10 @@ onUnmounted(() => {
       @skill-build-finish="onSkillBuildFinish"
       @corridor-select="handleCorridorSelect"
       @upstream-narration="handleUpstreamNarration"
+    />
+    <ExperienceAbsorptionToast
+      :toasts="absorptionToasts.toasts.value"
+      @dismiss="absorptionToasts.dismiss"
     />
   </div>
 </template>

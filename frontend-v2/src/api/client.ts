@@ -74,6 +74,27 @@ export async function fetchExperienceLibrary(
   return data
 }
 
+export async function fetchIndustryCases(
+  q?: string | null,
+): Promise<import('../types/experience').IndustryCaseScenario[]> {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : ''
+  const { data } = await requestJson<import('../types/experience').IndustryCaseScenario[]>(
+    'GET',
+    `/api/v1/cases/industry${qs}`,
+  )
+  return data
+}
+
+export async function fetchIntersectionCases(): Promise<
+  import('../types/experience').IntersectionCase[]
+> {
+  const { data } = await requestJson<import('../types/experience').IntersectionCase[]>(
+    'GET',
+    '/api/v1/cases/intersections',
+  )
+  return data
+}
+
 export async function createSession(): Promise<{ session_id: string; state: string }> {
   const { data } = await requestJson<{ session_id: string; state: string }>('POST', '/api/v1/sessions')
   logger.info('session', '会话已创建', data)

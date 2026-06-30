@@ -51,7 +51,10 @@ from intersection_agent.services.context_tags_service import ContextTagsService
 from intersection_agent.services.intent_classifier_service import IntentClassifierService
 from intersection_agent.services.problem_evidence_service import ProblemEvidenceService
 from intersection_agent.services.suggestion_service import SuggestionService
-from intersection_agent.services.suggestion_context import prepare_suggestion_data
+from intersection_agent.services.suggestion_context import (
+    derive_suggestion_references,
+    prepare_suggestion_data,
+)
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
 from intersection_agent.services.sustained_metrics_service import SustainedMetricsService
 from intersection_agent.services.timing_profile_service import TimingProfileService
@@ -247,22 +250,22 @@ class Orchestrator:
         cognition_text = classified.get("problem") or _compose_cognition_text(nlu)
         if cognition_text:
             status = "verified" if verified else "data_doubt"
-            profile = self._profile_store.add_cognition(
+            _, cognition_action = self._profile_store.add_cognition(
                 inter_id,
                 text=cognition_text,
                 status=status,
                 source="data" if verified else "user",
                 evidence=(diagnosis.metrics_snapshot or {}) if verified else {},
             )
-            cognition_entry = profile.cognition[-1]
             if emitter:
                 await emitter.emit(
                     "experience_cognition",
                     "completed",
                     data={
                         "inter_id": inter_id,
-                        "text": cognition_entry.text,
-                        "status": cognition_entry.status,
+                        "text": cognition_text,
+                        "status": status,
+                        "action": cognition_action,
                         "tags": [
                             "认知画像",
                             "问题记录",
@@ -273,7 +276,7 @@ class Orchestrator:
 
         # 诊断经验：用户口述、库内通常无记录的原因
         for cause in classified.get("causes") or []:
-            self._profile_store.add_diagnosis(
+            _, diagnosis_action = self._profile_store.add_diagnosis(
                 inter_id,
                 cause=cause,
                 dimension="user_observation",
@@ -288,13 +291,14 @@ class Orchestrator:
                         "inter_id": inter_id,
                         "cause": cause,
                         "dimension": "user_observation",
+                        "action": diagnosis_action,
                         "tags": ["诊断经验", "用户口述", "用户观察"],
                     },
                 )
 
         # 方案诊断经验：用户给出的治理措施（实体方案另在固化步沉淀）
         for measure in classified.get("measures") or []:
-            self._profile_store.add_solution_ref(
+            _, measure_action = self._profile_store.add_solution_ref(
                 inter_id,
                 skill_id="user_experience",
                 qualitative=measure,
@@ -307,6 +311,7 @@ class Orchestrator:
                     data={
                         "inter_id": inter_id,
                         "measure": measure,
+                        "action": measure_action,
                         "tags": ["方案经验", "治理措施"],
                     },
                 )
@@ -325,7 +330,7 @@ class Orchestrator:
         qualitative = (session.nlu.user_suggestion if session.nlu else None) or (
             record.user_constraints
         )
-        self._profile_store.add_solution_ref(
+        _, solution_action = self._profile_store.add_solution_ref(
             inter_id,
             skill_id=record.skill_id,
             qualitative=qualitative,
@@ -339,6 +344,7 @@ class Orchestrator:
                     "inter_id": inter_id,
                     "skill_id": record.skill_id,
                     "quantified": record.suggestion_formula or None,
+                    "action": solution_action,
                 },
             )
 
@@ -1352,6 +1358,14 @@ class Orchestrator:
             suggestion = suggestion.model_copy(
                 update={"narrative": f"{suggestion.narrative}（{clip_note}）"},
             )
+        # 可溯源依据：同类专家案例 + 本路口复用经验 → 案例库跳转锚点
+        references = derive_suggestion_references(
+            case_matches,
+            session.data_payload.get("reused_experience"),
+            inter_id=session.inter_id,
+        )
+        if references:
+            suggestion = suggestion.model_copy(update={"references": references})
         session.suggestion = suggestion
         log_event(
             logger,

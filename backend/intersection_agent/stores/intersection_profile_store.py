@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+AbsorptionOutcome = Literal["inserted", "exists", "updated"]
 
 from intersection_agent.config import get_settings
 from intersection_agent.models.experience import (
@@ -78,25 +80,30 @@ class IntersectionProfileStore:
         status: CognitionStatus = "manual",
         source: str = "data",
         evidence: dict[str, Any] | None = None,
-    ) -> IntersectionProfile:
+    ) -> tuple[IntersectionProfile, AbsorptionOutcome]:
         profile = self.load(inter_id)
         key = _norm(text)
         existing = next((c for c in profile.cognition if _norm(c.text) == key), None)
         if existing is not None:
             # 数据验证升级：高状态覆盖低状态，evidence 非空覆盖空。
+            changed = False
             if _STATUS_RANK.get(status, 0) > _STATUS_RANK.get(existing.status, 0):
                 existing.status = status
+                changed = True
             if evidence and not existing.evidence:
                 existing.evidence = evidence
+                changed = True
             existing.ts = _now()
+            outcome: AbsorptionOutcome = "updated" if changed else "exists"
         else:
             profile.cognition.append(
                 CognitionEntry(
                     text=text, status=status, source=source, evidence=evidence or {}
                 )
             )
+            outcome = "inserted"
         self._save(profile)
-        return profile
+        return profile, outcome
 
     def add_diagnosis(
         self,
@@ -107,7 +114,7 @@ class IntersectionProfileStore:
         scope: str | None = None,
         source: str = "data",
         confidence: float = 0.0,
-    ) -> IntersectionProfile:
+    ) -> tuple[IntersectionProfile, AbsorptionOutcome]:
         profile = self.load(inter_id)
         key = (_norm(cause), dimension, _norm(scope))
         existing = next(
@@ -120,11 +127,15 @@ class IntersectionProfileStore:
         )
         if existing is not None:
             # 保留高 confidence；data 来源优先于 user。
+            changed = False
             if confidence > existing.confidence:
                 existing.confidence = confidence
+                changed = True
             if source == "data" and existing.source != "data":
                 existing.source = source
+                changed = True
             existing.ts = _now()
+            outcome: AbsorptionOutcome = "updated" if changed else "exists"
         else:
             profile.diagnosis.append(
                 DiagnosisEntry(
@@ -135,8 +146,9 @@ class IntersectionProfileStore:
                     confidence=confidence,
                 )
             )
+            outcome = "inserted"
         self._save(profile)
-        return profile
+        return profile, outcome
 
     def add_solution_ref(
         self,
@@ -145,7 +157,7 @@ class IntersectionProfileStore:
         skill_id: str,
         qualitative: str | None = None,
         quantified: str | None = None,
-    ) -> IntersectionProfile:
+    ) -> tuple[IntersectionProfile, AbsorptionOutcome]:
         profile = self.load(inter_id)
         key = (skill_id, _norm(quantified))
         existing = next(
@@ -158,14 +170,17 @@ class IntersectionProfileStore:
         )
         if existing is not None:
             # 同方案以最新内容更新。
+            changed = existing.qualitative != qualitative
             existing.qualitative = qualitative
             existing.quantified = quantified
             existing.ts = _now()
+            outcome: AbsorptionOutcome = "updated" if changed else "exists"
         else:
             profile.solution_ref.append(
                 SolutionRef(
                     skill_id=skill_id, qualitative=qualitative, quantified=quantified
                 )
             )
+            outcome = "inserted"
         self._save(profile)
-        return profile
+        return profile, outcome

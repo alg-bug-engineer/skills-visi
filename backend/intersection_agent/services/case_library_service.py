@@ -92,7 +92,12 @@ class CaseLibraryService:
             for pblock in prob_blocks:
                 plines = pblock.splitlines()
                 problem_name = plines[0].strip()
-                problem = {"problem": problem_name, "solutions": []}
+                problem = {
+                    "problem": problem_name,
+                    "occurrence": CaseLibraryService._collect_int(pblock, "出现频次"),
+                    "symptoms": CaseLibraryService._collect_sublist(pblock, "典型表现"),
+                    "solutions": [],
+                }
                 sol_blocks = re.split(r"(?m)^#### 治理方案:\s*", pblock)[1:]
                 for sblock in sol_blocks:
                     slines = sblock.splitlines()
@@ -103,12 +108,17 @@ class CaseLibraryService:
                     problem["solutions"].append(
                         {
                             "name": sol_name,
+                            "frequency": CaseLibraryService._collect_int(sblock, "频次"),
                             "measures": measures,
                             "applicability": applicability,
                             "caution": caution,
+                            "representative_cases": CaseLibraryService._collect_cases(
+                                sblock
+                            ),
                         }
                     )
                 scenario["problems"].append(problem)
+            scenario["case_count"] = CaseLibraryService._scene_case_count(block)
             scenarios.append(scenario)
         return scenarios
 
@@ -136,6 +146,57 @@ class CaseLibraryService:
     def _collect_inline(block: str, label: str) -> str:
         m = re.search(rf"(?m)^- {label}:\s*(.+)$", block)
         return m.group(1).strip() if m else ""
+
+    @staticmethod
+    def _collect_int(block: str, label: str) -> int:
+        m = re.search(rf"(?m)^- {label}:\s*(\d+)\s*$", block)
+        return int(m.group(1)) if m else 0
+
+    @staticmethod
+    def _scene_case_count(block: str) -> int:
+        """场景头部的 **案例数**: N。"""
+        m = re.search(r"\*\*案例数\*\*:\s*(\d+)", block)
+        return int(m.group(1)) if m else 0
+
+    @staticmethod
+    def _collect_cases(block: str) -> list[dict[str, str]]:
+        """收集 "- 代表案例:" 之后的 "- [#N] 标题: 摘要..." 子项。"""
+        lines = block.splitlines()
+        out: list[dict[str, str]] = []
+        capture = False
+        for line in lines:
+            if re.match(r"^- 代表案例:\s*$", line.strip()):
+                capture = True
+                continue
+            if capture:
+                m = re.match(r"^\s+- \[#(\d+)\]\s*(.+)$", line)
+                if m:
+                    case_id, rest = m.group(1), m.group(2).strip()
+                    title, _, snippet = rest.partition(": ")
+                    out.append(
+                        {
+                            "id": case_id,
+                            "title": title.strip(),
+                            "snippet": snippet.strip() or title.strip(),
+                        }
+                    )
+                elif line.strip().startswith("- "):
+                    break
+        return out
+
+    # ---- 浏览 ----
+    def list_all(self) -> list[dict[str, Any]]:
+        """返回全部场景的完整结构（不裁剪），供案例库行业案例浏览。"""
+        return [
+            {
+                "scenario_id": sc["scenario_id"],
+                "scenario_name": sc["scenario_name"],
+                "description": sc.get("description", ""),
+                "case_count": sc.get("case_count", 0),
+                "problems": sc["problems"],
+            }
+            for sc in self._load()
+        ]
 
     # ---- 匹配 ----
     def match(
