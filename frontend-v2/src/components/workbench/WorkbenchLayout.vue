@@ -11,8 +11,10 @@ import VoiceToggle from '../VoiceToggle.vue'
 import UnderstandingProcessPanel, {
   type ConversationTurn,
 } from '../UnderstandingProcessPanel.vue'
+import ExperienceAbsorptionPanel from '../ExperienceAbsorptionPanel.vue'
 import SkillBuildDrawer from '../SkillBuildDrawer.vue'
 import type { ProcessStepState } from '../../composables/useUnderstandingProcess'
+import type { ExperienceAbsorptionState } from '../../types/skillAbsorption'
 import type { SkillBuildState } from '../../types/skillBuild'
 import type { PresentationLayerGates } from '../../composables/usePresentationSequence'
 
@@ -37,6 +39,7 @@ const props = defineProps<{
   channelizationActive?: boolean
   analysisRunKey?: number
   panelLayout?: 'single' | 'stacked'
+  absorptionState?: ExperienceAbsorptionState
   skillBuildState?: SkillBuildState
   voiceEnabled?: boolean
   voicePlaying?: boolean
@@ -287,6 +290,12 @@ const canToggleTiming = computed(
           @toggle="emit('toggleStep', $event)"
           @toggle-details="emit('toggleDetails', $event)"
         />
+        <ExperienceAbsorptionPanel
+          v-if="panelLayout === 'stacked' && absorptionState"
+          class="absorption-panel-bottom"
+          embedded
+          :state="absorptionState"
+        />
       </aside>
     </div>
 
@@ -435,6 +444,11 @@ const canToggleTiming = computed(
   flex: 0 0 auto;
   max-height: 38%;
   overflow-y: auto;
+}
+
+.process-column.stacked :deep(.absorption-panel-bottom) {
+  flex: 1;
+  min-height: 0;
 }
 
 .process-column :deep(.process-panel.embedded) {

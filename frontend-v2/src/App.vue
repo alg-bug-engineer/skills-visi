@@ -1918,6 +1918,7 @@ onUnmounted(() => {
       :channelization-active="channelizationActive"
       :analysis-run-key="analysisRunKey"
       :panel-layout="panelLayout"
+      :absorption-state="absorptionState"
       :skill-build-state="skillBuildState"
       :voice-enabled="voice.enabled.value"
       :voice-playing="voice.playing.value"
