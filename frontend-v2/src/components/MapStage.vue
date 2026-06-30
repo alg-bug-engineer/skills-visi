@@ -7,6 +7,8 @@ import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence
 import type { PipelinePhase, HighlightTurn, RuntimeMetrics } from '../types/presentation'
 import type { PresentationLayerGates } from '../composables/usePresentationSequence'
 import ChannelizationStageOverlay from './channelization/ChannelizationStageOverlay.vue'
+import UpstreamGovernanceCard from './insight/UpstreamGovernanceCard.vue'
+import UpstreamControlBar from './insight/UpstreamControlBar.vue'
 import { TA_THEME } from '../theme'
 import {
   createDarkMap,
@@ -167,6 +169,12 @@ const upstreamShowHop2 = ref(true)
 const upstreamSpeed = ref(1)
 let upstreamTimer: ReturnType<typeof setTimeout> | null = null
 const UPSTREAM_BASE_MS = 2600
+// 侧卡 / 控制条绑定的响应式视图状态
+const upstreamCardTrees = ref<UpstreamStoryboard['trees']>([])
+const upstreamActiveTree = ref<string | null>(null)
+const upstreamNarration = ref<string | null>(null)
+const upstreamTotal = ref(0)
+const showUpstreamPanel = computed(() => upstreamCardTrees.value.length > 0)
 
 const sceneOpts = ref({
   highlightDirs: [] as string[],
@@ -277,6 +285,10 @@ function disposeUpstream() {
   clearUpstreamOverlays()
   upstreamStoryboard = null
   upstreamIdx.value = 0
+  upstreamCardTrees.value = []
+  upstreamActiveTree.value = null
+  upstreamNarration.value = null
+  upstreamTotal.value = 0
 }
 
 function findUpstreamNode(sb: UpstreamStoryboard, key: string): UpstreamTreeNode | null {
@@ -376,6 +388,8 @@ function renderUpstreamFrame(n: number) {
 function emitUpstreamProgress() {
   const sb = upstreamStoryboard
   const frame = sb?.frames[upstreamIdx.value]
+  upstreamActiveTree.value = frame?.tree ?? null
+  upstreamNarration.value = frame?.narration ?? null
   emit('upstreamProgress', {
     idx: upstreamIdx.value,
     total: sb?.frames.length ?? 0,
@@ -384,6 +398,17 @@ function emitUpstreamProgress() {
     narration: frame?.narration ?? null,
     showHop2: upstreamShowHop2.value,
   })
+}
+
+/** 侧卡点选节点 → 跳到首个揭示该节点环/落点的帧。 */
+function upstreamFocusNode(interId: string) {
+  const sb = upstreamStoryboard
+  if (!sb) return
+  const target = sb.frames.findIndex(
+    (f) => f.reveal.includes(`ring:${interId}`) || f.reveal.includes(`badge:${interId}★`),
+  )
+  upstreamStep(0) // 暂停
+  if (target >= 0) upstreamSeek(target)
 }
 
 function scheduleUpstreamTick() {
@@ -441,15 +466,6 @@ function upstreamToggleHop2(show: boolean) {
   upstreamShowHop2.value = show
   renderUpstreamFrame(upstreamIdx.value)
 }
-
-defineExpose({
-  upstreamPlay,
-  upstreamPause,
-  upstreamStep,
-  upstreamSeek,
-  upstreamSetSpeed,
-  upstreamToggleHop2,
-})
 
 let linkFlashTimer: ReturnType<typeof setInterval> | null = null
 
@@ -955,6 +971,8 @@ async function handleAction(action: MapActionEvent) {
       if (!sb || !sb.frames?.length) break
       upstreamStoryboard = sb
       upstreamIdx.value = 0
+      upstreamCardTrees.value = sb.trees
+      upstreamTotal.value = sb.frames.length
       renderUpstreamFrame(0)
       upstreamPlay() // 默认自动播放，用户介入即让位
       break
@@ -1120,7 +1138,19 @@ onUnmounted(() => {
   map?.destroy()
 })
 
-defineExpose({ resetToCityDefault, setEvidenceOverlay, prepareNewAnalysisRun, focusCorridorIntersection })
+defineExpose({
+  resetToCityDefault,
+  setEvidenceOverlay,
+  prepareNewAnalysisRun,
+  focusCorridorIntersection,
+  upstreamPlay,
+  upstreamPause,
+  upstreamStep,
+  upstreamSeek,
+  upstreamSetSpeed,
+  upstreamToggleHop2,
+  upstreamFocusNode,
+})
 
 watch(
   () => props.corridorSelectedInterId,
@@ -1195,6 +1225,31 @@ watch(
       @close-corridor-wave="emit('closeCorridorWave')"
     />
 
+    <!-- 上游治理溯源：左下角树形侧卡 + 回放控制条 -->
+    <div v-if="showUpstreamPanel" class="upstream-panel">
+      <p v-if="upstreamNarration" class="upstream-panel__narration">{{ upstreamNarration }}</p>
+      <UpstreamGovernanceCard
+        :trees="upstreamCardTrees"
+        :active-tree="upstreamActiveTree"
+        :show-hop2="upstreamShowHop2"
+        @focus-node="upstreamFocusNode"
+        @select-tree="(t) => { upstreamActiveTree = t }"
+      />
+      <UpstreamControlBar
+        :idx="upstreamIdx"
+        :total="upstreamTotal"
+        :playing="upstreamPlaying"
+        :speed="upstreamSpeed"
+        :show-hop2="upstreamShowHop2"
+        @play="upstreamPlay"
+        @pause="upstreamPause"
+        @step="upstreamStep"
+        @seek="upstreamSeek"
+        @set-speed="upstreamSetSpeed"
+        @toggle-hop2="upstreamToggleHop2"
+      />
+    </div>
+
     <div v-if="!ready && !error && viewMode === 'map'" class="map-loading">地图加载中…</div>
   </div>
 </template>
@@ -1206,6 +1261,27 @@ watch(
   height: 100%;
   background: #020810;
   overflow: hidden;
+}
+
+.upstream-panel {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 248px;
+}
+.upstream-panel__narration {
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(8, 12, 20, 0.88);
+  border-left: 3px solid #7ec8ff;
+  color: #cfe6ff;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .map-stage.chan-mode {
