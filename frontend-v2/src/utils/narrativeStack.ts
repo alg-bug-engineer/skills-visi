@@ -32,11 +32,13 @@ export const RUNTIME_METRIC_SKIP_LABELS = new Set([
 ])
 
 const RUNTIME_METRIC_SKIP_LABEL_RE = /信号|治理建议|结论|证据链|规则/
+const SHORT_APPROACH_LABEL_RE = /^[东南西北]进口$/
 
 /** 左侧面板运行数据：排除结论类 HUD 字段 */
 export function shouldSkipRuntimeMetric(label: string, value?: string): boolean {
   const trimmedLabel = label.trim()
   if (RUNTIME_METRIC_SKIP_LABELS.has(trimmedLabel)) return true
+  if (SHORT_APPROACH_LABEL_RE.test(trimmedLabel)) return true
   if (RUNTIME_METRIC_SKIP_LABEL_RE.test(trimmedLabel)) return true
   const v = (value ?? '').trim()
   if (/^[增减].*\d+\s*秒/.test(v) || /^[+-]\d+\s*秒/.test(v)) return true
@@ -145,11 +147,28 @@ function appendTurnBalanceItems(
   appendTurnSide(push, tb.spare, 'spare')
 }
 
+function hasTurnLevelSaturationSource(
+  evidence?: ProblemEvidence | null,
+  governance?: FlowTimingGovernance | null,
+): boolean {
+  const turns = normalizeTurnMetrics(evidence?.by_turn)
+  if (turns.some((turn) => turn.turn_saturation != null || turn.green_utilization != null)) {
+    return true
+  }
+  const tb = governance?.primary_diagnosis?.turn_balance
+  return Boolean(
+    tb?.over?.turn_saturation != null ||
+      tb?.over?.green_utilization != null ||
+      tb?.spare?.turn_saturation != null ||
+      tb?.spare?.green_utilization != null,
+  )
+}
+
 const APPROACH_DIR_ORDER = ['东', '南', '西', '北'] as const
 
 function appendApproachSaturationItems(
   push: (item: NarrativeRuntimeItem) => void,
-  cognition?: { metrics_by_arm?: Array<{ dir4_label?: string; saturation?: number; level?: string }> } | null,
+  cognition?: { metrics_by_arm?: Array<{ dir4_label?: string; saturation?: number | null; level?: string }> } | null,
 ) {
   const arms = cognition?.metrics_by_arm ?? []
   if (!arms.length) return
@@ -172,7 +191,7 @@ export function buildNarrativeRuntimeItems(input: {
   dataInsight?: DataInsight | null
   evidence?: ProblemEvidence | null
   flowTimingGovernance?: FlowTimingGovernance | null
-  cognition?: { metrics_by_arm?: Array<{ dir4_label?: string; saturation?: number }> } | null
+  cognition?: { metrics_by_arm?: Array<{ dir4_label?: string; saturation?: number | null }> } | null
 }): NarrativeRuntimeItem[] {
   const items: NarrativeRuntimeItem[] = []
   const seen = new Set<string>()
@@ -197,7 +216,9 @@ export function buildNarrativeRuntimeItems(input: {
     })
   }
 
-  appendApproachSaturationItems(push, input.cognition)
+  if (!hasTurnLevelSaturationSource(ev, input.flowTimingGovernance)) {
+    appendApproachSaturationItems(push, input.cognition)
+  }
 
   appendAllTurnMetricItems(push, ev)
   if (!ev?.by_turn?.length) {

@@ -30,13 +30,24 @@ describe('skillPresentationDispatch RT-PAUSE-ABS', () => {
     expect(
       isSkillStreamBufferedEvent({
         domain: 'absorption',
-        event: { type: 'thought_delta', stage: 'recap', payload: { delta: 'x' } },
+        event: {
+          event: 'skill_absorption',
+          type: 'thought_delta',
+          stage: 'recap',
+          timestamp: '2026-06-30T00:00:00Z',
+          payload: { delta: 'x' },
+        },
       }),
     ).toBe(true)
     expect(
       isSkillStreamBufferedEvent({
         domain: 'build',
-        event: { type: 'file_delta', stage: 'writing', payload: { delta: 'y', path: 'a.md' } },
+        event: {
+          event: 'skill_build',
+          type: 'file_delta',
+          stage: 'writing',
+          payload: { delta: 'y', path: 'a.md' },
+        },
       }),
     ).toBe(true)
   })

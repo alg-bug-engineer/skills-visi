@@ -624,15 +624,6 @@ function clearToastTimer() {
   }
 }
 
-function showMapToast(message: string, visibleMs = 15000) {
-  mapToast.value = message
-  clearToastTimer()
-  toastTimer = window.setTimeout(() => {
-    mapToast.value = null
-    toastTimer = null
-  }, visibleMs)
-}
-
 function isSuggestionGenerateConfirm(result: MessageResponse): boolean {
   return (
     result.state === 'awaiting_confirm' &&

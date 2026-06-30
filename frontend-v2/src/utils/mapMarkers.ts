@@ -75,6 +75,15 @@ export function isRuntimeMetricMarker(marker: MapSceneMarker): boolean {
   return marker.kind === 'metric' || marker.variant === 'turn' || marker.variant === 'saturation'
 }
 
+export function isSuppressedMapNarrativeMarker(marker: MapSceneMarker): boolean {
+  return (
+    marker.kind === 'evidence' ||
+    marker.variant === 'evidence' ||
+    marker.kind === 'suggestion' ||
+    marker.variant === 'suggestion'
+  )
+}
+
 export function buildLinkCognitionMarkers(cognition: CognitionPayload | null): MapSceneMarker[] {
   if (!cognition?.intersection) return []
   const center: [number, number] = [cognition.intersection.lon, cognition.intersection.lat]
@@ -233,7 +242,11 @@ export function mergeSceneMarkers(
   options?: { allowRuntimeMetrics?: boolean },
 ): MapSceneMarker[] {
   const sceneMarkers = (action.markers ?? []).filter(
-    (m) => m.value != null && m.value !== '—' && m.subtitle !== '无数据',
+    (m) =>
+      m.value != null &&
+      m.value !== '—' &&
+      m.subtitle !== '无数据' &&
+      !isSuppressedMapNarrativeMarker(m),
   )
   if (sceneMarkers.length > 0) {
     if (options?.allowRuntimeMetrics === false) {

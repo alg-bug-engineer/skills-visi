@@ -5,7 +5,7 @@ import { waitForGovernanceSuggestionPresented } from './waitForGovernanceSuggest
 describe('waitForGovernanceSuggestionPresented', () => {
   it('waits until focus step and suggestion card content are both ready', async () => {
     vi.useFakeTimers()
-    let focusStepIndex = STEP_INDICES.RULE
+    let focusStepIndex: number = STEP_INDICES.RULE
     const whenQueueIdle = vi.fn(async () => {})
     const whenSettled = vi.fn(async () => {})
 

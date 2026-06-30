@@ -81,10 +81,11 @@ function isSaturationLabelLine(line2: string): boolean {
 function stripSaturationFromLabels(labels: ArmSceneLabel[]): ArmSceneLabel[] {
   return labels
     .map((l) => {
-      if (!isSaturationLabelLine(l.line2)) {
-        return isPlaceholderLabelLine(l.line2) ? null : l
+      const line2Raw = l.line2 ?? ''
+      if (!isSaturationLabelLine(line2Raw)) {
+        return isPlaceholderLabelLine(line2Raw) ? null : l
       }
-      const line2 = l.line2.replace(/^饱和[\d.]+ · /, '').trim()
+      const line2 = line2Raw.replace(/^饱和[\d.]+ · /, '').trim()
       if (!line2 || isSaturationLabelLine(line2) || isPlaceholderLabelLine(line2)) {
         return null
       }
@@ -96,8 +97,9 @@ function stripSaturationFromLabels(labels: ArmSceneLabel[]): ArmSceneLabel[] {
 function enrichSaturationHints(labels: ArmSceneLabel[]): ArmSceneLabel[] {
   return labels
     .map((l) => {
-      const sat = parseSaturationFromLabelLine(l.line2)
-      if (sat == null) return isPlaceholderLabelLine(l.line2) ? null : l
+      const line2 = l.line2 ?? ''
+      const sat = parseSaturationFromLabelLine(line2)
+      if (sat == null) return isPlaceholderLabelLine(line2) ? null : l
       return {
         ...l,
         line2: saturationProblemHint(sat),

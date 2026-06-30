@@ -28,11 +28,11 @@ export function normalizeTurnMetrics(
       label,
       dir4_label: dir4,
       turn,
-      dir8_code: row.dir8_code ?? null,
-      turn_dir_no: row.turn_dir_no ?? null,
+      dir8_code: ('dir8_code' in row ? row.dir8_code : null) ?? null,
+      turn_dir_no: ('turn_dir_no' in row ? row.turn_dir_no : null) ?? null,
       turn_saturation: row.turn_saturation ?? null,
       green_utilization: row.green_utilization ?? null,
-      level: row.level,
+      level: 'level' in row ? row.level : undefined,
     }
   })
 }

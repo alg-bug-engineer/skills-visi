@@ -35,6 +35,37 @@ describe('buildNarrativeRuntimeItems', () => {
     expect(items.find((i) => i.label === '饱和度')).toBeUndefined()
   })
 
+  it('deduplicates approach saturation when HUD sends short approach labels', () => {
+    const items = buildNarrativeRuntimeItems({
+      dataInsight: {
+        title: '运行数据',
+        metrics: [
+          { label: '东进口', value: '2.87' },
+          { label: '南进口', value: '2.87' },
+          { label: '西进口', value: '1.94' },
+          { label: '北进口', value: '1.28' },
+          { label: '延误指数', value: '1.88' },
+          { label: '服务水平', value: 'F-阻塞' },
+        ],
+      },
+      cognition: {
+        metrics_by_arm: [
+          { dir4_label: '东', saturation: 2.87 },
+          { dir4_label: '西', saturation: 1.94 },
+          { dir4_label: '北', saturation: 1.28 },
+        ],
+      },
+    })
+
+    expect(items.find((i) => i.label === '东进口饱和度')?.value).toContain('2.87')
+    expect(items.find((i) => i.label === '西进口饱和度')?.value).toContain('1.94')
+    expect(items.find((i) => i.label === '北进口饱和度')?.value).toContain('1.28')
+    expect(items.find((i) => i.label === '东进口')).toBeUndefined()
+    expect(items.find((i) => i.label === '南进口')).toBeUndefined()
+    expect(items.find((i) => i.label === '延误指数')).toBeDefined()
+    expect(items.find((i) => i.label === '服务水平')).toBeDefined()
+  })
+
   it('orders items: metrics → imbalance → chronic', () => {
     const evidence = {
       chronic: { is_chronic: true, congested_days: 5, window_days: 7 },
@@ -114,6 +145,30 @@ describe('buildNarrativeRuntimeItems', () => {
     expect(items.find((i) => i.label === '东左转饱和度')?.value).toContain('1.77')
     expect(items.find((i) => i.label === '西直行饱和度')?.value).toContain('0.03')
     expect(items.find((i) => i.label === '西直行绿灯利用')?.value).toBe('0.35')
+  })
+
+  it('uses turn-level saturation instead of approach aggregates when map labels are turn-driven', () => {
+    const items = buildNarrativeRuntimeItems({
+      cognition: {
+        metrics_by_arm: [
+          { dir4_label: '东', saturation: 2.87 },
+          { dir4_label: '西', saturation: 1.94 },
+          { dir4_label: '北', saturation: 1.28 },
+        ],
+      },
+      evidence: {
+        by_turn: [
+          { label: '东左转', turn_saturation: 1.83, green_utilization: 1.84 },
+          { label: '北直行', turn_saturation: 0.9, green_utilization: 0.9 },
+        ],
+      } as ProblemEvidence,
+    })
+
+    expect(items.find((i) => i.label === '东进口饱和度')).toBeUndefined()
+    expect(items.find((i) => i.label === '西进口饱和度')).toBeUndefined()
+    expect(items.find((i) => i.label === '北进口饱和度')).toBeUndefined()
+    expect(items.find((i) => i.label === '东左转饱和度')?.value).toContain('1.83')
+    expect(items.find((i) => i.label === '北直行饱和度')?.value).toContain('0.90')
   })
 
   it('shows turn-level metrics from flow timing governance turn_balance when no by_turn', () => {

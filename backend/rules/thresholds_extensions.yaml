@@ -58,4 +58,4 @@ upstream_trace:
   # 进口道绿灯利用率低于此值视为"绿灯空槽"，存在可调空间。
   governable_green_util: 0.50
   # 递归上溯最大跳数。
-  max_hops: 2
+  max_hops: 5

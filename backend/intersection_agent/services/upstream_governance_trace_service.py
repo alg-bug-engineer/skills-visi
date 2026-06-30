@@ -156,7 +156,7 @@ class UpstreamGovernanceTraceService:
         self._green_util = threshold_value(
             "upstream_trace", "governable_green_util", default=0.50
         )
-        self._max_hops = int(threshold_value("upstream_trace", "max_hops", default=2))
+        self._max_hops = int(threshold_value("upstream_trace", "max_hops", default=5))
         self._period_label: str | None = None
 
     async def build(

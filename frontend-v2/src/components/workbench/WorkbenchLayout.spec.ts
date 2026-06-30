@@ -8,7 +8,10 @@ const baseProps = {
   presentation: {
     ...createInitialPresentation(),
     phase: 'evidence' as const,
-    cognition: { intersection: { name: '测试路口', inter_id: 'test' } },
+    cognition: {
+      intersection: { name: '测试路口', inter_id: 'test', lon: 117.1, lat: 36.6 },
+      arms: [],
+    },
   },
   mapActions: [],
   processSteps: [],

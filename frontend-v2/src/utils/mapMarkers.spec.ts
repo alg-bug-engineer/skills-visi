@@ -4,6 +4,7 @@ import { mergeSceneMarkers } from './mapMarkers'
 
 const COG: CognitionPayload = {
   intersection: { inter_id: 'x', name: '测试路口', lon: 117.1, lat: 36.6 },
+  arms: [],
   links: [
     {
       link_id: 'w',
@@ -59,5 +60,44 @@ describe('mergeSceneMarkers runtime gate', () => {
       { allowRuntimeMetrics: false },
     )
     expect(markers).toEqual([])
+  })
+
+  it('drops evidence and suggestion map cards from backend payload', () => {
+    const markers = mergeSceneMarkers(
+      {
+        action: 'map_scene',
+        phase: 'rule',
+        markers: [
+          {
+            id: 'ev1',
+            lon: 117.1,
+            lat: 36.6,
+            kind: 'evidence',
+            title: '证据',
+            value: '0.53',
+          },
+          {
+            id: 'sg1',
+            lon: 117.1,
+            lat: 36.6,
+            kind: 'suggestion',
+            title: '建议',
+            value: '+0s',
+          },
+          {
+            id: 'mt1',
+            lon: 117.1,
+            lat: 36.6,
+            kind: 'metric',
+            title: '西进口',
+            value: '1.94',
+          },
+        ],
+      },
+      COG,
+      { allowRuntimeMetrics: true },
+    )
+
+    expect(markers.map((m) => m.id)).toEqual(['mt1'])
   })
 })

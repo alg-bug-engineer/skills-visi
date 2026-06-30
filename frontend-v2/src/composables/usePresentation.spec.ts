@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { STEP_INDICES } from '../constants'
 import { usePresentation } from './usePresentation'
 
 describe('usePresentation runtime panel reveal', () => {

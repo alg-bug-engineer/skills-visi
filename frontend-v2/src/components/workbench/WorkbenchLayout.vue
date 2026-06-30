@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PresentationState } from '../../types/presentation'
-import { shouldShowCorridorWaveMini, shouldShowTimingRingMini } from '../../types/presentation'
+import { shouldShowTimingRingMini } from '../../types/presentation'
 import type { MapActionEvent } from '../../types/map'
 import InputDock from '../InputDock.vue'
 import MapStage from '../MapStage.vue'
@@ -106,12 +106,6 @@ const showCorridorSidebar = computed(
 
 const corridorPanOffsetX = computed(() => (showCorridorSidebar.value ? 90 : -120))
 
-const showCorridorMini = computed(() => {
-  const layers = props.presentationLayers
-  const autoOk = layers ? layers.corridorWaveAuto : true
-  return autoOk && shouldShowCorridorWaveMini(props.presentation.phase, props.presentation)
-})
-
 const showEvidenceOnMap = computed(
   () =>
     props.presentation.revealedInsightSteps.evidence &&
@@ -120,12 +114,6 @@ const showEvidenceOnMap = computed(
 
 const canToggleTiming = computed(
   () => Boolean(props.presentation.evidence?.timing_profile?.ring_diagram?.available),
-)
-
-const canToggleCorridor = computed(
-  () =>
-    Boolean(props.presentation.evidence?.corridor_context?.in_corridor) ||
-    (props.presentation.evidence?.corridor_context?.corridor_nodes?.length ?? 0) > 0,
 )
 
 </script>
