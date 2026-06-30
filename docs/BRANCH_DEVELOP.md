@@ -1,31 +1,27 @@
-# `develop` 分支说明
+# `develop` 分支说明（已归档）
 
-> 最后更新：2026-06-29 · **首个可用版本已推送**
-> **请勿合并到 `main`**，除非产品确认流量溯源/干线绿波等能力的取舍。
+> 最后更新：2026-06-30  
+> **状态：已合并进 `main`，标签 `0630`。** 本地 `develop` / `0630-demo` 分支已删除。
 
-## 一句话
+## 归档说明
 
-信控演示叙事精简线：左侧只放运行数据与证据，右侧保留治理建议；删减流量溯源、干线绿波、投诉与非主轴 HUD。
+原 `develop` 线为「信控演示叙事精简 + 四类问题动态诊断 + 三级经验沉淀」；
+`0630-demo` 在其上增加经验 store 去重与经验沉淀卡左下角。
 
-## 快速链接
+2026-06-30 已全部合并到 `main` 并打标 **`0630`**。请以以下文档为准：
 
 | 文档 | 内容 |
 |------|------|
-| [复盘（全文）](./plans/2026-06-29-develop-信控演示叙事精简-复盘.md) | 变更清单、左侧原则、语音调整、与 main 差异 |
-| [供需匹配度复盘](./plans/2026-06-29-信控叙事主轴重构-供需匹配度-复盘.md) | 本分支基线（v3.1） |
-| [frontend-v2 进度](../frontend-v2/docs/PROGRESS.md) | 前端版本记录 |
+| [RELEASE_0630.md](RELEASE_0630.md) | **0630 发布说明（权威）** |
+| [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) | 项目总览与里程碑 |
+| [plans/2026-06-29-develop-信控演示叙事精简-复盘.md](plans/2026-06-29-develop-信控演示叙事精简-复盘.md) | 叙事精简变更清单 |
 
-## 分支状态
-
-| 项 | 值 |
-|----|-----|
-| 基线 | `main` @ `267aaa2` |
-| 回归 | backend 190 · frontend 130 |
-| 启动 | `bash scripts/dev-v2.sh` |
-
-## 与 main 勿混用
+## 当前工作流
 
 ```bash
-git checkout develop   # 演示精简叙事
-git checkout main      # 完整功能（含流量溯源等）
+git checkout main
+git pull origin main
+bash scripts/dev-v2.sh
 ```
+
+无需再 checkout `develop`。

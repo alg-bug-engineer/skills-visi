@@ -1,6 +1,6 @@
 # 项目总览 · 路口问题诊断以及固化技能
 
-> 版本：2026-06-29 · **v3.1**（`main`）/ **develop**（演示叙事精简线）
+> 版本：2026-06-30 · **`0630`**（`main` 当前主线）
 > 本文档汇总开发内容、计划进度、主要变更与部署方式，作为根仓库的权威索引。
 
 ---
@@ -70,7 +70,10 @@
 | **v3.0.1 吸收/固化暂停** | **2026-06-28** | 经验吸收与技能固化空格 pause gate；流式 delta 同步呈现 |
 | **v3.0.1 饱和度展示** | **2026-06-28** | 移除 cap_saturation；地图 marker 小数两位 |
 | **v3.1 供需匹配度主轴** | **2026-06-29** | `primary_diagnosis`、结构化 `action_plan`、治理 YAML、`flow-timing-governance` Skill |
-| **develop 演示叙事精简** | **2026-06-29** | 左侧数据证据化；删流量溯源/干线绿波/结论 HUD；转向指标与治理建议对齐（**勿合并 main**） |
+| **develop 演示叙事精简** | **2026-06-29** | 左侧数据证据化；删流量溯源/干线绿波/结论 HUD（已合并 main） |
+| **0630 四类问题动态诊断** | **2026-06-30** | NLU 四类分类、维度包裁剪、三级经验档案、专家经验库、严格栅栏播报 |
+| **0630 经验沉淀增强** | **2026-06-30** | store 层三类经验去重、认知状态升级、经验沉淀卡左下角、`ExperienceLibraryPanel` |
+| **0630 转向指标** | **2026-06-30** | `turn_metrics` 后端/前端、地图 marker 与渠化阶段标注增强 |
 
 ### 3.2 前端 v2 能力演进
 
@@ -99,8 +102,10 @@
 | `docs/流量溯源表结构信息.md` | 转向流量上下游关联表（截流/协调分析参考） |
 | `docs/路口四维筛选与演示路口清单.md` | 演示路口筛选结果 |
 | [`docs/RELEASE_v2.0.5.md`](RELEASE_v2.0.5.md) | v2.0.5 发布说明（融合视图、标注、语音、Bug） |
-| [`docs/RELEASE_v3.0.1.md`](RELEASE_v3.0.1.md) | **v3.0.1** 发布说明（吸收暂停、叙事分栏、饱和度、LLM 收敛） |
+| [`docs/RELEASE_0630.md`](RELEASE_0630.md) | **0630** 发布说明（四类诊断、三级经验、叙事整合） |
+| [`docs/RELEASE_v3.0.1.md`](RELEASE_v3.0.1.md) | v3.0.1 发布说明（吸收暂停、叙事分栏、饱和度、LLM 收敛） |
 | [`docs/RELEASE_v3.0.md`](RELEASE_v3.0.md) | v3.0 发布说明（AMap 渠化、叙事、TTS） |
+| [`docs/expert_knowledge.md`](expert_knowledge.md) | 专家经验库（方案生成注入） |
 | [`docs/bugs/BUG_REGISTRY.md`](bugs/BUG_REGISTRY.md) | Bug 登记与截图索引 |
 | [`docs/PRESENTATION_SYNC_BARRIER.md`](PRESENTATION_SYNC_BARRIER.md) | 呈现同步栅栏（强制） |
 | [`docs/DEV_CONSTRAINTS.md`](DEV_CONSTRAINTS.md) | 开发环境约束（终端代理 vs 应用运行时） |
@@ -126,6 +131,10 @@
 | [渠化 AMap 迁移](plans/2026-06-28-渠化AMap迁移与主图下钻.md) | ✅ 全量实现；见 RELEASE_v3.0 |
 | [领导演示叙事重构](plans/2026-06-28-领导演示叙事与地图呈现重构-开发方案.md) | ✅ 叙事卡栈 + 镜头连贯；见 RELEASE_v3.0 |
 | [信控叙事主轴 · 供需匹配度](plans/2026-06-29-信控叙事主轴重构-供需匹配度-design.md) | ✅ primary_diagnosis + action_plan；见 [复盘](plans/2026-06-29-信控叙事主轴重构-供需匹配度-复盘.md) |
+| [develop 信控演示叙事精简](plans/2026-06-29-develop-信控演示叙事精简-复盘.md) | ✅ 已合并 main @ `0630` |
+| [四类问题动态诊断与三级经验沉淀](plans/2026-06-29-四类问题动态诊断与三级经验沉淀.md) | ✅ 见 [RELEASE_0630](RELEASE_0630.md) |
+| [三类经验去重与认知数据验证](plans/2026-06-30-三类经验去重与认知数据验证-设计与计划.md) | ✅ store 判重 + 经验卡左下角 |
+| [路口诊断 UI 优化与诊断闭环](plans/2026-06-29-路口诊断UI优化与诊断闭环-设计与计划.md) | ✅ 经验库面板与呈现 |
 | [frontend-v2 开发计划](../frontend-v2/docs/DEVELOPMENT_PLAN.md) | ✅ P0–P2.1；P3 待办 |
 
 ### 4.2 待办
@@ -165,6 +174,7 @@
 | 2026-06-28 | **v3.0.1**：吸收/固化空格暂停、叙事左右分栏、饱和度小数、LLM thinking 收敛 |
 | 2026-06-28 | **v3.0**：渠化 AMap 迁移、左上叙事卡栈、TTS workspace 分离、转角圆弧移除 |
 | 2026-06-28 | **Bug 登记**：[`bugs/BUG_REGISTRY.md`](bugs/BUG_REGISTRY.md) |
+| 2026-06-30 | **0630**：四类问题 NLU + 维度包；三级经验档案与复用；专家经验库；移除干线扫描；合并 develop/0630-demo 至 main |
 
 ---
 
@@ -221,6 +231,7 @@ bash scripts/dev.sh       # v1 前端 5567（需 frontend/ 独立仓库）
 | 文档 | 说明 |
 |------|------|
 | [README.md](../README.md) | 快速开始 |
+| [RELEASE_0630.md](RELEASE_0630.md) | **0630 发布说明** |
 | [backend/README.md](../backend/README.md) | 后端 API |
 | [backend/docs/API.md](../backend/docs/API.md) | SSE / REST 参考 |
 | [backend/docs/PROJECT_LOGIC.md](../backend/docs/PROJECT_LOGIC.md) | 架构与编排 |

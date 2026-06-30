@@ -54,17 +54,18 @@ bash scripts/prod-dev.sh
 | `v1.0.0` | 后端基线 + 回归测试基线 |
 | `tag2` | 后端完成 + 前端简单验证（对话 UI + SSE） |
 | `v2.0.5` | 地图渠化融合、呈现栅栏、语音摘要 |
-| **`v3.1`** | **供需匹配度主轴、`action_plan`、治理 Skill** |
-| **`develop`** | **演示叙事精简（左数据右建议，删溯源/干线）— 见 [docs/BRANCH_DEVELOP.md](docs/BRANCH_DEVELOP.md)** |
+| `v3.1` | 供需匹配度主轴、`action_plan`、治理 Skill |
+| **`0630`** | **四类问题动态诊断、三级经验沉淀、演示叙事整合 — 见 [docs/RELEASE_0630.md](docs/RELEASE_0630.md)** |
 
-详见 [docs/RELEASE_v3.0.md](docs/RELEASE_v3.0.md)、[docs/bugs/BUG_REGISTRY.md](docs/bugs/BUG_REGISTRY.md)。
+详见 [docs/RELEASE_0630.md](docs/RELEASE_0630.md)、[docs/RELEASE_v3.0.md](docs/RELEASE_v3.0.md)、[docs/bugs/BUG_REGISTRY.md](docs/bugs/BUG_REGISTRY.md)。
 
 ## 文档索引
 
 | 文档 | 说明 |
 |------|------|
-| [docs/BRANCH_DEVELOP.md](docs/BRANCH_DEVELOP.md) | **`develop` 分支说明（勿合并 main）** |
+| [docs/RELEASE_0630.md](docs/RELEASE_0630.md) | **0630 发布说明（当前主线）** |
 | [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | **项目总览**（进度、变更、部署） |
+| [docs/BRANCH_DEVELOP.md](docs/BRANCH_DEVELOP.md) | `develop` 分支归档说明（已合并 main） |
 | [docs/RELEASE_v3.0.md](docs/RELEASE_v3.0.md) | **v3.0 发布说明** |
 | [docs/bugs/BUG_REGISTRY.md](docs/bugs/BUG_REGISTRY.md) | Bug 登记与截图 |
 | [docs/REGRESSION_POLICY.md](docs/REGRESSION_POLICY.md) | **回归测试约束**（合并前必跑） |
