@@ -1559,3 +1559,197 @@ def build_map_scene(
         return base
 
     return base
+
+
+def _collect_governance_points(node: dict[str, Any]) -> list[dict[str, Any]]:
+    """深度优先收集树内所有 decision == 治理落点 的节点。"""
+    points: list[dict[str, Any]] = []
+    if node.get("decision") == "治理落点":
+        points.append(node)
+    for child in node.get("children") or []:
+        points.extend(_collect_governance_points(child))
+    return points
+
+
+def _approach_profile_summary(profiles: list[dict[str, Any]]) -> str:
+    """挑出最饱和进口道的简述，用于 narration。"""
+    if not profiles:
+        return ""
+    worst = max(profiles, key=lambda p: p.get("turn_saturation_max") or 0.0)
+    sat = worst.get("turn_saturation_max")
+    gu = worst.get("green_util_min")
+    parts = []
+    if sat is not None:
+        parts.append(f"饱和{float(sat):.2f}")
+    if gu is not None:
+        parts.append(f"绿用{float(gu):.2f}")
+    return "、".join(parts)
+
+
+def build_upstream_storyboard(
+    trees: list[dict[str, Any]], cognition: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """逐树串讲 + 帧重建底座：对每棵溯源树生成有序帧序列。
+
+    每帧 reveal 仅含"该帧新增"的覆盖物 id（前端按帧号累计并集得到可见集）。
+    帧顺序保持输入树顺序——即逐树串讲。
+    """
+    out_trees: list[dict[str, Any]] = []
+    frames: list[dict[str, Any]] = []
+    idx = 0
+
+    for tree in trees:
+        tid = tree["tree_id"]
+        approach = tree.get("approach") or ""
+        root = tree["root"]
+        target = tree.get("target") or {}
+        root_id = root.get("inter_id")
+        root_name = root.get("inter_name") or root_id
+
+        nodes: list[dict[str, Any]] = []
+        edges: list[dict[str, Any]] = []
+        target_id = target.get("inter_id")
+        nodes.append(
+            {
+                "id": target_id,
+                "inter_id": target_id,
+                "name": target.get("name"),
+                "lon": target.get("lon"),
+                "lat": target.get("lat"),
+                "role": "target",
+                "approach": approach,
+                "approach_profiles": [],
+                "decision": None,
+            }
+        )
+
+        def _walk(node: dict[str, Any], parent_id: str | None) -> None:
+            nid = node.get("inter_id")
+            nodes.append(
+                {
+                    "id": nid,
+                    "inter_id": nid,
+                    "name": node.get("inter_name"),
+                    "lon": node.get("lng"),
+                    "lat": node.get("lat"),
+                    "role": "governance" if node.get("decision") == "治理落点" else "upstream",
+                    "hop": node.get("hop"),
+                    "approach_profiles": node.get("approach_profiles") or [],
+                    "decision": node.get("decision"),
+                    "feeding_dir8": node.get("feeding_dir8"),
+                }
+            )
+            if parent_id is not None:
+                edges.append(
+                    {
+                        "id": f"edge:{tid}:{parent_id}-{nid}",
+                        "from": parent_id,
+                        "to": nid,
+                        "path": [],
+                        "flow_pct": node.get("coverage"),
+                        "dominant_turn": node.get("feeding_dir8"),
+                    }
+                )
+            for child in node.get("children") or []:
+                _walk(child, nid)
+
+        _walk(root, target_id)
+        out_trees.append({"tree_id": tid, "approach": approach, "nodes": nodes, "edges": edges})
+
+        # —— 帧序列 ——
+        edge_root = f"edge:{tid}:{target_id}-{root_id}"
+        ring_root = f"ring:{root_id}"
+
+        frames.append(
+            {
+                "idx": idx,
+                "tree": tid,
+                "kind": "thesis",
+                "focus": "target",
+                "reveal": [],
+                "camera": "intersection",
+                "narration": f"{approach}本地无可调空间，向上游溯源。",
+            }
+        )
+        idx += 1
+        frames.append(
+            {
+                "idx": idx,
+                "tree": tid,
+                "kind": "zoom_out",
+                "focus": "target",
+                "reveal": [],
+                "camera": "corridor",
+                "narration": "缩放到道路级，追上一跳来车。",
+            }
+        )
+        idx += 1
+        frames.append(
+            {
+                "idx": idx,
+                "tree": tid,
+                "kind": "hop1",
+                "focus": root_id,
+                "reveal": [edge_root],
+                "camera": "corridor",
+                "narration": f"主要来自上游{root_name}。",
+            }
+        )
+        idx += 1
+        root_summary = _approach_profile_summary(root.get("approach_profiles") or [])
+        if root.get("decision") == "治理落点":
+            inspect_narration = f"{root_name}有信控空间（{root_summary}），可作治理落点。"
+        else:
+            inspect_narration = f"{root_name}四向全饱和，继续上溯。"
+        frames.append(
+            {
+                "idx": idx,
+                "tree": tid,
+                "kind": "inspect",
+                "focus": root_id,
+                "reveal": [ring_root],
+                "narration": inspect_narration,
+            }
+        )
+        idx += 1
+
+        children = root.get("children") or []
+        if children:
+            reveal2: list[str] = []
+            for child in children:
+                cid = child.get("inter_id")
+                reveal2.append(f"edge:{tid}:{root_id}-{cid}")
+                reveal2.append(f"ring:{cid}")
+            frames.append(
+                {
+                    "idx": idx,
+                    "tree": tid,
+                    "kind": "hop2",
+                    "focus": root_id,
+                    "reveal": reveal2,
+                    "narration": "对其余进口道继续向上一跳溯源。",
+                }
+            )
+            idx += 1
+
+        gov_points = _collect_governance_points(root)
+        badges = [f"badge:{g.get('inter_id')}★" for g in gov_points]
+        gov_names = "、".join(str(g.get("inter_name") or g.get("inter_id")) for g in gov_points)
+        if gov_points:
+            resolve_narration = f"共定位 {len(gov_points)} 个治理落点：{gov_names}，可借调绿信比。"
+        else:
+            resolve_narration = "本树未定位到可信控治理落点。"
+        frames.append(
+            {
+                "idx": idx,
+                "tree": tid,
+                "kind": "resolve",
+                "focus": [g.get("inter_id") for g in gov_points],
+                "reveal": badges,
+                "camera": f"fit_tree_{tid}",
+                "narration": resolve_narration,
+            }
+        )
+        idx += 1
+
+    return {"trees": out_trees, "frames": frames}
