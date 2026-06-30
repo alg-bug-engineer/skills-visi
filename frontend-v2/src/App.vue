@@ -60,6 +60,7 @@ import {
 } from './config/presentationCopy'
 import { voiceConfig, voiceTemplate } from './services/voiceConfig'
 import { summarizeUpstreamVoice, shouldVoiceUpstreamFrame } from './utils/upstreamVoice'
+import { buildUpstreamProcessText } from './utils/upstreamProcessText'
 import { upstreamStoryboardDurationMs } from './utils/upstreamTiming'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
 import type MapStage from './components/MapStage.vue'
@@ -185,18 +186,6 @@ function sleep(ms: number): Promise<void> {
 
 function isDataFetchSubBeat(phase?: string | null): boolean {
   return Boolean(phase && ['traffic', 'direction', 'timing', 'imbalance'].includes(phase))
-}
-
-function enqueueUpstreamIntroVoice() {
-  if (!voice.enabled.value) return
-  voice.enqueue({
-    id: 'step:5:upstream:intro',
-    stepIndex: STEP_INDICES.RULE,
-    phase: 'upstream',
-    kind: 'guide',
-    text: VOICE_GUIDE.upstreamIntro,
-    priority: 0,
-  })
 }
 
 function handleUpstreamNarration(payload: { idx: number; text: string | null }) {
@@ -1397,7 +1386,10 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       presentationSequence.syncFromPhase('rule')
       presentationSequence.syncFromStepIndex(STEP_INDICES.RULE)
       upstreamVoiceSeen.clear()
-      enqueueUpstreamIntroVoice()
+      const traceText = buildUpstreamProcessText(action.storyboard)
+      if (traceText) {
+        enqueueProcess(STEP_INDICES.RULE, traceText, true, true)
+      }
       pushMapAction(action)
       const durationMs = upstreamStoryboardDurationMs(action.storyboard?.frames)
       if (durationMs > 0) {

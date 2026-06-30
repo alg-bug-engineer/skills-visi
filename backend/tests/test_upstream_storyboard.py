@@ -36,7 +36,7 @@ def test_frames_serialized_per_tree_with_camera_and_turn_split():
 
     n_frames = [f for f in frames if f["tree"] == "N"]
     assert n_frames[0]["frame_type"] == "pullback"
-    assert n_frames[0]["zoom"] == 13
+    assert n_frames[0]["zoom"] == 17
     assert n_frames[0]["show_labels"] is False
 
     target_frame = next(f for f in n_frames if f["frame_type"] == "target")

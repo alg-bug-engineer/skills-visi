@@ -1,5 +1,30 @@
 # frontend-v2 进度记录
 
+## v3.3（2026-06-30）— 上游溯源地图运镜 · 案例库闭环
+
+> 已合并 `main`（含 `feat/map-zoom-debug`、`feat/case-library-and-absorption-loop`）
+
+### 已完成
+
+- [x] **流量溯源地图**：渠化 ~18.5 平滑过渡到 **zoom 17**；播放期镜头固定，仅渐变蔓延连线（不跟上游路口运镜）
+- [x] **回到主页清理**：`upstreamEpoch` 作废进行中的动画/定时器；`map.clearMap()` 清除孤儿覆盖物
+- [x] **调试浮层**：地图右下角实时显示 `zoom · LOD`（排查运镜）
+- [x] **溯源语音**：只陈述上游路口名与饱和度，去掉治理落点/汇总结论口播
+- [x] **理解过程**：「原因诊断」步骤追加 `buildUpstreamProcessText` 流量溯源链
+- [x] **案例库**：`/cases/industry`、`/cases/intersections` 浏览 API；建议 `references` 溯源；profile 写入 `inserted/exists/updated`
+- [x] **案例引用工具**：`caseReference.ts`（`industry:` / `intersection:` 锚点解析）
+
+### 文档
+
+- [docs/plans/2026-06-30-进口道流量溯源与上游治理落点-复盘.md](../../docs/plans/2026-06-30-进口道流量溯源与上游治理落点-复盘.md)（§4 手验清单已更新）
+- [docs/plans/2026-06-30-案例库吸收沉淀与治理建议闭环.md](../../docs/plans/2026-06-30-案例库吸收沉淀与治理建议闭环.md)
+
+### 单测
+
+- vitest **184+** 项（含 `upstreamProcessText.spec`、`upstreamVoice.spec`、`caseReference.spec`）
+
+---
+
 ## v3.2-develop（2026-06-29）— 演示叙事精简 · 左侧数据证据化
 
 > 分支：`develop` · 详见 [docs/BRANCH_DEVELOP.md](../../docs/BRANCH_DEVELOP.md)

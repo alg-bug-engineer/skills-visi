@@ -1556,8 +1556,8 @@ def _turn_split_text(turn_split: list[dict[str, Any]] | None) -> str:
     return "、".join(parts)
 
 
-_UPSTREAM_CORRIDOR_ZOOM = 13
-_UPSTREAM_PULLBACK_ZOOM = 13
+_UPSTREAM_CORRIDOR_ZOOM = 17
+_UPSTREAM_PULLBACK_ZOOM = 17
 
 
 def build_upstream_storyboard(
