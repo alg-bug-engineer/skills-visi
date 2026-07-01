@@ -1,6 +1,7 @@
-version: 1.1.0
+version: 1.2.0
 # focus_categories：驱动规则诊断维度子集（后端）
 # presentation_dimensions：驱动前端卡片/图层/播报「按需出现」（仅在相关问题下渲染）
+# runtime_profiles：驱动左侧运行数据面板主/辅/背景/隐藏指标
 base:            # 所有问题共有底座（流量/渠化为底图始终在）
   focus_categories: [saturation]
   presentation_dimensions: [flow, channelization]
@@ -17,3 +18,24 @@ packs:
   conflict:      # 冲突：相位相序/渠化匹配/机非冲突
     focus_categories: [channelization]
     presentation_dimensions: [phase_sequence, channel_match, nonmotor_conflict]
+runtime_profiles:
+  congestion:
+    primary: [approach_saturation, delay_index, avg_queue_m, max_queue_m, chronic]
+    secondary: [turn_saturation, imbalance_index]
+    background: [green_utilization]
+    hidden: [empty_green_rate]
+  empty_green:
+    primary: [green_utilization, empty_green_rate, low_util_turn, green_split]
+    secondary: [ring_diagram, cycle_len, spare_turn]
+    background: [approach_saturation]
+    hidden: [delay_index, avg_queue_m, max_queue_m]
+  spillback:
+    primary: [max_queue_m, queue_storage_ratio, spillback_risk, corridor_context]
+    secondary: [chronic, corridor_node]
+    background: [approach_saturation]
+    hidden: [empty_green_rate, imbalance_index]
+  conflict:
+    primary: [channel_match, phase_sequence, conflict_type, nonmotor_conflict]
+    secondary: [lane_function, arm_structure, complaint]
+    background: [approach_saturation, delay_index]
+    hidden: [chronic, green_split]

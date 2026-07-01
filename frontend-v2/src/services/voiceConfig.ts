@@ -3,6 +3,7 @@
  * 文案为固定模板 + 运行时数据填充，TTS 仅负责合成，不由大模型生成旁白。
  */
 import raw from '../config/voice_narration.json'
+import { resolvePrimaryProblemType } from '../utils/runtimeMetricProfile'
 
 export interface VoiceNarrationConfig {
   guide: Record<string, string>
@@ -22,6 +23,35 @@ export const voiceConfig = raw as VoiceNarrationConfig
 
 export function voiceGuide(key: keyof VoiceNarrationConfig['guide'] | string): string {
   return voiceConfig.guide[key] ?? ''
+}
+
+const GUIDE_VARIANT_BY_PRIMARY: Record<string, Record<string, string>> = {
+  dataFetch: {
+    empty_green: 'dataFetchEmptyGreen',
+    spillback: 'dataFetchSpillback',
+    conflict: 'dataFetchConflict',
+  },
+  evidenceIntro: {
+    empty_green: 'evidenceIntroEmptyGreen',
+    spillback: 'evidenceIntroSpillback',
+    conflict: 'evidenceIntroConflict',
+  },
+  ruleIntro: {
+    empty_green: 'ruleIntroEmptyGreen',
+    spillback: 'ruleIntroSpillback',
+    conflict: 'ruleIntroConflict',
+  },
+}
+
+/** 按主问题类型选择引导语（拥堵用默认 key）。 */
+export function voiceGuideForProblem(baseKey: string, problemTypes?: string[] | null): string {
+  const primary = resolvePrimaryProblemType(problemTypes ?? [])
+  const variantKey = GUIDE_VARIANT_BY_PRIMARY[baseKey]?.[primary]
+  if (variantKey) {
+    const text = voiceGuide(variantKey)
+    if (text) return text
+  }
+  return voiceGuide(baseKey)
 }
 
 export function voiceAbsorption(stage: string): string | undefined {

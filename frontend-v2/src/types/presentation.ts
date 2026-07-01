@@ -3,6 +3,7 @@ import type { CognitionPayload, MapSceneHud } from './map'
 import type { CorridorScanState } from './corridor'
 import type { CaseScenario, ExperienceSedimentItem } from './experience'
 import type { InsightCardEntry } from './insight'
+import type { ServerRuntimeMetricItem, RuntimeMetricProfile } from '../utils/runtimeMetricProfile'
 import { createInsightCards as mkCards } from './insight'
 
 export type PipelinePhase =
@@ -43,8 +44,19 @@ export const CHANNELIZATION_OVERLAY_PHASES: PipelinePhase[] = [
 /** @deprecated 使用 CHANNELIZATION_OVERLAY_PHASES */
 export const CHANNELIZATION_AUTO_PHASES: PipelinePhase[] = CHANNELIZATION_OVERLAY_PHASES
 
-/** 配时环图小窗 */
+/** 配时环图小窗：数据铺陈阶段 */
 export const TIMING_RING_AUTO_PHASES: PipelinePhase[] = ['timing', 'granularity', 'saturation', 'imbalance']
+
+/** 空放等问题在证据/规则步继续展示环图 */
+export const TIMING_RING_EVIDENCE_PHASES: PipelinePhase[] = ['evidence', 'rule']
+
+export function timingRingAutoPhases(activeDimensions?: string[] | null): PipelinePhase[] {
+  const phases: PipelinePhase[] = [...TIMING_RING_AUTO_PHASES]
+  if (isPresentationDimActive(activeDimensions, 'ring')) {
+    phases.push(...TIMING_RING_EVIDENCE_PHASES)
+  }
+  return phases
+}
 
 /** 干线绿波小窗 */
 export const CORRIDOR_WAVE_AUTO_PHASES: PipelinePhase[] = ['corridor', 'external']
@@ -122,6 +134,9 @@ export interface PresentationState {
   activeDimensions: string[]
   /** 本轮诊断命中的问题类型（拥堵/溢出/空放/冲突，可叠加） */
   problemTypes: string[]
+  /** 后端诊断驱动的运行数据行（优先于本地拼装） */
+  runtimeItems: ServerRuntimeMetricItem[]
+  runtimeMetricProfile: RuntimeMetricProfile | null
 }
 
 /**
@@ -188,6 +203,8 @@ export function createInitialPresentation(): PresentationState {
     caseExperience: [],
     activeDimensions: [],
     problemTypes: [],
+    runtimeItems: [],
+    runtimeMetricProfile: null,
   }
 }
 
@@ -211,7 +228,7 @@ export function shouldShowTimingRingMini(
   if (!isPresentationDimActive(state.activeDimensions, 'ring')) return false
   if (state.timingRingMiniDismissed && !state.timingRingMiniOpen) return false
   if (state.timingRingMiniOpen) return true
-  return TIMING_RING_AUTO_PHASES.includes(phase)
+  return timingRingAutoPhases(state.activeDimensions).includes(phase)
 }
 
 export function shouldShowCorridorWaveMini(

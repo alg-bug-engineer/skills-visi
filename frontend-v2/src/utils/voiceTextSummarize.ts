@@ -1,5 +1,7 @@
 /** 将理解过程/旁白长文案压缩为 TTS 关键点（面板仍展示全文）。 */
 
+import { resolvePrimaryProblemType } from './runtimeMetricProfile'
+
 const DEFAULT_MAX = 60
 
 function firstClause(text: string): string {
@@ -38,9 +40,12 @@ export function summarizeNarrationForVoice(
   text: string,
   title?: string | null,
   maxLen = DEFAULT_MAX,
+  problemTypes?: string[] | null,
 ): string {
   const body = stripListMarkers(text)
   if (!body) return title?.trim()?.slice(0, maxLen) ?? ''
+
+  const primary = resolvePrimaryProblemType(problemTypes ?? [])
 
   // 干线协调、饱和度有专用 cue / 不再口播
   if (phase === 'corridor' || phase === 'saturation') {
@@ -57,6 +62,19 @@ export function summarizeNarrationForVoice(
   }
 
   if (phase === 'traffic') {
+    if (primary === 'empty_green') {
+      const gu = body.match(/绿灯利用率[^0-9]*([0-9.]+)/)?.[1]
+      if (gu) return `绿灯利用率${gu}`
+      return ''
+    }
+    if (primary === 'spillback') {
+      const q = body.match(/排队[^0-9]*([0-9.]+)/)?.[1]
+      if (q) return `最大排队约${q}米`
+      return ''
+    }
+    if (primary === 'conflict') {
+      return ''
+    }
     const delay = body.match(/延误[^0-9]*([0-9.]+)/)?.[1]
     if (delay) return `延误指数${delay}`
     return ''

@@ -60,6 +60,7 @@ const props = defineProps<{
   suppressStageHud?: boolean
   /** 后端按问题类型推导的呈现维度，门控渠化排队等图层 */
   activeDimensions?: string[]
+  problemTypes?: string[]
   /** 理解过程已进入「运行数据」步骤 */
   runtimePanelRevealed?: boolean
   focusStepIndex?: number
@@ -212,6 +213,7 @@ function channelizationPhaseParams() {
         )
       : [],
     activeDimensions: props.activeDimensions,
+    problemTypes: props.problemTypes,
     allowRuntimeMetrics: allowRuntime,
   }
 }

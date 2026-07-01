@@ -316,10 +316,13 @@ class QwenClient:
             ptypes.append("congestion")
         if "溢出" in user:
             ptypes.append("spillback")
-        if "空放" in user:
+        if "空放" in user or "没车" in user or "无车" in user or "放空" in user or "也放行" in user:
             ptypes.append("empty_green")
-        if "冲突" in user or "相位" in user or "相序" in user:
+        if "冲突" in user or "相位" in user or "相序" in user or "机非" in user or "混行" in user:
             ptypes.append("conflict")
+        if "排队" in user or "堵" in user:
+            if "empty_green" in ptypes or "没车" in user or "也放行" in user:
+                ptypes.append("congestion")
         return ptypes or ["congestion"]
 
     @staticmethod

@@ -276,17 +276,19 @@ const totalLanes = computed(() =>
 }
 
 .chan-minis {
-  /* 路口信息卡占用左侧，迷你窗靠右排布，避免遮挡 */
+  /* 配时环图等迷你窗固定左下角，避免遮挡路口信息卡 */
   position: absolute;
-  top: 8px;
-  left: 0;
-  right: 0;
+  bottom: 12px;
+  left: 12px;
+  top: auto;
+  right: auto;
   z-index: 5;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   align-items: flex-start;
+  justify-content: flex-end;
   gap: 12px;
-  padding: 0 12px;
+  padding: 0;
   pointer-events: none;
 }
 

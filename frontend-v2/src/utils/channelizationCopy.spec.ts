@@ -1,7 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import { buildSuggestionPlainText } from './channelizationCopy'
-import type { FlowTimingGovernance } from '../types/evidence'
+import { buildEvidenceListItems, buildSuggestionPlainText } from './channelizationCopy'
+import type { FlowTimingGovernance, ProblemEvidence } from '../types/evidence'
 import type { GovernanceSuggestionPayload } from '../types/presentation'
+
+describe('buildEvidenceListItems', () => {
+  it('filters congestion metrics when primary problem is conflict', () => {
+    const evidence: ProblemEvidence = {
+      problem_types: ['conflict'],
+      diagnosis_story: [
+        { phase: 'conflict_channel', title: '渠化匹配', text: '东进口存在左转与直行混行' },
+        { phase: 'metrics', title: '运行状态', text: '饱和度 0.73，延误指数 0.84' },
+        { phase: 'chronic', title: '常发性', text: '近7日中5日该时段运行指标超标' },
+      ],
+    }
+    const items = buildEvidenceListItems(evidence)
+    expect(items.some((i) => i.includes('渠化匹配'))).toBe(true)
+    expect(items.some((i) => i.includes('饱和度'))).toBe(false)
+    expect(items.some((i) => i.includes('常发性'))).toBe(false)
+  })
+
+  it('shows empty-green contrast beats instead of saturation metrics', () => {
+    const evidence: ProblemEvidence = {
+      problem_types: ['empty_green', 'congestion'],
+      diagnosis_story: [
+        { phase: 'empty_green_contrast', title: '空放对比', text: '西进口绿灯常无车放行，而东进口排队较长' },
+        { phase: 'metrics', title: '运行状态', text: '饱和度 0.73' },
+      ],
+    }
+    const items = buildEvidenceListItems(evidence)
+    expect(items.some((i) => i.includes('空放对比'))).toBe(true)
+    expect(items.some((i) => i.includes('饱和度'))).toBe(false)
+  })
+})
 
 describe('buildSuggestionPlainText', () => {
   it('strips duplicated primary diagnosis headline from narrative', () => {

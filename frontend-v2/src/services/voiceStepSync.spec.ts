@@ -19,6 +19,12 @@ describe('voiceStepSync', () => {
     }
   })
 
+  it('uses empty-green data fetch guide when problem type is empty_green', () => {
+    expect(
+      resolveProcessStepVoice(STEP_INDICES.DATA_FETCH, { problemTypes: ['empty_green'] }),
+    ).toBe(voiceConfig.guide.dataFetchEmptyGreen)
+  })
+
   it('returns stage guides aligned with understanding process labels', () => {
     expect(resolveProcessStepVoice(STEP_INDICES.UNDERSTAND)).toBe(voiceConfig.guide.understand)
     expect(resolveProcessStepVoice(STEP_INDICES.COGNITION)).toBeNull()

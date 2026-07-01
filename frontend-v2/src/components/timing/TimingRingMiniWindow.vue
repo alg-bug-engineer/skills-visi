@@ -31,7 +31,8 @@ const hasRing = computed(() => Boolean(props.profile?.ring_diagram?.available))
 .timing-mini {
   position: absolute;
   left: 12px;
-  top: 52px;
+  bottom: 12px;
+  top: auto;
   z-index: 20;
   width: 420px;
   height: 140px;

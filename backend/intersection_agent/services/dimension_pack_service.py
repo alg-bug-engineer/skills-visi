@@ -31,6 +31,26 @@ class DimensionPackService:
         """
         return self._union("presentation_dimensions", problem_types)
 
+    def runtime_profile(self, problem_types: list[str]) -> dict[str, list[str]]:
+        """Merge runtime metric buckets; hidden keys are stripped from other buckets."""
+        buckets: dict[str, list[str]] = {
+            "primary": [],
+            "secondary": [],
+            "background": [],
+            "hidden": [],
+        }
+        profiles = self._cfg.get("runtime_profiles", {})
+        for pt in problem_types:
+            prof = profiles.get(pt, {})
+            for bucket, keys in buckets.items():
+                for key in prof.get(bucket, []):
+                    if key not in keys:
+                        keys.append(key)
+        hidden = set(buckets["hidden"])
+        for bucket in ("primary", "secondary", "background"):
+            buckets[bucket] = [k for k in buckets[bucket] if k not in hidden]
+        return buckets
+
     def _union(self, key: str, problem_types: list[str]) -> list[str]:
         items: list[str] = list(self._cfg.get("base", {}).get(key, []))
         packs = self._cfg.get("packs", {})

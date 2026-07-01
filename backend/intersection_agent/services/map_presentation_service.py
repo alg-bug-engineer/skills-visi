@@ -11,6 +11,7 @@ from intersection_agent.utils.direction_groups import (
     primary_groups_from_nlu,
     protected_groups_for_vertical_constraint,
 )
+from intersection_agent.utils.problem_type_narrative import resolve_primary_problem_type
 from intersection_agent.utils.saturation_granularity import canonical_saturation_summary
 from intersection_agent.utils.traffic_labels import DIR8_LABELS
 from intersection_agent.utils.turn_metrics import normalize_turn_metrics
@@ -779,6 +780,82 @@ def _hud_metrics_by_approach(cognition: dict[str, Any]) -> list[dict[str, Any]]:
     return metrics
 
 
+def _primary_problem_type(nlu: NluResult | None) -> str:
+    pts = list(nlu.problem_types) if nlu and nlu.problem_types else None
+    return resolve_primary_problem_type(pts)
+
+
+def _hud_title_for_primary(primary: str, default: str) -> str:
+    titles = {
+        "empty_green": "绿灯利用",
+        "spillback": "排队与溢流",
+        "conflict": "渠化/相位",
+    }
+    return titles.get(primary, default)
+
+
+def _profile_summary_hud(
+    primary: str,
+    data: dict[str, Any],
+    cognition: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Problem-type primary metrics for map HUD (align with runtime panel)."""
+    del cognition
+    eval_metrics = data.get("evaluation") or {}
+    pe_metrics = (data.get("problem_evidence") or {}).get("metrics") or {}
+    if primary == "empty_green":
+        items: list[dict[str, Any]] = []
+        gu = eval_metrics.get("green_utilization")
+        if gu is not None:
+            items.append(
+                {
+                    "label": "绿灯利用率",
+                    "value": f"{float(gu):.2f}",
+                    "severity": "low" if float(gu) < 0.55 else "medium",
+                }
+            )
+        er = eval_metrics.get("empty_green_rate")
+        if er is not None:
+            items.append(
+                {
+                    "label": "空放率",
+                    "value": f"{float(er):.2f}",
+                    "severity": "medium",
+                }
+            )
+        return items
+    if primary == "spillback":
+        items = []
+        mq = pe_metrics.get("max_queue_m")
+        if mq is not None:
+            items.append(
+                {
+                    "label": "最大排队",
+                    "value": f"{float(mq):.0f} m",
+                    "severity": "high",
+                }
+            )
+        sr = pe_metrics.get("spillback_risk_max")
+        if sr is not None:
+            items.append(
+                {
+                    "label": "溢流风险",
+                    "value": f"{float(sr):.2f}",
+                    "severity": "high",
+                }
+            )
+        return items
+    if primary == "conflict":
+        return [
+            {
+                "label": "诊断焦点",
+                "value": "渠化/相位冲突",
+                "severity": "medium",
+            }
+        ]
+    return []
+
+
 def _worst_direction_group(
     groups: list[dict[str, Any]],
     nlu: NluResult | None = None,
@@ -1206,10 +1283,58 @@ def build_map_scene(
     }
 
     if phase == "traffic":
-        delay_text = f"{float(delay):.2f}" if delay is not None else "—"
+        primary = _primary_problem_type(nlu)
+        profile_hud = _profile_summary_hud(primary, data, cognition)
         time_label = ""
         if nlu and nlu.time_period:
             time_label = nlu.time_period.label or ""
+
+        if primary == "empty_green" and profile_hud:
+            base.update(
+                {
+                    "zoom": 17.6,
+                    "pulse_link_ids": [],
+                    "hud": {
+                        "title": _hud_title_for_primary(primary, time_label or "运行数据"),
+                        "icon": "🟢",
+                        "metrics": profile_hud,
+                    },
+                    "markers": [],
+                }
+            )
+            return base
+
+        if primary == "spillback" and profile_hud:
+            base.update(
+                {
+                    "zoom": 17.6,
+                    "pulse_link_ids": [],
+                    "hud": {
+                        "title": _hud_title_for_primary(primary, time_label or "运行数据"),
+                        "icon": "📏",
+                        "metrics": profile_hud,
+                    },
+                    "markers": [],
+                }
+            )
+            return base
+
+        if primary == "conflict" and profile_hud:
+            base.update(
+                {
+                    "zoom": 17.6,
+                    "pulse_link_ids": [],
+                    "hud": {
+                        "title": _hud_title_for_primary(primary, time_label or "运行数据"),
+                        "icon": "⚡",
+                        "metrics": profile_hud,
+                    },
+                    "markers": [],
+                }
+            )
+            return base
+
+        delay_text = f"{float(delay):.2f}" if delay is not None else "—"
         # 流量阶段地图仅呈现延误（饱和度由左侧面板 update_metrics 承担，分向饱和度留到 direction 阶段）
         delay_marker = {
             "id": "delay-chip",
@@ -1297,6 +1422,10 @@ def build_map_scene(
             markers[0] if markers else None,
         )
         approach_hud = _hud_metrics_by_approach(cognition)
+        primary = _primary_problem_type(nlu)
+        profile_hud = _profile_summary_hud(primary, data, cognition)
+        if profile_hud and primary != "congestion":
+            approach_hud = profile_hud
         if not approach_hud and worst_sat is not None:
             approach_hud = [
                 {
@@ -1319,7 +1448,7 @@ def build_map_scene(
                 "markers": markers,
                 "focus": focus,
                 "hud": {
-                    "title": "进口道饱和度",
+                    "title": _hud_title_for_primary(primary, "进口道饱和度"),
                     "icon": "🧭",
                     "metrics": approach_hud,
                 },
@@ -1328,6 +1457,8 @@ def build_map_scene(
         return base
 
     if phase == "saturation":
+        primary = _primary_problem_type(nlu)
+        profile_hud = _profile_summary_hud(primary, data, cognition)
         sat_highlight = focus_dirs if focus_dirs else worst_dirs
         metrics_by_arm = cognition.get("metrics_by_arm") or []
         sat_markers = _markers_for_traffic_phase(
@@ -1339,7 +1470,9 @@ def build_map_scene(
         )
         approach_hud = _hud_metrics_by_approach(cognition)
         sat_val = float(saturation) if saturation is not None else None
-        if not sat_markers and sat_val is not None:
+        if profile_hud and primary != "congestion":
+            approach_hud = profile_hud
+        if not sat_markers and sat_val is not None and primary == "congestion":
             sat_markers = [
                 {
                     "id": "saturation-center",
@@ -1351,7 +1484,7 @@ def build_map_scene(
                     "severity": _severity(sat_val),
                 }
             ]
-        if not approach_hud and sat_val is not None:
+        if not approach_hud and sat_val is not None and primary == "congestion":
             approach_hud = [
                 {
                     "label": "路口饱和度",
@@ -1370,10 +1503,10 @@ def build_map_scene(
                     if _normalize_dir(str(lk.get("dir4_label") or "")) in sat_highlight
                 ],
                 "dim_other_links": True,
-                "markers": sat_markers,
+                "markers": sat_markers if primary == "congestion" else [],
                 "hud": {
-                    "title": "进口道饱和度",
-                    "icon": "⚠️",
+                    "title": _hud_title_for_primary(primary, "进口道饱和度"),
+                    "icon": "⚠️" if primary == "congestion" else "📊",
                     "metrics": approach_hud,
                 },
             }

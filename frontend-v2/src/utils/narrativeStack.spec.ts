@@ -234,4 +234,38 @@ describe('buildNarrativeRuntimeItems', () => {
     expect(items.find((i) => i.label === '信号调整')).toBeUndefined()
     expect(items.find((i) => i.label === '延误指数')).toBeDefined()
   })
+
+  it('uses server runtime items with emphasis ordering', () => {
+    const items = buildNarrativeRuntimeItems({
+      serverRuntimeItems: [
+        {
+          key: 'approach_saturation',
+          id: 'a1',
+          label: '东进口饱和度',
+          value: '0.92 · 偏高',
+          emphasis: 'background',
+        },
+        {
+          key: 'max_queue_m',
+          id: 'q1',
+          label: '最大排队',
+          value: '138 m',
+          emphasis: 'primary',
+        },
+        {
+          key: 'spillback_risk',
+          id: 's1',
+          label: '溢流风险',
+          value: '0.85 · 偏高',
+          emphasis: 'primary',
+        },
+      ],
+      dataInsight: {
+        title: '运行数据',
+        metrics: [{ label: '延误指数', value: '9.99' }],
+      },
+    })
+    expect(items[0]?.label).toBe('最大排队')
+    expect(items.find((i) => i.label === '延误指数')).toBeUndefined()
+  })
 })

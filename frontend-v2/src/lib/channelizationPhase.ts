@@ -27,6 +27,7 @@ import {
   saturationProblemHint,
 } from '../utils/channelArmLabels'
 import { highlightDirsForGroup, normalizeAxisFocusGroups, toAxisFocusGroup } from '../utils/evidencePresentation'
+import { resolvePrimaryProblemType } from '../utils/runtimeMetricProfile'
 import type { ArmSceneLabel, HighlightEvidence, TurnHighlightSpec } from './channelizationAmap'
 
 export interface PhaseHighlightTarget {
@@ -54,6 +55,7 @@ export interface PhaseHighlightParams {
   queueArms?: ChannelQueueArm[]
   /** 后端按问题类型推导的呈现维度，门控排队等图层是否相关 */
   activeDimensions?: string[]
+  problemTypes?: string[]
   /** 运行数据步骤已揭示后才展示排队/饱和度等运行指标标注 */
   allowRuntimeMetrics?: boolean
 }
@@ -127,6 +129,7 @@ function armLabelsForPhase(
   cognition: CognitionPayload | null,
   queueArms: ChannelQueueArm[] = [],
   activeDimensions?: string[],
+  problemTypes: string[] = [],
   highlightDirs: string[] = [],
   protectedDirs: string[] = [],
   imbalanceIndex?: number | null,
@@ -139,11 +142,12 @@ function armLabelsForPhase(
       cognition,
       queueArms,
       imbalanceIndex,
+      problemTypes,
     )
     if (role.length) return role
   }
   const base = baseArmLabels(phase, sceneMarkers, cognition)
-  return mergeQueueLabels(phase, base, queueArms, activeDimensions)
+  return mergeQueueLabels(phase, base, queueArms, activeDimensions, problemTypes)
 }
 
 function baseArmLabels(
@@ -170,10 +174,13 @@ function mergeQueueLabels(
   base: ArmSceneLabel[],
   queueArms: ChannelQueueArm[],
   activeDimensions?: string[],
+  problemTypes: string[] = [],
 ): ArmSceneLabel[] {
   if (!QUEUE_LABEL_PHASES.includes(phase)) return base
   if (!isPresentationDimActive(activeDimensions, 'queue')) return base
-  const includeSaturation = SATURATION_ON_MAP_PHASES.includes(phase)
+  const primary = resolvePrimaryProblemType(problemTypes)
+  const includeSaturation =
+    SATURATION_ON_MAP_PHASES.includes(phase) && primary !== 'spillback'
   const queueLabels = buildArmLabelsFromQueue(queueArms, { includeSaturation })
   if (!queueLabels.length) return base
   const byDir = new Map(base.map((l) => [l.dir, l]))
@@ -261,6 +268,7 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
     params.cognition,
     params.queueArms ?? [],
     params.activeDimensions,
+    params.problemTypes ?? [],
     params.highlightDirs ?? [],
     params.protectedDirs ?? [],
     params.runtimeMetrics?.imbalance_index ?? params.runtimeMetrics?.unbalance_index ?? null,

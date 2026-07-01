@@ -187,6 +187,7 @@ export interface ProblemEvidence {
   corridor_context?: CorridorContext
   external_evidence?: ExternalEvidence
   diagnosis_story?: DiagnosisStoryBeat[]
+  problem_types?: string[]
   flow_trace?: FlowTrace | null
   thresholds_used?: EvidenceThresholdsUsed
   query_trace?: unknown[]
@@ -393,5 +394,6 @@ export interface ProblemEvidenceSseData {
   corridor_context?: CorridorContext
   external_evidence?: ExternalEvidence
   diagnosis_story?: DiagnosisStoryBeat[]
+  problem_types?: string[]
   flow_trace?: FlowTrace | null
 }

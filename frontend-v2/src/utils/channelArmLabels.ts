@@ -9,6 +9,8 @@ import {
   sortTurnMetrics,
   dirFromTurnLabel,
 } from './turnMetrics'
+import { resolvePrimaryProblemType } from './runtimeMetricProfile'
+import { formatGreenUtilizationRaw } from './evidencePresentation'
 
 const PLACEHOLDER_LINES = new Set(['—', '-', '–', ''])
 
@@ -114,29 +116,55 @@ export function saturationForDir(
   return null
 }
 
-/** 关注/保护方向臂标：饱和 + 失衡 + 排队合并为一行。 */
+/** 关注/保护方向臂标：按问题类型突出主指标。 */
 export function buildRoleArmLabels(
   highlightDirs: string[],
   protectedDirs: string[],
   cognition: CognitionPayload | null,
   queueArms: ChannelQueueArm[] = [],
   imbalanceIndex?: number | null,
+  problemTypes: string[] = [],
 ): ArmSceneLabel[] {
   const byDir = new Map<string, ArmSceneLabel>()
   const queueByDir = new Map<string, ChannelQueueArm>()
+  const primary = resolvePrimaryProblemType(problemTypes)
   for (const q of queueArms) {
     const key = dirKeyFromLabel(q.dir4) ?? dirKeyFromLabel(q.label)
     if (key && q.queueM > 0) queueByDir.set(key, q)
   }
 
+  function lowUtilForDir(dirKey: string): number | null {
+    const turns = resolveTurnMetrics(cognition).filter(
+      (t) => dirKeyFromLabel(t.dir4_label || dirFromTurnLabel(t.label)) === dirKey,
+    )
+    const utils = turns
+      .map((t) => t.green_utilization)
+      .filter((v): v is number => v != null && Number.isFinite(v))
+    if (!utils.length) return null
+    return Math.min(...utils)
+  }
+
   function metricLine(dirKey: string, sat: number | null, isFocus: boolean): string {
     const parts: string[] = []
-    if (sat != null) parts.push(`饱和 ${sat.toFixed(2)}`)
-    if (isFocus && imbalanceIndex != null && Number.isFinite(imbalanceIndex)) {
-      parts.push(`失衡 ${Number(imbalanceIndex).toFixed(2)}`)
-    }
     const q = queueByDir.get(dirKey)
-    if (q && q.queueM > 0) parts.push(`排队~${Math.round(q.queueM)}m`)
+    const lowUtil = lowUtilForDir(dirKey)
+
+    if (primary === 'empty_green') {
+      if (lowUtil != null) parts.push(`绿灯利用 ${formatGreenUtilizationRaw(lowUtil)}`)
+      else if (sat != null) parts.push(`饱和 ${sat.toFixed(2)}`)
+    } else if (primary === 'spillback') {
+      if (q && q.queueM > 0) parts.push(`排队~${Math.round(q.queueM)}m`)
+      if (sat != null) parts.push(`饱和 ${sat.toFixed(2)}`)
+    } else if (primary === 'conflict') {
+      parts.push('关注冲突点')
+      if (sat != null) parts.push(`饱和 ${sat.toFixed(2)}`)
+    } else {
+      if (sat != null) parts.push(`饱和 ${sat.toFixed(2)}`)
+      if (isFocus && imbalanceIndex != null && Number.isFinite(imbalanceIndex)) {
+        parts.push(`失衡 ${Number(imbalanceIndex).toFixed(2)}`)
+      }
+      if (q && q.queueM > 0) parts.push(`排队~${Math.round(q.queueM)}m`)
+    }
     return parts.length ? parts.join(' · ') : isFocus ? '重点关注' : '保护'
   }
 

@@ -1,5 +1,10 @@
 import type { ProblemEvidence } from '../types/evidence'
 import type { GovernanceSuggestionPayload } from '../types/presentation'
+import { resolvePrimaryProblemType } from './runtimeMetricProfile'
+
+function resolvePrimaryFromTypes(problemTypes?: string[] | null): string {
+  return resolvePrimaryProblemType(problemTypes ?? [])
+}
 
 function simplifyEvidenceSummary(summary: string): string {
   return summary
@@ -39,10 +44,19 @@ function formatStoryBeat(beat: { title?: string; text?: string }): string {
 
 /** 渠化图左上角：问题验证分条摘要 */
 export function buildEvidenceListItems(evidence: ProblemEvidence): string[] {
+  const problemTypes = (evidence as ProblemEvidence & { problem_types?: string[] }).problem_types
+  const primary = resolvePrimaryFromTypes(problemTypes)
+
   if (evidence.diagnosis_story?.length) {
     return evidence.diagnosis_story
       .filter((beat) => {
         if (beat.phase === 'external' || beat.phase === 'flow_trace' || beat.phase === 'granularity' || beat.phase === 'corridor') {
+          return false
+        }
+        if (primary === 'conflict' && (beat.phase === 'chronic' || beat.phase === 'dow' || beat.phase === 'metrics')) {
+          return false
+        }
+        if (primary === 'empty_green' && beat.phase === 'metrics') {
           return false
         }
         return isDisplayVerdict(formatStoryBeat(beat))
@@ -76,6 +90,13 @@ export function buildEvidenceListItems(evidence: ProblemEvidence): string[] {
   }
 
   if (parts.length) return parts
+
+  if (primary === 'conflict') {
+    return ['运行数据支持存在相位/渠化冲突线索，与您描述的情况一致。']
+  }
+  if (primary === 'empty_green') {
+    return ['运行数据显示绿灯利用率偏低，与您描述的空放情况一致。']
+  }
   return ['运行数据与您描述的情况基本一致，问题确实存在。']
 }
 

@@ -5,6 +5,7 @@ import {
   imbalanceTailLabel,
   saturationStateLabel,
   voiceGuide,
+  voiceGuideForProblem,
   voiceTemplate,
 } from './voiceConfig'
 
@@ -20,16 +21,17 @@ function cue(
 }
 
 /** 问题印证步骤仅播引导语，结论留给面板展示。 */
-export function buildEvidenceVoiceCue(_data: Record<string, unknown>): VoiceCue {
-  return buildEvidenceIntroCue()
+export function buildEvidenceVoiceCue(data: Record<string, unknown>): VoiceCue {
+  const problemTypes = data.problem_types as string[] | undefined
+  return buildEvidenceIntroCue(problemTypes)
 }
 
-export function buildEvidenceIntroCue(): VoiceCue {
+export function buildEvidenceIntroCue(problemTypes?: string[]): VoiceCue {
   return cue(
     'step:4:evidence:intro',
     STEP_INDICES.PROBLEM_EVIDENCE,
     'evidence',
-    voiceGuide('evidenceIntro'),
+    voiceGuideForProblem('evidenceIntro', problemTypes),
     'guide',
     0,
   )
@@ -104,8 +106,9 @@ export function buildNarrationPhaseVoiceCue(
   phase: string,
   text: string,
   title?: string | null,
+  problemTypes?: string[] | null,
 ): VoiceCue | null {
-  const spoken = summarizeNarrationForVoice(phase, text, title)
+  const spoken = summarizeNarrationForVoice(phase, text, title, undefined, problemTypes)
   if (!spoken) return null
   return cue(
     `step:3:narration:${phase}`,

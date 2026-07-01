@@ -5,12 +5,14 @@ import type { CorridorIntersectionItem } from '../types/corridor'
 import type { CaseScenario, ExperienceSedimentItem } from '../types/experience'
 import type { DataInsight, DataInsightMetric, InsightCardEntry } from '../types/insight'
 import { STEP_INDICES } from '../constants'
+import type { ServerRuntimeMetricItem, RuntimeMetricProfile } from '../utils/runtimeMetricProfile'
 import { shouldSkipRuntimeMetric } from '../utils/narrativeStack'
 import { expandFocusGroupsToHighlightDirs, normalizeAxisFocusGroups } from '../utils/evidencePresentation'
 import {
   CORRIDOR_WAVE_AUTO_PHASES,
-  TIMING_RING_AUTO_PHASES,
   createInitialPresentation,
+  isPresentationDimActive,
+  timingRingAutoPhases,
   type PipelinePhase,
   type PresentationState,
   type RuntimeMetrics,
@@ -76,6 +78,8 @@ export function usePresentation() {
     state.dataInsightBuffer = null
     state.hud = null
     state.runtimeMetrics = null
+    state.runtimeItems = []
+    state.runtimeMetricProfile = null
     state.highlightTurn = null
     state.corridorScan = null
     state.experienceSediment = []
@@ -119,20 +123,39 @@ export function usePresentation() {
     state.problemTypes = Array.isArray(problemTypes) ? problemTypes : []
   }
 
+  function setRuntimeMetricsPayload(
+    items: ServerRuntimeMetricItem[],
+    profile?: RuntimeMetricProfile | null,
+  ) {
+    state.runtimeItems = Array.isArray(items) ? [...items] : []
+    if (profile) state.runtimeMetricProfile = profile
+    if (!items.length) return
+    state.dataInsightBuffer = {
+      title: '运行数据',
+      icon: '📊',
+      metrics: items.map((item) => ({
+        label: item.label,
+        value: item.value,
+        severity: item.severity,
+      })),
+    }
+  }
+
   function setPhase(phase: PipelinePhase) {
     state.phase = phase
     if (phase !== 'direction') {
       state.protectedDirs = []
     }
 
-    if (TIMING_RING_AUTO_PHASES.includes(phase)) {
-      if (
-        !state.timingRingMiniDismissed &&
-        state.evidence?.timing_profile?.ring_diagram?.available
-      ) {
-        state.timingRingMiniOpen = true
-      }
-    } else if (phase === 'rule' || phase === 'conclusion') {
+    const ringPhases = timingRingAutoPhases(state.activeDimensions)
+    if (
+      ringPhases.includes(phase) &&
+      !state.timingRingMiniDismissed &&
+      state.evidence?.timing_profile?.ring_diagram?.available &&
+      isPresentationDimActive(state.activeDimensions, 'ring')
+    ) {
+      state.timingRingMiniOpen = true
+    } else if (phase === 'conclusion') {
       state.timingRingMiniOpen = false
     }
 
@@ -209,7 +232,10 @@ export function usePresentation() {
       }
     }
     if (evidence?.timing_profile?.ring_diagram?.available && !state.timingRingMiniDismissed) {
-      if (TIMING_RING_AUTO_PHASES.includes(state.phase)) {
+      if (
+        timingRingAutoPhases(state.activeDimensions).includes(state.phase) &&
+        isPresentationDimActive(state.activeDimensions, 'ring')
+      ) {
         state.timingRingMiniOpen = true
       }
     }
@@ -423,6 +449,7 @@ export function usePresentation() {
     prepareNewAnalysisRun,
     reset,
     setActiveDimensions,
+    setRuntimeMetricsPayload,
     setPhase,
     mergeDataInsight,
     revealRuntimePanel,

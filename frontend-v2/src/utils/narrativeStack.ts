@@ -1,7 +1,6 @@
 /**
- * 右上角叙事卡 · 运行数据逐项构建（纯函数，便于单测）
- * 顺序：四向指标 → 转向指标 → 失衡 → 常发
- * 左侧面板仅展示数据与证据，不含治理结论（如信号调整秒数）。
+ * 左上角叙事卡 · 运行数据逐项构建（纯函数，便于单测）
+ * 优先使用后端 diagnosis-driven runtime_items；无则回退本地拼装。
  */
 import type {
   FlowTimingGovernance,
@@ -10,6 +9,7 @@ import type {
 } from '../types/evidence'
 import type { RuntimeMetrics } from '../types/presentation'
 import type { DataInsight } from '../types/insight'
+import type { ServerRuntimeMetricItem } from './runtimeMetricProfile'
 import { THRESHOLDS } from '../constants'
 import { formatGreenUtilizationRaw } from './evidencePresentation'
 import { normalizeTurnMetrics, sortTurnMetrics } from './turnMetrics'
@@ -48,15 +48,37 @@ export function shouldSkipRuntimeMetric(label: string, value?: string): boolean 
 
 export type NarrativeRuntimeCategory = 'metrics' | 'imbalance' | 'chronic'
 
+export type NarrativeRuntimeEmphasis = 'primary' | 'secondary' | 'background'
+
 export interface NarrativeRuntimeItem {
   id: string
   label: string
   value: string
   severity?: 'high' | 'medium' | 'low'
+  emphasis?: NarrativeRuntimeEmphasis
   category: NarrativeRuntimeCategory
 }
 
+const EMPHASIS_ORDER: NarrativeRuntimeEmphasis[] = ['primary', 'secondary', 'background']
 const CATEGORY_ORDER: NarrativeRuntimeCategory[] = ['metrics', 'imbalance', 'chronic']
+
+function emphasisToCategory(emphasis?: NarrativeRuntimeEmphasis): NarrativeRuntimeCategory {
+  if (emphasis === 'primary' || emphasis === 'secondary' || emphasis === 'background') {
+    return 'metrics'
+  }
+  return 'metrics'
+}
+
+function mapServerRuntimeItems(items: ServerRuntimeMetricItem[]): NarrativeRuntimeItem[] {
+  return items.map((item) => ({
+    id: item.id,
+    label: item.label,
+    value: item.value,
+    severity: item.severity,
+    emphasis: item.emphasis,
+    category: emphasisToCategory(item.emphasis),
+  }))
+}
 
 function formatGreenUtil(v: number): string {
   return formatGreenUtilizationRaw(v)
@@ -187,7 +209,7 @@ function appendApproachSaturationItems(
   }
 }
 
-export function buildNarrativeRuntimeItems(input: {
+function buildLegacyRuntimeItems(input: {
   runtimeMetrics?: RuntimeMetrics | null
   dataInsight?: DataInsight | null
   evidence?: ProblemEvidence | null
@@ -261,4 +283,24 @@ export function buildNarrativeRuntimeItems(input: {
   return items.sort(
     (a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category),
   )
+}
+
+export function buildNarrativeRuntimeItems(input: {
+  runtimeMetrics?: RuntimeMetrics | null
+  dataInsight?: DataInsight | null
+  evidence?: ProblemEvidence | null
+  flowTimingGovernance?: FlowTimingGovernance | null
+  cognition?: { metrics_by_arm?: Array<{ dir4_label?: string; saturation?: number | null }> } | null
+  serverRuntimeItems?: ServerRuntimeMetricItem[] | null
+}): NarrativeRuntimeItem[] {
+  if (input.serverRuntimeItems?.length) {
+    const mapped = mapServerRuntimeItems(input.serverRuntimeItems)
+    return mapped.sort((a, b) => {
+      const ea = EMPHASIS_ORDER.indexOf(a.emphasis ?? 'secondary')
+      const eb = EMPHASIS_ORDER.indexOf(b.emphasis ?? 'secondary')
+      if (ea !== eb) return ea - eb
+      return 0
+    })
+  }
+  return buildLegacyRuntimeItems(input)
 }

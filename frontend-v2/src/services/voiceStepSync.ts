@@ -4,9 +4,11 @@
  */
 import { ANALYSIS_STEP_LABELS, STEP_INDICES } from '../constants'
 import { VOICE_GUIDE } from './voiceCueTemplates'
+import { voiceGuideForProblem } from './voiceConfig'
 
 export interface ProcessStepVoiceContext {
   intersectionName?: string | null
+  problemTypes?: string[]
 }
 
 /** 理解过程步骤 index → 面板标签（用于测试与文档对齐） */
@@ -44,11 +46,11 @@ export function resolveProcessStepVoice(
     case STEP_INDICES.COGNITION:
       return null
     case STEP_INDICES.DATA_FETCH:
-      return VOICE_GUIDE.dataFetch
+      return voiceGuideForProblem('dataFetch', context.problemTypes)
     case STEP_INDICES.PROBLEM_EVIDENCE:
-      return VOICE_GUIDE.evidenceIntro
+      return voiceGuideForProblem('evidenceIntro', context.problemTypes)
     case STEP_INDICES.RULE:
-      return VOICE_GUIDE.ruleIntro
+      return voiceGuideForProblem('ruleIntro', context.problemTypes)
     case STEP_INDICES.SUGGESTION:
       return VOICE_GUIDE.suggestionConfirm
     default:

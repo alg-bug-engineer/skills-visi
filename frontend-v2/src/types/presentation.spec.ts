@@ -32,10 +32,11 @@ describe('shouldShowTimingRingMini · 配时环图按需出现', () => {
     expect(shouldShowTimingRingMini('timing', state)).toBe(false)
   })
 
-  it('shows ring for 空放 (ring dimension active)', () => {
+  it('shows ring for 空放 at evidence phase', () => {
     const state = withRing()
     state.activeDimensions = ['green_util', 'timing_plan', 'ring', 'cycle']
-    expect(shouldShowTimingRingMini('timing', state)).toBe(true)
+    expect(shouldShowTimingRingMini('evidence', state)).toBe(true)
+    expect(shouldShowTimingRingMini('rule', state)).toBe(true)
   })
 
   it('stays permissive when activeDimensions empty (unknown)', () => {

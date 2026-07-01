@@ -15,6 +15,7 @@ from intersection_agent.utils.place_name_normalize import (
     extract_intersection_phrases,
     normalize_place_names,
 )
+from intersection_agent.utils.problem_type_infer import merge_problem_types
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,13 @@ NLU_SYSTEM_PROMPT = """
 - problem_types: 判定用户描述的问题类型，可多选，取值只能来自集合
   {congestion, spillback, empty_green, conflict}：
   congestion=拥堵(排队长、通行慢)，spillback=溢出(排队外溢到上游/下游路口)，
-  empty_green=空放(绿灯放空、无车却放行)，conflict=相位/渠化冲突(相序、机非冲突、左转混行)。
+  empty_green=空放(绿灯放空、无车却放行、某方向绿灯常无车而另一方向排队)，
+  conflict=相位/渠化冲突(相序、机非冲突、左转混行)。
   无法判断时输出 ["congestion"]。
+  示例：
+  - 「西进口绿灯经常没车也放行，东进口却排队很长」→ problem_types: ["empty_green","congestion"]
+  - 「排队溢出到上游路口」→ ["spillback","congestion"]
+  - 「左转和直行混行，机非冲突」→ ["conflict"]
 - intersection: 标准化为"X路与Y路交叉口"或"X路与Y路路口"
 - directions: 必填。用户须说明拥堵进口方向，如「东西向」「南北向」，
   或具体进口（东进口、西进口）；无法判断时输出 [] 由系统追问
@@ -90,6 +96,7 @@ class NluService:
 
         raw = self._normalize_raw(raw)
         nlu = self._parse_raw(raw)
+        nlu = self._apply_problem_type_infer(nlu, user_context)
         nlu = self._fill_directions_from_context(nlu, user_context)
         nlu = self._fill_user_suggestion_from_context(nlu, user_context)
         log_event(
@@ -173,6 +180,20 @@ class NluService:
             problem_types=self._parse_problem_types(raw.get("problem_types")),
             directions=[str(d) for d in directions],
             user_suggestion=suggestion,
+        )
+
+    @staticmethod
+    def _apply_problem_type_infer(nlu: NluResult, text: str) -> NluResult:
+        merged = merge_problem_types(nlu.problem_types, text)
+        if merged == nlu.problem_types:
+            return nlu
+        return NluResult(
+            intersection=nlu.intersection,
+            time_period=nlu.time_period,
+            problem_type=nlu.problem_type,
+            problem_types=merged,
+            directions=nlu.directions,
+            user_suggestion=nlu.user_suggestion,
         )
 
     @staticmethod

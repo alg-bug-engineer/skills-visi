@@ -34,6 +34,14 @@ def test_presentation_dimensions_union_dedup():
     assert len(dims) == len(set(dims))
 
 
+def test_runtime_profile_merges_hidden_across_types():
+    svc = DimensionPackService()
+    profile = svc.runtime_profile(["congestion", "empty_green"])
+    assert "empty_green_rate" in profile["hidden"]
+    assert "delay_index" in profile["hidden"]
+    assert "green_utilization" in profile["primary"]
+
+
 def test_unknown_type_falls_back_to_base():
     svc = DimensionPackService()
     cats = svc.focus_categories(["__nope__"])

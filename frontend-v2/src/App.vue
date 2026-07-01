@@ -208,7 +208,7 @@ function enqueueUpstreamIntroVoice() {
 function ensureEvidenceIntroVoice() {
   if (!voice.enabled.value || voiceSentForStep.has(STEP_INDICES.PROBLEM_EVIDENCE)) return
   voiceSentForStep.add(STEP_INDICES.PROBLEM_EVIDENCE)
-  voice.enqueue(buildEvidenceIntroCue())
+  voice.enqueue(buildEvidenceIntroCue(presentation.state.problemTypes))
 }
 
 function flushPendingRuleEngineVoice() {
@@ -227,7 +227,9 @@ function ensureDataFetchGuideVoice() {
     stepIndex: STEP_INDICES.DATA_FETCH,
     phase: 'dataFetch',
     kind: 'guide',
-    text: VOICE_GUIDE.dataFetch,
+    text: resolveProcessStepVoice(STEP_INDICES.DATA_FETCH, {
+      problemTypes: presentation.state.problemTypes,
+    }) ?? VOICE_GUIDE.dataFetch,
     priority: 0,
   })
 }
@@ -267,6 +269,7 @@ function handleProcessStepVoice(stepIndex: number) {
   if (stepIndex === STEP_INDICES.DATA_FETCH) return
   const text = resolveProcessStepVoice(stepIndex, {
     intersectionName: lastIntersectionName.value,
+    problemTypes: presentation.state.problemTypes,
   })
   if (!text) return
   voiceSentForStep.add(stepIndex)
@@ -1172,7 +1175,12 @@ function enqueueNarrationPhaseVoice(action: MapActionEvent) {
   const phase = action.phase ?? ''
   if (!NARRATION_TEXT_VOICE_PHASES.has(phase)) return
   ensureDataFetchGuideVoice()
-  const cue = buildNarrationPhaseVoiceCue(phase, action.text ?? '', action.title)
+  const cue = buildNarrationPhaseVoiceCue(
+    phase,
+    action.text ?? '',
+    action.title,
+    presentation.state.problemTypes,
+  )
   if (cue) voice.enqueue(cue)
 }
 
@@ -1340,7 +1348,32 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       updateCognitionFromAction(action)
       const ev = action.evaluation as Record<string, unknown> | undefined
       const tf = action.traffic_flow as Record<string, unknown> | undefined
-      if (ev || tf) {
+      const runtimeItems = action.runtime_items as
+        | Array<{
+            key: string
+            id: string
+            label: string
+            value: string
+            emphasis?: string
+            severity?: string
+          }>
+        | undefined
+      const runtimeProfile = action.runtime_metric_profile as
+        | import('./utils/runtimeMetricProfile').RuntimeMetricProfile
+        | undefined
+      if (runtimeItems?.length) {
+        presentation.setRuntimeMetricsPayload(
+          runtimeItems.map((item) => ({
+            key: item.key,
+            id: item.id,
+            label: item.label,
+            value: item.value,
+            emphasis: item.emphasis as 'primary' | 'secondary' | 'background' | undefined,
+            severity: item.severity as 'high' | 'medium' | 'low' | undefined,
+          })),
+          runtimeProfile ?? null,
+        )
+      } else if (ev || tf) {
         const metrics: Array<{ label: string; value: string; severity?: string }> = []
         const armMetrics =
           (action.metrics_by_arm as Array<{ dir4_label?: string; saturation?: number }> | undefined) ??
@@ -1372,6 +1405,8 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
         if (metrics.length) {
           presentation.mergeDataInsight({ title: '运行数据', icon: '📊', metrics })
         }
+      }
+      if (ev || tf) {
         presentation.patchRuntimeMetrics({
           saturation_rate:
             (tf?.saturation_rate as number | undefined) ??
@@ -1504,6 +1539,7 @@ function handleProblemEvidenceStep(data: Record<string, unknown>) {
       corridor_context: partial.corridor_context ?? presentation.state.evidence?.corridor_context,
       external_evidence: partial.external_evidence ?? presentation.state.evidence?.external_evidence,
       diagnosis_story: partial.diagnosis_story ?? presentation.state.evidence?.diagnosis_story,
+      problem_types: partial.problem_types ?? presentation.state.evidence?.problem_types,
     } as ProblemEvidence)
     presentation.setPhase('evidence')
 
@@ -1546,6 +1582,15 @@ function handlePipelineStep(
 
   if (event.step === 'nlu') {
     if (data.status === 'complete') {
+      const nlu = data.nlu as { problem_types?: string[] } | undefined
+      const problemTypes =
+        (data.problem_types as string[] | undefined) ?? nlu?.problem_types ?? []
+      if (problemTypes.length || data.active_dimensions) {
+        presentation.setActiveDimensions(
+          (data.active_dimensions as string[] | undefined) ?? [],
+          problemTypes,
+        )
+      }
       beginAnalysisFlow(currentContent)
     } else if (data.status === 'incomplete') {
       handleNluStep(data)
@@ -1791,6 +1836,14 @@ async function handleSend(content: string) {
             presentation.setActiveDimensions(
               (result.meta.active_dimensions as string[] | undefined) ?? [],
               (result.meta.problem_types as string[] | undefined) ?? [],
+            )
+          }
+          if (result.meta?.runtime_items) {
+            presentation.setRuntimeMetricsPayload(
+              result.meta.runtime_items as import('./utils/runtimeMetricProfile').ServerRuntimeMetricItem[],
+              (result.meta.runtime_metric_profile as
+                | import('./utils/runtimeMetricProfile').RuntimeMetricProfile
+                | undefined) ?? null,
             )
           }
 

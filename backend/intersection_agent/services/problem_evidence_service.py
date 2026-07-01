@@ -17,6 +17,12 @@ from intersection_agent.utils.direction_groups import (
 )
 from intersection_agent.utils.dow_parser import dow_label, extract_explicit_dow
 from intersection_agent.utils.demo_config import resolve_reference_date
+from intersection_agent.utils.problem_type_narrative import (
+    build_problem_diagnosis_story,
+    infer_mixed_turn_approaches,
+    resolve_primary_problem_type,
+    user_mentions,
+)
 from intersection_agent.utils.saturation_granularity import canonical_saturation_summary
 from intersection_agent.utils.thresholds_loader import load_thresholds, threshold_value
 
@@ -128,7 +134,14 @@ class ProblemEvidenceService:
             "query_trace": query_trace,
         }
         self._merge_extended_profiles(evidence, data_payload)
-        evidence["diagnosis_story"] = self._build_diagnosis_story(evidence)
+        evidence["problem_types"] = list(nlu.problem_types) if nlu.problem_types else ["congestion"]
+        evidence["diagnosis_story"] = build_problem_diagnosis_story(
+            evidence,
+            problem_types=evidence["problem_types"],
+            user_context=user_context,
+            data_payload=data_payload,
+            nlu_directions=nlu.directions,
+        )
         evidence["summary"] = self._enrich_summary(evidence)
         return evidence
 
@@ -565,36 +578,33 @@ class ProblemEvidenceService:
             evidence["metrics"]["level_of_service_label"] = eval_metrics.get("level_of_service_label")
 
     @staticmethod
+    def refresh_diagnosis_story(
+        evidence: dict[str, Any],
+        *,
+        problem_types: list[str],
+        user_context: str = "",
+        data_payload: dict[str, Any] | None = None,
+        nlu_directions: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Re-build verification beats after rule diagnosis (adds matched_rules context)."""
+        evidence["problem_types"] = problem_types
+        evidence["diagnosis_story"] = build_problem_diagnosis_story(
+            evidence,
+            problem_types=problem_types,
+            user_context=user_context,
+            data_payload=data_payload,
+            nlu_directions=nlu_directions,
+        )
+        evidence["summary"] = ProblemEvidenceService._enrich_summary(evidence)
+        return evidence
+
+    @staticmethod
     def _build_diagnosis_story(evidence: dict[str, Any]) -> list[dict[str, str]]:
-        """Ordered narrative beats for frontend storytelling."""
-        beats: list[dict[str, str]] = []
-        chronic = evidence.get("chronic") or {}
-        if _is_display_verdict(chronic.get("verdict")):
-            beats.append({"phase": "chronic", "title": "常发性", "text": str(chronic["verdict"])})
-        dow = evidence.get("dow_pattern") or {}
-        if _is_display_verdict(dow.get("verdict")):
-            beats.append({"phase": "dow", "title": "周期性", "text": str(dow["verdict"])})
-
-        metrics = evidence.get("metrics") or {}
-        metric_bits: list[str] = []
-        if metrics.get("saturation_rate") is not None:
-            metric_bits.append(f"饱和度 {float(metrics['saturation_rate']):.2f}")
-        if metrics.get("level_of_service_label"):
-            metric_bits.append(f"服务水平 {metrics['level_of_service_label']}")
-        if metric_bits:
-            beats.append(
-                {
-                    "phase": "metrics",
-                    "title": "运行状态",
-                    "text": "，".join(metric_bits),
-                }
-            )
-
-        timing = evidence.get("timing_profile") or {}
-        if timing.get("narrative"):
-            beats.append({"phase": "timing", "title": "配时画像", "text": str(timing["narrative"])})
-
-        return beats
+        """Backward-compatible wrapper for tests."""
+        return build_problem_diagnosis_story(
+            evidence,
+            problem_types=evidence.get("problem_types") or ["congestion"],
+        )
 
     @staticmethod
     def _enrich_summary(evidence: dict[str, Any]) -> str:
@@ -706,7 +716,14 @@ class ProblemEvidenceService:
             "query_trace": [],
         }
         ProblemEvidenceService._merge_extended_profiles(evidence, data_payload)
-        evidence["diagnosis_story"] = ProblemEvidenceService._build_diagnosis_story(evidence)
+        evidence["problem_types"] = list(nlu.problem_types) if nlu.problem_types else ["congestion"]
+        evidence["diagnosis_story"] = build_problem_diagnosis_story(
+            evidence,
+            problem_types=evidence["problem_types"],
+            user_context="",
+            data_payload=data_payload,
+            nlu_directions=nlu.directions,
+        )
         evidence["summary"] = ProblemEvidenceService._enrich_summary(evidence)
         return evidence
 

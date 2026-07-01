@@ -50,6 +50,7 @@ from intersection_agent.stores.intersection_case_store import (
 )
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
 from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
+from intersection_agent.services.runtime_metric_builder import RuntimeMetricBuilder
 from intersection_agent.services.skill_service import SkillService, SkillUpsertResult
 from intersection_agent.services.skill_matcher import backfill_tags
 from intersection_agent.config import get_settings
@@ -196,6 +197,7 @@ class Orchestrator:
         self._cognition = cognition or IntersectionCognitionService()
         self._rules = rules or RuleEngine()
         self._dimension_packs = DimensionPackService()
+        self._runtime_metrics = RuntimeMetricBuilder(self._dimension_packs)
         self._suggestions = suggestions or SuggestionService()
         self._skills = skills or SkillService()
         self._follow_ups = follow_ups or FollowUpService()
@@ -674,10 +676,16 @@ class Orchestrator:
 
         session.nlu = nlu_result["data"]
         if emitter:
+            pt = list(session.nlu.problem_types) if session.nlu.problem_types else ["congestion"]
             await emitter.emit(
                 "nlu",
                 "completed",
-                data={"status": "complete", "nlu": session.nlu.model_dump()},
+                data={
+                    "status": "complete",
+                    "nlu": session.nlu.model_dump(),
+                    "problem_types": pt,
+                    "active_dimensions": self._dimension_packs.presentation_dimensions(pt),
+                },
             )
             await self._emit_map_sequence(
                 emitter,
@@ -1033,6 +1041,14 @@ class Orchestrator:
                     cognition.get("arms") or [], merged_metrics
                 )
             session.data_payload["cognition"] = cognition
+            problem_types = list(session.nlu.problem_types) if session.nlu else ["congestion"]
+            runtime_payload = self._runtime_metrics_payload(
+                session.data_payload,
+                problem_types,
+                user_context=session.raw_user_context,
+                nlu=session.nlu,
+            )
+            session.data_payload["runtime_metric_profile"] = runtime_payload["runtime_metric_profile"]
             await self._emit_map_sequence(
                 emitter,
                 action="update_metrics",
@@ -1043,6 +1059,7 @@ class Orchestrator:
                     "evaluation": data.get("evaluation"),
                     "traffic_flow": data.get("traffic_flow"),
                     "show_metrics": True,
+                    **runtime_payload,
                 },
             )
             all_steps = build_narration_steps(cognition=cognition, data=data, nlu=session.nlu)
@@ -1095,28 +1112,6 @@ class Orchestrator:
             if quantitative_constraints:
                 session.data_payload["quantitative_constraints"] = quantitative_constraints
         self._log_evidence_debug(problem_evidence, quantitative_constraints)
-        if emitter:
-            pe_data: dict[str, Any] = {
-                "summary": problem_evidence.get("summary"),
-                "chronic": problem_evidence.get("chronic"),
-                "dow_pattern": problem_evidence.get("dow_pattern"),
-                "metrics": problem_evidence.get("metrics"),
-                "by_direction": problem_evidence.get("by_direction"),
-                "by_turn": problem_evidence.get("by_turn"),
-                "by_approach": problem_evidence.get("by_approach"),
-                "timing_profile": problem_evidence.get("timing_profile"),
-                "corridor_context": problem_evidence.get("corridor_context"),
-                "external_evidence": problem_evidence.get("external_evidence"),
-                "diagnosis_story": problem_evidence.get("diagnosis_story"),
-                "sustained_metrics": sustained_metrics,
-            }
-            if quantitative_constraints:
-                pe_data["quantitative_constraints"] = quantitative_constraints
-            await emitter.emit(
-                "problem_evidence",
-                "completed",
-                data=pe_data,
-            )
 
         data = session.data_payload
 
@@ -1147,6 +1142,42 @@ class Orchestrator:
         session.data_payload["flow_timing_governance"] = flow_timing_governance
         data = session.data_payload
 
+        problem_evidence = ProblemEvidenceService.refresh_diagnosis_story(
+            problem_evidence,
+            problem_types=problem_types or ["congestion"],
+            user_context=session.raw_user_context,
+            data_payload={
+                **data,
+                "matched_rules": diagnosis.matched_rules,
+            },
+            nlu_directions=session.nlu.directions if session.nlu else [],
+        )
+        session.data_payload["problem_evidence"] = problem_evidence
+
+        if emitter:
+            pe_data: dict[str, Any] = {
+                "summary": problem_evidence.get("summary"),
+                "chronic": problem_evidence.get("chronic"),
+                "dow_pattern": problem_evidence.get("dow_pattern"),
+                "metrics": problem_evidence.get("metrics"),
+                "by_direction": problem_evidence.get("by_direction"),
+                "by_turn": problem_evidence.get("by_turn"),
+                "by_approach": problem_evidence.get("by_approach"),
+                "timing_profile": problem_evidence.get("timing_profile"),
+                "corridor_context": problem_evidence.get("corridor_context"),
+                "external_evidence": problem_evidence.get("external_evidence"),
+                "diagnosis_story": problem_evidence.get("diagnosis_story"),
+                "problem_types": problem_evidence.get("problem_types"),
+                "sustained_metrics": sustained_metrics,
+            }
+            if quantitative_constraints:
+                pe_data["quantitative_constraints"] = quantitative_constraints
+            await emitter.emit(
+                "problem_evidence",
+                "completed",
+                data=pe_data,
+            )
+
         log_event(
             logger,
             logging.INFO,
@@ -1165,6 +1196,30 @@ class Orchestrator:
                     "matched_rules": diagnosis.matched_rules,
                     "metrics_snapshot": diagnosis.metrics_snapshot,
                     "flow_timing_governance": flow_timing_governance,
+                },
+            )
+            runtime_payload = self._runtime_metrics_payload(
+                data,
+                problem_types,
+                diagnosis=diagnosis,
+                user_context=session.raw_user_context,
+                nlu=session.nlu,
+            )
+            session.data_payload["runtime_metric_profile"] = runtime_payload["runtime_metric_profile"]
+            session.data_payload["runtime_items"] = runtime_payload["runtime_items"]
+            cognition = session.data_payload.get("cognition") or {}
+            await self._emit_map_sequence(
+                emitter,
+                action="update_metrics",
+                data={
+                    "metrics_by_arm": cognition.get("metrics_by_arm"),
+                    "metrics_by_turn": (data.get("granularity") or {}).get("by_turn"),
+                    "direction_groups": cognition.get("direction_groups"),
+                    "evaluation": data.get("evaluation"),
+                    "traffic_flow": data.get("traffic_flow"),
+                    "show_metrics": True,
+                    "final": True,
+                    **runtime_payload,
                 },
             )
             rule_step = pick_narration_step(
@@ -1819,6 +1874,28 @@ class Orchestrator:
             diagnosis.diagnosed = True
         return diagnosis
 
+    def _runtime_metrics_payload(
+        self,
+        data: dict[str, Any],
+        problem_types: list[str],
+        *,
+        diagnosis: DiagnosisResult | None = None,
+        user_context: str = "",
+        nlu: NluResult | None = None,
+    ) -> dict[str, Any]:
+        """Build diagnosis-driven runtime panel rows for SSE update_metrics."""
+        diag_dump = diagnosis.model_dump() if diagnosis else None
+        if diag_dump and diagnosis:
+            diag_dump["matched_rules"] = diagnosis.matched_rules
+        items, profile = self._runtime_metrics.build(
+            data,
+            problem_types or ["congestion"],
+            diagnosis=diag_dump,
+            user_context=user_context,
+            nlu=nlu,
+        )
+        return {"runtime_items": items, "runtime_metric_profile": profile}
+
     @staticmethod
     def _build_response(
         session: Session,
@@ -1840,6 +1917,12 @@ class Orchestrator:
             meta["active_dimensions"] = _presentation_dimension_packs().presentation_dimensions(
                 problem_types
             )
+            profile = session.data_payload.get("runtime_metric_profile") if session.data_payload else None
+            if profile:
+                meta["runtime_metric_profile"] = profile
+            runtime_items = session.data_payload.get("runtime_items") if session.data_payload else None
+            if runtime_items:
+                meta["runtime_items"] = runtime_items
         if session.data_payload:
             data_meta = session.data_payload.get("meta", {})
             dw = data_meta.get("data_window")

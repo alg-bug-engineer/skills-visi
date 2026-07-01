@@ -135,6 +135,24 @@ def _cognition() -> dict:
     }
 
 
+def test_build_map_scene_traffic_empty_green_shows_green_util():
+    nlu = NluResult(
+        intersection="测试路口",
+        problem_types=["empty_green"],
+        directions=["东西向"],
+        time_period=TimePeriod(start="17:00", end="19:00", label="晚高峰"),
+    )
+    scene = build_map_scene(
+        "traffic",
+        cognition=_cognition(),
+        data={"evaluation": {"green_utilization": 0.42, "delay_index": 1.47}},
+        nlu=nlu,
+    )
+    hud_labels = [m["label"] for m in scene["hud"]["metrics"]]
+    assert "绿灯利用率" in hud_labels
+    assert "延误指数" not in hud_labels
+
+
 def test_build_map_scene_traffic_shows_delay_not_saturation_on_map():
     scene = build_map_scene(
         "traffic",

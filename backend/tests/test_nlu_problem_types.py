@@ -22,3 +22,13 @@ async def test_default_congestion_when_no_keyword():
     svc = NluService()
     res = await svc.extract("奥体西路与经十路交叉口晚高峰南北向情况")
     assert res["data"].problem_types == ["congestion"]
+
+
+@pytest.mark.asyncio
+async def test_empty_green_natural_phrase():
+    svc = NluService()
+    res = await svc.extract(
+        "会展路与奥体中路路口晚高峰17点到19点西进口绿灯经常没车也放行，东进口却排队很长"
+    )
+    assert "empty_green" in res["data"].problem_types
+    assert "congestion" in res["data"].problem_types

@@ -9,6 +9,7 @@ import type {
 } from '../../types/presentation'
 import type { DataInsight } from '../../types/insight'
 import type { CaseScenario, ExperienceSedimentItem } from '../../types/experience'
+import type { ServerRuntimeMetricItem } from '../../utils/runtimeMetricProfile'
 import { STEP_INDICES } from '../../constants'
 import { buildNarrativeRuntimeItems } from '../../utils/narrativeStack'
 import { buildEvidenceListItems, buildSuggestionListItems } from '../../utils/channelizationCopy'
@@ -21,6 +22,7 @@ const props = defineProps<{
   focusedDirs?: string[]
   protectedDirs?: string[]
   runtimeMetrics?: RuntimeMetrics | null
+  serverRuntimeItems?: ServerRuntimeMetricItem[] | null
   dataInsight?: DataInsight | null
   evidence?: ProblemEvidence | null
   governanceSuggestion?: GovernanceSuggestionPayload | null
@@ -72,6 +74,7 @@ const runtimeItems = computed(() =>
     evidence: props.evidence,
     flowTimingGovernance: props.flowTimingGovernance,
     cognition: props.cognition,
+    serverRuntimeItems: props.serverRuntimeItems,
   }),
 )
 const showRuntime = computed(
@@ -126,6 +129,10 @@ function toggleEvidence() {
 function sevClass(sev?: string): string {
   return sev ? `sev-${sev}` : ''
 }
+
+function emphasisClass(emphasis?: string): string {
+  return emphasis ? `emph-${emphasis}` : ''
+}
 </script>
 
 <template>
@@ -157,7 +164,7 @@ function sevClass(sev?: string): string {
         <section v-if="showRuntime" class="block runtime">
           <span class="block-title">运行数据</span>
           <TransitionGroup name="item-in" tag="ul" class="list">
-            <li v-for="item in runtimeItems" :key="item.id" class="row" :class="sevClass(item.severity)">
+            <li v-for="item in runtimeItems" :key="item.id" class="row" :class="[sevClass(item.severity), emphasisClass(item.emphasis)]">
               <span class="tick">✓</span>
               <span class="label">{{ item.label }}</span>
               <span class="value">{{ item.value }}</span>
@@ -599,6 +606,17 @@ function sevClass(sev?: string): string {
 }
 .row.sev-low .value {
   color: #6dffb5;
+}
+.row.emph-background .label,
+.row.emph-background .value {
+  opacity: 0.72;
+  font-size: 11px;
+}
+.row.emph-secondary .value {
+  color: rgba(232, 246, 255, 0.92);
+}
+.row.emph-primary .value {
+  font-size: 13px;
 }
 .row.plain .text {
   color: rgba(226, 246, 255, 0.9);
