@@ -1249,6 +1249,12 @@ watch(
 .us-node.is-dim::after {
   animation: none;
 }
+.us-node.is-scaled {
+  border-width: 2px;
+}
+.us-node.is-scaled::after {
+  inset: -6px;
+}
 @keyframes us-node-ripple {
   0% {
     opacity: 0.88;

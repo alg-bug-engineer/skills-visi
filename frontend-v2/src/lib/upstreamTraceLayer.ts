@@ -1,13 +1,19 @@
 import { interpolatePath, particleDurationFor, type LngLat } from '../utils/traceParticles'
 import { upstreamEdgeStrokeWeight } from '../utils/upstreamStoryboard'
-import type { UpstreamCorrelateMap } from '../types/map'
+import {
+  buildCorrelateLabelHtml,
+  coverageNodeStyle,
+  defaultOpenUpstreamId,
+} from '../utils/upstreamCorrelateLabels'
+import type { CorrelateTraceIntersection, UpstreamCorrelateMap } from '../types/map'
 
 type AMapNS = typeof AMap
 type AMapMapInstance = InstanceType<typeof AMap.Map>
-type Overlay = InstanceType<typeof AMap.Polyline> | InstanceType<typeof AMap.Marker>
+type AMapMarker = InstanceType<typeof AMap.Marker>
+type Overlay = InstanceType<typeof AMap.Polyline> | AMapMarker
 
 interface Particle {
-  marker: InstanceType<typeof AMap.Marker>
+  marker: AMapMarker
   path: LngLat[]
   offset: number
   duration: number
@@ -20,6 +26,8 @@ const TRACE_COLORS = {
 } as const
 
 const PARTICLES_PER_EDGE = 3
+const LABEL_OFFSET: [number, number] = [10, -48]
+const MIN_LABEL_COVERAGE = 8
 
 /**
  * 单链路流量溯源渲染层：发光干线（外层 glow + 亮核）、沿线流动粒子（rAF + setPosition）、
@@ -30,6 +38,8 @@ export class UpstreamTraceLayer {
   private readonly map: AMapMapInstance
   private readonly byId = new Map<string, Overlay[]>()
   private readonly fitList: Overlay[] = []
+  private readonly labelMarkers = new Map<string, AMapMarker>()
+  private readonly openLabelIds = new Set<string>()
   private particles: Particle[] = []
   private rafId: number | null = null
 
@@ -153,47 +163,98 @@ export class UpstreamTraceLayer {
     this.rafId = requestAnimationFrame(tick)
   }
 
+  private upstreamNodeContent(
+    role: string,
+    opts: { dim?: boolean; coverage?: number | null },
+  ): string {
+    const roleCls =
+      role === 'target' ? 'is-target' : role === 'governance' ? 'is-gov' : ''
+    const dimCls = opts.dim ? ' is-dim' : ''
+    if (role !== 'upstream' || opts.coverage == null) {
+      return `<div class="us-node ${roleCls}${dimCls}"></div>`
+    }
+    const { size, opacity, glow } = coverageNodeStyle(opts.coverage)
+    const shadow = (14 * glow).toFixed(1)
+    const shadowOuter = (34 * glow).toFixed(1)
+    const alpha = (0.78 * glow).toFixed(2)
+    const alphaOuter = (0.26 * glow).toFixed(2)
+    return (
+      `<div class="us-node is-scaled ${roleCls}${dimCls}" ` +
+      `style="width:${size}px;height:${size}px;opacity:${opacity.toFixed(2)};` +
+      `box-shadow:0 0 ${shadow}px rgba(245,166,35,${alpha}),0 0 ${shadowOuter}px rgba(245,166,35,${alphaOuter})">` +
+      `</div>`
+    )
+  }
+
   /** 节点脉冲：目标=红、治理落点=绿、上游=琥珀（由 CSS class 决定）。 */
   revealNode(
     id: string,
     lon: number,
     lat: number,
-    opts: { role?: string; dim?: boolean } = {},
+    opts: {
+      role?: string
+      dim?: boolean
+      coverage?: number | null
+      clickable?: boolean
+      onClick?: () => void
+    } = {},
   ): void {
     const key = `node:${id}`
     if (this.byId.has(key)) return
     const role = opts.role ?? 'upstream'
-    const roleCls = role === 'target' ? 'is-target' : role === 'governance' ? 'is-gov' : ''
+    const clickable = Boolean(opts.clickable)
     const marker = new this.AMap.Marker({
       position: [lon, lat],
       anchor: 'center',
       zIndex: 95,
-      content: `<div class="us-node ${roleCls}${opts.dim ? ' is-dim' : ''}"></div>`,
+      content: this.upstreamNodeContent(role, opts),
+      cursor: clickable ? 'pointer' : undefined,
     })
+    if (clickable && opts.onClick) {
+      marker.on('click', opts.onClick)
+    }
     this.register(key, marker)
   }
 
-  /** 极简标签：跳数 + 路口名 + 饱和/流量。html 由调用方拼装。 */
-  revealLabel(
-    id: string,
-    lon: number,
-    lat: number,
-    html: string,
-    offset: [number, number],
-  ): void {
-    const key = `label:${id}`
-    if (this.byId.has(key)) return
+  private setLabelVisible(nodeId: string, visible: boolean): void {
+    const marker = this.labelMarkers.get(nodeId)
+    if (!marker) return
+    marker.setMap(visible ? this.map : null)
+    if (visible) this.openLabelIds.add(nodeId)
+    else this.openLabelIds.delete(nodeId)
+  }
+
+  private toggleLabel(nodeId: string): void {
+    this.setLabelVisible(nodeId, !this.openLabelIds.has(nodeId))
+  }
+
+  private ensureLabel(node: CorrelateTraceIntersection): void {
+    const nodeId = node.inter_id
+    if (this.labelMarkers.has(nodeId)) return
+    const [lon, lat] = node.center
     const marker = new this.AMap.Marker({
       position: [lon, lat],
       anchor: 'center',
-      offset: new this.AMap.Pixel(offset[0], offset[1]),
+      offset: new this.AMap.Pixel(LABEL_OFFSET[0], LABEL_OFFSET[1]),
       zIndex: 96,
-      content: html,
+      content: buildCorrelateLabelHtml(node),
     })
-    this.register(key, marker)
+    marker.setMap(null)
+    this.labelMarkers.set(nodeId, marker)
+    const key = `label:${nodeId}`
+    const list = this.byId.get(key) ?? []
+    list.push(marker)
+    this.byId.set(key, list)
+    this.fitList.push(marker)
   }
 
-  /** 溯源表全量路口：按路口绘制全部 link + 节点 + 标签。 */
+  private labelEligible(node: CorrelateTraceIntersection): boolean {
+    if (node.role === 'target') return false
+    const cov = node.path_coverage
+    return cov != null && cov >= MIN_LABEL_COVERAGE
+  }
+
+  /** 溯源表全量路口：按路口绘制全部 link + 节点 + 可切换标签。 */
   renderCorrelateMap(data: UpstreamCorrelateMap): void {
     const COLORS = {
       target: '#22c55e',
@@ -201,11 +262,14 @@ export class UpstreamTraceLayer {
       other: '#3b82f6',
       exit: '#475569',
     }
+    const defaultOpenId = defaultOpenUpstreamId(data)
+
     for (const node of data.intersections) {
       const isTarget = node.role === 'target'
       const isMain = Boolean(node.in_main_corridor)
       const baseColor = isTarget ? COLORS.target : isMain ? COLORS.main : COLORS.other
       const nodeId = node.inter_id
+      const canLabel = this.labelEligible(node)
 
       for (const link of node.links) {
         const ent = link.link_role === 'entrance' || link.link_role === '进口'
@@ -227,19 +291,16 @@ export class UpstreamTraceLayer {
       const [lon, lat] = node.center
       this.revealNode(nodeId, lon, lat, {
         role: isTarget ? 'target' : 'upstream',
+        coverage: isTarget ? null : node.path_coverage,
+        clickable: canLabel,
+        onClick: canLabel ? () => this.toggleLabel(nodeId) : undefined,
       })
 
-      if (isTarget) continue
-      const cov = node.path_coverage
-      if (cov == null || cov < 8) continue
-      const hopTxt = isMain && node.corridor_hop ? `走廊#${node.corridor_hop}` : '其他向'
-      const html =
-        `<div class="us-label">` +
-        `<div class="us-hop">${hopTxt}</div>` +
-        `<div class="us-name">${node.name}</div>` +
-        `<div class="us-metric" style="color:#fbbf24">途经 ${cov.toFixed(1)}%</div>` +
-        `</div>`
-      this.revealLabel(nodeId, lon, lat, html, [10, -48])
+      if (!canLabel) continue
+      this.ensureLabel(node)
+      if (nodeId === defaultOpenId) {
+        this.setLabelVisible(nodeId, true)
+      }
     }
   }
 
@@ -254,6 +315,8 @@ export class UpstreamTraceLayer {
       this.rafId = null
     }
     this.particles = []
+    this.labelMarkers.clear()
+    this.openLabelIds.clear()
     for (const list of this.byId.values()) {
       for (const overlay of list) (overlay as { setMap: (m: null) => void }).setMap(null)
     }
