@@ -13,6 +13,7 @@ import type { ServerRuntimeMetricItem } from '../../utils/runtimeMetricProfile'
 import { STEP_INDICES } from '../../constants'
 import { buildNarrativeRuntimeItems } from '../../utils/narrativeStack'
 import { buildEvidenceListItems, buildSuggestionListItems } from '../../utils/channelizationCopy'
+import TimingRingMiniWindow from '../timing/TimingRingMiniWindow.vue'
 
 const props = defineProps<{
   visible: boolean
@@ -33,14 +34,18 @@ const props = defineProps<{
   focusStepIndex: number
   /** 理解过程进入「运行数据」步骤后为 true（与 focusStepIndex 解耦，避免地图阶段抢跑） */
   runtimePanelRevealed?: boolean
+  /** NLU 解析的用户关注时段 */
+  timePeriodLabel?: string | null
   phase?: PipelinePhase
   /** 新一轮分析递增，重置粘性揭示 */
   runKey?: number
   /** 技能写入终端展开时隐藏左侧路口信息卡 */
   hideLeftPanel?: boolean
+  /** 配时环图：贴在运行数据卡下方 */
+  timingRingVisible?: boolean
 }>()
 
-const emit = defineEmits<{ openCase: [id: string] }>()
+const emit = defineEmits<{ openCase: [id: string]; closeTimingRing: [] }>()
 
 /** 治理建议的可溯源依据（案例/经验）。 */
 const suggestionReferences = computed(() => props.governanceSuggestion?.references ?? [])
@@ -79,6 +84,12 @@ const runtimeItems = computed(() =>
 )
 const showRuntime = computed(
   () => Boolean(props.runtimePanelRevealed) && runtimeItems.value.length > 0,
+)
+
+const showTimingRing = computed(
+  () =>
+    Boolean(props.timingRingVisible) &&
+    Boolean(props.evidence?.timing_profile?.ring_diagram?.available),
 )
 
 /* ── 问题验证（默认展开，可手动折叠）──────────────────────────────────────── */
@@ -150,6 +161,10 @@ function emphasisClass(emphasis?: string): string {
             <span class="id">{{ intersection.inter_id }}</span>
           </p>
           <div class="meta-grid">
+            <div v-if="timePeriodLabel" class="meta wide">
+              <span class="k">分析时段</span>
+              <span class="v">{{ timePeriodLabel }}</span>
+            </div>
             <div class="meta wide">
               <span class="k">进口车道</span>
               <span class="v">{{ armCount }} 进口 · {{ laneCount }} 车道</span>
@@ -171,6 +186,13 @@ function emphasisClass(emphasis?: string): string {
             </li>
           </TransitionGroup>
         </section>
+
+        <TimingRingMiniWindow
+          embedded
+          :visible="showTimingRing"
+          :profile="evidence?.timing_profile"
+          @close="emit('closeTimingRing')"
+        />
       </aside>
 
       <!-- 右侧：问题验证、治理建议各为独立卡片（治理建议在验证下方） -->

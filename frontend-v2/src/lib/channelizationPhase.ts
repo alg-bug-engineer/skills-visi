@@ -28,6 +28,7 @@ import {
 } from '../utils/channelArmLabels'
 import { highlightDirsForGroup, normalizeAxisFocusGroups, toAxisFocusGroup } from '../utils/evidencePresentation'
 import { resolvePrimaryProblemType } from '../utils/runtimeMetricProfile'
+import { resolveTurnMetrics, turnFlowLabelsFromMetrics, turnSatLabelsFromMetrics } from '../utils/turnMetrics'
 import type { ArmSceneLabel, HighlightEvidence, TurnHighlightSpec } from './channelizationAmap'
 
 export interface PhaseHighlightTarget {
@@ -35,6 +36,9 @@ export interface PhaseHighlightTarget {
   applyTurnHighlight(spec: TurnHighlightSpec): void
   applyTurnSaturationLabels(
     specs: Array<{ dir: string; turnCode: string; label: string; saturation: number }>,
+  ): void
+  applyTurnFlowLabels(
+    specs: Array<{ dir: string; turnCode: string; label: string; flowVph: number }>,
   ): void
   applyCheckHighlight(indicatorId: string, verdict: string, evidence: HighlightEvidence): void
   applyDirectionRoleHighlight(focusDirs: string[], protectDirs: string[]): void
@@ -110,6 +114,40 @@ function enrichSaturationHints(labels: ArmSceneLabel[]): ArmSceneLabel[] {
       }
     })
     .filter((l): l is ArmSceneLabel => l != null && Boolean(l.line1 || l.line2?.trim()))
+}
+
+/** direction / saturation / granularity：转向级指标标注在对应车道上（非路口中心浮框） */
+const TURN_LANE_LABEL_PHASES: PipelinePhase[] = ['direction', 'saturation', 'granularity']
+
+function resolveLanePinnedSpecs(
+  params: PhaseHighlightParams,
+  phase: PipelinePhase,
+): { sat: ReturnType<typeof turnSatLabelsFromMetrics>; flow: ReturnType<typeof turnFlowLabelsFromMetrics>; hasAny: boolean } {
+  const turns = resolveTurnMetrics(params.cognition, params.evidence?.by_turn)
+  const sat =
+    TURN_LANE_LABEL_PHASES.includes(phase) &&
+    isPresentationDimActive(params.activeDimensions, 'saturation')
+      ? turnSatLabelsFromMetrics(turns)
+      : []
+  const flow =
+    phase === 'traffic' && isPresentationDimActive(params.activeDimensions, 'flow')
+      ? turnFlowLabelsFromMetrics(turns)
+      : []
+  return { sat, flow, hasAny: sat.length > 0 || flow.length > 0 }
+}
+
+function applyTurnLaneMetricLabels(
+  layer: PhaseHighlightTarget,
+  specs: ReturnType<typeof turnSatLabelsFromMetrics>,
+): void {
+  if (specs.length) layer.applyTurnSaturationLabels(specs)
+}
+
+function applyTurnLaneFlowLabelsLayer(
+  layer: PhaseHighlightTarget,
+  specs: ReturnType<typeof turnFlowLabelsFromMetrics>,
+): void {
+  if (specs.length) layer.applyTurnFlowLabels(specs)
 }
 
 /** 关注/保护高亮与臂标在运行数据相关阶段持续展示，避免一闪而过。 */
@@ -227,7 +265,7 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
   const isStructure = COGNITION_STRUCTURE_PHASES.includes(phase)
   const allowRuntimeMetrics = params.allowRuntimeMetrics !== false
 
-  if (params.highlightTurn && !isStructure && allowRuntimeMetrics) {
+  if (params.highlightTurn && !isStructure && allowRuntimeMetrics && phase !== 'granularity') {
     layer.applyTurnHighlight({
       dir: params.highlightTurn.dir,
       turnCode: turnCodeFromLabel(params.highlightTurn.turn),
@@ -245,10 +283,14 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
 
   if (isStructure || !allowRuntimeMetrics) return
 
+  const pinned = resolveLanePinnedSpecs(params, phase)
+
   if (phase === 'saturation') {
-    const sat = ev.saturation_max ?? null
-    if (sat == null) return
-    layer.applyCheckHighlight('saturation', highlightVerdict(sat, 0.85, 0.65), ev)
+    if (!pinned.sat.length) {
+      const sat = ev.saturation_max ?? null
+      if (sat == null) return
+      layer.applyCheckHighlight('saturation', highlightVerdict(sat, 0.85, 0.65), ev)
+    }
   } else if (phase === 'traffic') {
     // 流量阶段不叠加饱和度浮标，避免与 saturation 阶段重复
   } else if (phase === 'imbalance') {
@@ -256,9 +298,11 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
     if (imb == null) return
     layer.applyCheckHighlight('imbalance', highlightVerdict(imb, 0.35, 0.25), ev)
   } else if (phase === 'granularity') {
-    const sat = ev.max_turn_saturation ?? ev.saturation_max ?? null
-    if (sat == null) return
-    layer.applyCheckHighlight('saturation', highlightVerdict(sat, 0.85, 0.65), ev)
+    if (!pinned.sat.length) {
+      const sat = ev.max_turn_saturation ?? ev.saturation_max ?? null
+      if (sat == null) return
+      layer.applyCheckHighlight('saturation', highlightVerdict(sat, 0.85, 0.65), ev)
+    }
   }
 
   applyDirectionRoleOnArms(layer, phase, params.highlightDirs ?? [], params.protectedDirs ?? [])
@@ -279,7 +323,10 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
   } else if (!usingRoleLabels) {
     labels = stripSaturationFromLabels(labels)
   }
-  layer.applyArmSceneLabels(labels)
+  // 转向级指标已贴车道时，不再叠进口浮框（关注/保护由色带 + 左侧卡承担）
+  if (!pinned.hasAny) {
+    layer.applyArmSceneLabels(labels)
+  }
 
   const hasQueueText = labels.some((l) => l.line2?.includes('排队'))
   if (
@@ -290,4 +337,7 @@ export function applyPhaseHighlight(layer: PhaseHighlightTarget, params: PhaseHi
     const activeQueues = (params.queueArms ?? []).filter((q) => q.queueM > 0)
     if (activeQueues.length) layer.applyQueueLengthHighlight(activeQueues)
   }
+
+  applyTurnLaneMetricLabels(layer, pinned.sat)
+  applyTurnLaneFlowLabelsLayer(layer, pinned.flow)
 }

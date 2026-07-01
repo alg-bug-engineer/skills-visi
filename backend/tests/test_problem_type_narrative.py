@@ -4,8 +4,10 @@ from intersection_agent.utils.problem_type_narrative import (
     build_conflict_story_beats,
     build_empty_green_story_beats,
     build_problem_diagnosis_story,
+    format_suggestion_problem_type_guidance,
     infer_mixed_turn_approaches,
     resolve_primary_problem_type,
+    resolve_problem_types_from_data,
 )
 
 
@@ -95,3 +97,17 @@ def test_empty_green_diagnosis_story_no_saturation_metrics_phase():
     phases = [b["phase"] for b in beats]
     assert "metrics" not in phases
     assert "empty_green_util" in phases or "empty_green_contrast" in phases
+
+
+def test_format_suggestion_problem_type_guidance_primary():
+    text = format_suggestion_problem_type_guidance(
+        {"problem_evidence": {"problem_types": ["empty_green", "congestion"]}}
+    )
+    assert "空放类" in text
+    assert "主问题·empty_green" in text
+    assert "叠加·congestion" in text
+
+
+def test_resolve_problem_types_from_data_meta():
+    types = resolve_problem_types_from_data({"meta": {"problem_types": ["spillback"]}})
+    assert types == ["spillback"]

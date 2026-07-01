@@ -72,6 +72,27 @@ def test_runtime_profile_spillback_primary_queue_metrics():
     assert "imbalance_index" in profile["hidden"]
 
 
+def test_runtime_profile_congestion_includes_turn_flow():
+    svc = DimensionPackService()
+    profile = svc.runtime_profile(["congestion"])
+    assert "turn_flow" in profile["secondary"]
+
+
+def test_builder_congestion_includes_turn_flow():
+    builder = RuntimeMetricBuilder()
+    data = _base_data()
+    data["granularity"] = {
+        "by_turn": [
+            {"label": "北直行", "flow_vph": 620},
+            {"label": "南左转", "flow_vph": 180},
+        ]
+    }
+    items, _ = builder.build(data, ["congestion"])
+    labels = [i["label"] for i in items]
+    assert "北直行流量" in labels
+    assert any("620" in i["value"] for i in items if i["label"] == "北直行流量")
+
+
 def test_builder_congestion_primary_metrics():
     builder = RuntimeMetricBuilder()
     items, _profile = builder.build(_base_data(), ["congestion"])

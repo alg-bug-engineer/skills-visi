@@ -87,6 +87,7 @@ export function usePresentation() {
     state.caseExperience = []
     state.activeDimensions = []
     state.problemTypes = []
+    state.timePeriodLabel = null
     state.focusedDirs = []
     state.protectedDirs = []
     state.revealedInsightSteps = {
@@ -121,6 +122,11 @@ export function usePresentation() {
   function setActiveDimensions(dims: string[], problemTypes: string[]) {
     state.activeDimensions = Array.isArray(dims) ? dims : []
     state.problemTypes = Array.isArray(problemTypes) ? problemTypes : []
+  }
+
+  function setTimePeriodLabel(label: string | null | undefined) {
+    const text = (label ?? '').trim()
+    state.timePeriodLabel = text || null
   }
 
   function setRuntimeMetricsPayload(
@@ -449,6 +455,7 @@ export function usePresentation() {
     prepareNewAnalysisRun,
     reset,
     setActiveDimensions,
+    setTimePeriodLabel,
     setRuntimeMetricsPayload,
     setPhase,
     mergeDataInsight,

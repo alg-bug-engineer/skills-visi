@@ -8,6 +8,7 @@ function makeFakeLayer() {
     clearCheck: [],
     applyTurnHighlight: [],
     applyTurnSaturationLabels: [],
+    applyTurnFlowLabels: [],
     applyCheckHighlight: [],
     applyDirectionRoleHighlight: [],
     applyArmSceneLabels: [],
@@ -17,6 +18,7 @@ function makeFakeLayer() {
     clearCheck: () => calls.clearCheck.push([]),
     applyTurnHighlight: (s) => calls.applyTurnHighlight.push([s]),
     applyTurnSaturationLabels: (s) => calls.applyTurnSaturationLabels.push([s]),
+    applyTurnFlowLabels: (s) => calls.applyTurnFlowLabels.push([s]),
     applyCheckHighlight: (a, b, c) => calls.applyCheckHighlight.push([a, b, c]),
     applyDirectionRoleHighlight: (a, b) => calls.applyDirectionRoleHighlight.push([a, b]),
     applyArmSceneLabels: (a) => calls.applyArmSceneLabels.push([a]),
@@ -276,6 +278,42 @@ describe('applyPhaseHighlight', () => {
     })
     expect(calls.applyDirectionRoleHighlight).toHaveLength(1)
     expect(calls.applyDirectionRoleHighlight[0][0]).toEqual(['东', '西'])
+  })
+
+  it('direction 阶段有转向饱和 → 标注在对应车道（非中心浮框）', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'direction',
+      cognition: {
+        ...COG,
+        metrics_by_turn: [
+          { label: '西左转', dir4_label: '西', turn_dir_no: 1, turn_saturation: 0.92 },
+          { label: '西直行', dir4_label: '西', turn_dir_no: 2, turn_saturation: 0.71 },
+        ],
+      },
+      activeDimensions: ['flow', 'saturation'],
+    })
+    expect(calls.applyTurnSaturationLabels).toHaveLength(1)
+    expect(calls.applyTurnSaturationLabels[0][0]).toHaveLength(2)
+    expect(calls.applyArmSceneLabels.at(-1)?.[0]).toEqual([])
+  })
+
+  it('traffic 阶段有转向流量 → 标注在对应车道', () => {
+    const { layer, calls } = makeFakeLayer()
+    applyPhaseHighlight(layer, {
+      phase: 'traffic',
+      allowRuntimeMetrics: true,
+      cognition: {
+        ...COG,
+        metrics_by_turn: [
+          { label: '北直行', dir4_label: '北', turn_dir_no: 2, flow_vph: 620 },
+          { label: '南左转', dir4_label: '南', turn_dir_no: 1, flow_vph: 180 },
+        ],
+      },
+      activeDimensions: ['flow', 'queue'],
+    })
+    expect(calls.applyTurnFlowLabels).toHaveLength(1)
+    expect(calls.applyTurnFlowLabels[0][0]).toHaveLength(2)
   })
 
   it('traffic 阶段不叠饱和度浮标，但有角色(清空)+臂标签', () => {

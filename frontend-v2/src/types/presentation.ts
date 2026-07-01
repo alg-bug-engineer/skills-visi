@@ -137,6 +137,8 @@ export interface PresentationState {
   /** 后端诊断驱动的运行数据行（优先于本地拼装） */
   runtimeItems: ServerRuntimeMetricItem[]
   runtimeMetricProfile: RuntimeMetricProfile | null
+  /** NLU 解析的用户关注时段（如「晚高峰 17:00-19:00」） */
+  timePeriodLabel: string | null
 }
 
 /**
@@ -205,6 +207,7 @@ export function createInitialPresentation(): PresentationState {
     problemTypes: [],
     runtimeItems: [],
     runtimeMetricProfile: null,
+    timePeriodLabel: null,
   }
 }
 
@@ -224,10 +227,11 @@ export function shouldShowTimingRingMini(
 ): boolean {
   const hasRing = Boolean(state.evidence?.timing_profile?.ring_diagram?.available)
   if (!hasRing) return false
-  // 配时环图仅在当前问题用到「环图」维度时出现（如空放）；拥堵等不展示
-  if (!isPresentationDimActive(state.activeDimensions, 'ring')) return false
-  if (state.timingRingMiniDismissed && !state.timingRingMiniOpen) return false
+  // 用户手动打开时不受 ring 维度 / 阶段 gate 限制
   if (state.timingRingMiniOpen) return true
+  // 配时环图仅在当前问题用到「环图」维度时出现（如空放）；拥堵等不自动展示
+  if (!isPresentationDimActive(state.activeDimensions, 'ring')) return false
+  if (state.timingRingMiniDismissed) return false
   return timingRingAutoPhases(state.activeDimensions).includes(phase)
 }
 

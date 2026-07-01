@@ -17,7 +17,7 @@ from intersection_agent.services.suggestion_context import (
     narrative_echoes_diagnosis,
     prepare_suggestion_data,
 )
-from intersection_agent.services.rule_engine import evaluate_formula
+from intersection_agent.utils.problem_type_narrative import format_suggestion_problem_type_guidance
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,9 @@ NARRATIVE_PROMPT = """
 {upstream_trace}
 - 用户经验与约束（必须优先回应，不得忽略）：
 {user_experience}
+
+## 四类问题治理建议参考（须结合数据与主问题类型选用，不可生搬硬套）
+{problem_type_guidance}
 
 ## 专业原则（必须遵守）
 1. 若绿灯利用率已偏高或存在空放/失衡，禁止简单建议「一律加绿灯」；应优先绿信比再分配、压缩空放相位。
@@ -116,6 +119,7 @@ class SuggestionService:
         )
         upstream_trace_text = format_upstream_trace_for_prompt(data)
         user_experience_text = format_user_experience_for_prompt(data, user_suggestion)
+        problem_type_guidance = format_suggestion_problem_type_guidance(data)
         prompt = NARRATIVE_PROMPT.format(
             intersection=meta.get("intersection", ""),
             time_label=tp.get("label", ""),
@@ -135,6 +139,7 @@ class SuggestionService:
             case_experience=case_experience or "无同类场景经验。",
             upstream_trace=upstream_trace_text,
             user_experience=user_experience_text,
+            problem_type_guidance=problem_type_guidance,
         )
 
         log_event(

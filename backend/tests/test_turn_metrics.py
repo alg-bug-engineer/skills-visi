@@ -23,6 +23,13 @@ def test_normalize_turn_metrics_from_by_turn():
     assert west["turn_saturation"] == 0.0295
 
 
+def test_normalize_turn_metrics_includes_flow_vph():
+    rows = normalize_turn_metrics(
+        [{"label": "北直行", "turn_saturation": 0.82, "flow_vph": 620.4}]
+    )
+    assert rows[0]["flow_vph"] == 620.4
+
+
 def test_build_direction_groups_from_turns():
     arms = [{"dir4_label": "东"}, {"dir4_label": "西"}]
     turns = normalize_turn_metrics(

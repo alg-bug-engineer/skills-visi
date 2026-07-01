@@ -335,7 +335,8 @@ class DataFetcher:
             f"""
             SELECT ts.dir8_code, ts.turn_dir_no,
                    AVG(ts.turn_saturation) AS turn_saturation,
-                   AVG(gu.green_utilization) AS green_utilization
+                   AVG(gu.green_utilization) AS green_utilization,
+                   AVG(tf.turn_flow_total) AS turn_flow_total
             FROM {schema}.dws_turn_saturation_5min_mm ts
             LEFT JOIN {schema}.dws_turn_green_utilization_5min_mm gu
               ON gu.inter_id = ts.inter_id
@@ -344,6 +345,13 @@ class DataFetcher:
              AND gu.day_of_week = ts.day_of_week
              AND gu.step_index = ts.step_index
              AND gu.is_deleted = 0
+            LEFT JOIN {schema}.dws_inter_link_turn_flow_5min_mm tf
+              ON tf.inter_id = ts.inter_id
+             AND tf.dir8_code = ts.dir8_code
+             AND tf.turn_dir_no = ts.turn_dir_no
+             AND tf.day_of_week = ts.day_of_week
+             AND tf.step_index = ts.step_index
+             AND tf.is_deleted = 0
             WHERE ts.inter_id = $1
               AND ts.day_of_week = ANY($2::int[])
               AND ts.step_index BETWEEN $3 AND $4
@@ -364,6 +372,7 @@ class DataFetcher:
                 "turn_dir_no": int(r.get("turn_dir_no") or 2),
                 "turn_saturation": _float(r, "turn_saturation"),
                 "green_utilization": _float(r, "green_utilization"),
+                "flow_vph": _float(r, "turn_flow_total"),
             }
             for r in rows
         ]

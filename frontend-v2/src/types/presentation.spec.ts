@@ -43,4 +43,11 @@ describe('shouldShowTimingRingMini · 配时环图按需出现', () => {
     const state = withRing()
     expect(shouldShowTimingRingMini('timing', state)).toBe(true)
   })
+
+  it('manual open bypasses ring dimension gate', () => {
+    const state = withRing()
+    state.activeDimensions = ['flow', 'channelization', 'saturation', 'queue', 'delay']
+    state.timingRingMiniOpen = true
+    expect(shouldShowTimingRingMini('links', state)).toBe(true)
+  })
 })

@@ -10,7 +10,6 @@ import type {
 } from '../../types/presentation'
 import type { PresentationLayerGates } from '../../composables/usePresentationSequence'
 import type { FlowTimingGovernance } from '../../types/evidence'
-import TimingRingMiniWindow from '../timing/TimingRingMiniWindow.vue'
 import CorridorWaveMiniWindow from '../corridor/CorridorWaveMiniWindow.vue'
 
 const props = defineProps<{
@@ -23,7 +22,6 @@ const props = defineProps<{
   phase?: PipelinePhase
   highlightTurn?: HighlightTurn | null
   runtimeMetrics?: RuntimeMetrics | null
-  timingRingVisible?: boolean
   corridorWaveVisible?: boolean
   // 问题验证 / 治理建议已迁入右侧叙事卡（IntersectionNarrativeStack），此处保留 prop 以兼容绑定
   showEvidenceNote?: boolean
@@ -40,7 +38,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  closeTimingRing: []
   closeCorridorWave: []
 }>()
 
@@ -110,11 +107,6 @@ const totalLanes = computed(() =>
 
       <div class="chan-body">
         <div v-if="fullscreen" class="chan-minis">
-          <TimingRingMiniWindow
-            :visible="Boolean(timingRingVisible)"
-            :profile="evidence?.timing_profile"
-            @close="emit('closeTimingRing')"
-          />
           <CorridorWaveMiniWindow
             :visible="Boolean(corridorWaveVisible)"
             :corridor="evidence?.corridor_context"
@@ -292,7 +284,6 @@ const totalLanes = computed(() =>
   pointer-events: none;
 }
 
-.chan-minis :deep(.timing-mini),
 .chan-minis :deep(.corridor-mini) {
   position: relative;
   top: auto;

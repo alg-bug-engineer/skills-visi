@@ -61,6 +61,10 @@ def normalize_turn_metrics(by_turn: list[dict[str, Any]] | None) -> list[dict[st
         sat = float(sat_raw) if sat_raw is not None else None
         gu_raw = row.get("green_utilization")
         gu = float(gu_raw) if gu_raw is not None else None
+        flow_raw = row.get("flow_vph")
+        if flow_raw is None:
+            flow_raw = row.get("turn_flow_total")
+        flow = float(flow_raw) if flow_raw is not None else None
         result.append(
             {
                 "label": label,
@@ -70,6 +74,7 @@ def normalize_turn_metrics(by_turn: list[dict[str, Any]] | None) -> list[dict[st
                 "turn_dir_no": turn_dir_no,
                 "turn_saturation": round(sat, 4) if sat is not None else None,
                 "green_utilization": round(gu, 4) if gu is not None else None,
+                "flow_vph": round(flow, 1) if flow is not None else None,
                 "level": _saturation_level(sat),
             }
         )

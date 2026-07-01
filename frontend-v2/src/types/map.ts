@@ -55,6 +55,7 @@ export interface TurnMetric {
   turn_dir_no?: number | null
   turn_saturation?: number | null
   green_utilization?: number | null
+  flow_vph?: number | null
   level?: string
 }
 

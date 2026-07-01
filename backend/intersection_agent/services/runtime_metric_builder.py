@@ -445,6 +445,32 @@ class RuntimeMetricBuilder:
                     break
             return rows[:2]
 
+        if key == "turn_flow":
+            turns = gran.get("by_turn") or evidence.get("by_turn") or []
+            ranked = sorted(
+                turns,
+                key=lambda t: _float(t.get("flow_vph") or t.get("turn_flow_total")) or 0.0,
+                reverse=True,
+            )
+            rows: list[dict[str, Any]] = []
+            for turn in ranked:
+                label = str(turn.get("label") or "")
+                flow = _float(turn.get("flow_vph") or turn.get("turn_flow_total"))
+                if not label or flow is None or flow <= 0:
+                    continue
+                rows.append(
+                    _row(
+                        key,
+                        f"{label}流量",
+                        f"{flow:.0f} 辆/h",
+                        emphasis,
+                        severity="medium",
+                    )
+                )
+                if len(rows) >= 2:
+                    break
+            return rows
+
         if key == "imbalance_index":
             imb = _float(metrics.get("imbalance_index")) or _float(evaluation.get("imbalance_index"))
             if imb is None:

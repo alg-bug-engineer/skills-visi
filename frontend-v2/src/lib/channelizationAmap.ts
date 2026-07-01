@@ -1,13 +1,3 @@
-/**
- * channelizationAmap.ts
- *
- * 基于高德地图(AMap)矢量覆盖物的路口渠化渲染器，替代 channelizationLayer.js(THREE)。
- * 完整复刻：静态渠化（车道面/虚线/停止线/斑马线/转向箭头/转角圆弧/真实中心线）
- * 与四套阶段标注（applyCheckHighlight / applyTurnHighlight /
- * applyDirectionRoleHighlight / applyArmSceneLabels）。
- *
- * 依赖注入：构造时传入 AMap 命名空间与 map 实例，便于单测用 stub。
- */
 import {
   ARM_LEN,
   CW_GAP,
@@ -28,6 +18,7 @@ import {
   angleDiff,
 } from './channelizationGeometry'
 import type { ChannelQueueArm } from '../utils/cognitionChannelAdapter'
+import { formatTurnFlowVph, shortTurnLabel } from '../utils/turnMetrics'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AMapNS = any
@@ -451,6 +442,17 @@ export class ChannelizationAmapLayer {
     return new this.amap.Marker({ position: pos, content, offset: new this.amap.Pixel(0, 0), bubble: true, zIndex: 60 })
   }
 
+  /** 贴车道/路面的紧凑单行标注（避免大浮框重叠） */
+  private makeCompactLaneLabel(pos: LonLat, text: string, colorHex: string): Overlay {
+    const content =
+      `<div style="transform:translate(-50%,-50%);padding:1px 5px;` +
+      `background:rgba(0,6,14,0.88);border:1px solid ${colorHex};border-radius:3px;` +
+      `font-family:'Microsoft YaHei',sans-serif;font-size:9px;font-weight:600;color:${colorHex};` +
+      `line-height:1.25;white-space:nowrap;pointer-events:none;` +
+      `box-shadow:0 1px 4px rgba(0,0,0,0.4);">${text}</div>`
+    return new this.amap.Marker({ position: pos, content, offset: new this.amap.Pixel(0, 0), bubble: true, zIndex: 55 })
+  }
+
   /** 清除所有阶段标注（rebuild / dispose 用） */
   clearHighlight() {
     this.clearCheck()
@@ -607,12 +609,44 @@ export class ChannelizationAmapLayer {
             zIndex: 44,
           }),
         )
-        const labelPos = this.ll(u0 + ARM_LEN * 0.32, (vIn + vOut) / 2, arm.angle)
-        const line1 = spec.label || `${spec.dir}向`
-        const line2 = sat.toFixed(2)
+        const labelPos = this.ll(u0 + ARM_LEN * 0.36, (vIn + vOut) / 2, arm.angle)
+        const tag = `${shortTurnLabel(spec.label || `${spec.dir}向`)} ${sat.toFixed(2)}`
+        this.addCheck(this.makeCompactLaneLabel(labelPos, tag, flowColor))
+        break
+      }
+    }
+  }
+
+  /* ── applyTurnFlowLabels（各转向车道流量 veh/h，贴车道标注） ─ */
+  applyTurnFlowLabels(
+    specs: Array<{ dir: string; turnCode: string; label: string; flowVph: number }> = [],
+  ) {
+    if (!this.arms.length || !specs.length) return
+    for (const spec of specs) {
+      if (!spec?.dir || !spec?.turnCode || spec.flowVph == null) continue
+      for (const arm of this.arms) {
+        if (!armMatchesDir(arm.angle, spec.dir)) continue
+        const inLanes = arm.inLink ? parseLaneInfo(arm.inLink) : []
+        const laneIdx = inLanes.findIndex((code) => code === spec.turnCode)
+        if (laneIdx < 0) continue
+        const u0 = this.boxR
+        const vIn = -(laneIdx * LANE_W)
+        const vOut = -((laneIdx + 1) * LANE_W)
+        const flow = Number(spec.flowVph)
+        const flowColor = flow >= 800 ? '#29b6f6' : flow >= 400 ? '#4dd0e1' : '#80deea'
         this.addCheck(
-          this.makeTextMarker(labelPos, line1, line2, flowColor, -8),
+          new this.amap.Polygon({
+            path: this.rect(arm, u0, u0 + ARM_LEN * 0.5, vOut, vIn),
+            strokeOpacity: 0,
+            fillColor: flowColor,
+            fillOpacity: 0.28,
+            bubble: true,
+            zIndex: 43,
+          }),
         )
+        const labelPos = this.ll(u0 + ARM_LEN * 0.36, (vIn + vOut) / 2, arm.angle)
+        const tag = `${shortTurnLabel(spec.label || `${spec.dir}向`)} ${formatTurnFlowVph(flow)}`
+        this.addCheck(this.makeCompactLaneLabel(labelPos, tag, flowColor))
         break
       }
     }
@@ -754,11 +788,10 @@ export class ChannelizationAmapLayer {
       }
       const arm = this.arms.find((a) => armMatchesDir(a.angle, label.dir))
       if (!arm) continue
-      const pos = this.ll(this.boxR + ARM_LEN * 0.94, 0, arm.angle)
+      const pos = this.ll(this.boxR + ARM_LEN * 0.88, 0, arm.angle)
       const showLine2 = line2 && line2 !== '—' && line2 !== '-' && line2 !== '–'
-      this.addLabel(
-        this.makeTextMarker(pos, line1, showLine2 ? line2 : '', label.colorHex || '#00e5ff', -10),
-      )
+      const compact = showLine2 ? `${line1} ${line2}` : line1
+      this.addLabel(this.makeCompactLaneLabel(pos, compact, label.colorHex || '#00e5ff'))
     }
   }
 

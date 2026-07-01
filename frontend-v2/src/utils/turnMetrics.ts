@@ -32,6 +32,7 @@ export function normalizeTurnMetrics(
       turn_dir_no: ('turn_dir_no' in row ? row.turn_dir_no : null) ?? null,
       turn_saturation: row.turn_saturation ?? null,
       green_utilization: row.green_utilization ?? null,
+      flow_vph: ('flow_vph' in row ? row.flow_vph : null) ?? null,
       level: 'level' in row ? row.level : undefined,
     }
   })
@@ -83,6 +84,13 @@ export interface TurnSatLabelSpec {
   saturation: number
 }
 
+export function shortTurnLabel(label: string): string {
+  const dir = label.match(/^[东南西北]+/)?.[0] ?? ''
+  const turn = label.match(/(左|直|右|调)/)?.[0] ?? ''
+  if (dir && turn) return `${dir}·${turn}`
+  return label.length > 6 ? `${label.slice(0, 6)}…` : label
+}
+
 export function turnSatLabelsFromMetrics(turns: TurnMetric[]): TurnSatLabelSpec[] {
   const specs: TurnSatLabelSpec[] = []
   for (const t of sortTurnMetrics(turns)) {
@@ -92,6 +100,34 @@ export function turnSatLabelsFromMetrics(turns: TurnMetric[]): TurnSatLabelSpec[
       turnCode: turnCodeForMetric(t),
       label: t.label,
       saturation: Number(t.turn_saturation),
+    })
+  }
+  return specs
+}
+
+export interface TurnFlowLabelSpec {
+  dir: string
+  turnCode: string
+  label: string
+  flowVph: number
+}
+
+export function formatTurnFlowVph(flow: number): string {
+  if (!Number.isFinite(flow) || flow <= 0) return '—'
+  if (flow >= 1000) return `${(flow / 1000).toFixed(1)}k`
+  return `${Math.round(flow)}`
+}
+
+export function turnFlowLabelsFromMetrics(turns: TurnMetric[]): TurnFlowLabelSpec[] {
+  const specs: TurnFlowLabelSpec[] = []
+  for (const t of sortTurnMetrics(turns)) {
+    const flow = t.flow_vph
+    if (flow == null || !Number.isFinite(flow) || flow <= 0) continue
+    specs.push({
+      dir: normalizeDir(t.dir4_label || dirFromTurnLabel(t.label)),
+      turnCode: turnCodeForMetric(t),
+      label: t.label,
+      flowVph: Number(flow),
     })
   }
   return specs

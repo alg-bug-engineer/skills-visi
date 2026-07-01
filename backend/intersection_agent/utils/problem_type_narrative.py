@@ -320,3 +320,67 @@ def build_problem_diagnosis_story(
             )
 
     return beats
+
+
+SUGGESTION_GUIDANCE_BY_TYPE: dict[str, str] = {
+    "congestion": (
+        "拥堵类：禁止「一刀切加绿灯」。应针对高峰片段做精细化增绿（如短时峰值时段小幅动态增绿）；"
+        "增绿来源优先从低利用转向（如低饱和左转）挪绿，须校核最小绿与行人过街。"
+        "整体饱和均值不高时，不建议全天扩大周期，以免制造空放与额外等待。"
+    ),
+    "empty_green": (
+        "空放类：优先讲绿信比压缩与精细化配时。"
+        "对低利用方向（如低饱和左转、低需求直行）分时段压缩绿灯；"
+        "排查固定相位过长、低需求仍按高峰方案放行；"
+        "可考虑感应控制、相位合并、搭接放行或跳相位，但须保护行人最小过街时间。"
+        "可引用「一般路口优化」中的绿信比调整、共享相位/行人搭接经验。"
+    ),
+    "spillback": (
+        "溢出类：区分「防峰值排队」与「重度持续溢出」。"
+        "排队峰值明显但未持续外溢时，建议排队触发阈值与短时清空策略（如超 80–100m 启动），"
+        "而非直接上红波截流；仅在上游短间距/协调路口且持续回溢时，才考虑上游联动或截流。"
+        "「上截下疏、红波截流」仅适用于持续回溢场景，慎用。"
+    ),
+    "conflict": (
+        "冲突类：不能仅凭运行指标断定冲突，宜作补采型诊断。"
+        "须补查渠化、相位相序、行人非机动车过街、左转/掉头组织；"
+        "关注「排队不长但延误峰值高」的转向（如东/西左转），判断是否受相位、行人或交织干扰。"
+        "确认冲突后再提相序优化、保护左转、搭接相位、禁掉头/绕行引导；未确认前不得把冲突包装为主因。"
+    ),
+}
+
+
+def resolve_problem_types_from_data(data: dict[str, Any]) -> list[str]:
+    """Collect problem_types from payload/meta/evidence."""
+    pe = data.get("problem_evidence") or {}
+    meta = data.get("meta") or {}
+    raw = (
+        pe.get("problem_types")
+        or meta.get("problem_types")
+        or data.get("problem_types")
+        or []
+    )
+    types: list[str] = []
+    for item in raw:
+        value = str(item).strip()
+        if value in PROBLEM_TYPE_PRIORITY and value not in types:
+            types.append(value)
+    return types or ["congestion"]
+
+
+def format_suggestion_problem_type_guidance(
+    data: dict[str, Any],
+    *,
+    problem_types: list[str] | None = None,
+) -> str:
+    """Expert suggestion patterns by NLU problem type for LLM prompt."""
+    types = problem_types or resolve_problem_types_from_data(data)
+    primary = resolve_primary_problem_type(types)
+    lines: list[str] = []
+    if primary in SUGGESTION_GUIDANCE_BY_TYPE:
+        lines.append(f"【主问题·{primary}】{SUGGESTION_GUIDANCE_BY_TYPE[primary]}")
+    for pt in types:
+        if pt == primary or pt not in SUGGESTION_GUIDANCE_BY_TYPE:
+            continue
+        lines.append(f"【叠加·{pt}】{SUGGESTION_GUIDANCE_BY_TYPE[pt]}")
+    return "\n".join(lines) if lines else SUGGESTION_GUIDANCE_BY_TYPE["congestion"]

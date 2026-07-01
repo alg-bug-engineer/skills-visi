@@ -1582,7 +1582,15 @@ function handlePipelineStep(
 
   if (event.step === 'nlu') {
     if (data.status === 'complete') {
-      const nlu = data.nlu as { problem_types?: string[] } | undefined
+      const nlu = data.nlu as
+        | { problem_types?: string[]; time_period?: { label?: string; start?: string; end?: string } }
+        | undefined
+      const tp = nlu?.time_period
+      const timeLabel =
+        tp?.label?.trim() ||
+        (tp?.start && tp?.end ? `${tp.start}-${tp.end}` : '') ||
+        ''
+      if (timeLabel) presentation.setTimePeriodLabel(timeLabel)
       const problemTypes =
         (data.problem_types as string[] | undefined) ?? nlu?.problem_types ?? []
       if (problemTypes.length || data.active_dimensions) {

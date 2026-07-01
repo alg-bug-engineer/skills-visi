@@ -1230,7 +1230,6 @@ watch(
       :phase="pipelinePhase"
       :highlight-turn="highlightTurn"
       :runtime-metrics="runtimeMetrics"
-      :timing-ring-visible="timingRingVisible"
       :corridor-wave-visible="corridorWaveVisible"
       :show-evidence-note="showEvidenceNote"
       :show-governance-note="showGovernanceNote"
@@ -1241,7 +1240,6 @@ watch(
       :run-key="props.analysisRunKey ?? 0"
       :presentation-layers="presentationLayers"
       :suppress-hud="suppressStageHud"
-      @close-timing-ring="emit('closeTimingRing')"
       @close-corridor-wave="emit('closeCorridorWave')"
     />
 

@@ -98,10 +98,16 @@ const hideLeftNarrative = computed(
 )
 
 const showTimingMini = computed(() => {
+  const hasRing = Boolean(props.presentation.evidence?.timing_profile?.ring_diagram?.available)
+  if (props.presentation.timingRingMiniOpen) return hasRing
   const layers = props.presentationLayers
   const autoOk = layers ? layers.timingRingAuto : true
   return autoOk && shouldShowTimingRingMini(props.presentation.phase, props.presentation)
 })
+
+const timingRingButtonActive = computed(
+  () => props.presentation.timingRingMiniOpen || showTimingMini.value,
+)
 
 const showCorridorSidebar = computed(
   () => props.presentation.phase === 'corridor_scan' && Boolean(props.presentation.corridorScan),
@@ -147,7 +153,7 @@ const canToggleTiming = computed(
               v-if="canToggleTiming"
               type="button"
               class="chan-toggle timing"
-              :class="{ active: showTimingMini }"
+              :class="{ active: timingRingButtonActive }"
               @click="emit('toggleTimingRing')"
             >
               配时环图
@@ -223,8 +229,11 @@ const canToggleTiming = computed(
             :focus-step-index="focusStepIndex ?? -1"
             :runtime-panel-revealed="runtimeMetricsUnlocked"
             :phase="presentation.phase"
+            :time-period-label="presentation.timePeriodLabel"
+            :timing-ring-visible="showTimingMini"
             :run-key="analysisRunKey ?? 0"
             @open-case="onOpenCase"
+            @close-timing-ring="emit('closeTimingRing')"
           />
         </div>
 
