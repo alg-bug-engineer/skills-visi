@@ -103,15 +103,15 @@
 | `docs/intersection/*/SKILL.md` | 场景认知、问题诊断、**流量-配时治理**等 Agent Skill 定义 |
 | `docs/流量溯源表结构信息.md` | 转向流量上下游关联表（截流/协调分析参考） |
 | `docs/路口四维筛选与演示路口清单.md` | 演示路口筛选结果 |
-| [`docs/RELEASE_v2.0.5.md`](RELEASE_v2.0.5.md) | v2.0.5 发布说明（融合视图、标注、语音、Bug） |
-| [`docs/RELEASE_0630.md`](RELEASE_0630.md) | **0630** 发布说明（四类诊断、三级经验、叙事整合） |
-| [`docs/RELEASE_v3.0.1.md`](RELEASE_v3.0.1.md) | v3.0.1 发布说明（吸收暂停、叙事分栏、饱和度、LLM 收敛） |
-| [`docs/RELEASE_v3.0.md`](RELEASE_v3.0.md) | v3.0 发布说明（AMap 渠化、叙事、TTS） |
-| [`docs/expert_knowledge.md`](expert_knowledge.md) | 专家经验库（方案生成注入） |
+| [`docs/releases/RELEASE_v2.0.5.md`](releases/RELEASE_v2.0.5.md) | v2.0.5 发布说明（融合视图、标注、语音、Bug） |
+| [`docs/releases/RELEASE_0630.md`](releases/RELEASE_0630.md) | **0630** 发布说明（四类诊断、三级经验、叙事整合） |
+| [`docs/releases/RELEASE_v3.0.1.md`](releases/RELEASE_v3.0.1.md) | v3.0.1 发布说明（吸收暂停、叙事分栏、饱和度、LLM 收敛） |
+| [`docs/releases/RELEASE_v3.0.md`](releases/RELEASE_v3.0.md) | v3.0 发布说明（AMap 渠化、叙事、TTS） |
+| [`docs/expert_knowledge.md`](expert_knowledge.md) | 专家经验库（方案生成注入，软链接至 data 目录） |
 | [`docs/bugs/BUG_REGISTRY.md`](bugs/BUG_REGISTRY.md) | Bug 登记与截图索引 |
 | [`docs/PRESENTATION_SYNC_BARRIER.md`](PRESENTATION_SYNC_BARRIER.md) | 呈现同步栅栏（强制） |
 | [`docs/DEV_CONSTRAINTS.md`](DEV_CONSTRAINTS.md) | 开发环境约束（终端代理 vs 应用运行时） |
-| [`docs/地图语音暂停交互增强开发计划.md`](地图语音暂停交互增强开发计划.md) | R1–R4 设计与验收 |
+| [`docs/plans/地图语音暂停交互增强开发计划.md`](plans/地图语音暂停交互增强开发计划.md) | R1–R4 设计与验收 |
 | `backend/data/skills/` | 运行时固化的 Skill 包（不提交 git） |
 
 ---
@@ -122,19 +122,19 @@
 
 | 计划文档 | 状态 |
 |----------|------|
-| [0625 需求实现](0625_IMPLEMENTATION.md) | ✅ 问题验证 + 约束量化 |
-| [技能沉淀与匹配逻辑](技能沉淀与匹配逻辑开发计划.md) | ✅ 标签、快路径、命中提示 |
+| [0625 需求实现](archive/0625_IMPLEMENTATION.md) | ✅ 问题验证 + 约束量化 |
+| [技能沉淀与匹配逻辑](plans/技能沉淀与匹配逻辑开发计划.md) | ✅ 标签、快路径、命中提示 |
 | [四类问题与 ECS 部署](plans/2026-06-26-四类问题与ECS部署开发计划.md) | ✅ P1–P4 完成；P5 改为**原生部署** |
 | [演示路口嗅探](plans/2026-06-27-演示路口嗅探与检查单对齐开发计划.md) | ✅ TOP3 路口、`DEMO_MODE` |
 | [经验吸收与技能固化演示](plans/2026-06-28-经验吸收与技能固化演示开发计划.md) | ✅ skill_absorption SSE + 右栏叠层 UI |
 | [经验吸收/固化空格暂停与呈现修复](plans/2026-06-28-经验吸收技能固化空格暂停与呈现修复-复盘.md) | ✅ RT-PAUSE-ABS · 流式打字机修复 |
 | [干线扫描与路口发现](plans/2026-06-27-干线扫描与路口发现.md) | ✅ 意图 LLM+规则、PG 排名、地图沿路高亮、选型接单点 |
-| [地图语音暂停交互增强](地图语音暂停交互增强开发计划.md) | ✅ R1–R4 交付；见 RELEASE_v2.0.5 |
+| [地图语音暂停交互增强](plans/地图语音暂停交互增强开发计划.md) | ✅ R1–R4 交付；见 RELEASE_v2.0.5 |
 | [渠化 AMap 迁移](plans/2026-06-28-渠化AMap迁移与主图下钻.md) | ✅ 全量实现；见 RELEASE_v3.0 |
 | [领导演示叙事重构](plans/2026-06-28-领导演示叙事与地图呈现重构-开发方案.md) | ✅ 叙事卡栈 + 镜头连贯；见 RELEASE_v3.0 |
 | [信控叙事主轴 · 供需匹配度](plans/2026-06-29-信控叙事主轴重构-供需匹配度-design.md) | ✅ primary_diagnosis + action_plan；见 [复盘](plans/2026-06-29-信控叙事主轴重构-供需匹配度-复盘.md) |
 | [develop 信控演示叙事精简](plans/2026-06-29-develop-信控演示叙事精简-复盘.md) | ✅ 已合并 main @ `0630` |
-| [四类问题动态诊断与三级经验沉淀](plans/2026-06-29-四类问题动态诊断与三级经验沉淀.md) | ✅ 见 [RELEASE_0630](RELEASE_0630.md) |
+| [四类问题动态诊断与三级经验沉淀](plans/2026-06-29-四类问题动态诊断与三级经验沉淀.md) | ✅ 见 [RELEASE_0630](releases/RELEASE_0630.md) |
 | [三类经验去重与认知数据验证](plans/2026-06-30-三类经验去重与认知数据验证-设计与计划.md) | ✅ store 判重 + 经验卡左下角 |
 | [路口诊断 UI 优化与诊断闭环](plans/2026-06-29-路口诊断UI优化与诊断闭环-设计与计划.md) | ✅ 经验库面板与呈现 |
 | [frontend-v2 开发计划](../frontend-v2/docs/DEVELOPMENT_PLAN.md) | ✅ P0–P2.1；P3 待办 |
@@ -233,7 +233,7 @@ bash scripts/dev.sh       # v1 前端 5567（需 frontend/ 独立仓库）
 | 文档 | 说明 |
 |------|------|
 | [README.md](../README.md) | 快速开始 |
-| [RELEASE_0630.md](RELEASE_0630.md) | **0630 发布说明** |
+| [RELEASE_0630.md](releases/RELEASE_0630.md) | **0630 发布说明** |
 | [backend/README.md](../backend/README.md) | 后端 API |
 | [backend/docs/API.md](../backend/docs/API.md) | SSE / REST 参考 |
 | [backend/docs/PROJECT_LOGIC.md](../backend/docs/PROJECT_LOGIC.md) | 架构与编排 |

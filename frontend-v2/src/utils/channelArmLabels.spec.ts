@@ -69,6 +69,20 @@ describe('buildRoleArmLabels', () => {
     expect(labels.find((l) => l.dir === '北')?.line1).toBe('保护 南北向')
     expect(labels.find((l) => l.dir === '西')?.line2).toContain('饱和 1.94')
   })
+
+  it('prefers max turn saturation over stale metrics_by_arm [RT-UI-16]', () => {
+    const cognition = {
+      intersection: { inter_id: '1', name: '测试', lon: 117, lat: 36 },
+      arms: [],
+      metrics_by_arm: [{ link_id: 'e1', dir4_label: '东', saturation: 0.98 }],
+      metrics_by_turn: [
+        { label: '东左转', dir4_label: '东', turn_saturation: 0.55 },
+        { label: '东直行', dir4_label: '东', turn_saturation: 0.38 },
+      ],
+    } as CognitionPayload
+    const labels = buildRoleArmLabels(['东'], [], cognition)
+    expect(labels.find((l) => l.dir === '东')?.line2).toContain('饱和 0.55')
+  })
 })
 
 describe('buildArmLabelsFromScene', () => {

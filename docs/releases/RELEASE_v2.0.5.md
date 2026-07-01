@@ -18,7 +18,7 @@
 
 - 认知阶段起高德底图**始终可见**，3D 渠化透明叠加（非纯黑全屏独占）。
 - 渠化模式下地图 `setCenter` 居中，`pan` 偏移为 **0**，避免右栏补偿导致左侧黑条。
-- 详见 [`地图语音暂停交互增强开发计划.md`](./地图语音暂停交互增强开发计划.md) §4.2。
+- 详见 [`地图语音暂停交互增强开发计划.md`](../plans/地图语音暂停交互增强开发计划.md) §4.2。
 
 ### 2.2 标注分层（渠化层承载语义）
 
@@ -98,11 +98,11 @@
 
 | 文档 | 用途 |
 |------|------|
-| [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) | 根仓库权威索引 |
-| [PRESENTATION_SYNC_BARRIER.md](./PRESENTATION_SYNC_BARRIER.md) | 呈现同步栅栏（强制） |
-| [地图语音暂停交互增强开发计划.md](./地图语音暂停交互增强开发计划.md) | R1–R4 设计与验收 |
-| [DEV_CONSTRAINTS.md](./DEV_CONSTRAINTS.md) | 开发环境约束（含终端代理） |
-| [REGRESSION_POLICY.md](./REGRESSION_POLICY.md) | 合并前回归 |
+| [PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md) | 根仓库权威索引 |
+| [PRESENTATION_SYNC_BARRIER.md](../PRESENTATION_SYNC_BARRIER.md) | 呈现同步栅栏（强制） |
+| [地图语音暂停交互增强开发计划.md](../plans/地图语音暂停交互增强开发计划.md) | R1–R4 设计与验收 |
+| [DEV_CONSTRAINTS.md](../DEV_CONSTRAINTS.md) | 开发环境约束（含终端代理） |
+| [REGRESSION_POLICY.md](../REGRESSION_POLICY.md) | 合并前回归 |
 | `frontend-v2/docs/PROGRESS.md` | 前端版本进度 |
 | `backend/docs/CHANGELOG.md` | 后端变更日志 |
 

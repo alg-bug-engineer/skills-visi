@@ -93,7 +93,7 @@ M3: 「确认固化」
 | 模块 | TC 前缀 | 条数 | § |
 |------|---------|------|---|
 | 会话与路由 | RT-ROUTE | 8 | §3 |
-| 干线扫描 | RT-COR | 12 | §4 |
+| 干线扫描 (已废弃) | RT-COR (已废弃) | — | §4 |
 | 路口 / NLU | RT-NLU | 14 | §5 |
 | 追问 | RT-FU | 10 | §6 |
 | 单点诊断流水线 | RT-DIA | 12 | §7 |
@@ -117,8 +117,8 @@ M3: 「确认固化」
 | RT-ROUTE-02 | P0 | awaiting_confirm | 「是」 | done/awaiting_confirm | _handle_confirmation | test_api |
 | RT-ROUTE-03 | P0 | nlu_incomplete | 补充字段 | processing/awaiting_confirm | _continue_nlu | test_nlu_follow_up |
 | RT-ROUTE-04 | P1 | intersection_ambiguous | 选候选 | processing | _handle_candidate_pick | — |
-| RT-ROUTE-05 | P1 | awaiting_corridor_pick | 选路口 | nlu_incomplete/processing | _handle_corridor_pick | test_corridor_pick |
-| RT-ROUTE-06 | P1 | corridor_nlu_incomplete | 补时段 | awaiting_corridor_pick | _continue_corridor_scan | test_corridor_scan |
+| RT-ROUTE-05 (已废弃) | P1 | awaiting_corridor_pick | 选路口 | nlu_incomplete/processing | _handle_corridor_pick | — (已移除) |
+| RT-ROUTE-06 (已废弃) | P1 | corridor_nlu_incomplete | 补时段 | awaiting_corridor_pick | _continue_corridor_scan | — (已移除) |
 | RT-ROUTE-07 | P2 | done | 新提问 | processing | 重新进入 pipeline | — |
 | RT-ROUTE-08 | P1 | idle | 非法 session | 404 | routes 404 | test_session_not_found |
 
@@ -126,22 +126,9 @@ M3: 「确认固化」
 
 ---
 
-## 4. RT-COR · 干线扫描
+## 4. RT-COR · 干线扫描 [已于 06-30 版本移除废弃]
 
-| TC-ID | 优先级 | 输入序列 | 期望 | 现有测试 |
-|-------|--------|---------|------|---------|
-| RT-COR-01 | P1 | 「奥体西最堵」 | corridor_nlu_incomplete, missing=time_period | test_corridor_scan_asks_time |
-| RT-COR-02 | P1 | 「奥体西晚高峰哪些堵」 | awaiting_corridor_pick, corridor_scan | test_corridor_scan_list |
-| RT-COR-03 | P1 | COR-02 + 口语选路口 | 进入单点诊断 | test_corridor_pick_after_scan |
-| RT-COR-04 | P2 | 选型失败 | follow_up, intent=corridor_pick | — |
-| RT-COR-05 | P2 | 选型成功缺方向 | nlu_incomplete, missing=directions | — |
-| RT-COR-06 | P2 | 干线多候选 | follow_up, line_candidates | — |
-| RT-COR-07 | P2 | 干线未找到 | done, ERROR | — |
-| RT-COR-08 | P1 | SSE corridor_scan_scene | meta 含 polyline + pin | — |
-| RT-COR-09 | P2 | Top3 不自动选 Top1 | awaiting_corridor_pick 等待用户 | 文档约束 |
-| RT-COR-10 | P2 | 干线 NLU 不问具体路口 | missing 不含 intersection | test_corridor_scan_asks |
-| RT-COR-11 | P1 | 选型后 inter_id 注入 | resolution_source=corridor_pick | — |
-| RT-COR-12 | P2 | 意图 LLM 失败 | intent_router 规则兜底 | test_intent_classifier |
+> **说明**：自 06-30 版本重构起，原干线拥堵扫描（`corridor_scan`）与路口选型（`corridor_pick`）相关流程与后端接口已被移除，相关自动化测试已清理。本组测试用例已废弃。
 
 ---
 
@@ -173,8 +160,8 @@ M3: 「确认固化」
 | RT-FU-01 | P1 | NLU 缺字段 | follow_up | test_nlu_follow_up |
 | RT-FU-02 | P1 | 路口候选 | follow_up + candidates | — |
 | RT-FU-03 | P1 | 路口未找到引导 | error/follow_up | test_intersection_not_found |
-| RT-FU-04 | P1 | 干线 NLU 缺字段 | follow_up, intent=corridor_scan | test_corridor_scan |
-| RT-FU-05 | P2 | 干线选型失败 | follow_up, intent=corridor_pick | — |
+| RT-FU-04 (已废弃) | P1 | 干线 NLU 缺字段 | follow_up, intent=corridor_scan | — (已移除) |
+| RT-FU-05 (已废弃) | P2 | 干线选型失败 | follow_up, intent=corridor_pick | — (已移除) |
 | RT-FU-06 | P1 | D1 意图模糊 | follow_up, awaiting_generate | — |
 | RT-FU-07 | P1 | D2 意图模糊 | follow_up, for_skill_confirm | test_intent_detector |
 | RT-FU-08 | P2 | 问候语 | 自然 follow_up | test_greeting |
@@ -199,6 +186,11 @@ M3: 「确认固化」
 | RT-DIA-10 | P1 | delta 约束裁剪 | clip_note in narrative | test_saturation_cap |
 | RT-DIA-11 | P2 | 配时画像 | timing_profile in payload | — |
 | RT-DIA-12 | P2 | 干线上下文 | corridor_context | — |
+| RT-DIA-13 | P0 | 转向饱和度最高优先 | headline 饱和度取 by_turn AVG 转向的最大值，非全局 MAX | test_saturation_granularity.py |
+| RT-DIA-14 | P0 | 车道级饱和度降级 | 转向级数据缺失时回退到 by_lane 的 lane_saturation | test_saturation_granularity.py |
+| RT-DIA-15 | P1 | 路口级饱和度降级 | 转向级和车道级均缺失时回退到路口级 | test_saturation_granularity.py |
+| RT-DIA-16 | P0 | 证据指标对齐转向级 | problem_evidence 饱和度计算对齐 granularity.by_turn | test_problem_evidence_saturation.py |
+| RT-DIA-17 | P1 | 流量 payload 自动覆盖 | apply_canonical_saturation_to_payload 覆盖 stale traffic_flow | test_saturation_granularity.py |
 
 **SSE 步骤顺序（P1）**：
 
@@ -268,6 +260,7 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 | RT-CONF-AUTO-03 | P1 | 「…拥堵，绿灯感觉不够」（未给明确约束，user_suggestion=None） | done | DIAGNOSIS | skipped_no_user_suggestion | test_green_light_complaint_without_explicit_advice_auto_generates |
 | RT-CONF-AUTO-04 | P1 | 纯诊断（无约束） | done | DIAGNOSIS | suggestion 有值, 不固化 | test_plain_diagnosis_generates_suggestion_without_skill |
 | RT-CONF-AUTO-05 | P0 | 首轮即带约束 | awaiting_confirm | DIAGNOSIS | generated_with_user_suggestion → awaiting_create | test_diagnosis_with_constraint_generates_suggestion_then_awaits_skill_confirm |
+| RT-MONITOR-01 | P0 | 低饱和路口+时段（basically_matched，无规则命中） | done | DIAGNOSIS | suggestion.rule_id=monitoring_feedback, skill_action=skipped_no_user_suggestion, 叙事卡+返回主页 | test_healthy_intersection_monitoring_feedback |
 
 > RT-CONF-D1-01/02/03（旧普通路径 D1）已被本节取代（普通路径不再产出 awaiting_generate）；
 > D1 语义现仅适用于 Skill 复用快路径（RT-CONF-D1-04~07）。
@@ -412,9 +405,11 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 | RT-UI-09 | P2 | 渠化全屏 hideInputDock | 输入隐藏 | — |
 | RT-UI-10 | P2 | prepareNewAnalysisRun | analysisRunKey++ | — |
 | RT-UI-11 | P1 | onStepStart 仅首次 | 同 step append 不重复 | useUnderstandingProcess.spec |
-| RT-UI-12 | P2 | 饱和度小数展示 | formatSaturation 0.92 | — |
+| RT-UI-12 | P2 | 饱和度小数展示 | formatSaturation 0.92 | evidencePresentation.spec |
 | RT-UI-13 | P1 | 呈现时序 gates | usePresentationSequence.spec | usePresentationSequence.spec |
 | RT-UI-14 | P1 | 暂停 toast | 「分析暂停 · 空格继续」 | WorkbenchLayout |
+| RT-UI-15 | P1 | 隐藏进口级饱和度 | 转向级数据存在时，叙事卡过滤掉进口级饱和度行 | narrativeStack.spec |
+| RT-UI-16 | P1 | 进口道标签优先转向最大值 | 转向数据存在时，Arm 标签采用转向最大饱和度 | channelArmLabels.spec |
 
 ---
 
@@ -535,7 +530,7 @@ intersection 完成 / rememberIntersectionName
 | 快路径 | test_skill_fast_path.py | RT-REUSE-01~04 |
 | 匹配 | test_skill_matcher.py | RT-MATCH-01~06 |
 | 确认 | test_api.py | RT-CONF-D1/D2 大部分 |
-| 干线 | test_corridor_scan_flow.py | RT-COR-01~03 |
+| 干线 (已废弃) | — | — |
 | SSE | test_sse.py | RT-SSE-01~04, RT-ABS-01 |
 | 语音映射 | voiceStepSync.spec.ts | RT-VOICE-01~02, 08 |
 | 步骤触发 | useUnderstandingProcess.spec.ts | RT-UI-11 |
@@ -550,7 +545,7 @@ intersection 完成 / rememberIntersectionName
 | RT-CONF-D2-02 | test_declined_skill_create |
 | RT-REUSE-06 | test_fast_path_deny_suggestion_declines |
 
-待补：RT-COR-04~07（干线边界）
+
 
 ---
 
@@ -583,7 +578,7 @@ cd backend && pytest tests/test_skill_fast_path.py tests/test_skill_matcher.py \
 | skill_matcher.py | RT-MATCH, RT-REUSE, RT-X-05 |
 | skill_service / package_builder | RT-Persist, RT-ABS |
 | nlu_service | RT-NLU, RT-FU |
-| corridor_* | RT-COR |
+| corridor_* (已废弃) | — |
 | App.vue / usePresentation | RT-UI, RT-VOICE |
 | voice_narration.json | RT-VOICE 全组 |
 | execution_emitter | RT-SSE, RT-DIA |
@@ -595,7 +590,7 @@ cd backend && pytest tests/test_skill_fast_path.py tests/test_skill_matcher.py \
 
 | 文档 | 内容 |
 |------|------|
-| [技能沉淀与匹配逻辑开发计划.md](./技能沉淀与匹配逻辑开发计划.md) | 匹配规则、meta 约定、流程改造 |
+| [技能沉淀与匹配逻辑开发计划.md](./plans/技能沉淀与匹配逻辑开发计划.md) | 匹配规则、meta 约定、流程改造 |
 | [TEST_SCENARIO_MATRIX.md](./TEST_SCENARIO_MATRIX.md) | TC-ID 与状态机 |
 | [test-scenario-flowcharts.html](./test-scenario-flowcharts.html) | 可视化流程 |
 | [frontend-v2/docs/ARCHITECTURE.md](../frontend-v2/docs/ARCHITECTURE.md) | 三栏与证据时序 |

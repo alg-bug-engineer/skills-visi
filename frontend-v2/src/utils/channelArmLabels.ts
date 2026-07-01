@@ -3,7 +3,12 @@ import type { CognitionPayload, MapSceneMarker } from '../types/map'
 import type { ChannelQueueArm } from './cognitionChannelAdapter'
 import { normalizeDir } from './mapMarkers'
 import { formatSaturation, highlightDirsForGroup, normalizeAxisFocusGroups, toAxisFocusGroup } from './evidencePresentation'
-import { resolveTurnMetrics, sortTurnMetrics, dirFromTurnLabel } from './turnMetrics'
+import {
+  maxTurnSatForDir,
+  resolveTurnMetrics,
+  sortTurnMetrics,
+  dirFromTurnLabel,
+} from './turnMetrics'
 
 const PLACEHOLDER_LINES = new Set(['—', '-', '–', ''])
 
@@ -92,7 +97,7 @@ export function buildTurnLabelsFromCognition(
   return labels
 }
 
-/** 从 cognition 取单进口饱和度（优先 metrics_by_arm，其次 by_turn 转向最大值）。 */
+/** 从 cognition 取单进口饱和度（有转向数据时取 max(turn_saturation)，与左侧面板口径一致）。 */
 export function saturationForDir(
   cognition: CognitionPayload | null,
   dir: string,
@@ -100,18 +105,13 @@ export function saturationForDir(
   if (!cognition) return null
   const key = dirKeyFromLabel(dir)
   if (!key) return null
+  const turnMax = maxTurnSatForDir(resolveTurnMetrics(cognition), key)
+  if (turnMax != null && turnMax > 0) return turnMax
   for (const arm of cognition.metrics_by_arm ?? []) {
     const d = dirKeyFromLabel(arm.dir4_label)
     if (d === key && arm.saturation != null) return Number(arm.saturation)
   }
-  let best: number | null = null
-  for (const row of cognition.metrics_by_turn ?? []) {
-    const d = dirKeyFromLabel(row.dir4_label || row.label)
-    if (d !== key || row.turn_saturation == null) continue
-    const sat = Number(row.turn_saturation)
-    if (best == null || sat > best) best = sat
-  }
-  return best
+  return null
 }
 
 /** 关注/保护方向臂标：饱和 + 失衡 + 排队合并为一行。 */

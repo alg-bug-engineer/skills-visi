@@ -14,6 +14,10 @@ from intersection_agent.logging.helpers import log_event
 from intersection_agent.models.domain import NluResult
 from intersection_agent.utils.data_window import DataWindow, build_data_window, slot_times
 from intersection_agent.utils.demo_config import resolve_reference_date
+from intersection_agent.utils.saturation_granularity import (
+    apply_canonical_saturation_to_payload,
+    canonical_saturation_summary,
+)
 from intersection_agent.utils.traffic_labels import LOS_LABELS, TURN_DIR_LABELS, turn_label
 
 logger = logging.getLogger(__name__)
@@ -167,14 +171,20 @@ class DataFetcher:
         else:
             source_tier = "none"
 
-        saturation_raw = (
-            _float(dws_sat, "turn_saturation")
-            if dws_sat
-            else _float(dws_eval, "saturation_max")
+        lane_sat_max = _max_metric(by_lane, "lane_saturation")
+        lane_capacity_min = _min_positive_metric(by_lane, "lane_capacity")
+        sat_summary = canonical_saturation_summary(
+            by_turn=by_turn,
+            by_lane=by_lane,
+            inter_saturation_max=_float(dws_eval, "saturation_max"),
+            inter_saturation_avg=_float(dws_eval, "saturation_avg"),
         )
-        saturation = saturation_raw
-        turn_sat_max = _float(dws_sat, "turn_saturation")
-        turn_spread = _float(dws_sat, "turn_saturation_spread", 0.0)
+        saturation = sat_summary["saturation_rate"]
+        saturation_raw = saturation
+        turn_sat_max = sat_summary["turn_saturation_max"]
+        turn_spread = sat_summary.get("turn_saturation_spread")
+        saturation_granularity = sat_summary["granularity"]
+
         delay_index = (
             float(dwd_delay)
             if dwd_delay is not None
@@ -189,10 +199,8 @@ class DataFetcher:
         )
 
         los_code = str(dws_eval.get("level_of_service") or "C") if dws_eval else "C"
-        lane_sat_max = _max_metric(by_lane, "lane_saturation")
-        lane_capacity_min = _min_positive_metric(by_lane, "lane_capacity")
 
-        return {
+        payload = {
             "meta": {
                 "inter_id": inter_id,
                 "intersection": inter_name,
@@ -208,6 +216,7 @@ class DataFetcher:
             "traffic_flow": {
                 "saturation_rate": saturation,
                 "saturation_rate_raw": saturation_raw,
+                "saturation_granularity": saturation_granularity,
                 "turn_saturation_max": turn_sat_max,
                 "turn_saturation_spread": turn_spread,
                 "lane_saturation_max": lane_sat_max,
@@ -237,6 +246,8 @@ class DataFetcher:
                 "delay_index": delay_index or 1.0,
             },
         }
+        apply_canonical_saturation_to_payload(payload)
+        return payload
 
     async def approach_profiles(
         self,

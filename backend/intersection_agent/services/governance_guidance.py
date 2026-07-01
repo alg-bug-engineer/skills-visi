@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from intersection_agent.utils.saturation_granularity import canonical_saturation_summary
 from intersection_agent.utils.thresholds_loader import threshold_value
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -49,8 +50,15 @@ def build_governance_context(data: dict[str, Any]) -> dict[str, Any]:
     spill_high = threshold_value("spillback", "risk_high", default=0.80)
     queue_ratio_high = threshold_value("queue", "queue_storage_ratio_high", default=0.80)
 
-    max_sat = _float(tf.get("turn_saturation_max")) or _float(tf.get("saturation_rate"))
-    spread = _float(tf.get("turn_saturation_spread"))
+    gran = data.get("granularity") or {}
+    sat_summary = canonical_saturation_summary(
+        by_turn=by_turn,
+        by_lane=gran.get("by_lane"),
+        inter_saturation_max=_float(ev.get("saturation_max")),
+        inter_saturation_avg=_float(ev.get("saturation_avg")),
+    )
+    max_sat = sat_summary.get("turn_saturation_max") or _float(tf.get("saturation_rate"))
+    spread = sat_summary.get("turn_saturation_spread") or _float(tf.get("turn_saturation_spread"))
     green_util = _float(ev.get("green_utilization"))
     empty_green = _float(ev.get("empty_green_rate"))
     imbalance_index = _float(ev.get("imbalance_index"))

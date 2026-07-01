@@ -253,6 +253,12 @@ export function buildHighlightEvidence(
   evidence: ProblemEvidence | null,
   runtime?: RuntimeMetrics | null,
 ): Record<string, number | null | undefined> {
+  const turns = resolveTurnMetrics(cognition, evidence?.by_turn)
+  const turnSats = turns
+    .map((t) => t.turn_saturation)
+    .filter((s): s is number => s != null && Number(s) > 0)
+  const maxTurnSat = turnSats.length ? Math.max(...turnSats) : null
+
   const armSats =
     cognition?.metrics_by_arm
       ?.map((m) => m.saturation)
@@ -260,15 +266,16 @@ export function buildHighlightEvidence(
   const maxArmSat = armSats.length ? Math.max(...armSats) : null
 
   const sat =
+    maxTurnSat ??
     evidence?.metrics?.saturation_rate ??
     runtime?.saturation_rate ??
     maxArmSat ??
     undefined
 
-  const topTurn = resolveTurnMetrics(cognition, evidence?.by_turn)[0]
+  const topTurn = turns[0]
   return {
     saturation_max: sat,
-    max_turn_saturation: topTurn?.turn_saturation ?? sat ?? undefined,
+    max_turn_saturation: maxTurnSat ?? topTurn?.turn_saturation ?? sat ?? undefined,
     unbalance_index:
       evidence?.metrics?.imbalance_index ?? runtime?.imbalance_index ?? undefined,
     turn_imbalance_ratio:

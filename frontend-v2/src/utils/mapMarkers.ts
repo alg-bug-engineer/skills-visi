@@ -1,6 +1,6 @@
 import { TA_THEME } from '../theme'
 import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneMarker } from '../types/map'
-import { resolveTurnMetrics, sortTurnMetrics, dirFromTurnLabel } from './turnMetrics'
+import { resolveTurnMetrics, sortTurnMetrics, dirFromTurnLabel, maxTurnSatForDir } from './turnMetrics'
 import { formatSaturation } from './evidencePresentation'
 
 export function normalizeDir(label: string): string {
@@ -125,7 +125,10 @@ function saturationForDir(
   dir: string,
   metrics: CognitionPayload['metrics_by_arm'],
   groups: CognitionPayload['direction_groups'],
+  cognition?: CognitionPayload | null,
 ): number | null {
+  const turnMax = maxTurnSatForDir(resolveTurnMetrics(cognition ?? null), dir)
+  if (turnMax != null && turnMax > 0) return turnMax
   for (const metric of metrics ?? []) {
     if (normalizeDir(metric.dir4_label || '') !== dir) continue
     const sat = metric.saturation
@@ -208,7 +211,7 @@ export function buildArmMetricMarkers(cognition: CognitionPayload | null): MapSc
     const dir = normalizeDir(link.dir4_label || link.dir8_label || '')
     if (!dir || seen.has(dir)) continue
     seen.add(dir)
-    const sat = saturationForDir(dir, metrics, groups)
+    const sat = saturationForDir(dir, metrics, groups, cognition)
     if (sat == null) continue
     const [lon, lat] = linkSegmentAnchor(link, center)
     const severity =

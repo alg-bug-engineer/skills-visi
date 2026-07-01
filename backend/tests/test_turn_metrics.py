@@ -37,16 +37,27 @@ def test_build_direction_groups_from_turns():
 
 
 def test_attach_turn_metrics_to_cognition():
-    cognition = {"arms": [{"dir4_label": "东"}, {"dir4_label": "西"}]}
+    cognition = {
+        "arms": [{"dir4_label": "东"}, {"dir4_label": "西"}],
+        "metrics_by_arm": [
+            {"link_id": "e1", "dir4_label": "东", "saturation": 0.98, "level": "high"},
+            {"link_id": "w1", "dir4_label": "西", "saturation": 0.91, "level": "high"},
+        ],
+    }
     data = {
         "granularity": {
             "by_turn": [
-                {"label": "东左转", "turn_saturation": 1.5},
+                {"label": "东左转", "turn_saturation": 0.55},
+                {"label": "东直行", "turn_saturation": 0.38},
                 {"label": "西直行", "turn_saturation": 0.04},
             ]
         }
     }
     metrics = attach_turn_metrics_to_cognition(cognition, data)
-    assert len(metrics) == 2
+    assert len(metrics) == 3
     assert cognition["metrics_by_turn"]
     assert any(g["group"] == "东西向" for g in cognition["direction_groups"])
+    east = next(m for m in cognition["metrics_by_arm"] if m["dir4_label"] == "东")
+    assert east["saturation"] == 0.55
+    west = next(m for m in cognition["metrics_by_arm"] if m["dir4_label"] == "西")
+    assert west["saturation"] == 0.04

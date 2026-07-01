@@ -11,6 +11,7 @@ from intersection_agent.utils.direction_groups import (
     primary_groups_from_nlu,
     protected_groups_for_vertical_constraint,
 )
+from intersection_agent.utils.saturation_granularity import canonical_saturation_summary
 from intersection_agent.utils.traffic_labels import DIR8_LABELS
 from intersection_agent.utils.turn_metrics import normalize_turn_metrics
 
@@ -654,6 +655,19 @@ _APPROACH_DIR_ORDER = ("东", "南", "西", "北")
 
 def _approach_saturation_by_dir(cognition: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Map 东/南/西/北 → per-arm saturation metric."""
+    from intersection_agent.utils.turn_metrics import max_turn_saturation_by_dir
+
+    metrics_by_turn = cognition.get("metrics_by_turn") or []
+    turn_by_dir = max_turn_saturation_by_dir(metrics_by_turn)
+    if turn_by_dir:
+        return {
+            dir_key: {
+                "saturation": sat,
+                "level": _severity(sat),
+            }
+            for dir_key, sat in turn_by_dir.items()
+        }
+
     metrics_by_arm = cognition.get("metrics_by_arm") or []
     arms = cognition.get("arms") or []
     metrics_map = {m["link_id"]: m for m in metrics_by_arm}
@@ -1147,8 +1161,18 @@ def build_map_scene(
     groups = cognition.get("direction_groups") or []
     eval_metrics = data.get("evaluation") or {}
     flow = data.get("traffic_flow") or {}
-
-    saturation = flow.get("saturation_rate")
+    gran = data.get("granularity") or {}
+    sat_summary = canonical_saturation_summary(
+        by_turn=gran.get("by_turn"),
+        by_lane=gran.get("by_lane"),
+        inter_saturation_max=float(eval_metrics["saturation_max"])
+        if eval_metrics.get("saturation_max") is not None
+        else None,
+        inter_saturation_avg=float(eval_metrics["saturation_avg"])
+        if eval_metrics.get("saturation_avg") is not None
+        else None,
+    )
+    saturation = sat_summary.get("saturation_rate") or flow.get("saturation_rate")
     delay = eval_metrics.get("delay_index")
     imbalance = eval_metrics.get("imbalance_index")
     green_util = eval_metrics.get("green_utilization")

@@ -132,6 +132,74 @@ def turns_for_dir(metrics_by_turn: list[dict[str, Any]], dir_key: str) -> list[d
     ]
 
 
+def _normalize_dir_key(label: str) -> str:
+    text = str(label or "").replace("进口", "").replace("出口", "").strip()
+    for key in ("东北", "东南", "西北", "西南", "东", "西", "南", "北"):
+        if key in text:
+            return key
+    return text
+
+
+def max_turn_saturation_by_dir(metrics_by_turn: list[dict[str, Any]]) -> dict[str, float]:
+    """Per compass approach → max turn_saturation (canonical approach-level saturation)."""
+    by_dir: dict[str, float] = {}
+    for turn in metrics_by_turn:
+        sat_raw = turn.get("turn_saturation")
+        if sat_raw is None:
+            continue
+        sat = float(sat_raw)
+        if sat <= 0:
+            continue
+        dir_key = _normalize_dir_key(
+            str(turn.get("dir4_label") or _dir_from_turn_label(str(turn.get("label") or "")))
+        )
+        if not dir_key:
+            continue
+        by_dir[dir_key] = max(by_dir.get(dir_key, 0.0), sat)
+    return by_dir
+
+
+def reconcile_metrics_by_arm_from_turns(
+    metrics_by_arm: list[dict[str, Any]],
+    metrics_by_turn: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Align per-arm saturation with max(turn_saturation) when turn metrics exist."""
+    by_dir = max_turn_saturation_by_dir(metrics_by_turn)
+    if not by_dir:
+        return metrics_by_arm
+
+    updated: list[dict[str, Any]] = []
+    seen_dirs: set[str] = set()
+    for metric in metrics_by_arm:
+        dir_key = _normalize_dir_key(str(metric.get("dir4_label") or ""))
+        if dir_key in by_dir:
+            sat = by_dir[dir_key]
+            updated.append(
+                {
+                    **metric,
+                    "saturation": round(sat, 4),
+                    "level": _saturation_level(sat),
+                }
+            )
+            seen_dirs.add(dir_key)
+        else:
+            updated.append(metric)
+
+    for dir_key, sat in by_dir.items():
+        if dir_key in seen_dirs:
+            continue
+        updated.append(
+            {
+                "link_id": f"derived-{dir_key}",
+                "dir4_label": dir_key,
+                "dir8_label": dir_key,
+                "saturation": round(sat, 4),
+                "level": _saturation_level(sat),
+            }
+        )
+    return updated
+
+
 def attach_turn_metrics_to_cognition(
     cognition: dict[str, Any],
     data: dict[str, Any],
@@ -143,6 +211,10 @@ def attach_turn_metrics_to_cognition(
     if metrics_by_turn:
         cognition["direction_groups"] = build_direction_groups_from_turns(
             cognition.get("arms") or [],
+            metrics_by_turn,
+        )
+        cognition["metrics_by_arm"] = reconcile_metrics_by_arm_from_turns(
+            cognition.get("metrics_by_arm") or [],
             metrics_by_turn,
         )
     return metrics_by_turn

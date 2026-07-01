@@ -33,6 +33,7 @@ export const RUNTIME_METRIC_SKIP_LABELS = new Set([
 
 const RUNTIME_METRIC_SKIP_LABEL_RE = /信号|治理建议|结论|证据链|规则/
 const SHORT_APPROACH_LABEL_RE = /^[东南西北]进口$/
+const APPROACH_SAT_LABEL_RE = /^[东南西北]进口饱和度$/
 
 /** 左侧面板运行数据：排除结论类 HUD 字段 */
 export function shouldSkipRuntimeMetric(label: string, value?: string): boolean {
@@ -204,8 +205,10 @@ export function buildNarrativeRuntimeItems(input: {
   const rm = input.runtimeMetrics ?? null
   const insightMetrics = input.dataInsight?.metrics ?? []
   const ev = input.evidence ?? null
+  const turnLevelReady = hasTurnLevelSaturationSource(ev, input.flowTimingGovernance)
 
   for (const m of insightMetrics) {
+    if (turnLevelReady && APPROACH_SAT_LABEL_RE.test(m.label.trim())) continue
     if (shouldSkipRuntimeMetric(m.label, m.value)) continue
     push({
       id: `metric-${m.label}`,

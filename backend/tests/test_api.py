@@ -80,6 +80,26 @@ async def test_first_diagnosis_auto_generates_without_confirm(client):
     assert first_body["meta"].get("problem_evidence")
 
 
+@pytest.mark.asyncio
+async def test_healthy_intersection_monitoring_feedback(client):
+    """RT-MONITOR-01: 供需基本匹配时出监测反馈、done、不固化技能。"""
+    create = await client.post("/api/v1/sessions")
+    sid = create.json()["session_id"]
+    resp = await client.post(
+        f"/api/v1/sessions/{sid}/messages",
+        json={"content": "低饱和测试路口交叉口，下午四点南北向通行正常"},
+    )
+    body = resp.json()
+    assert body["state"] == "done"
+    assert body["reply"]["type"] == "diagnosis"
+    assert body["suggestion"] is not None
+    assert body["suggestion"]["rule_id"] == "monitoring_feedback"
+    assert "已记录" in body["suggestion"]["narrative"]
+    assert body["meta"].get("skill_action") == "skipped_no_user_suggestion"
+    assert body["meta"].get("suggestion_action") == "monitoring_recorded"
+    assert body["diagnosis"]["diagnosed"] is False
+
+
 def test_problem_confirm_message_strips_rule_suggestion_wording():
     session = Session()
     session.resolved_intersection = "测试路口"

@@ -41,7 +41,7 @@ import type { CorridorIntersectionItem } from './types/corridor'
 import type { GovernanceSuggestionPayload, PipelinePhase } from './types/presentation'
 import { AnalysisQueue } from './utils/analysisQueue'
 import { parseHighlightTurn } from './utils/cognitionChannelAdapter'
-import { buildEvidenceListItems } from './utils/channelizationCopy'
+import { buildEvidenceListItems, buildSuggestionPlainText, hasSuggestionCardContent } from './utils/channelizationCopy'
 import { VOICE_GUIDE } from './services/voiceCueTemplates'
 import { processStepPhase, resolveProcessStepVoice } from './services/voiceStepSync'
 import {
@@ -836,6 +836,23 @@ async function finalizeDiagnosisUi(result: MessageResponse) {
 
   const skillAction = result.meta?.skill_action as string | undefined
   const entersTerminal = shouldEnterAnalysisTerminal(skillAction, result.state)
+
+  if (
+    entersTerminal &&
+    hasSuggestionCardContent(
+      presentation.state.governanceSuggestion,
+      presentation.state.flowTimingGovernance,
+    ) &&
+    presentationSequence.focusStepIndex.value < STEP_INDICES.SUGGESTION
+  ) {
+    const text =
+      buildSuggestionPlainText(
+        presentation.state.governanceSuggestion,
+        presentation.state.flowTimingGovernance,
+      ) ?? '运行指标平稳，已记录并将持续关注。'
+    await revealSuggestionStep(text, { silent: true })
+    await whenPresentationSettled()
+  }
 
   if (entersTerminal) {
     await enterAnalysisTerminalAfterSuggestionPresented(skillAction, result.state)

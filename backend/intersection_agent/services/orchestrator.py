@@ -15,6 +15,7 @@ from intersection_agent.models.domain import (
     ReplyType,
     Session,
     SessionState,
+    SuggestionResult,
     TimePeriod,
 )
 from intersection_agent.services.data_fetcher import DataFetcher
@@ -28,12 +29,14 @@ from intersection_agent.services.intersection_cognition_service import (
     fill_arm_metrics_from_overall,
 )
 from intersection_agent.utils.turn_metrics import attach_turn_metrics_to_cognition
+from intersection_agent.utils.saturation_granularity import apply_canonical_saturation_to_payload
 from intersection_agent.services.intersection_resolver import IntersectionResolver
 from intersection_agent.services.map_presentation_service import (
     build_links_narration_payload,
     build_map_scene,
     build_narration_steps,
     build_understanding_card,
+    enrich_narration_step,
     pick_narration_step,
 )
 from intersection_agent.services.case_library_service import CaseLibraryService
@@ -56,7 +59,9 @@ from intersection_agent.services.intent_classifier_service import IntentClassifi
 from intersection_agent.services.problem_evidence_service import ProblemEvidenceService
 from intersection_agent.services.suggestion_service import SuggestionService
 from intersection_agent.services.suggestion_context import (
+    compose_monitoring_feedback_narrative,
     derive_suggestion_references,
+    is_healthy_monitoring_case,
     prepare_suggestion_data,
 )
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
@@ -934,6 +939,7 @@ class Orchestrator:
             "demo_mode": is_demo_mode() or self._settings.demo_mode,
         }
         session.data_payload = {**session.data_payload, **data}
+        apply_canonical_saturation_to_payload(session.data_payload)
 
         timing_profile = await self._timing.build(
             session.inter_id,
@@ -1020,6 +1026,8 @@ class Orchestrator:
                 )
             cognition["metrics_by_arm"] = merged_metrics
             metrics_by_turn = attach_turn_metrics_to_cognition(cognition, data)
+            merged_metrics = cognition.get("metrics_by_arm") or merged_metrics
+            apply_canonical_saturation_to_payload(session.data_payload)
             if not metrics_by_turn:
                 cognition["direction_groups"] = _build_direction_groups(
                     cognition.get("arms") or [], merged_metrics
@@ -1206,6 +1214,26 @@ class Orchestrator:
                 session.data_payload["quantitative_constraints"] = skill.quantitative_constraints
 
         if not diagnosis.diagnosed or not diagnosis.matched_rules:
+            flow_gov = session.data_payload.get("flow_timing_governance") or {}
+            if is_healthy_monitoring_case(flow_gov):
+                content = await self._generate_monitoring_feedback_content(
+                    session,
+                    cognition=cognition,
+                    data=data,
+                    resolution_note=resolution_note,
+                    emitter=emitter,
+                )
+                session.pending_suggestion_action = None
+                session.state = SessionState.DONE
+                return self._build_response(
+                    session,
+                    ReplyType.DIAGNOSIS,
+                    content,
+                    extra={
+                        "suggestion_action": "monitoring_recorded",
+                        "skill_action": "skipped_no_user_suggestion",
+                    },
+                )
             if emitter:
                 step = pick_narration_step(
                     build_narration_steps(
@@ -1310,6 +1338,73 @@ class Orchestrator:
                 "skill_action": "skipped_no_user_suggestion",
             },
         )
+
+    async def _generate_monitoring_feedback_content(
+        self,
+        session: Session,
+        *,
+        cognition: dict[str, Any],
+        data: dict[str, Any],
+        resolution_note: str = "",
+        emitter: ExecutionEmitter | None = None,
+    ) -> str:
+        """Healthy intersection: data-based monitoring card, no skill solidification."""
+        assert session.nlu is not None
+        data = prepare_suggestion_data(session.data_payload)
+        session.data_payload["flow_timing_governance"] = data.get("flow_timing_governance")
+        narrative = compose_monitoring_feedback_narrative(data)
+        flow_gov = data.get("flow_timing_governance") or {}
+        action_plan = flow_gov.get("action_plan") or {}
+        suggestion = SuggestionResult(
+            delta_seconds=0,
+            direction="none",
+            narrative=narrative,
+            confidence=float(action_plan.get("confidence") or 0.65),
+            rule_id="monitoring_feedback",
+            action_type="maintain",
+            action_plan=action_plan,
+        )
+        session.suggestion = suggestion
+        log_event(
+            logger,
+            logging.INFO,
+            "suggestion.monitoring_recorded",
+            inter_id=session.inter_id,
+            saturation=(data.get("traffic_flow") or {}).get("saturation_rate"),
+        )
+        if emitter:
+            await emitter.emit(
+                "suggestion",
+                "completed",
+                data=suggestion.model_dump(),
+            )
+            conclusion = enrich_narration_step(
+                {
+                    "phase": "conclusion",
+                    "title": "运行反馈",
+                    "text": narrative,
+                    "suggestion": suggestion.model_dump(),
+                }
+            )
+            await self._emit_map_sequence(
+                emitter,
+                action="narration",
+                data={**conclusion, "index": 0, "total": 1, "final": True},
+            )
+            scene = build_map_scene(
+                "conclusion",
+                cognition=cognition,
+                data=data,
+                diagnosis=session.diagnosis,
+                suggestion=suggestion,
+                nlu=session.nlu,
+            )
+            await self._emit_map_sequence(emitter, action="map_scene", data=scene)
+
+        time_label = session.nlu.time_period.label if session.nlu.time_period else ""
+        note = f"\n{resolution_note}" if resolution_note else ""
+        intersection = session.nlu.intersection or session.resolved_intersection or ""
+        return f"**运行监测** · {intersection} · {time_label}{note}\n\n{narrative}"
 
     async def _generate_suggestion_content(
         self,

@@ -279,6 +279,91 @@ def compose_suggestion_narrative(
     return "".join(sentences)
 
 
+def is_healthy_monitoring_case(flow_timing_governance: dict[str, Any] | None) -> bool:
+    """供需与配时基本匹配、无需治理动作时，走监测反馈终态。"""
+    primary = (flow_timing_governance or {}).get("primary_diagnosis") or {}
+    return str(primary.get("type") or "") == "basically_matched"
+
+
+def compose_monitoring_feedback_narrative(data: dict[str, Any]) -> str:
+    """无显著信控问题时，生成数据解释型监测反馈（非治理动作）。"""
+    meta = data.get("meta") or {}
+    tp = meta.get("time_period") or {}
+    time_label = str(tp.get("label") or "").strip()
+    intersection = str(meta.get("intersection") or "").strip()
+    tf = data.get("traffic_flow") or {}
+    ev = data.get("evaluation") or {}
+    sp = data.get("signal_plan") or {}
+    flow_gov = data.get("flow_timing_governance") or {}
+    primary = flow_gov.get("primary_diagnosis") or {}
+
+    if intersection and time_label:
+        opener = f"针对{intersection}{time_label}，"
+    elif intersection:
+        opener = f"针对{intersection}，"
+    else:
+        opener = ""
+
+    metric_parts: list[str] = []
+    sat = tf.get("saturation_rate")
+    if sat is not None:
+        metric_parts.append(f"综合饱和度 {float(sat):.2f}")
+    los = ev.get("level_of_service_label") or ev.get("level_of_service")
+    if los:
+        metric_parts.append(f"服务水平 {los}")
+    imb = ev.get("imbalance_index")
+    if imb is not None:
+        metric_parts.append(f"方向失衡 {float(imb):.2f}")
+    cycle = sp.get("cycle_length")
+    if cycle is not None:
+        metric_parts.append(f"信号周期 {int(float(cycle))}s")
+    green_util = ev.get("green_utilization")
+    if green_util is not None:
+        metric_parts.append(f"绿灯利用率 {float(green_util):.2f}")
+
+    turns = sorted(
+        (data.get("granularity") or {}).get("by_turn") or [],
+        key=lambda row: float(row.get("turn_saturation") or 0),
+        reverse=True,
+    )[:3]
+    turn_lines: list[str] = []
+    for row in turns:
+        label = row.get("label")
+        turn_sat = row.get("turn_saturation")
+        turn_util = row.get("green_utilization")
+        if not label or turn_sat is None:
+            continue
+        segment = f"{label}饱和度 {float(turn_sat):.2f}"
+        if turn_util is not None:
+            segment += f"、绿灯利用 {float(turn_util):.2f}"
+        turn_lines.append(segment)
+
+    sentences: list[str] = []
+    if metric_parts:
+        sentences.append(f"{opener}当前运行指标整体平稳：{'，'.join(metric_parts)}。")
+    elif opener:
+        sentences.append(f"{opener}当前运行指标未见明显异常。")
+
+    lever = str(primary.get("lever") or "").strip()
+    headline = str(primary.get("headline") or "").strip()
+    joined = "".join(sentences)
+    if lever and lever not in joined:
+        sentences.append(f"{lever.rstrip('。')}。")
+    elif headline and headline not in joined:
+        sentences.append(f"{headline.rstrip('。')}。")
+
+    if turn_lines:
+        sentences.append(f"主要转向：{'；'.join(turn_lines)}。")
+
+    for ev_line in (primary.get("evidence") or [])[:3]:
+        line = str(ev_line).strip()
+        if line and line not in "".join(sentences):
+            sentences.append(f"{line.rstrip('。')}。")
+
+    sentences.append("本次结论已记录，将持续关注该路口高峰运行表现；暂无需调整信控方案。")
+    return "".join(sentences)
+
+
 def narrative_echoes_diagnosis(narrative: str, data: dict[str, Any]) -> bool:
     """LLM 输出是否只是在复述四维诊断 headline。"""
     text = (narrative or "").strip()

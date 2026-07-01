@@ -47,7 +47,6 @@ cd backend && pytest \
 | `orchestrator.py` | RT-ROUTE, RT-CONF, RT-REUSE, RT-X |
 | `skill_matcher.py` / `skill_service.py` | RT-MATCH, RT-Persist, RT-REUSE |
 | `nlu_service.py` / `follow_up_service.py` | RT-NLU, RT-FU |
-| `corridor_*` | RT-COR |
 | `App.vue` / `usePresentation` / 理解过程 | RT-UI |
 | `voice_narration.json` / `voiceStepSync` | RT-VOICE |
 | `execution_emitter` / SSE | RT-SSE, RT-DIA |
@@ -82,4 +81,4 @@ cd backend && pytest \
 - [REGRESSION_TEST_SPEC.md](./REGRESSION_TEST_SPEC.md) — 全量测试点
 - [TEST_SCENARIO_MATRIX.md](./TEST_SCENARIO_MATRIX.md) — TC 速查
 - [test-scenario-flowcharts.html](./test-scenario-flowcharts.html) — 流程图
-- [技能沉淀与匹配逻辑开发计划.md](./技能沉淀与匹配逻辑开发计划.md) — 产品设计
+- [技能沉淀与匹配逻辑开发计划.md](./plans/技能沉淀与匹配逻辑开发计划.md) — 产品设计

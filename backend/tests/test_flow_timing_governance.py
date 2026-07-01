@@ -169,7 +169,9 @@ def test_primary_basically_matched():
     """整体不高 → 基本匹配，维持监测。"""
     svc = FlowTimingGovernanceService()
     data = _sample_data()
+    data["granularity"]["by_lane"] = []
     data["traffic_flow"]["turn_saturation_max"] = 0.62
+    data["traffic_flow"]["saturation_rate"] = 0.62
     data["traffic_flow"]["turn_saturation_spread"] = 0.20
     primary = _primary(svc.build(data))
 
@@ -179,12 +181,30 @@ def test_primary_basically_matched():
     assert "维持" in primary["lever"]
 
 
+def test_primary_uses_by_turn_peak_not_inflated_traffic_flow_max():
+    """诊断 headline 的「最高」须与左侧面板 by_turn 一致，不用全局 MAX。"""
+    svc = FlowTimingGovernanceService()
+    data = _sample_data()
+    data["traffic_flow"]["turn_saturation_max"] = 1.15
+    data["traffic_flow"]["saturation_rate"] = 1.15
+    data["traffic_flow"]["turn_saturation_spread"] = 0.77
+    data["granularity"]["by_turn"] = [
+        {"label": "北直行", "turn_saturation": 0.73, "green_utilization": 0.73},
+        {"label": "东左转", "turn_saturation": 0.38, "green_utilization": 0.42},
+        {"label": "西直行", "turn_saturation": 0.52, "green_utilization": 0.53},
+    ]
+    primary = _primary(svc.build(data))
+    assert "1.15" not in primary["headline"]
+    assert "0.73" in primary["headline"] or "0.73" in "".join(primary["evidence"])
+
+
 def test_primary_falls_back_to_saturation_rate():
     """turn_saturation_max 缺失时回退 saturation_rate，不报错、不输出空证据行。"""
     svc = FlowTimingGovernanceService()
     data = _sample_data(
         traffic_flow={"saturation_rate": 0.95},
     )
+    data["granularity"]["by_lane"] = []
     primary = _primary(svc.build(data))
 
     assert primary["type"] == "capacity_bottleneck"
@@ -204,7 +224,10 @@ def test_governance_saturation_rebalance_not_blind_add_green():
     """过饱和+空放并存时，饱和度治理不宜一律加绿。"""
     svc = FlowTimingGovernanceService()
     data = _sample_data()
-    data["traffic_flow"]["turn_saturation_max"] = 0.92
+    data["granularity"]["by_turn"] = [
+        {"label": "东直行", "turn_saturation": 0.92, "green_utilization": 0.93},
+        {"label": "西直行", "turn_saturation": 0.55, "green_utilization": 0.35},
+    ]
     report = svc.build(data)
     sat = next(p for p in report["problems"] if p["category"] == "saturation")
     assert sat["detected"] is True

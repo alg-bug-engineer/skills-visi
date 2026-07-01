@@ -11,6 +11,11 @@ from intersection_agent.services.expert_rules_summary import (
 from intersection_agent.services.governance_action_plan_service import build_action_plan
 from intersection_agent.services.governance_guidance import guidance_for_category
 from intersection_agent.services.rule_engine import RuleEngine
+from intersection_agent.utils.saturation_granularity import (
+    apply_canonical_saturation_to_payload,
+    canonical_saturation_summary,
+    max_turn_saturation_from_rows,
+)
 from intersection_agent.utils.thresholds_loader import threshold_value
 
 FOCUS_CATEGORIES = ("saturation", "imbalance", "empty_green", "spillback")
@@ -121,7 +126,26 @@ def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[s
     tf = data.get("traffic_flow") or {}
     timing_profile = data.get("timing_profile") or {}
     timing = data.get("timing") or {}
+    # max_x：与左侧面板 / 运行数据同口径——仅使用 granularity 汇总，不用 traffic_flow 全局峰值
     by_turn = ((data.get("granularity") or {}).get("by_turn")) or []
+    gran = data.get("granularity") or {}
+    sat_summary = canonical_saturation_summary(
+        by_turn=by_turn,
+        by_lane=gran.get("by_lane"),
+        inter_saturation_max=_float((data.get("evaluation") or {}).get("saturation_max")),
+        inter_saturation_avg=_float((data.get("evaluation") or {}).get("saturation_avg")),
+    )
+    max_x = sat_summary.get("turn_saturation_max")
+    if max_x is None:
+        max_x = max_turn_saturation_from_rows(by_turn)
+    if max_x is None:
+        max_x = _float(tf.get("saturation_rate"))
+    if max_x is None:
+        max_x = _float(tf.get("lane_saturation_max"))
+    spread = sat_summary.get("turn_saturation_spread")
+    if spread is None:
+        spread = _float(tf.get("turn_saturation_spread"))
+
     flow_green = timing_profile.get("flow_green_fit") or {}
     flow_green_verdict = str(flow_green.get("verdict") or timing.get("flow_green_verdict") or "")
 
@@ -131,14 +155,6 @@ def _build_primary_diagnosis(data: dict[str, Any], match_verdict: str) -> dict[s
         "imbalance", "spread_balanced",
         default=threshold_value("imbalance", "diagnosis", default=0.30),
     )
-
-    # max_x：转向饱和度优先，缺失回退路口饱和度 / 车道最高饱和度
-    max_x = _float(tf.get("turn_saturation_max"))
-    if max_x is None:
-        max_x = _float(tf.get("saturation_rate"))
-    if max_x is None:
-        max_x = _float(tf.get("lane_saturation_max"))
-    spread = _float(tf.get("turn_saturation_spread"))
 
     deficit_ratio_max = _float(timing_profile.get("green_deficit_ratio_max")) or _float(
         timing.get("green_deficit_ratio_max")

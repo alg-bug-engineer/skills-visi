@@ -17,6 +17,7 @@ from intersection_agent.utils.direction_groups import (
 )
 from intersection_agent.utils.dow_parser import dow_label, extract_explicit_dow
 from intersection_agent.utils.demo_config import resolve_reference_date
+from intersection_agent.utils.saturation_granularity import canonical_saturation_summary
 from intersection_agent.utils.thresholds_loader import load_thresholds, threshold_value
 
 logger = logging.getLogger(__name__)
@@ -420,9 +421,16 @@ class ProblemEvidenceService:
             if max_queue is not None and max_queue >= long_queue:
                 spillback_risk = min(1.0, max_queue / max(long_queue, 1))
 
-        sat_rate = traffic.get("saturation_rate") or (
-            _float(saturation_row.get("saturation_max")) if saturation_row else None
+        gran = (data_payload or {}).get("granularity") or {}
+        sat_summary = canonical_saturation_summary(
+            by_turn=gran.get("by_turn"),
+            by_lane=gran.get("by_lane"),
+            inter_saturation_max=_float(saturation_row.get("saturation_max"))
+            if saturation_row
+            else _float(eval_metrics.get("saturation_max")),
+            inter_saturation_avg=_float(eval_metrics.get("saturation_avg")),
         )
+        sat_rate = sat_summary.get("saturation_rate") or traffic.get("saturation_rate")
         return {
             "avg_delay_s": round(avg_stop, 1) if avg_stop is not None else None,
             "delay_index": eval_metrics.get("delay_index"),
@@ -608,7 +616,14 @@ class ProblemEvidenceService:
     ) -> dict[str, Any]:
         eval_metrics = (data_payload or {}).get("evaluation", {})
         traffic = (data_payload or {}).get("traffic_flow", {})
-        sat = float(traffic.get("saturation_rate") or 0.88)
+        gran = (data_payload or {}).get("granularity") or {}
+        sat_summary = canonical_saturation_summary(
+            by_turn=gran.get("by_turn"),
+            by_lane=gran.get("by_lane"),
+            inter_saturation_max=_float(eval_metrics.get("saturation_max")),
+            inter_saturation_avg=_float(eval_metrics.get("saturation_avg")),
+        )
+        sat = sat_summary.get("saturation_rate") or float(traffic.get("saturation_rate") or 0.88)
         thresholds = load_thresholds()
         min_days = int(thresholds.get("chronic", {}).get("min_congested_days", 4))
 

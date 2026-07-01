@@ -269,4 +269,4 @@ test_finish_fast_path_diagnosis_is_dead_code                     # 文档化/待
 | Skill 匹配 | `backend/intersection_agent/services/skill_matcher.py` |
 | 快路径集成测 | `backend/tests/test_skill_fast_path.py` |
 | 匹配单测 | `backend/tests/test_skill_matcher.py` |
-| 产品设计 | `docs/技能沉淀与匹配逻辑开发计划.md` |
+| 产品设计 | `docs/plans/技能沉淀与匹配逻辑开发计划.md` |

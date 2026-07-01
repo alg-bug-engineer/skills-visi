@@ -147,6 +147,27 @@ describe('buildNarrativeRuntimeItems', () => {
     expect(items.find((i) => i.label === '西直行绿灯利用')?.value).toBe('0.35')
   })
 
+  it('skips HUD approach saturation rows when turn-level metrics exist [RT-UI-15]', () => {
+    const items = buildNarrativeRuntimeItems({
+      dataInsight: {
+        title: '运行数据',
+        metrics: [
+          { label: '东进口饱和度', value: '0.98' },
+          { label: '延误指数', value: '1.30' },
+        ],
+      },
+      evidence: {
+        by_turn: [
+          { label: '东左转', turn_saturation: 0.55 },
+          { label: '东直行', turn_saturation: 0.38 },
+        ],
+      } as ProblemEvidence,
+    })
+    expect(items.find((i) => i.label === '东进口饱和度')).toBeUndefined()
+    expect(items.find((i) => i.label === '东左转饱和度')?.value).toContain('0.55')
+    expect(items.find((i) => i.label === '延误指数')).toBeDefined()
+  })
+
   it('uses turn-level saturation instead of approach aggregates when map labels are turn-driven', () => {
     const items = buildNarrativeRuntimeItems({
       cognition: {

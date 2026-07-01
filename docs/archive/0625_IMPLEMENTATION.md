@@ -1,6 +1,6 @@
 # 0625 需求实现说明（问题验证证据 + 约束量化）
 
-> 需求原文：`docs/0625.md`  
+> 需求原文：`./0625.md`  
 > 后端实现：`backend/docs/EVIDENCE_FEATURE.md`  
 > **前端对接：`backend/docs/FRONTEND_EVIDENCE_INTEGRATION.md`**
 

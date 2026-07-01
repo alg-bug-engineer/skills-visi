@@ -213,6 +213,8 @@ class QwenClient:
             }
             if "奥体" in user or "经十" in user:
                 result["intersection"] = "奥体西路与经十路交叉口"
+            if "低饱和" in user:
+                result["intersection"] = "低饱和测试路口交叉口"
             if "四点" in user or "16" in user or "晚高峰" in user or "下午" in user:
                 result["time_period"] = {
                     "start": "16:00",

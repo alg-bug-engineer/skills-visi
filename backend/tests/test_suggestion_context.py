@@ -1,8 +1,10 @@
 """suggestion_context：治理建议上下文拼装。"""
 
 from intersection_agent.services.suggestion_context import (
+    compose_monitoring_feedback_narrative,
     compose_suggestion_narrative,
     format_upstream_trace_for_prompt,
+    is_healthy_monitoring_case,
     narrative_echoes_diagnosis,
     prepare_suggestion_data,
     synthesize_flow_trace_from_upstream,
@@ -106,3 +108,49 @@ def test_compose_suggestion_narrative_includes_upstream_and_constraint():
     assert "垂直" in text
     assert "挪绿" not in text or "从" in text
     assert not narrative_echoes_diagnosis(text, data)
+
+
+def test_is_healthy_monitoring_case_basically_matched():
+    assert is_healthy_monitoring_case(
+        {"primary_diagnosis": {"type": "basically_matched"}}
+    )
+    assert not is_healthy_monitoring_case(
+        {"primary_diagnosis": {"type": "timing_optimizable"}}
+    )
+
+
+def test_compose_monitoring_feedback_narrative_lists_metrics():
+    data = prepare_suggestion_data(
+        {
+            "meta": {
+                "intersection": "会展路与奥体中路路口",
+                "time_period": {"label": "晚高峰"},
+            },
+            "traffic_flow": {"saturation_rate": 0.73},
+            "evaluation": {
+                "level_of_service_label": "D-临界",
+                "imbalance_index": 0.18,
+                "green_utilization": 0.62,
+            },
+            "signal_plan": {"cycle_length": 167},
+            "granularity": {
+                "by_turn": [
+                    {"label": "东直行", "turn_saturation": 0.73, "green_utilization": 0.65},
+                ],
+            },
+            "flow_timing_governance": {
+                "primary_diagnosis": {
+                    "type": "basically_matched",
+                    "headline": "供需与配时基本匹配，未见明显绿灯错配",
+                    "lever": "维持现有配时方案，持续监测高峰表现",
+                    "evidence": ["最高转向饱和度 0.73"],
+                },
+                "problems": [],
+            },
+        }
+    )
+    text = compose_monitoring_feedback_narrative(data)
+    assert "已记录" in text
+    assert "0.73" in text
+    assert "持续关注" in text
+    assert "暂无需调整信控方案" in text

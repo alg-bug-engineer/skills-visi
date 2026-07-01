@@ -73,11 +73,7 @@ async def test_message_stream_skill_absorption_before_build(client, skill_dir_pa
 
     await client.post(
         f"/api/v1/sessions/{sid}/messages",
-        json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵"},
-    )
-    await client.post(
-        f"/api/v1/sessions/{sid}/messages",
-        json={"content": "是，优先保障南北向直行，绿灯可以延长"},
+        json={"content": "奥体西路与经十路交叉口，下午四点南北向拥堵，优先保障南北向直行，绿灯可以延长"},
     )
 
     async with client.stream(

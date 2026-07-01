@@ -12,9 +12,9 @@
 
 | 文档 | 内容 |
 |------|------|
-| [RELEASE_0630.md](RELEASE_0630.md) | **0630 发布说明（权威）** |
-| [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) | 项目总览与里程碑 |
-| [plans/2026-06-29-develop-信控演示叙事精简-复盘.md](plans/2026-06-29-develop-信控演示叙事精简-复盘.md) | 叙事精简变更清单 |
+| [RELEASE_0630.md](../releases/RELEASE_0630.md) | **0630 发布说明（权威）** |
+| [PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md) | 项目总览与里程碑 |
+| [plans/2026-06-29-develop-信控演示叙事精简-复盘.md](../plans/2026-06-29-develop-信控演示叙事精简-复盘.md) | 叙事精简变更清单 |
 
 ## 当前工作流
 

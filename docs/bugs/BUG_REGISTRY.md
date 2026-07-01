@@ -1,6 +1,6 @@
 # Bug 登记册
 
-> 维护日期：2026-06-28 · 关联发布：[`RELEASE_v3.0.md`](../RELEASE_v3.0.md)
+> 维护日期：2026-06-28 · 关联发布：[`RELEASE_v3.0.md`](../releases/RELEASE_v3.0.md)
 
 本文件汇总演示与开发过程中发现的问题、截图证据与修复状态。截图存放于 [`artifacts/bugs/`](../../artifacts/bugs/)。
 
@@ -16,7 +16,7 @@
 | 根因 | 终端 export 的 `all_proxy=socks5://…` 被 Python 进程继承 |
 | 修复 | `network_env.disable_shell_proxy_env()` + `httpx.AsyncClient(trust_env=False)` |
 | 版本 | v2.0.5 |
-| 文档 | [`DEV_CONSTRAINTS.md`](../DEV_CONSTRAINTS.md)、[`RELEASE_v2.0.5.md`](../RELEASE_v2.0.5.md) |
+| 文档 | [`DEV_CONSTRAINTS.md`](../DEV_CONSTRAINTS.md)、[`RELEASE_v2.0.5.md`](../releases/RELEASE_v2.0.5.md) |
 
 ---
 
