@@ -124,7 +124,7 @@ describe('applyPhaseHighlight', () => {
       },
     })
     const labels = calls.applyArmSceneLabels.at(-1)?.[0] as Array<{ dir: string; line1: string; line2: string }>
-    expect(labels?.find((l) => l.dir === '西')?.line1).toBe('关注 西进口')
+    expect(labels?.find((l) => l.dir === '西')?.line1).toBe('关注 东西向')
     expect(labels?.find((l) => l.dir === '西')?.line2).toBe('饱和 1.94')
     expect(labels?.find((l) => l.dir === '北')?.line1).toBe('保护 南北向')
     expect(labels?.some((l) => l.line2 === '1.20')).toBe(false)
@@ -275,7 +275,7 @@ describe('applyPhaseHighlight', () => {
       protectedDirs: [],
     })
     expect(calls.applyDirectionRoleHighlight).toHaveLength(1)
-    expect(calls.applyDirectionRoleHighlight[0][0]).toEqual(['西'])
+    expect(calls.applyDirectionRoleHighlight[0][0]).toEqual(['东', '西'])
   })
 
   it('traffic 阶段不叠饱和度浮标，但有角色(清空)+臂标签', () => {

@@ -14,6 +14,7 @@ os.environ["MOCK_LLM"] = "1"
 os.environ["MOCK_DB"] = "1"
 os.environ["SKILL_DIR_PATH"] = str(Path(_tmp) / "skills")
 os.environ["PROFILE_DIR_PATH"] = str(Path(_tmp) / "profiles")
+os.environ["INTERSECTION_CASE_DIR_PATH"] = str(Path(_tmp) / "cases")
 
 from intersection_agent.main import create_app  # noqa: E402
 
@@ -27,6 +28,7 @@ def skill_dir_path(tmp_path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     os.environ["SKILL_DIR_PATH"] = str(path)
     os.environ["PROFILE_DIR_PATH"] = str(tmp_path / "profiles")
+    os.environ["INTERSECTION_CASE_DIR_PATH"] = str(tmp_path / "cases")
     get_settings.cache_clear()
     return path
 

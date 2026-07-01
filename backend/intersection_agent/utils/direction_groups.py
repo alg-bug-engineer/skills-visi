@@ -15,6 +15,8 @@ DIR4_TO_GROUP: dict[str, str] = {
 
 GROUP_ORDER = ("东西向", "南北向", "东南向", "西南向", "东北向", "西北向")
 
+AXIS_PAIR_GROUPS = ("东西向", "南北向")
+
 PERPENDICULAR_GROUP: dict[str, str] = {
     "东西向": "南北向",
     "南北向": "东西向",
@@ -66,20 +68,33 @@ def primary_groups_from_nlu(directions: list[str]) -> list[str]:
         group = direction_to_group(item)
         if group and group not in groups:
             groups.append(group)
-    return groups
+    return normalize_axis_focus_groups(groups)
+
+
+def normalize_axis_focus_groups(groups: list[str]) -> list[str]:
+    """关注方向只能是东西向或南北向之一，禁止两轴同时关注。"""
+    axis: list[str] = []
+    for item in groups:
+        canonical = direction_to_group(item)
+        if canonical in AXIS_PAIR_GROUPS and canonical not in axis:
+            axis.append(canonical)
+    if len(axis) > 1:
+        return [axis[0]]
+    return axis
 
 
 def protected_groups_for_vertical_constraint(primary_groups: list[str]) -> list[str]:
     """垂直方向 → 与主方向正交的方向组。"""
+    focus = normalize_axis_focus_groups(primary_groups)
     protected: list[str] = []
-    for group in primary_groups:
+    for group in focus:
         perp = perpendicular_group(group)
         if perp and perp not in protected:
             protected.append(perp)
-    if not protected and "南北向" in primary_groups:
+    if not protected and "南北向" in focus:
         protected.append("东西向")
-    elif not protected and "东西向" in primary_groups:
+    elif not protected and "东西向" in focus:
         protected.append("南北向")
     elif not protected:
         protected.append("东西向")
-    return protected
+    return [g for g in protected if g not in focus]

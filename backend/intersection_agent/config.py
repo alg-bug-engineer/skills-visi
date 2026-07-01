@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     log_backup_count: int = 5
     skill_dir_path: str = "data/skills"
     profile_dir_path: str = "data/profiles"
+    intersection_case_dir_path: str = "data/cases"
     case_library_path: str = "data/expert_knowledge.md"
     mock_llm: bool = False
     mock_db: bool = False

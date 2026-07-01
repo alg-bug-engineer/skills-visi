@@ -40,7 +40,6 @@ import type { CognitionPayload, IntersectionLink, MapActionEvent } from './types
 import type { CorridorIntersectionItem } from './types/corridor'
 import type { GovernanceSuggestionPayload, PipelinePhase } from './types/presentation'
 import { AnalysisQueue } from './utils/analysisQueue'
-import { highlightDirsForGroup } from './utils/evidencePresentation'
 import { parseHighlightTurn } from './utils/cognitionChannelAdapter'
 import { buildEvidenceListItems } from './utils/channelizationCopy'
 import { VOICE_GUIDE } from './services/voiceCueTemplates'
@@ -247,6 +246,7 @@ function rememberIntersectionName(name: string) {
 }
 
 async function waitForStepVoiceSent(stepIndex: number, timeoutMs = 15000) {
+  if (!voice.enabled.value) return
   const deadline = Date.now() + timeoutMs
   while (!voiceSentForStep.has(stepIndex)) {
     if (Date.now() >= deadline) return
@@ -809,10 +809,12 @@ async function presentSkillSolidificationConfirm(
     ) {
       return
     }
-    await waitForStepVoiceSent(STEP_INDICES.SUGGESTION)
-    await voice.whenIdle()
     if (!hasSkillStep()) {
       await revealSkillStep(message)
+    }
+    if (voice.enabled.value) {
+      await waitForStepVoiceSent(STEP_INDICES.SUGGESTION, 3000)
+      await voice.whenIdle()
     }
     showConfirm.value = true
     inputLocked.value = false
@@ -1107,8 +1109,7 @@ function handleNluStep(data: Record<string, unknown>) {
 
 function applySceneHighlight(action: MapActionEvent) {
   if (action.focus_groups?.length) {
-    const dirs = action.focus_groups.flatMap((g) => highlightDirsForGroup(g))
-    presentation.setHighlightDirs(dirs)
+    presentation.setFocusedDirs(action.focus_groups)
   } else if (action.highlight_dirs?.length) {
     presentation.setHighlightDirs(action.highlight_dirs)
   }
@@ -1495,8 +1496,7 @@ function handleProblemEvidenceStep(data: Record<string, unknown>) {
 
     const focused = presentation.state.evidence?.by_direction?.filter((d) => d.focused) ?? []
     if (focused.length) {
-      const dirs = focused.flatMap((d) => highlightDirsForGroup(d.group))
-      presentation.setHighlightDirs(dirs)
+      presentation.setFocusedDirs(focused.map((d) => d.group))
     }
     await whenPresentationSettled()
   }, STEP_PAUSE_MS)

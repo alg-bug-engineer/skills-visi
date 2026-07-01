@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
@@ -35,6 +36,10 @@ from intersection_agent.services.skill_service import SkillService
 from intersection_agent.services.skill_matcher import backfill_tags
 from intersection_agent.skills.tag_helpers import read_hit_count, read_last_hit_at
 from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
+from intersection_agent.stores.intersection_case_store import (
+    IntersectionCaseRecord,
+    IntersectionCaseStore,
+)
 from intersection_agent.stores.session_store import SessionStore
 
 logger = logging.getLogger(__name__)
@@ -351,71 +356,69 @@ async def get_industry_cases(
 
 @router.get("/cases/intersections", response_model=list[IntersectionCase])
 async def get_intersection_cases() -> list[IntersectionCase]:
-    """路口案例库：历史路口诊断→治理方案（仅已形成方案的路口）。"""
-    store = IntersectionProfileStore()
-    cases: list[IntersectionCase] = []
-    for profile in store.load_all():
-        if not profile.solution_ref:
-            continue
-        pid = profile.inter_id
-        solutions: list[IntersectionCaseSolution] = []
-        case_intersection = ""
-        case_time_label = ""
-        for s in profile.solution_ref:
-            record = _skills.get_by_id(s.skill_id)
-            if record:
-                case_intersection = case_intersection or record.intersection
-                case_time_label = case_time_label or record.time_period_label
-            solutions.append(
-                IntersectionCaseSolution(
-                    skill_id=s.skill_id,
-                    qualitative=s.qualitative,
-                    quantified=s.quantified,
-                    solution_measure=record.solution_measure if record else None,
-                    download_url=(
-                        f"/api/v1/skills/{s.skill_id}/download" if record else None
-                    ),
-                    ts=s.ts,
-                )
-            )
-        latest_ts = max(
-            [s.ts for s in profile.solution_ref]
-            + [c.ts for c in profile.cognition]
-            + [d.ts for d in profile.diagnosis],
-            default="",
+    """路口案例库：读取 data/cases/ 显式沉淀的治理案例（须已生成并固化方案）。"""
+    store = IntersectionCaseStore()
+    grouped: dict[str, dict[str, Any]] = {}
+    for rec in store.load_all():
+        bucket = grouped.setdefault(
+            rec.inter_id,
+            {
+                "inter_id": rec.inter_id,
+                "intersection": rec.intersection or rec.inter_id,
+                "time_period_label": rec.time_period_label,
+                "cognition": [],
+                "diagnosis": [],
+                "solutions": [],
+                "ts": "",
+            },
         )
-        cases.append(
-            IntersectionCase(
-                inter_id=pid,
-                intersection=case_intersection or pid,
-                time_period_label=case_time_label,
-                cognition=[
+        if rec.intersection and not bucket["intersection"]:
+            bucket["intersection"] = rec.intersection
+        if rec.time_period_label and not bucket["time_period_label"]:
+            bucket["time_period_label"] = rec.time_period_label
+        seen_cog = {c["text"] for c in bucket["cognition"]}
+        for c in rec.cognition:
+            if c.text not in seen_cog:
+                bucket["cognition"].append(
                     ExperienceCognitionItem(
-                        inter_id=pid,
+                        inter_id=rec.inter_id,
                         text=c.text,
                         status=c.status,
                         source=c.source,
                         evidence=c.evidence,
                         ts=c.ts,
-                    )
-                    for c in profile.cognition
-                ],
-                diagnosis=[
+                    ).model_dump()
+                )
+                seen_cog.add(c.text)
+        seen_diag = {(d["cause"], d["dimension"]) for d in bucket["diagnosis"]}
+        for d in rec.diagnosis:
+            key = (d.cause, d.dimension)
+            if key not in seen_diag:
+                bucket["diagnosis"].append(
                     ExperienceDiagnosisItem(
-                        inter_id=pid,
+                        inter_id=rec.inter_id,
                         cause=d.cause,
                         dimension=d.dimension,
                         scope=d.scope,
                         source=d.source,
                         confidence=d.confidence,
                         ts=d.ts,
-                    )
-                    for d in profile.diagnosis
-                ],
-                solutions=solutions,
-                ts=latest_ts,
-            )
+                    ).model_dump()
+                )
+                seen_diag.add(key)
+        skill = _skills.get_by_id(rec.skill_id)
+        bucket["solutions"].append(
+            IntersectionCaseSolution(
+                skill_id=rec.skill_id,
+                qualitative=rec.qualitative or rec.suggestion_narrative,
+                quantified=rec.suggestion_formula or None,
+                solution_measure=rec.solution_measure or (skill.solution_measure if skill else None),
+                download_url=f"/api/v1/skills/{rec.skill_id}/download" if skill else None,
+                ts=rec.ts,
+            ).model_dump()
         )
+        bucket["ts"] = max(bucket["ts"], rec.ts)
+    cases = [IntersectionCase.model_validate(v) for v in grouped.values()]
     cases.sort(key=lambda c: c.ts, reverse=True)
     return cases
 

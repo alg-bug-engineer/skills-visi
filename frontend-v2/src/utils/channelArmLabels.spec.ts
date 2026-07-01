@@ -65,6 +65,7 @@ describe('buildRoleArmLabels', () => {
       ],
     } as CognitionPayload
     const labels = buildRoleArmLabels(['西'], ['南北向'], cognition)
+    expect(labels.find((l) => l.dir === '西')?.line1).toBe('关注 东西向')
     expect(labels.find((l) => l.dir === '北')?.line1).toBe('保护 南北向')
     expect(labels.find((l) => l.dir === '西')?.line2).toContain('饱和 1.94')
   })

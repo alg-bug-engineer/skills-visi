@@ -178,7 +178,7 @@ class IntersectionCaseSolution(BaseModel):
 
 
 class IntersectionCase(BaseModel):
-    """路口案例：历史诊断→治理方案（由路口档案聚合，仅已形成方案者）。"""
+    """路口案例：显式落盘于 data/cases/，须已生成并固化治理方案。"""
 
     inter_id: str
     intersection: str = ""

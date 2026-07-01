@@ -41,6 +41,10 @@ from intersection_agent.services.dimension_pack_service import DimensionPackServ
 from intersection_agent.services.experience_reuse_service import ExperienceReuseService
 from intersection_agent.services.experience_classifier import ExperienceClassifier
 from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
+from intersection_agent.stores.intersection_case_store import (
+    IntersectionCaseRecord,
+    IntersectionCaseStore,
+)
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
 from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
 from intersection_agent.services.skill_service import SkillService, SkillUpsertResult
@@ -177,6 +181,7 @@ class Orchestrator:
         flow_governance: FlowTimingGovernanceService | None = None,
         sustained: SustainedMetricsService | None = None,
         profile_store: IntersectionProfileStore | None = None,
+        case_store: IntersectionCaseStore | None = None,
         upstream_trace: UpstreamGovernanceTraceService | None = None,
         experience_classifier: ExperienceClassifier | None = None,
     ) -> None:
@@ -197,6 +202,7 @@ class Orchestrator:
         self._flow_governance = flow_governance or FlowTimingGovernanceService(rules=self._rules)
         self._sustained = sustained or SustainedMetricsService()
         self._profile_store = profile_store or IntersectionProfileStore()
+        self._case_store = case_store or IntersectionCaseStore()
         self._experience_reuse = ExperienceReuseService(self._profile_store)
         self._case_library = CaseLibraryService()
         self._upstream_trace = upstream_trace or UpstreamGovernanceTraceService()
@@ -315,25 +321,7 @@ class Orchestrator:
                     },
                 )
 
-        # 方案诊断经验：用户给出的治理措施（实体方案另在固化步沉淀）
-        for measure in classified.get("measures") or []:
-            _, measure_action = self._profile_store.add_solution_ref(
-                inter_id,
-                skill_id="user_experience",
-                qualitative=measure,
-                quantified=None,
-            )
-            if emitter:
-                await emitter.emit(
-                    "experience_solution",
-                    "completed",
-                    data={
-                        "inter_id": inter_id,
-                        "measure": measure,
-                        "action": measure_action,
-                        "tags": ["方案经验", "治理措施"],
-                    },
-                )
+        # 方案诊断经验：用户口述措施仅 emit 事件，不写入案例库（案例须生成方案后显式落盘）
 
     async def _record_solution_ref(
         self,
@@ -341,9 +329,11 @@ class Orchestrator:
         result: SkillUpsertResult,
         emitter: ExecutionEmitter | None = None,
     ) -> None:
-        """出方案步：skill 固化后在档案追加 solution_ref（落库后再播报）。"""
+        """出方案步：skill 固化后在档案追加 solution_ref，并显式写入 data/cases/。"""
         inter_id = session.inter_id
         if not inter_id or not result or not result.record:
+            return
+        if not session.suggestion or not (session.suggestion.narrative or "").strip():
             return
         record = result.record
         qualitative = (session.nlu.user_suggestion if session.nlu else None) or (
@@ -354,6 +344,21 @@ class Orchestrator:
             skill_id=record.skill_id,
             qualitative=qualitative,
             quantified=record.suggestion_formula or None,
+        )
+        profile = self._profile_store.load(inter_id)
+        self._case_store.save(
+            IntersectionCaseRecord(
+                skill_id=record.skill_id,
+                inter_id=inter_id,
+                intersection=record.intersection,
+                time_period_label=record.time_period_label,
+                suggestion_narrative=session.suggestion.narrative,
+                suggestion_formula=record.suggestion_formula or "",
+                solution_measure=record.solution_measure,
+                qualitative=qualitative,
+                cognition=list(profile.cognition),
+                diagnosis=list(profile.diagnosis),
+            )
         )
         if emitter:
             await emitter.emit(

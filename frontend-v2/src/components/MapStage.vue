@@ -88,8 +88,6 @@ function emitView() {
   if (!map) return
   const zoom = map.getZoom()
   const lod = lodForZoom(zoom)
-  debugZoom.value = zoom
-  debugLod.value = lod
   emit('viewChange', { zoom, lod })
 }
 
@@ -113,8 +111,6 @@ async function withProgrammatic(fn: () => Promise<void> | void) {
 }
 
 const mapContainer = ref<HTMLElement | null>(null)
-const debugZoom = ref<number | null>(null)
-const debugLod = ref<'L0' | 'L1' | 'L2' | null>(null)
 const ready = ref(false)
 const error = ref<string | null>(null)
 const cognition = ref<CognitionPayload | null>(null)
@@ -1135,12 +1131,6 @@ onMounted(async () => {
     map = createDarkMap(mapContainer.value, AMapLib)
     ready.value = true
 
-    map.on('zoomchange', () => {
-      if (!map) return
-      debugZoom.value = map.getZoom()
-      debugLod.value = lodForZoom(map.getZoom())
-    })
-    // 渠化态随地图缩放下钻（L0 路网 / L1 轮廓 / L2 车道渠化）
     map.on('zoomend', () => {
       if (channelizationLocked.value) chanController?.applyLOD(map!.getZoom())
       if (!programmaticMove) userInteracted.value = true
@@ -1254,10 +1244,6 @@ watch(
     />
 
     <div v-if="!ready && !error && viewMode === 'map'" class="map-loading">地图加载中…</div>
-
-    <div v-if="ready && debugZoom != null" class="map-zoom-debug" aria-hidden="true">
-      zoom {{ debugZoom.toFixed(2) }}<span v-if="debugLod"> · {{ debugLod }}</span>
-    </div>
   </div>
 </template>
 
@@ -1268,23 +1254,6 @@ watch(
   height: 100%;
   background: #020810;
   overflow: hidden;
-}
-
-.map-zoom-debug {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 40;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: rgba(0, 10, 20, 0.82);
-  border: 1px solid rgba(0, 212, 240, 0.35);
-  color: #9ee8ff;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 11px;
-  line-height: 1.2;
-  pointer-events: none;
-  user-select: none;
 }
 
 .upstream-narration {

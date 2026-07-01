@@ -26,7 +26,7 @@ import {
   saturationHintColor,
   saturationProblemHint,
 } from '../utils/channelArmLabels'
-import { highlightDirsForGroup } from '../utils/evidencePresentation'
+import { highlightDirsForGroup, normalizeAxisFocusGroups, toAxisFocusGroup } from '../utils/evidencePresentation'
 import type { ArmSceneLabel, HighlightEvidence, TurnHighlightSpec } from './channelizationAmap'
 
 export interface PhaseHighlightTarget {
@@ -202,7 +202,12 @@ function applyDirectionRoleOnArms(
     layer.applyDirectionRoleHighlight([], [])
     return
   }
-  const focus = highlightDirs
+  const focusGroups = normalizeAxisFocusGroups(
+    highlightDirs
+      .map((d) => toAxisFocusGroup(d))
+      .filter((g): g is NonNullable<ReturnType<typeof toAxisFocusGroup>> => Boolean(g)),
+  )
+  const focus = focusGroups.flatMap((group) => highlightDirsForGroup(group))
   const protect = protectedDirs.flatMap((group) => highlightDirsForGroup(group))
   layer.applyDirectionRoleHighlight(focus, protect)
 }

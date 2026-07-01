@@ -208,6 +208,7 @@ const canToggleTiming = computed(
             :hide-left-panel="hideLeftNarrative"
             :cognition="presentation.cognition"
             :highlight-dirs="presentation.highlightDirs"
+            :focused-dirs="presentation.focusedDirs"
             :protected-dirs="presentation.protectedDirs"
             :runtime-metrics="presentation.runtimeMetrics"
             :data-insight="presentation.dataInsightBuffer"

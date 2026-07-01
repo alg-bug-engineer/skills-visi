@@ -3,7 +3,7 @@
 import pytest
 
 from intersection_agent.hooks.execution_emitter import ExecutionEmitter
-from intersection_agent.models.domain import DiagnosisResult, NluResult, Session
+from intersection_agent.models.domain import DiagnosisResult, NluResult, Session, SuggestionResult
 from intersection_agent.models.skill import SkillRecord
 from intersection_agent.models.skill import SkillUpsertResult
 from intersection_agent.services.orchestrator import Orchestrator
@@ -109,7 +109,17 @@ async def test_cognition_pending_when_not_data_verified(tmp_path):
 async def test_solution_ref_emit_after_store(tmp_path):
     order: list = []
     orch = Orchestrator(profile_store=_RecordingStore(tmp_path, order))
-    session = Session(inter_id="i1", nlu=NluResult(user_suggestion="绿灯多给点"))
+    session = Session(
+        inter_id="i1",
+        nlu=NluResult(user_suggestion="绿灯多给点"),
+        suggestion=SuggestionResult(
+            delta_seconds=8,
+            direction="东",
+            narrative="东进口绿灯延长 8 秒",
+            confidence=0.8,
+            rule_id="r1",
+        ),
+    )
     record = SkillRecord(
         skill_id="sk1",
         skill_dir="/tmp/sk1",

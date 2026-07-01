@@ -2,6 +2,10 @@
 
 import pytest
 
+from intersection_agent.stores.intersection_case_store import (
+    IntersectionCaseRecord,
+    IntersectionCaseStore,
+)
 from intersection_agent.stores.intersection_profile_store import IntersectionProfileStore
 
 
@@ -31,17 +35,29 @@ async def test_industry_cases_filter_by_query(client, skill_dir_path):
 
 
 def _seed_full_case(inter_id: str) -> None:
-    store = IntersectionProfileStore()
-    store.add_cognition(inter_id, text="早高峰空放", status="verified", source="data")
-    store.add_diagnosis(
+    case_store = IntersectionCaseStore()
+    profile = IntersectionProfileStore()
+    profile.add_cognition(inter_id, text="早高峰空放", status="verified", source="data")
+    profile.add_diagnosis(
         inter_id, cause="附近学校放学", dimension="event", source="user", confidence=0.6
     )
-    store.add_solution_ref(
-        inter_id, skill_id="skill_x", qualitative="压缩空放", quantified="东进口绿灯 -6s"
+    loaded = profile.load(inter_id)
+    case_store.save(
+        IntersectionCaseRecord(
+            skill_id="skill_x",
+            inter_id=inter_id,
+            intersection="测试路口",
+            time_period_label="晚高峰",
+            suggestion_narrative="压缩空放相位，均衡各进口绿灯",
+            suggestion_formula="东进口绿灯 -6s",
+            qualitative="压缩空放",
+            cognition=list(loaded.cognition),
+            diagnosis=list(loaded.diagnosis),
+        )
     )
 
 
-def _seed_cognition_only(inter_id: str) -> None:
+def _seed_profile_only(inter_id: str) -> None:
     IntersectionProfileStore().add_cognition(
         inter_id, text="只有认知没有方案", status="data_doubt", source="user"
     )
@@ -50,7 +66,7 @@ def _seed_cognition_only(inter_id: str) -> None:
 @pytest.mark.asyncio
 async def test_intersection_cases_only_with_solution(client, skill_dir_path):
     _seed_full_case("inter_full")
-    _seed_cognition_only("inter_partial")
+    _seed_profile_only("inter_partial")
     resp = await client.get("/api/v1/cases/intersections")
     assert resp.status_code == 200
     body = resp.json()

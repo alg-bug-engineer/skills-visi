@@ -3,11 +3,14 @@ import { ANALYSIS_STEP_LABELS, STEP_INDICES, THRESHOLDS } from '../constants'
 import {
   buildEvidenceDirectionMarkers,
   constraintProgress,
+  expandFocusGroupsToHighlightDirs,
   formatPercent,
   formatSaturation,
+  normalizeAxisFocusGroups,
   highlightDirsForGroup,
   metricLabel,
   sourceTierLabel,
+  toCardinalArmDirs,
 } from '../utils/evidencePresentation'
 import { createInitialPresentation } from '../types/presentation'
 
@@ -46,6 +49,22 @@ describe('evidencePresentation', () => {
 
   it('expands direction groups to highlight dirs', () => {
     expect(highlightDirsForGroup('东西向')).toEqual(['东', '西'])
+    expect(highlightDirsForGroup('南北向')).toEqual(['南', '北'])
+    expect(highlightDirsForGroup('东南向')).toEqual(['东南'])
+    expect(highlightDirsForGroup('西南向')).toEqual(['西南'])
+  })
+
+  it('normalizeAxisFocusGroups keeps only one axis pair', () => {
+    expect(normalizeAxisFocusGroups(['东西向', '南北向'])).toEqual(['东西向'])
+    expect(normalizeAxisFocusGroups(['东', '西', '南', '北'])).toEqual(['东西向'])
+  })
+
+  it('does not char-split oblique groups into all four cardinals', () => {
+    const dirs = expandFocusGroupsToHighlightDirs(['东南向', '西南向', '南北向'])
+    expect(dirs).toEqual(['东南', '西南', '南', '北'])
+    expect(toCardinalArmDirs(dirs)).toEqual(['东', '西', '南', '北'])
+    expect(toCardinalArmDirs(expandFocusGroupsToHighlightDirs(['东西向']))).toEqual(['东', '西'])
+    expect(toCardinalArmDirs(expandFocusGroupsToHighlightDirs(['南北向']))).toEqual(['南', '北'])
   })
 
   it('computes constraint progress', () => {

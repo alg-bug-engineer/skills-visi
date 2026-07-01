@@ -6,6 +6,7 @@ import type { CaseScenario, ExperienceSedimentItem } from '../types/experience'
 import type { DataInsight, DataInsightMetric, InsightCardEntry } from '../types/insight'
 import { STEP_INDICES } from '../constants'
 import { shouldSkipRuntimeMetric } from '../utils/narrativeStack'
+import { expandFocusGroupsToHighlightDirs, normalizeAxisFocusGroups } from '../utils/evidencePresentation'
 import {
   CORRIDOR_WAVE_AUTO_PHASES,
   TIMING_RING_AUTO_PHASES,
@@ -199,9 +200,13 @@ export function usePresentation() {
   function patchEvidence(evidence: ProblemEvidence | null) {
     state.evidence = evidence
     if (evidence?.by_direction) {
-      state.focusedDirs = evidence.by_direction
-        .filter((d) => d.focused)
-        .map((d) => d.group)
+      const groups = normalizeAxisFocusGroups(
+        evidence.by_direction.filter((d) => d.focused).map((d) => d.group),
+      )
+      state.focusedDirs = groups
+      if (groups.length) {
+        state.highlightDirs = expandFocusGroupsToHighlightDirs(groups)
+      }
     }
     if (evidence?.timing_profile?.ring_diagram?.available && !state.timingRingMiniDismissed) {
       if (TIMING_RING_AUTO_PHASES.includes(state.phase)) {
@@ -274,6 +279,14 @@ export function usePresentation() {
 
   function setHighlightDirs(dirs: string[]) {
     state.highlightDirs = [...dirs]
+  }
+
+  function setFocusedDirs(groups: string[]) {
+    const normalized = normalizeAxisFocusGroups(groups)
+    state.focusedDirs = [...normalized]
+    if (normalized.length) {
+      state.highlightDirs = expandFocusGroupsToHighlightDirs(normalized)
+    }
   }
 
   function setProtectedGroups(groups: string[]) {
@@ -426,6 +439,7 @@ export function usePresentation() {
     setCognition,
     setHud,
     setHighlightDirs,
+    setFocusedDirs,
     setProtectedGroups,
     setHighlightTurn,
     patchRuntimeMetrics,

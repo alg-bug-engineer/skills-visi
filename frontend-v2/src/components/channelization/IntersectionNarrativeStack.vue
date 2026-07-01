@@ -17,6 +17,8 @@ const props = defineProps<{
   visible: boolean
   cognition: CognitionPayload | null
   highlightDirs?: string[]
+  /** NLU/证据认定的关注方向组（如南北向），用于左侧「关注」标签 */
+  focusedDirs?: string[]
   protectedDirs?: string[]
   runtimeMetrics?: RuntimeMetrics | null
   dataInsight?: DataInsight | null
@@ -54,7 +56,12 @@ function formatDirRoles(dirs?: string[]): string {
     .map((d) => (d.endsWith('向') ? d : `${d}向`))
     .join('、')
 }
-const focusRole = computed(() => formatDirRoles(props.highlightDirs))
+const focusRole = computed(() => {
+  if (props.focusedDirs?.length) {
+    return props.focusedDirs.join('、')
+  }
+  return formatDirRoles(props.highlightDirs)
+})
 const protectRole = computed(() => formatDirRoles(props.protectedDirs))
 
 /* ── 运行数据（逐项追加）────────────────────────────────────────────────── */

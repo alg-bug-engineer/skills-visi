@@ -52,6 +52,7 @@ data/skills/*/
 !data/skills/_template/
 data/logs/
 data/profiles/
+data/cases/
 *.log
 
 # SQLite (legacy)

@@ -2,7 +2,7 @@ import { THRESHOLDS } from '../constants'
 import type { CognitionPayload, MapSceneMarker } from '../types/map'
 import type { ChannelQueueArm } from './cognitionChannelAdapter'
 import { normalizeDir } from './mapMarkers'
-import { formatSaturation } from './evidencePresentation'
+import { formatSaturation, highlightDirsForGroup, normalizeAxisFocusGroups, toAxisFocusGroup } from './evidencePresentation'
 import { resolveTurnMetrics, sortTurnMetrics, dirFromTurnLabel } from './turnMetrics'
 
 const PLACEHOLDER_LINES = new Set(['—', '-', '–', ''])
@@ -43,6 +43,15 @@ export interface ArmSceneLabel {
   line1: string
   line2: string
   colorHex: string
+}
+
+function inferAxisGroupsFromDirs(dirs: string[]): string[] {
+  const groups: string[] = []
+  for (const d of dirs) {
+    const axis = toAxisFocusGroup(d)
+    if (axis && !groups.includes(axis)) groups.push(axis)
+  }
+  return normalizeAxisFocusGroups(groups)
 }
 
 function dirKeyFromLabel(dir?: string): string | null {
@@ -131,19 +140,21 @@ export function buildRoleArmLabels(
     return parts.length ? parts.join(' · ') : isFocus ? '重点关注' : '保护'
   }
 
-  for (const dir of highlightDirs) {
-    const key = dirKeyFromLabel(dir)
-    if (!key) continue
-    const sat = saturationForDir(cognition, key)
-    byDir.set(key, {
-      dir: key,
-      line1: `关注 ${key}进口`,
-      line2: metricLine(key, sat, true),
-      colorHex: saturationHintColor(sat ?? 1.0),
-    })
+  for (const group of normalizeAxisFocusGroups(inferAxisGroupsFromDirs(highlightDirs))) {
+    for (const dir of highlightDirsForGroup(group)) {
+      const key = dirKeyFromLabel(dir)
+      if (!key) continue
+      const sat = saturationForDir(cognition, key)
+      byDir.set(key, {
+        dir: key,
+        line1: `关注 ${group}`,
+        line2: metricLine(key, sat, true),
+        colorHex: saturationHintColor(sat ?? 1.0),
+      })
+    }
   }
   for (const group of protectedDirs) {
-    for (const dir of group.replace('向', '').split('').filter(Boolean)) {
+    for (const dir of highlightDirsForGroup(group)) {
       const key = dirKeyFromLabel(dir)
       if (!key || byDir.has(key)) continue
       const sat = saturationForDir(cognition, key)
