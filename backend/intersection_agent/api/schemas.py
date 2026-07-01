@@ -85,9 +85,12 @@ class ExperienceCognitionItem(BaseModel):
     """认知经验：问题记录。"""
 
     inter_id: str
+    intersection: str = ""
     text: str
     status: str = "manual"
     source: str = "data"
+    tags: list[str] = Field(default_factory=list)
+    structured: dict[str, Any] = Field(default_factory=dict)
     evidence: dict[str, Any] = Field(default_factory=dict)
     ts: str = ""
 
@@ -173,6 +176,7 @@ class IntersectionCaseSolution(BaseModel):
     qualitative: str | None = None
     quantified: str | None = None
     solution_measure: str | None = None
+    solution_summary: str = ""
     download_url: str | None = None
     ts: str = ""
 
@@ -183,6 +187,8 @@ class IntersectionCase(BaseModel):
     inter_id: str
     intersection: str = ""
     time_period_label: str = ""
+    summary: str = ""
+    tags: list[str] = Field(default_factory=list)
     cognition: list[ExperienceCognitionItem] = Field(default_factory=list)
     diagnosis: list[ExperienceDiagnosisItem] = Field(default_factory=list)
     solutions: list[IntersectionCaseSolution] = Field(default_factory=list)

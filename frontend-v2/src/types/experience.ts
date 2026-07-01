@@ -35,9 +35,18 @@ export interface CaseScenario {
 
 export interface ExperienceCognitionItem {
   inter_id: string
+  intersection?: string
   text: string
   status: 'verified' | 'data_doubt' | 'manual' | string
   source: string
+  tags?: string[]
+  structured?: {
+    time_period?: string
+    directions?: string[]
+    movement?: string
+    phenomenon?: string
+    summary?: string
+  }
   evidence?: Record<string, unknown>
   ts: string
 }
@@ -108,6 +117,7 @@ export interface IntersectionCaseSolution {
   qualitative?: string | null
   quantified?: string | null
   solution_measure?: string | null
+  solution_summary?: string
   download_url?: string | null
   ts: string
 }
@@ -116,6 +126,8 @@ export interface IntersectionCase {
   inter_id: string
   intersection: string
   time_period_label: string
+  summary?: string
+  tags?: string[]
   cognition: ExperienceCognitionItem[]
   diagnosis: ExperienceDiagnosisItem[]
   solutions: IntersectionCaseSolution[]

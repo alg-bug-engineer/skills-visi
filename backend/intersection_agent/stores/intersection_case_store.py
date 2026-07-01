@@ -25,9 +25,12 @@ class IntersectionCaseRecord(BaseModel):
     inter_id: str
     intersection: str = ""
     time_period_label: str = ""
+    summary: str = ""
+    tags: list[str] = Field(default_factory=list)
     suggestion_narrative: str
     suggestion_formula: str = ""
     solution_measure: str | None = None
+    solution_summary: str = ""
     qualitative: str | None = None
     cognition: list[CognitionEntry] = Field(default_factory=list)
     diagnosis: list[DiagnosisEntry] = Field(default_factory=list)

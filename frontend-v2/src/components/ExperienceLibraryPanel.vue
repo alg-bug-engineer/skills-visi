@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import type { SkillLeaderboardItem, SkillLeaderboardSort } from '../types/skillLeaderboard'
 import SkillLeaderboardPanel from './SkillLeaderboardPanel.vue'
 import { useExperienceLibrary } from '../composables/useExperienceLibrary'
+import { cognitionDisplaySummary } from '../utils/textFormat'
 
 const props = defineProps<{
   /** 方案经验：复用技能榜数据 */
@@ -38,6 +39,20 @@ const statusLabel: Record<string, string> = {
   verified: '已验证',
   data_doubt: '数据存疑',
   manual: '人工录入',
+}
+
+function hasStructured(structured: {
+  time_period?: string
+  directions?: string[]
+  movement?: string
+  phenomenon?: string
+}) {
+  return Boolean(
+    structured.time_period ||
+      structured.directions?.length ||
+      structured.movement ||
+      structured.phenomenon,
+  )
 }
 
 function loadProfileBuckets(force = false) {
@@ -111,7 +126,29 @@ watch(
             <span class="badge" :class="`st-${c.status}`">{{ statusLabel[c.status] ?? c.status }}</span>
             <span class="src">{{ c.source === 'user' ? '用户' : '数据' }}</span>
           </div>
-          <p class="exp-text">{{ c.text }}</p>
+          <p v-if="c.intersection" class="exp-intersection">{{ c.intersection }}</p>
+          <div v-if="c.tags?.length" class="tag-row">
+            <span v-for="tag in c.tags" :key="tag" class="tag">{{ tag }}</span>
+          </div>
+          <p class="exp-text">{{ cognitionDisplaySummary(c) }}</p>
+          <dl v-if="c.structured && hasStructured(c.structured)" class="exp-structured">
+            <template v-if="c.structured.time_period">
+              <dt>时段</dt>
+              <dd>{{ c.structured.time_period }}</dd>
+            </template>
+            <template v-if="c.structured.directions?.length">
+              <dt>方向</dt>
+              <dd>{{ c.structured.directions.join('、') }}</dd>
+            </template>
+            <template v-if="c.structured.movement">
+              <dt>转向</dt>
+              <dd>{{ c.structured.movement }}</dd>
+            </template>
+            <template v-if="c.structured.phenomenon">
+              <dt>现象</dt>
+              <dd>{{ c.structured.phenomenon }}</dd>
+            </template>
+          </dl>
         </li>
       </ul>
     </div>
@@ -264,11 +301,51 @@ watch(
   color: rgba(180, 195, 210, 0.6);
 }
 
+.exp-intersection {
+  margin: 0 0 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(224, 236, 245, 0.95);
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+.tag {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 229, 255, 0.12);
+  color: #7fe7ff;
+}
+
 .exp-text {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.5;
   color: rgba(224, 236, 245, 0.92);
+}
+
+.exp-structured {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  margin: 6px 0 0;
+  font-size: 10.5px;
+}
+
+.exp-structured dt {
+  margin: 0;
+  color: rgba(160, 190, 215, 0.65);
+}
+
+.exp-structured dd {
+  margin: 0;
+  color: rgba(210, 228, 244, 0.88);
 }
 
 .exp-scope {

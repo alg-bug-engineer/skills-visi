@@ -41,6 +41,11 @@ from intersection_agent.stores.intersection_case_store import (
     IntersectionCaseStore,
 )
 from intersection_agent.stores.session_store import SessionStore
+from intersection_agent.utils.text_format import (
+    build_case_summary,
+    build_solution_summary,
+    strip_markdown,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -286,9 +291,12 @@ async def get_experience_library(
             cognition.append(
                 ExperienceCognitionItem(
                     inter_id=pid,
+                    intersection=c.intersection or profile.intersection or pid,
                     text=c.text,
                     status=c.status,
                     source=c.source,
+                    tags=list(c.tags or []),
+                    structured=c.structured.model_dump() if c.structured else {},
                     evidence=c.evidence,
                     ts=c.ts,
                 )
@@ -366,6 +374,8 @@ async def get_intersection_cases() -> list[IntersectionCase]:
                 "inter_id": rec.inter_id,
                 "intersection": rec.intersection or rec.inter_id,
                 "time_period_label": rec.time_period_label,
+                "summary": "",
+                "tags": [],
                 "cognition": [],
                 "diagnosis": [],
                 "solutions": [],
@@ -376,15 +386,35 @@ async def get_intersection_cases() -> list[IntersectionCase]:
             bucket["intersection"] = rec.intersection
         if rec.time_period_label and not bucket["time_period_label"]:
             bucket["time_period_label"] = rec.time_period_label
+        if rec.summary and not bucket["summary"]:
+            bucket["summary"] = rec.summary
+        if rec.tags:
+            bucket["tags"] = list(dict.fromkeys([*bucket["tags"], *rec.tags]))
+        if not bucket["summary"]:
+            solution_summary = rec.solution_summary or build_solution_summary(
+                rec.solution_measure,
+                rec.suggestion_narrative,
+                rec.suggestion_formula,
+            )
+            bucket["summary"] = build_case_summary(
+                intersection=rec.intersection or rec.inter_id,
+                time_period_label=rec.time_period_label,
+                cognition=list(rec.cognition),
+                diagnosis=list(rec.diagnosis),
+                solution_summary=solution_summary,
+            )
         seen_cog = {c["text"] for c in bucket["cognition"]}
         for c in rec.cognition:
             if c.text not in seen_cog:
                 bucket["cognition"].append(
                     ExperienceCognitionItem(
                         inter_id=rec.inter_id,
+                        intersection=c.intersection or rec.intersection or rec.inter_id,
                         text=c.text,
                         status=c.status,
                         source=c.source,
+                        tags=list(c.tags or []),
+                        structured=c.structured.model_dump() if c.structured else {},
                         evidence=c.evidence,
                         ts=c.ts,
                     ).model_dump()
@@ -407,12 +437,21 @@ async def get_intersection_cases() -> list[IntersectionCase]:
                 )
                 seen_diag.add(key)
         skill = _skills.get_by_id(rec.skill_id)
+        solution_summary = rec.solution_summary or build_solution_summary(
+            rec.solution_measure,
+            rec.suggestion_narrative,
+            rec.suggestion_formula,
+        )
         bucket["solutions"].append(
             IntersectionCaseSolution(
                 skill_id=rec.skill_id,
                 qualitative=rec.qualitative or rec.suggestion_narrative,
                 quantified=rec.suggestion_formula or None,
-                solution_measure=rec.solution_measure or (skill.solution_measure if skill else None),
+                solution_measure=strip_markdown(
+                    rec.solution_measure or (skill.solution_measure if skill else None)
+                )
+                or None,
+                solution_summary=solution_summary,
                 download_url=f"/api/v1/skills/{rec.skill_id}/download" if skill else None,
                 ts=rec.ts,
             ).model_dump()

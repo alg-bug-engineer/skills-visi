@@ -3,6 +3,7 @@ import { nextTick, onMounted, ref } from 'vue'
 import { fetchIndustryCases, fetchIntersectionCases } from '../api/client'
 import type { IndustryCaseScenario, IntersectionCase } from '../types/experience'
 import { filterIndustryCases, type CaseSubTab, type ParsedCaseRef } from '../utils/caseReference'
+import { cognitionDisplaySummary, solutionDisplayText, stripMarkdown } from '../utils/textFormat'
 
 const subTab = ref<CaseSubTab>('industry')
 
@@ -182,11 +183,20 @@ onMounted(() => loadIndustry())
             <span class="inter-name">{{ c.intersection || c.inter_id }}</span>
             <span v-if="c.time_period_label" class="inter-time">{{ c.time_period_label }}</span>
           </div>
+          <div v-if="c.tags?.length" class="tag-row">
+            <span v-for="tag in c.tags" :key="tag" class="tag">{{ tag }}</span>
+          </div>
+          <p v-if="c.summary" class="case-summary">{{ c.summary }}</p>
           <div v-if="c.cognition.length" class="seg">
             <span class="seg-label">场景认知</span>
-            <p v-for="(cog, i) in c.cognition" :key="i" class="seg-line">
-              <span class="dot" :class="`st-${cog.status}`" />{{ cog.text }}
-            </p>
+            <div v-for="(cog, i) in c.cognition" :key="i" class="cog-block">
+              <p class="seg-line">
+                <span class="dot" :class="`st-${cog.status}`" />{{ cognitionDisplaySummary(cog) }}
+              </p>
+              <div v-if="cog.tags?.length" class="mini-tags">
+                <span v-for="tag in cog.tags" :key="tag" class="mini-tag">{{ tag }}</span>
+              </div>
+            </div>
           </div>
           <div v-if="c.diagnosis.length" class="seg">
             <span class="seg-label">诊断成因</span>
@@ -196,11 +206,15 @@ onMounted(() => loadIndustry())
           </div>
           <div v-if="c.solutions.length" class="seg">
             <span class="seg-label">治理方案与成效</span>
-            <p v-for="(s, i) in c.solutions" :key="i" class="seg-line solution-line">
-              {{ s.solution_measure || s.qualitative || s.skill_id }}
-              <span v-if="s.quantified" class="quant">{{ s.quantified }}</span>
+            <div v-for="(s, i) in c.solutions" :key="i" class="solution-card">
+              <p class="seg-line solution-line">
+                {{ solutionDisplayText(s) || s.skill_id }}
+              </p>
+              <p v-if="s.qualitative && stripMarkdown(s.qualitative) !== solutionDisplayText(s)" class="solution-note">
+                背景：{{ stripMarkdown(s.qualitative) }}
+              </p>
               <a v-if="s.download_url" :href="s.download_url" class="dl" target="_blank">下载技能包</a>
-            </p>
+            </div>
           </div>
         </li>
       </ul>
@@ -473,6 +487,61 @@ onMounted(() => loadIndustry())
 .inter-time {
   font-size: 10px;
   color: #7dd3fc;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.tag {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.14);
+  color: #7dd3fc;
+}
+
+.case-summary {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: rgba(210, 228, 244, 0.92);
+}
+
+.cog-block + .cog-block {
+  margin-top: 4px;
+}
+
+.mini-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 0 12px;
+}
+
+.mini-tag {
+  font-size: 9px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(180, 205, 225, 0.75);
+}
+
+.solution-card {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(8, 16, 30, 0.35);
+}
+
+.solution-note {
+  margin: 4px 0 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: rgba(180, 205, 225, 0.75);
 }
 
 .seg {

@@ -48,6 +48,13 @@ from intersection_agent.stores.intersection_case_store import (
     IntersectionCaseRecord,
     IntersectionCaseStore,
 )
+from intersection_agent.utils.text_format import (
+    build_case_summary,
+    build_cognition_structured_from_nlu,
+    build_cognition_tags,
+    build_solution_summary,
+    strip_markdown,
+)
 from intersection_agent.services.nlu_service import NluService, extract_user_suggestion_text
 from intersection_agent.services.rule_engine import RuleEngine, evaluate_formula
 from intersection_agent.services.runtime_metric_builder import RuntimeMetricBuilder
@@ -282,12 +289,20 @@ class Orchestrator:
         cognition_text = classified.get("problem") or _compose_cognition_text(nlu)
         if cognition_text:
             status = "verified" if verified else "data_doubt"
+            structured = classified.get("cognition_structured") or build_cognition_structured_from_nlu(
+                nlu, cognition_text
+            )
+            tags = classified.get("tags") or build_cognition_tags(structured)
+            intersection_name = session.resolved_intersection or (nlu.intersection if nlu else "") or ""
             _, cognition_action = self._profile_store.add_cognition(
                 inter_id,
                 text=cognition_text,
                 status=status,
                 source="data" if verified else "user",
                 evidence=(diagnosis.metrics_snapshot or {}) if verified else {},
+                intersection=intersection_name,
+                tags=tags,
+                structured=structured,
             )
             if emitter:
                 await emitter.emit(
@@ -298,6 +313,9 @@ class Orchestrator:
                         "text": cognition_text,
                         "status": status,
                         "action": cognition_action,
+                        "intersection": intersection_name,
+                        "cognition_tags": tags,
+                        "structured": structured,
                         "tags": [
                             "认知画像",
                             "问题记录",
@@ -353,15 +371,37 @@ class Orchestrator:
             quantified=record.suggestion_formula or None,
         )
         profile = self._profile_store.load(inter_id)
+        solution_summary = build_solution_summary(
+            record.solution_measure,
+            session.suggestion.narrative,
+            record.suggestion_formula or "",
+        )
+        case_tags = list(
+            dict.fromkeys(
+                [record.time_period_label]
+                + [t for c in profile.cognition for t in (c.tags or [])]
+            )
+        )
+        case_tags = [t for t in case_tags if t]
+        summary = build_case_summary(
+            intersection=record.intersection,
+            time_period_label=record.time_period_label,
+            cognition=list(profile.cognition),
+            diagnosis=list(profile.diagnosis),
+            solution_summary=solution_summary,
+        )
         self._case_store.save(
             IntersectionCaseRecord(
                 skill_id=record.skill_id,
                 inter_id=inter_id,
                 intersection=record.intersection,
                 time_period_label=record.time_period_label,
+                summary=summary,
+                tags=case_tags,
                 suggestion_narrative=session.suggestion.narrative,
                 suggestion_formula=record.suggestion_formula or "",
-                solution_measure=record.solution_measure,
+                solution_measure=strip_markdown(record.solution_measure or "") or None,
+                solution_summary=solution_summary,
                 qualitative=qualitative,
                 cognition=list(profile.cognition),
                 diagnosis=list(profile.diagnosis),

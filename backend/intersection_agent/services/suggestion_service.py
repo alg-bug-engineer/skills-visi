@@ -270,17 +270,17 @@ class SuggestionService:
             donor = (action_plan.get("donor_turn") or {}).get("label", "低利用转向")
             recipient = (action_plan.get("recipient_turn") or {}).get("label", "主饱和转向")
             return (
-                f"从**{donor}**向**{recipient}**挪绿约 "
-                f"**{suggestion.delta_seconds} 秒**（周期不变）"
+                f"从{donor}向{recipient}挪绿约 "
+                f"{suggestion.delta_seconds} 秒（周期不变）"
             )
         if plan_type == "increase_green" and suggestion.delta_seconds:
             label = (action_plan.get("recipient_turn") or {}).get("label", "主饱和转向")
-            return f"为**{label}**增加有效绿灯约 **{suggestion.delta_seconds} 秒**"
+            return f"为{label}增加有效绿灯约 {suggestion.delta_seconds} 秒"
         if plan_type == "upstream_coordination":
             up_name = action_plan.get("upstream_inter_name") or "上游来源路口"
             return (
                 f"本路口已过饱和、单点加绿空间有限；"
-                f"建议在上游**{up_name}**协同优化放行节奏，从源头削减进入车流"
+                f"建议在上游{up_name}协同优化放行节奏，从源头削减进入车流"
             )
         if plan_type in ("spillback_control", "capacity_non_timing"):
             return str(action_plan.get("headline") or "优先非加绿手段")
@@ -288,7 +288,7 @@ class SuggestionService:
             return "优先从周期、协调、渠化或需求调控入手，单点加绿空间有限"
         if primary_type not in ("basically_matched",):
             return (
-                f"主要方向绿灯时长**{sign}{suggestion.delta_seconds} 秒**"
+                f"主要方向绿灯时长{sign}{suggestion.delta_seconds} 秒"
                 "（须结合绿信比与空放情况综合研判）"
             )
         return ""

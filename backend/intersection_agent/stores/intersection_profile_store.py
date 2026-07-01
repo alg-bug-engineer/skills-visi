@@ -12,6 +12,7 @@ AbsorptionOutcome = Literal["inserted", "exists", "updated"]
 from intersection_agent.config import get_settings
 from intersection_agent.models.experience import (
     CognitionEntry,
+    CognitionStructured,
     CognitionStatus,
     DiagnosisEntry,
     IntersectionProfile,
@@ -80,8 +81,19 @@ class IntersectionProfileStore:
         status: CognitionStatus = "manual",
         source: str = "data",
         evidence: dict[str, Any] | None = None,
+        intersection: str = "",
+        tags: list[str] | None = None,
+        structured: CognitionStructured | dict[str, Any] | None = None,
     ) -> tuple[IntersectionProfile, AbsorptionOutcome]:
         profile = self.load(inter_id)
+        if intersection:
+            profile.intersection = intersection
+        struct = (
+            structured
+            if isinstance(structured, CognitionStructured)
+            else CognitionStructured.model_validate(structured or {})
+        )
+        tag_list = list(tags or [])
         key = _norm(text)
         existing = next((c for c in profile.cognition if _norm(c.text) == key), None)
         if existing is not None:
@@ -93,12 +105,27 @@ class IntersectionProfileStore:
             if evidence and not existing.evidence:
                 existing.evidence = evidence
                 changed = True
+            if intersection and not existing.intersection:
+                existing.intersection = intersection
+                changed = True
+            if tag_list and not existing.tags:
+                existing.tags = tag_list
+                changed = True
+            if struct.summary and not existing.structured.summary:
+                existing.structured = struct
+                changed = True
             existing.ts = _now()
             outcome: AbsorptionOutcome = "updated" if changed else "exists"
         else:
             profile.cognition.append(
                 CognitionEntry(
-                    text=text, status=status, source=source, evidence=evidence or {}
+                    text=text,
+                    status=status,
+                    source=source,
+                    evidence=evidence or {},
+                    intersection=intersection or profile.intersection,
+                    tags=tag_list,
+                    structured=struct,
                 )
             )
             outcome = "inserted"
