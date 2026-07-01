@@ -237,6 +237,7 @@ class UpstreamTreeNode(BaseModel):
     approach: str | None = None
     saturation: float | None = None
     turn_split: list[dict[str, Any]] = Field(default_factory=list)
+    feed_segments: list[dict[str, Any]] = Field(default_factory=list)
     approach_profiles: list[dict[str, Any]] = Field(default_factory=list)
 
 

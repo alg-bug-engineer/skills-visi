@@ -84,6 +84,41 @@ export class UpstreamTraceLayer {
     if (!dim) this.addParticles(id, path)
   }
 
+  /** 上游路口十字来流段：线宽/透明度随 share_pct 变化。 */
+  revealFeedSegment(
+    id: string,
+    path: LngLat[],
+    opts: { sharePct?: number | null; dim?: boolean } = {},
+  ): void {
+    if (this.byId.has(id) || path.length < 2) return
+    const dim = Boolean(opts.dim)
+    const pct = Math.max(0, Math.min(100, Number(opts.sharePct) || 0))
+    const weight = 2.2 + Math.sqrt(pct / 100) * 4.5
+    const opacity = dim ? 0.25 : 0.35 + (pct / 100) * 0.55
+
+    const glow = new this.AMap.Polyline({
+      path,
+      strokeColor: TRACE_COLORS.glow,
+      strokeWeight: weight * 2.2,
+      strokeOpacity: opacity * 0.35,
+      lineJoin: 'round',
+      lineCap: 'round',
+      zIndex: 74,
+    })
+    const core = new this.AMap.Polyline({
+      path,
+      strokeColor: TRACE_COLORS.core,
+      strokeWeight: weight,
+      strokeOpacity: opacity,
+      lineJoin: 'round',
+      lineCap: 'round',
+      showDir: true,
+      zIndex: 78,
+    })
+    this.register(id, glow)
+    this.register(id, core)
+  }
+
   private addParticles(edgeId: string, path: LngLat[]): void {
     const duration = particleDurationFor(path)
     for (let i = 0; i < PARTICLES_PER_EDGE; i++) {

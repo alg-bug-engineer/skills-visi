@@ -307,6 +307,126 @@ class UpstreamTopologyService:
         if cid:
             hop["turn_split"] = turn_split_for_upstream(correlate_rows, dir8, str(cid))
 
+    async def resolve_feed_segments(
+        self,
+        inter_id: str,
+        turn_split: list[dict[str, Any]],
+        *,
+        node_id: str | None = None,
+        cognition: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """上游路口 turn_split → 各来流进口道完整 link geom（上游路口的上游 → 本路口）。"""
+        if not inter_id or not turn_split:
+            return []
+        nid = node_id or inter_id
+        center = await self.inter_center(inter_id)
+        if not center:
+            return []
+        center_lon, center_lat = center
+        out: list[dict[str, Any]] = []
+        for row in turn_split:
+            cor_dir8 = row.get("cor_dir8")
+            cor_turn = row.get("cor_turn")
+            share = row.get("share_pct")
+            if cor_dir8 is None or cor_turn is None or share is None:
+                continue
+            try:
+                pct = float(share)
+                d8 = int(cor_dir8)
+                ct = int(cor_turn)
+            except (TypeError, ValueError):
+                continue
+            if pct <= 0:
+                continue
+            link = await self.resolve_approach_link(inter_id, d8, cognition=cognition)
+            seg = await self._feed_segment_from_link(
+                link,
+                inter_id=inter_id,
+                center_lon=center_lon,
+                center_lat=center_lat,
+                dir8=d8,
+                cor_turn=ct,
+                node_id=nid,
+                share_pct=pct,
+                feed_direction=row.get("feed_direction"),
+            )
+            if seg:
+                out.append(seg)
+        out.sort(key=lambda s: (-float(s.get("share_pct") or 0), s.get("cor_dir8") or 0))
+        return out
+
+    async def _feed_segment_from_link(
+        self,
+        link: dict[str, Any] | None,
+        *,
+        inter_id: str,
+        center_lon: float,
+        center_lat: float,
+        dir8: int,
+        cor_turn: int,
+        node_id: str,
+        share_pct: float,
+        feed_direction: Any,
+    ) -> dict[str, Any] | None:
+        """进口 link 全折线：f_inter（上游的上游）→ t_inter（本上游路口）。"""
+        raw_path = list((link or {}).get("path") or [])
+        upstream_id = str(link.get("upstream_inter_id") or "") if link else ""
+        upstream_name = link.get("upstream_name") if link else None
+        len_m = link.get("len_m") if link else None
+        path_source = "link_geom" if len(raw_path) >= 2 else "none"
+
+        up_center = await self.inter_center(upstream_id) if upstream_id else None
+        if len(raw_path) >= 2 and up_center:
+            path = orient_path_upstream_to_target(
+                raw_path, up_center[0], up_center[1], center_lon, center_lat
+            )
+        elif up_center:
+            path = orient_path_upstream_to_target(
+                [[up_center[0], up_center[1]], [center_lon, center_lat]],
+                up_center[0],
+                up_center[1],
+                center_lon,
+                center_lat,
+            )
+            path_source = "center_line"
+        elif len(raw_path) >= 2:
+            path = orient_path_outer_to_center(raw_path, center_lon, center_lat)
+        else:
+            path = self._synthetic_feed_path(center_lon, center_lat, dir8)
+            path_source = "synthetic"
+
+        if len(path) < 2:
+            return None
+
+        return {
+            "id": feed_segment_id(node_id, dir8, cor_turn),
+            "cor_dir8": dir8,
+            "cor_turn": cor_turn,
+            "feed_direction": feed_direction,
+            "share_pct": round(share_pct, 1),
+            "from_inter_id": upstream_id or None,
+            "from_inter_name": upstream_name,
+            "len_m": float(len_m) if len_m is not None else None,
+            "path": path,
+            "path_source": path_source,
+        }
+
+    @staticmethod
+    def _synthetic_feed_path(
+        center_lon: float, center_lat: float, dir8: int, *, span_deg: float = 0.012
+    ) -> list[list[float]]:
+        """无 link / 无上游路口时，沿期望方位生成较长示意折线（外侧→中心）。"""
+        br = math.radians(_DIR8_UPSTREAM_BEARING.get(dir8, 270.0))
+        outer = [
+            center_lon + math.sin(br) * span_deg,
+            center_lat + math.cos(br) * span_deg,
+        ]
+        mid = [
+            center_lon + math.sin(br) * span_deg * 0.55,
+            center_lat + math.cos(br) * span_deg * 0.55,
+        ]
+        return [outer, mid, [center_lon, center_lat]]
+
     @staticmethod
     def _row_to_link(row: dict[str, Any]) -> dict[str, Any]:
         path = parse_linestring_wkt(row.get("geom_wkt"))
@@ -375,6 +495,58 @@ class UpstreamTopologyService:
             "dir8_code": dir8,
             "len_m": 800.0,
         }
+
+
+def _dist2(lon: float, lat: float, pt: list[float]) -> float:
+    return (pt[0] - lon) ** 2 + (pt[1] - lat) ** 2
+
+
+def _segment_length_m(a: list[float], b: list[float]) -> float:
+    lat_mid = math.radians((a[1] + b[1]) / 2.0)
+    dx = (b[0] - a[0]) * math.cos(lat_mid) * 111320.0
+    dy = (b[1] - a[1]) * 111320.0
+    return math.hypot(dx, dy)
+
+
+def orient_path_outer_to_center(
+    path: list[list[float]],
+    center_lon: float,
+    center_lat: float,
+) -> list[list[float]]:
+    """折线方向：外侧 → 路口中心（用于进口道高亮段）。"""
+    if len(path) < 2:
+        return path
+    if _dist2(center_lon, center_lat, path[0]) < _dist2(center_lon, center_lat, path[-1]):
+        path = list(reversed(path))
+    return path
+
+
+def truncate_path_from_outer(
+    path: list[list[float]], *, max_len_m: float = 80.0
+) -> list[list[float]]:
+    """从 path[0]（外侧）向内截取不超过 max_len_m 的子折线。"""
+    if len(path) < 2:
+        return path
+    out = [path[0]]
+    acc = 0.0
+    for i in range(1, len(path)):
+        seg = _segment_length_m(path[i - 1], path[i])
+        if acc + seg >= max_len_m and acc > 0:
+            ratio = (max_len_m - acc) / seg if seg > 0 else 0.0
+            ratio = max(0.0, min(1.0, ratio))
+            mid = [
+                path[i - 1][0] + (path[i][0] - path[i - 1][0]) * ratio,
+                path[i - 1][1] + (path[i][1] - path[i - 1][1]) * ratio,
+            ]
+            out.append(mid)
+            break
+        acc += seg
+        out.append(path[i])
+    return out if len(out) >= 2 else path[:2]
+
+
+def feed_segment_id(node_id: str, cor_dir8: int, cor_turn: int) -> str:
+    return f"feed:{node_id}:{cor_dir8}:{cor_turn}"
 
 
 def period_context_from_window(window: DataWindow, period_label: str | None) -> tuple[str, list[str]]:

@@ -267,6 +267,7 @@ class UpstreamGovernanceTraceService:
         root.setdefault("lng", hop1.get("lng"))
         root.setdefault("lat", hop1.get("lat"))
         root["turn_split"] = hop1.get("turn_split") or []
+        root["feed_segments"] = hop1.get("feed_segments") or []
         root["coverage"] = hop1.get("coverage")
         root["hop_path"] = hop1.get("path") or []
         root["path_source"] = hop1.get("path_source")
@@ -368,6 +369,12 @@ class UpstreamGovernanceTraceService:
         )
         if hop:
             self._topology.enrich_hop_turn_split(hop, rows, dir8)
+            hop["feed_segments"] = await self._topology.resolve_feed_segments(
+                str(hop.get("cor_inter_id") or ""),
+                hop.get("turn_split") or [],
+                node_id=str(hop.get("cor_inter_id") or ""),
+                cognition=self._cognition,
+            )
         return hop
 
 
@@ -386,6 +393,7 @@ def _backfill_hop_meta(
             child.setdefault("lng", up.get("lng"))
             child.setdefault("lat", up.get("lat"))
             child.setdefault("turn_split", up.get("turn_split") or [])
+            child.setdefault("feed_segments", up.get("feed_segments") or [])
             child.setdefault("coverage", up.get("coverage"))
             child["hop_path"] = up.get("path") or []
             child["path_source"] = up.get("path_source")

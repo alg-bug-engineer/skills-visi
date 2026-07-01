@@ -369,6 +369,14 @@ function renderUpstreamFrame(n: number) {
       if (path.length < 2) continue
       traceLayer.revealEdge(edge.id, path, { flowPct: edge.flow_pct })
     }
+    for (const node of tree.nodes) {
+      for (const seg of node.feed_segments ?? []) {
+        if (!seg.id || !overlayIds.has(seg.id) || traceLayer.hasOverlay(seg.id)) continue
+        const path = (seg.path ?? []) as [number, number][]
+        if (path.length < 2) continue
+        traceLayer.revealFeedSegment(seg.id, path, { sharePct: seg.share_pct })
+      }
+    }
   }
 
   const visible: Array<{ node: UpstreamTreeNode; id: string }> = []

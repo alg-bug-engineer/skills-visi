@@ -627,6 +627,15 @@ function clearToastTimer() {
   }
 }
 
+function showMapToast(message: string, ms = 2500) {
+  clearToastTimer()
+  mapToast.value = message
+  toastTimer = window.setTimeout(() => {
+    mapToast.value = null
+    toastTimer = null
+  }, ms)
+}
+
 function isSuggestionGenerateConfirm(result: MessageResponse): boolean {
   return (
     result.state === 'awaiting_confirm' &&
@@ -2009,6 +2018,7 @@ onUnmounted(() => {
       @toggle-voice="voice.toggleEnabled()"
       @channelization-active="channelizationActive = $event"
       @send="handleSend"
+      @notify="showMapToast"
       @input-activity="onInputActivity"
       @toggle-step="toggleStep"
       @toggle-details="toggleDetails"

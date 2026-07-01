@@ -134,6 +134,34 @@ async def test_turn_specific_direction_only_traces_one_approach(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_direction_group_east_west_only_east(monkeypatch):
+    """「东西向」只溯东进口，不并入西进口。"""
+    captured: dict = {}
+
+    async def fake_build(inter_id, *, approaches=None, **_kw):
+        captured["approaches"] = approaches
+        return {
+            "trees": [{"tree_id": "E"}],
+            "governance_points": [],
+            "storyboard": {"trees": [], "frames": [{"idx": 0}]},
+        }
+
+    orch = Orchestrator()
+    monkeypatch.setattr(orch._upstream_trace, "build", fake_build)
+    session = _session(
+        [
+            {"label": "东直行", "dir8_code": 2, "turn_saturation": 0.92},
+            {"label": "西直行", "dir8_code": 6, "turn_saturation": 0.99},
+        ]
+    )
+    session.nlu.directions = ["东西向"]
+
+    await orch._run_upstream_trace(session, {}, None)
+
+    assert captured["approaches"] == ["东进口"]
+
+
+@pytest.mark.asyncio
 async def test_not_oversaturated_skips_phase():
     events: list[dict] = []
 

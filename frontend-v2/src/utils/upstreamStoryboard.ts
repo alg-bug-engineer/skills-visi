@@ -59,13 +59,23 @@ function treeMatchesTarget(tree: UpstreamTree, targetDir: string): boolean {
   return approachDir === targetDir || tree.approach.includes(targetDir)
 }
 
+function feedSegmentIds(node: UpstreamTreeNode): string[] {
+  return (node.feed_segments ?? [])
+    .map((seg) => String(seg.id ?? ''))
+    .filter(Boolean)
+}
+
 function cappedTree(tree: UpstreamTree) {
   const allowedNodeIds = new Set<string>()
+  const feedIds = new Set<string>()
   const nodes = tree.nodes.filter((node) => {
     const id = nodeKey(node)
     if (!id) return false
     const keep = node.role === 'target' || (node.hop ?? 0) <= MAX_UPSTREAM_TRACE_HOPS
-    if (keep) allowedNodeIds.add(id)
+    if (keep) {
+      allowedNodeIds.add(id)
+      for (const fid of feedSegmentIds(node)) feedIds.add(fid)
+    }
     return keep
   })
   const edges = tree.edges.filter((edge) => {
@@ -73,7 +83,11 @@ function cappedTree(tree: UpstreamTree) {
     const to = String(edge.to ?? '')
     return Boolean(edge.id) && allowedNodeIds.has(from) && allowedNodeIds.has(to)
   })
-  const allowedIds = new Set([...allowedNodeIds, ...edges.map((edge) => edge.id)])
+  const allowedIds = new Set([
+    ...allowedNodeIds,
+    ...feedIds,
+    ...edges.map((edge) => edge.id),
+  ])
   return {
     tree: { ...tree, nodes, edges },
     allowedIds,
@@ -97,7 +111,12 @@ export function prepareUpstreamStoryboard(
     .map((frame): FrameLike | null => {
       const reveal = frameIds(frame.reveal).filter((id) => allowedIds.has(id))
       const focus = filterFocus(frame.focus, allowedIds)
-      if (!reveal.length && (frame.frame_type === 'node' || frame.frame_type === 'spread')) {
+      if (
+        !reveal.length &&
+        (frame.frame_type === 'node' ||
+          frame.frame_type === 'spread' ||
+          frame.frame_type === 'cross')
+      ) {
         return null
       }
       return {

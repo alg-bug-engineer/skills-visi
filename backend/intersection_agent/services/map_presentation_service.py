@@ -1999,6 +1999,7 @@ def _build_single_tree_phases(
             "feeding_dir8": node.get("feeding_dir8"),
             "saturation": _node_saturation(node),
             "turn_split": node.get("turn_split") or [],
+            "feed_segments": node.get("feed_segments") or [],
             "approach_profiles": node.get("approach_profiles") or [],
             "decision": node.get("decision"),
             "governable": node.get("governable"),
@@ -2074,6 +2075,7 @@ def _build_single_tree_phases(
         sat_txt = _saturation_label_text(sat if isinstance(sat, (int, float)) else None)
         split_txt = _turn_split_text(view.get("turn_split"))
         split_seg = f"，汇入车流 {split_txt}" if split_txt else ""
+        feed_ids = [str(s.get("id")) for s in view.get("feed_segments") or [] if s.get("id")]
         if view.get("decision") == "治理落点":
             gov_count += 1
             tail = "（有信控空间，可作治理落点）"
@@ -2094,13 +2096,36 @@ def _build_single_tree_phases(
             "center": [view.get("lon"), view.get("lat")],
             "zoom": _UPSTREAM_CORRIDOR_ZOOM,
             "fit": False,
-            "reveal": [nid] + ([parent_edge] if parent_edge else []),
+            "reveal": [nid] + ([parent_edge] if parent_edge else []) + feed_ids,
             "show_labels": True,
             "narration": f"上游{name}：{sat_txt}{split_seg}{tail}",
         }
-        hops.append({"spread": spread_frame, "node": node_frame})
+        if feed_ids and parent_edge:
+            cross_frame = {
+                "tree": tid,
+                "frame_type": "cross",
+                "focus": nid,
+                "center": [view.get("lon"), view.get("lat")],
+                "zoom": _UPSTREAM_CORRIDOR_ZOOM,
+                "fit": False,
+                "reveal": feed_ids + ([parent_edge] if parent_edge else []),
+                "show_labels": False,
+                "narration": f"在上游{name}标注来流进口道{split_seg}。",
+            }
+            hops.append({"spread": spread_frame, "cross": cross_frame, "node": node_frame})
+        else:
+            hops.append({"spread": spread_frame, "node": node_frame})
 
-    all_ids = [n["id"] for n in nodes if n.get("id")] + [e["id"] for e in edges]
+    all_ids = (
+        [n["id"] for n in nodes if n.get("id")]
+        + [e["id"] for e in edges]
+        + [
+            str(s.get("id"))
+            for n in nodes
+            for s in (n.get("feed_segments") or [])
+            if s.get("id")
+        ]
+    )
     if gov_count:
         summary = (
             f"{approach}共溯 {len(path_nodes)} 个上游路口，"
@@ -2132,6 +2157,8 @@ def _flatten_tree_phases(phases: dict[str, Any]) -> list[dict[str, Any]]:
     for hop in phases["hops"]:
         if hop.get("spread"):
             out.append(hop["spread"])
+        if hop.get("cross"):
+            out.append(hop["cross"])
         out.append(hop["node"])
     out.append(phases["fit"])
     return out
@@ -2184,6 +2211,14 @@ def build_upstream_storyboard(
         ]
         if spreads:
             merged.append(_merge_upstream_frames(spreads, idx))
+            idx += 1
+        crosses = [
+            p["hops"][hi]["cross"]
+            for p in all_phases
+            if hi < len(p["hops"]) and p["hops"][hi].get("cross")
+        ]
+        if crosses:
+            merged.append(_merge_upstream_frames(crosses, idx))
             idx += 1
         nodes = [p["hops"][hi]["node"] for p in all_phases if hi < len(p["hops"])]
         if nodes:

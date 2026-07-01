@@ -55,6 +55,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   send: [content: string]
+  notify: [message: string]
   inputActivity: [value: string]
   toggleStep: [index: number]
   toggleDetails: [index: number]
@@ -282,6 +283,7 @@ const canToggleTiming = computed(
           :conversation="panelMode === 'conversation'"
           :awaiting-suggestion-confirm="Boolean(suggestionConfirmBanner)"
           @send="emit('send', $event)"
+          @notify="emit('notify', $event)"
           @input-activity="emit('inputActivity', $event)"
           @return-home="emit('returnHome')"
         />

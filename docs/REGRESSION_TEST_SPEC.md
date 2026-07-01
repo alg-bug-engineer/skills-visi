@@ -229,7 +229,7 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 
 ## 7c. RT-TRACE · 单链路发光溯源重构（2026-06-30）
 
-> 设计/计划：[`plans/2026-06-30-单链路发光溯源重构计划.md`](plans/2026-06-30-单链路发光溯源重构计划.md)
+> 设计/计划：[`plans/2026-06-30-单链路发光溯源重构计划.md`](plans/2026-06-30-单链路发光溯源重构计划.md) · 规则：[`UPSTREAM_TRACE_RULES.md`](../UPSTREAM_TRACE_RULES.md)
 > 目标：流量溯源收口为「单一进口/转向一条链路（≤5 跳）」，地图以发光干线 + 流动粒子 + 节点脉冲 + 极简标签呈现，去除红色遮罩 / 虚线框 / 多方向同画 / 密集指标卡。
 
 | TC-ID | 优先级 | 场景 | 期望 | 现有测试 |
@@ -243,6 +243,8 @@ orchestrator.start → nlu → skill_match → intersection → intersection_cog
 | RT-TRACE-07 | P0 | 拓扑一跳 | 西左转 @ 奥体西路×经十路：地图标签含「转山西路」（link 邻接，非 correlate 东侧误跳） | `test_upstream_topology.py` + verify `topo-hop-west-left` |
 | RT-TRACE-08 | P0 | 禁飞线 | storyboard `edge.path` 来自 `dim_link_info.geom`；前端 `resolveEdgePath` 无两点 fallback；E2E 无 `.us-flyline` | `test_upstream_storyboard.py` + verify `geom-path-not-flyline` |
 | RT-TRACE-09 | P1 | 粒子（软） | headless 下 `.us-particle` 可缺失，不作为阻断；实机以发光干线为准 | verify `has-particles`（非 gate） |
+| RT-TRACE-10 | P0 | 方向组默认首方位 | `东西向` → 仅东进口；`南北向` → 仅北进口 | test_trace_approach + test_orchestrator_upstream_phase::test_direction_group_east_west_only_east |
+| RT-TRACE-11 | P1 | 上游十字来流段 | hop 节点含 `feed_segments`，地图 reveal `feed:*` | test_upstream_feed_segments + MapStage |
 
 ---
 

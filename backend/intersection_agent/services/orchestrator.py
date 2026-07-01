@@ -1780,37 +1780,23 @@ class Orchestrator:
         data = session.data_payload
         by_turn = (data.get("granularity") or {}).get("by_turn") or []
         trigger = threshold_value("upstream_trace", "trigger_saturation", default=0.90)
-        available = {d8 for r in by_turn if (d8 := _row_dir8(r)) is not None}
         saturated = {
             d8
             for r in by_turn
             if (r.get("turn_saturation") or 0.0) >= trigger
             and (d8 := _row_dir8(r)) is not None
         }
-        # 收口：用户明示方向/转向（如「西进口」「南北向」）为最高优先级，命中时只溯该方向；
-        # 用户未指定时，默认只聚焦诊断命中的「首个（最饱和）问题进口」一条链路，
-        # 不再把其余过饱和进口自动并入，保证流量溯源始终是单一来流溯源。
+        from intersection_agent.utils.trace_approach import resolve_trace_approach
+
         nlu_dirs = session.nlu.directions if session.nlu else None
-        # 「西左转」等带转向语义时只溯该进口，不把同句里顺带提到的其它进口并入。
-        turn_specific = _turn_specific_dir8s(nlu_dirs, available)
-        directed = _dir8s_from_directions(nlu_dirs, available)
-        if turn_specific:
-            dir8s = turn_specific
-        elif directed:
-            dir8s = sorted(directed)
-        elif saturated:
-            top_row = max(
-                (r for r in by_turn if _row_dir8(r) in saturated),
-                key=lambda r: r.get("turn_saturation") or 0.0,
-                default=None,
-            )
-            top_dir = _row_dir8(top_row) if top_row else None
-            dir8s = [top_dir] if top_dir is not None else []
-        else:
-            dir8s = []
-        approaches = [f"{DIR8_LABELS[d]}进口" for d in dir8s if d in DIR8_LABELS]
-        if not approaches:
+        dir8, _turn_no, approach = resolve_trace_approach(
+            nlu_dirs, by_turn, trigger_saturation=trigger
+        )
+        if dir8 is None or not approach:
             return 0
+        if not nlu_dirs and dir8 not in saturated:
+            return 0
+        approaches = [approach]
 
         if emitter:
             await emitter.emit(

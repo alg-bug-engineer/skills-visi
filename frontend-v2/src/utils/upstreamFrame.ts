@@ -7,7 +7,7 @@ export interface UpstreamFrame {
   fit?: boolean
   reveal: string[]
   narration?: string
-  frame_type?: 'pullback' | 'target' | 'spread' | 'node' | 'fit'
+  frame_type?: 'pullback' | 'target' | 'spread' | 'cross' | 'node' | 'fit'
   show_labels?: boolean
   animate_edge?: string | null
 }
@@ -45,4 +45,9 @@ export function visibleAtFrame(sb: UpstreamStoryboard, n: number) {
 /** 该帧是否为「边」覆盖物 id（前端按前缀区分节点/连线）。 */
 export function isEdgeId(id: string): boolean {
   return id.startsWith('edge:')
+}
+
+/** 上游路口来流进口道段（十字高亮）。 */
+export function isFeedSegmentId(id: string): boolean {
+  return id.startsWith('feed:')
 }

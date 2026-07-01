@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { DEFAULT_PROMPT } from '../constants'
 
 const props = defineProps<{
@@ -15,16 +15,26 @@ const emit = defineEmits<{
   send: [content: string]
   inputActivity: [value: string]
   returnHome: []
+  notify: [message: string]
 }>()
 
 const input = ref('')
-const placeholder = DEFAULT_PROMPT
+const placeholder = computed(() => (props.docked ? '' : DEFAULT_PROMPT))
 
 function submit() {
   if (props.locked || props.loading || props.terminal) return
-  const text = input.value.trim() || placeholder
+  const trimmed = input.value.trim()
+  if (props.docked) {
+    if (!trimmed) {
+      emit('notify', '请输入内容后再发送')
+      return
+    }
+    input.value = ''
+    emit('send', trimmed)
+    return
+  }
   input.value = ''
-  emit('send', text)
+  emit('send', trimmed || DEFAULT_PROMPT)
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -162,6 +172,10 @@ function onKeydown(e: KeyboardEvent) {
   outline: none;
   border-color: rgba(0, 229, 255, 0.55);
   box-shadow: 0 0 0 1px rgba(0, 212, 240, 0.2);
+}
+
+.input-dock:not(.docked) .composer textarea::placeholder {
+  color: rgba(220, 240, 255, 0.62);
 }
 
 .send-btn {

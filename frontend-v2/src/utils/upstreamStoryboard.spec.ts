@@ -90,4 +90,58 @@ describe('prepareUpstreamStoryboard', () => {
     expect(upstreamEdgeStrokeWeight(-10)).toBe(upstreamEdgeStrokeWeight(0))
     expect(upstreamEdgeStrokeWeight(200)).toBeLessThanOrEqual(8.5)
   })
+
+  it('preserves feed segment reveal ids for upstream cross highlighting', () => {
+    const west = tree('W', '西进口', 1)
+    const up = west.nodes.find((n) => n.hop === 1)!
+    up.feed_segments = [
+      {
+        id: 'feed:U1:6:2',
+        cor_dir8: 6,
+        cor_turn: 2,
+        feed_direction: '西直行',
+        share_pct: 91.3,
+        path: [
+          [117.1, 36.65],
+          [117.105, 36.65],
+        ],
+      },
+      {
+        id: 'feed:U1:4:3',
+        cor_dir8: 4,
+        cor_turn: 3,
+        feed_direction: '南右转',
+        share_pct: 8.7,
+        path: [
+          [117.108, 36.648],
+          [117.108, 36.652],
+        ],
+      },
+    ]
+    const sb: UpstreamStoryboard = {
+      trees: [west],
+      parallel: false,
+      frames: [
+        {
+          idx: 0,
+          tree: 'W',
+          frame_type: 'cross',
+          focus: up.id,
+          reveal: ['feed:U1:6:2', 'feed:U1:4:3', 'edge:W:W-T-W-U1'],
+        },
+        {
+          idx: 1,
+          tree: 'W',
+          frame_type: 'node',
+          focus: up.id,
+          reveal: [String(up.id), 'feed:U1:6:2', 'feed:U1:4:3'],
+        },
+      ],
+    }
+    const prepared = prepareUpstreamStoryboard(sb, { dir: '西', turn: '直行' })
+    const reveals = prepared.storyboard.frames.flatMap((f) => f.reveal)
+    expect(reveals).toContain('feed:U1:6:2')
+    expect(reveals).toContain('feed:U1:4:3')
+    expect(prepared.storyboard.trees[0].nodes.find((n) => n.hop === 1)?.feed_segments).toHaveLength(2)
+  })
 })

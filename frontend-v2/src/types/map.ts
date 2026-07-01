@@ -225,6 +225,19 @@ export interface UpstreamTurnSplit {
   data_gap?: boolean
 }
 
+export interface UpstreamFeedSegment {
+  id: string
+  cor_dir8?: number
+  cor_turn?: number
+  feed_direction?: string
+  share_pct?: number
+  from_inter_id?: string | null
+  from_inter_name?: string | null
+  len_m?: number | null
+  path?: Array<[number, number]>
+  path_source?: 'link_geom' | 'center_line' | 'synthetic' | 'none' | string
+}
+
 export interface UpstreamTreeNode {
   id?: string
   inter_id?: string
@@ -238,6 +251,7 @@ export interface UpstreamTreeNode {
   approach?: string
   saturation?: number | null
   turn_split?: UpstreamTurnSplit[]
+  feed_segments?: UpstreamFeedSegment[]
   approach_profiles?: UpstreamApproachProfile[]
 }
 
@@ -267,7 +281,7 @@ export interface UpstreamFrame {
   fit?: boolean
   reveal: string[]
   narration?: string
-  frame_type?: 'pullback' | 'target' | 'spread' | 'node' | 'fit'
+  frame_type?: 'pullback' | 'target' | 'spread' | 'cross' | 'node' | 'fit'
   show_labels?: boolean
   animate_edge?: string | null
 }
