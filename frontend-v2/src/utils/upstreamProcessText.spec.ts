@@ -66,7 +66,7 @@ describe('buildUpstreamProcessText', () => {
       frames: [],
     }
     const text = buildUpstreamProcessText(sb)
-    expect(text).toContain('转山西路路口（饱和 0.73，左转40% · 直行60%）')
+    expect(text).toContain('转山西路路口（饱和 0.73，直行60% · 左转40%）')
   })
 
   it('returns empty for missing storyboard', () => {

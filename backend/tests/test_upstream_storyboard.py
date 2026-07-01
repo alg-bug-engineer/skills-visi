@@ -12,16 +12,16 @@ def _tree(tree_id, approach):
             "coverage": 73.0,
             "approach_profiles": [{"dir8_code": 0, "turn_saturation_max": 0.95}],
             "turn_split": [
-                {"turn": "直行", "share_pct": 60.0},
-                {"turn": "左转", "share_pct": 40.0},
+                {"turn": "直行", "feed_direction": "北直行", "share_pct": 60.0},
+                {"turn": "左转", "feed_direction": "北左转", "share_pct": 40.0},
             ],
             "children": [
                 {"inter_id": "A", "inter_name": "上游A", "decision": "治理落点",
                  "hop": 2, "lng": 2.0, "lat": 2.0, "feeding_dir8": 2,
                  "approach_profiles": [{"dir8_code": 2, "turn_saturation_max": 0.70}],
                  "turn_split": [
-                     {"turn": "直行", "share_pct": 80.0},
-                     {"turn": "右转", "share_pct": 20.0},
+                     {"turn": "直行", "feed_direction": "东直行", "share_pct": 80.0},
+                     {"turn": "右转", "feed_direction": "东右转", "share_pct": 20.0},
                  ],
                  "children": []},
             ],
@@ -67,7 +67,7 @@ def test_frames_single_tree_serial():
     up_frame = next(f for f in n_frames if f["frame_type"] == "node" and f["focus"] == "U1")
     assert up_frame["center"] == [1.0, 1.0]
     assert "饱和0.95" in up_frame["narration"]
-    assert "直行60.0%" in up_frame["narration"]
+    assert "北直行60.0%" in up_frame["narration"]
     assert up_frame["show_labels"] is True
 
     a_frame = next(f for f in n_frames if f["frame_type"] == "node" and f["focus"] == "A")
@@ -93,7 +93,7 @@ def test_nodes_carry_saturation_and_turn_split():
     n_tree = next(t for t in sb["trees"] if t["tree_id"] == "N")
     u1 = next(n for n in n_tree["nodes"] if n["id"] == "U1")
     assert u1["saturation"] == 0.95
-    assert u1["turn_split"][0]["turn"] == "直行"
+    assert u1["turn_split"][0]["feed_direction"] == "北直行"
     target = next(n for n in n_tree["nodes"] if n["id"] == "T")
     assert target["role"] == "target"
     assert target["saturation"] is None

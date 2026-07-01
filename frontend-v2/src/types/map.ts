@@ -217,6 +217,8 @@ export interface UpstreamApproachProfile {
 export interface UpstreamTurnSplit {
   turn: string
   cor_turn?: number
+  cor_dir8?: number
+  feed_direction?: string
   share_pct?: number
   raw_coverage?: number
   /** 数仓无该转向记录时为 true */

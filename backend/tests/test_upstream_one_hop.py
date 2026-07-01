@@ -23,43 +23,54 @@ def test_one_hop_returns_none_when_no_rows_for_dir8():
     assert one_hop_for_approach([], dir8=4) is None
 
 
-def test_turn_split_groups_by_upstream_turn_and_normalizes():
+def test_turn_split_groups_by_upstream_dir_and_turn():
     rows = [
-        # 上游 U1 经直行/左转/右转 汇入本路口北进口(0)
         {"f_dir8_no": 0, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 0,
          "cor_turn_dir_no": 2, "flow_share_ratio": 60.0},
         {"f_dir8_no": 0, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 0,
          "cor_turn_dir_no": 1, "flow_share_ratio": 30.0},
         {"f_dir8_no": 0, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 0,
          "cor_turn_dir_no": 3, "flow_share_ratio": 10.0},
-        # 另一上游路口，应被忽略
         {"f_dir8_no": 0, "turn_dir_no": 2, "cor_inter_id": "U2", "cor_f_dir8_no": 0,
          "cor_turn_dir_no": 2, "flow_share_ratio": 99.0},
     ]
     split = turn_split_for_upstream(rows, dir8=0, cor_inter_id="U1")
-    assert [s["turn"] for s in split] == ["左转", "直行", "右转"]
-    by_turn = {s["turn"]: s for s in split}
-    assert by_turn["直行"]["share_pct"] == 60.0
-    assert by_turn["左转"]["share_pct"] == 30.0
-    assert by_turn["右转"]["share_pct"] == 10.0
+    assert [s["feed_direction"] for s in split] == ["北直行", "北左转", "北右转"]
+    by_label = {s["feed_direction"]: s for s in split}
+    assert by_label["北直行"]["share_pct"] == 60.0
+    assert by_label["北左转"]["share_pct"] == 30.0
+    assert by_label["北右转"]["share_pct"] == 10.0
     assert round(sum(s["share_pct"] for s in split if s.get("share_pct") is not None)) == 100
+
+
+def test_turn_split_includes_distinct_corridor_feeders():
+    """西进口（东向西走廊）上游：北右转、东直行、西左转。"""
+    rows = [
+        {"f_dir8_no": 6, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 0,
+         "cor_turn_dir_no": 3, "flow_share_ratio": 16.0},
+        {"f_dir8_no": 6, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 2,
+         "cor_turn_dir_no": 2, "flow_share_ratio": 76.0},
+        {"f_dir8_no": 6, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 6,
+         "cor_turn_dir_no": 1, "flow_share_ratio": 8.0},
+    ]
+    split = turn_split_for_upstream(rows, dir8=6, cor_inter_id="U1")
+    labels = {s["feed_direction"] for s in split}
+    assert labels == {"北右转", "东直行", "西左转"}
 
 
 def test_turn_split_empty_when_no_match():
     split = turn_split_for_upstream([], dir8=0, cor_inter_id="U1")
-    assert len(split) == 3
-    assert all(s.get("data_gap") for s in split)
+    assert split == []
 
 
-def test_turn_split_fills_missing_left_turn():
+def test_turn_split_omits_missing_movements_instead_of_data_gap_fill():
     rows = [
-        {"f_dir8_no": 0, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 0,
+        {"f_dir8_no": 0, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 2,
          "cor_turn_dir_no": 2, "flow_share_ratio": 70.0},
-        {"f_dir8_no": 0, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 0,
+        {"f_dir8_no": 0, "turn_dir_no": 2, "cor_inter_id": "U1", "cor_f_dir8_no": 4,
          "cor_turn_dir_no": 3, "flow_share_ratio": 30.0},
     ]
     split = turn_split_for_upstream(rows, dir8=0, cor_inter_id="U1")
-    turns = [s["turn"] for s in split]
-    assert "左转" in turns
-    left = next(s for s in split if s["turn"] == "左转")
-    assert left.get("data_gap") is True
+    labels = [s["feed_direction"] for s in split]
+    assert labels == ["东直行", "南右转"]
+    assert all(not s.get("data_gap") for s in split)

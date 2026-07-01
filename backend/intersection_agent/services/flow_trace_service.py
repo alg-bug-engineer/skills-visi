@@ -17,6 +17,7 @@ from intersection_agent.db.postgres import PostgresPool
 from intersection_agent.config import Settings, get_settings
 from intersection_agent.models.domain import NluResult
 from intersection_agent.utils.thresholds_loader import threshold_value
+from intersection_agent.utils.traffic_labels import turn_label
 
 logger = logging.getLogger(__name__)
 
@@ -153,16 +154,17 @@ def one_hop_for_approach(
 def turn_split_for_upstream(
     rows: list[dict[str, Any]], dir8: int, cor_inter_id: str
 ) -> list[dict[str, Any]]:
-    """上游路口 cor_inter_id 汇入本路口 dir8 进口的车流，按上游转向(cor_turn)拆分占比。
+    """上游路口 cor_inter_id 汇入本路口 dir8 进口的车流，按上游方位×转向拆分占比。
 
-    每个上游转向取最大 coverage，再归一为 share_pct（合计 100），按占比降序。
-    用于地图标注「上一路口流量按转向拆分」。
+    每个 (cor_f_dir8_no, cor_turn) 取最大 coverage，再归一为 share_pct（合计 100），
+    按占比降序。标注如「北右转」「东直行」，便于流量溯源列表展示。
     """
-    by_turn: dict[int, float] = {}
+    by_move: dict[tuple[int, int], float] = {}
     for r in rows:
         try:
             if int(r["f_dir8_no"]) != int(dir8):
                 continue
+            cor_d8 = int(r["cor_f_dir8_no"])
         except (TypeError, ValueError, KeyError):
             continue
         if str(r.get("cor_inter_id") or "") != str(cor_inter_id):
@@ -171,21 +173,26 @@ def turn_split_for_upstream(
         ct = _normalize_cor_turn(r.get("cor_turn_dir_no"))
         if cov is None or ct is None:
             continue
-        by_turn[ct] = max(by_turn.get(ct, 0.0), cov)
-    total = sum(by_turn.values())
+        key = (cor_d8, ct)
+        by_move[key] = max(by_move.get(key, 0.0), cov)
+    total = sum(by_move.values())
     if total <= 0:
-        return complete_turn_split([])
+        return []
     out = [
         {
             "turn": _TURN.get(ct, str(ct)),
             "cor_turn": ct,
+            "cor_dir8": cor_d8,
+            "feed_direction": turn_label(cor_d8, ct),
             "share_pct": round(cov / total * 100, 1),
             "raw_coverage": round(cov, 1),
         }
-        for ct, cov in by_turn.items()
+        for (cor_d8, ct), cov in by_move.items()
     ]
-    out.sort(key=lambda s: s["share_pct"], reverse=True)
-    return complete_turn_split(out)
+    out.sort(
+        key=lambda s: (-float(s["share_pct"]), s.get("cor_dir8") or 0, s.get("cor_turn") or 0)
+    )
+    return out
 
 
 def classify_sources(

@@ -69,12 +69,12 @@ def _fmt_turn_split(split: list[dict[str, Any]] | None) -> str:
         return "无转向拆分"
     parts: list[str] = []
     for s in split:
-        turn = s.get("turn") or "—"
+        label = s.get("feed_direction") or s.get("turn") or "—"
         if s.get("data_gap"):
-            parts.append(f"{turn}（数仓无记录，待核查）")
+            parts.append(f"{label}（数仓无记录，待核查）")
             continue
         pct = s.get("share_pct")
-        parts.append(f"{turn}{pct}%" if pct is not None else turn)
+        parts.append(f"{label}{pct}%" if pct is not None else label)
     return "、".join(parts)
 
 
@@ -95,7 +95,7 @@ def synthesize_flow_trace_from_upstream(upstream_trace: dict[str, Any]) -> dict[
                         "problem_turn": approach,
                         "inter_id": node.get("inter_id"),
                         "inter_name": name,
-                        "feed_direction": dom.get("turn", "") if dom else "",
+                        "feed_direction": dom.get("feed_direction") or dom.get("turn", "") if dom else "",
                         "coverage": dom.get("share_pct") if dom else None,
                         "turn_split": _fmt_turn_split(split),
                     }

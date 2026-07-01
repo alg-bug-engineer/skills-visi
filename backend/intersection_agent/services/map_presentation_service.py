@@ -1902,19 +1902,19 @@ def _saturation_label_text(sat: float | None) -> str:
 
 
 def _turn_split_text(turn_split: list[dict[str, Any]] | None) -> str:
-    """转向拆分文案，如「直行67%、左转22%、右转11%」。"""
+    """转向拆分文案，如「东直行76.2%、北右转16.1%」。"""
     if not turn_split:
         return ""
     parts: list[str] = []
     for s in turn_split:
-        turn = s.get("turn")
-        if not turn:
+        label = s.get("feed_direction") or s.get("turn")
+        if not label:
             continue
         if s.get("data_gap"):
-            parts.append(f"{turn}待核查")
+            parts.append(f"{label}待核查")
             continue
         if s.get("share_pct") is not None:
-            parts.append(f"{turn}{s.get('share_pct')}%")
+            parts.append(f"{label}{s.get('share_pct')}%")
     return "、".join(parts)
 
 

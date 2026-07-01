@@ -10,7 +10,7 @@ import {
   upstreamFrameDuration,
 } from '../utils/upstreamTiming'
 import { prepareUpstreamStoryboard } from '../utils/upstreamStoryboard'
-import { formatUpstreamTurnSplit } from '../utils/upstreamTurnSplit'
+import { formatUpstreamTurnSplitHtml } from '../utils/upstreamTurnSplit'
 import { createUpstreamTraceLayer, type UpstreamTraceLayer } from '../lib/upstreamTraceLayer'
 import { severityColor } from '../utils/ringSeverity'
 import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
@@ -395,8 +395,8 @@ function renderUpstreamFrame(n: number) {
     const color = isGov ? '#6dffb5' : severityColor(sat)
     const [dx, dy] = anchors[id] ?? [0, -54]
     const satTxt = typeof sat === 'number' && sat > 0.01 ? `饱和 ${sat.toFixed(2)}` : '待核查'
-    const splitTxt = formatUpstreamTurnSplit(node.turn_split)
-    const splitLine = splitTxt ? `<div class="us-split">${splitTxt}</div>` : ''
+    const splitHtml = formatUpstreamTurnSplitHtml(node.turn_split)
+    const splitLine = splitHtml ? `<div class="us-split">${splitHtml}</div>` : ''
     const hopTxt = typeof node.hop === 'number' ? `上游${node.hop}` : '上游'
     const html =
       `<div class="us-label${isGov ? ' is-gov' : ''}">` +
@@ -1473,8 +1473,8 @@ watch(
   box-shadow: 0 0 12px rgba(255, 207, 122, 0.95), 0 0 24px rgba(245, 166, 35, 0.5);
 }
 .us-label {
-  min-width: 78px;
-  max-width: 150px;
+  min-width: 88px;
+  max-width: 168px;
   padding: 4px 8px;
   border-radius: 8px;
   border: 1px solid rgba(245, 166, 35, 0.42);
@@ -1510,10 +1510,27 @@ watch(
 .us-label .us-split {
   font-size: 9px;
   font-weight: 600;
-  margin-top: 2px;
+  margin-top: 3px;
   color: #c8d8ee;
   line-height: 1.35;
   white-space: normal;
+}
+.us-label .us-split-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 1px;
+}
+.us-label .us-split-item .us-move {
+  color: #d8e6f8;
+  font-weight: 600;
+}
+.us-label .us-split-item .us-pct {
+  color: #8eb4d9;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 /* 高德 Marker 气泡（全局，注入 HTML） */
