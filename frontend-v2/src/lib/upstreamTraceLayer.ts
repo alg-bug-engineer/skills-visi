@@ -1,5 +1,6 @@
 import { interpolatePath, particleDurationFor, type LngLat } from '../utils/traceParticles'
 import { upstreamEdgeStrokeWeight } from '../utils/upstreamStoryboard'
+import type { UpstreamCorrelateMap } from '../types/map'
 
 type AMapNS = typeof AMap
 type AMapMapInstance = InstanceType<typeof AMap.Map>
@@ -190,6 +191,56 @@ export class UpstreamTraceLayer {
       content: html,
     })
     this.register(key, marker)
+  }
+
+  /** 溯源表全量路口：按路口绘制全部 link + 节点 + 标签。 */
+  renderCorrelateMap(data: UpstreamCorrelateMap): void {
+    const COLORS = {
+      target: '#22c55e',
+      main: '#f59e0b',
+      other: '#3b82f6',
+      exit: '#475569',
+    }
+    for (const node of data.intersections) {
+      const isTarget = node.role === 'target'
+      const isMain = Boolean(node.in_main_corridor)
+      const baseColor = isTarget ? COLORS.target : isMain ? COLORS.main : COLORS.other
+      const nodeId = node.inter_id
+
+      for (const link of node.links) {
+        const ent = link.link_role === 'entrance' || link.link_role === '进口'
+        const path = (link.path ?? []) as LngLat[]
+        if (path.length < 2) continue
+        const lid = `link:${nodeId}:${link.link_id}`
+        const pl = new this.AMap.Polyline({
+          path,
+          strokeColor: ent ? baseColor : COLORS.exit,
+          strokeOpacity: ent ? (isTarget ? 0.7 : 0.5) : 0.25,
+          strokeWeight: ent ? Math.max(3, Math.min(8, 2 + (link.lane_num ?? 0) * 0.5)) : 2,
+          zIndex: isTarget ? 60 : isMain ? 45 : 25,
+          lineJoin: 'round',
+          lineCap: 'round',
+        })
+        this.register(lid, pl)
+      }
+
+      const [lon, lat] = node.center
+      this.revealNode(nodeId, lon, lat, {
+        role: isTarget ? 'target' : 'upstream',
+      })
+
+      if (isTarget) continue
+      const cov = node.path_coverage
+      if (cov == null || cov < 8) continue
+      const hopTxt = isMain && node.corridor_hop ? `走廊#${node.corridor_hop}` : '其他向'
+      const html =
+        `<div class="us-label">` +
+        `<div class="us-hop">${hopTxt}</div>` +
+        `<div class="us-name">${node.name}</div>` +
+        `<div class="us-metric" style="color:#fbbf24">途经 ${cov.toFixed(1)}%</div>` +
+        `</div>`
+      this.revealLabel(nodeId, lon, lat, html, [10, -48])
+    }
   }
 
   /** 供 setFitView 收束整链。 */

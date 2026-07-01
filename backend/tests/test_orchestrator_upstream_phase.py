@@ -33,6 +33,8 @@ async def test_oversaturated_emits_upstream_trace_and_tree(monkeypatch):
     orch._upstream_trace._fetcher._settings = mock_settings
     orch._upstream_trace._flow_trace._settings = mock_settings
     orch._upstream_trace._topology._settings = mock_settings
+    orch._upstream_correlate_map._settings = mock_settings
+    orch._upstream_correlate_map._flow_trace._settings = mock_settings
     session = _session([{"label": "北直行", "turn_saturation": 0.95, "green_utilization": 0.38}])
 
     count = await orch._run_upstream_trace(session, {}, emitter)
@@ -42,10 +44,10 @@ async def test_oversaturated_emits_upstream_trace_and_tree(monkeypatch):
     assert {s["status"] for s in steps} == {"running", "completed"}
     map_actions = [
         e for e in events
-        if e.get("step") == "map_action" and e.get("data", {}).get("action") == "upstream_tree"
+        if e.get("step") == "map_action" and e.get("data", {}).get("action") == "upstream_correlate_map"
     ]
     assert map_actions
-    assert map_actions[0]["data"]["storyboard"]["frames"]
+    assert map_actions[0]["data"]["correlate_map"]["intersections"]
 
 
 @pytest.mark.asyncio

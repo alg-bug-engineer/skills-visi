@@ -1,18 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker, UpstreamStoryboard, UpstreamTreeNode } from '../types/map'
-import { isEdgeId, visibleAtFrame } from '../utils/upstreamFrame'
-import { assignLabelAnchors } from '../utils/upstreamLayout'
+import type { CognitionPayload, IntersectionLink, MapActionEvent, MapSceneHud, MapSceneMarker, UpstreamCorrelateMap } from '../types/map'
 import {
   UPSTREAM_CHAN_FADE_MS,
   UPSTREAM_CORRIDOR_ZOOM,
   UPSTREAM_ROAD_HOLD_MS,
-  upstreamFrameDuration,
 } from '../utils/upstreamTiming'
-import { prepareUpstreamStoryboard } from '../utils/upstreamStoryboard'
-import { formatUpstreamTurnSplitHtml } from '../utils/upstreamTurnSplit'
 import { createUpstreamTraceLayer, type UpstreamTraceLayer } from '../lib/upstreamTraceLayer'
-import { severityColor } from '../utils/ringSeverity'
 import type { ProblemEvidence, QuantitativeConstraints } from '../types/evidence'
 import type { PipelinePhase, HighlightTurn, RuntimeMetrics } from '../types/presentation'
 import type { PresentationLayerGates } from '../composables/usePresentationSequence'
@@ -164,13 +158,11 @@ const linkOverlays: InstanceType<typeof AMap.Polyline>[] = []
 const glowOverlays: InstanceType<typeof AMap.Polyline>[] = []
 const markers: InstanceType<typeof AMap.Marker>[] = []
 
-// —— 上游治理溯源：单链路发光干线，全自动逐路口运镜（无控制条 / 用户全程不操作） ——
+// —— 上游流量溯源：溯源表全量路口 link ——
 let traceLayer: UpstreamTraceLayer | null = null
-let upstreamStoryboard: UpstreamStoryboard | null = null
-/** 递增以作废进行中的溯源动画/运镜任务 */
+let upstreamCorrelateMap: UpstreamCorrelateMap | null = null
+/** 递增以作废进行中的溯源运镜任务 */
 let upstreamEpoch = 0
-const upstreamIdx = ref(0)
-let upstreamTimer: ReturnType<typeof setTimeout> | null = null
 let lastUpstreamCenter: [number, number] | null = null
 let lastUpstreamZoom: number | null = null
 
@@ -278,145 +270,14 @@ function centerMapOnIntersection(lon: number, lat: number, zoom?: number) {
   panToVisualCenter(map, [lon, lat], visualPanOffsetX(), 0)
 }
 
-// ===== 上游治理溯源：单链路发光干线，全自动逐路口运镜 =====
+// ===== 上游流量溯源：溯源表全量路口 link =====
 function disposeUpstream() {
   upstreamEpoch += 1
-  if (upstreamTimer) {
-    clearTimeout(upstreamTimer)
-    upstreamTimer = null
-  }
   traceLayer?.dispose()
   traceLayer = null
-  upstreamStoryboard = null
-  upstreamIdx.value = 0
+  upstreamCorrelateMap = null
   lastUpstreamCenter = null
   lastUpstreamZoom = null
-}
-
-function findUpstreamNode(sb: UpstreamStoryboard, key: string): UpstreamTreeNode | null {
-  for (const tree of sb.trees) {
-    for (const node of tree.nodes) {
-      if (node.id === key || node.inter_id === key) return node
-    }
-  }
-  return null
-}
-
-function resolveEdgePath(
-  sb: UpstreamStoryboard,
-  edge: { from?: string | null; to?: string | null; path?: Array<[number, number]> },
-): Array<[number, number]> {
-  const upstream = edge.to ? findUpstreamNode(sb, edge.to) : null
-  const downstream = edge.from ? findUpstreamNode(sb, edge.from) : null
-  let path = (edge.path ?? []).map((p) => [p[0], p[1]] as [number, number])
-  if (path.length >= 2 && upstream?.lon != null && upstream.lat != null && downstream?.lon != null && downstream.lat != null) {
-    path = orientPathEndpoints(
-      path,
-      [upstream.lon as number, upstream.lat as number],
-      [downstream.lon as number, downstream.lat as number],
-    )
-    return path
-  }
-  if (path.length >= 2) return path
-  // 禁止飞线：无 geom 折线时不渲染
-  return []
-}
-
-function orientPathEndpoints(
-  path: Array<[number, number]>,
-  start: [number, number],
-  end: [number, number],
-): Array<[number, number]> {
-  if (path.length < 2) return path
-  const dist = (a: [number, number], b: [number, number]) =>
-    (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
-  const forward = dist(path[0], start) + dist(path[path.length - 1], end)
-  const reverse = dist(path[path.length - 1], start) + dist(path[0], end)
-  const oriented = forward <= reverse ? path : [...path].reverse()
-  if (dist(oriented[0], start) > dist(oriented[oriented.length - 1], start)) {
-    return [...oriented].reverse()
-  }
-  return oriented
-}
-
-function labelsVisibleAtFrame(sb: UpstreamStoryboard, n: number, nodeId: string): boolean {
-  const clamped = Math.max(0, Math.min(n, sb.frames.length - 1))
-  for (let i = 0; i <= clamped; i++) {
-    const f = sb.frames[i]
-    if (f.show_labels === false) continue
-    if (f.frame_type === 'spread' || f.frame_type === 'pullback') continue
-    if (!f.reveal.includes(nodeId) || isEdgeId(nodeId)) continue
-    if (!f.frame_type || f.frame_type === 'node' || f.frame_type === 'fit') return true
-  }
-  return false
-}
-
-/** 帧增量揭示：单链路发光干线 + 流动粒子 + 节点脉冲 + 极简标签（仅当前进口树）。 */
-function renderUpstreamFrame(n: number) {
-  const epoch = upstreamEpoch
-  const sb = upstreamStoryboard
-  if (!sb || !map || !AMapLib || !traceLayer || epoch !== upstreamEpoch) return
-  const frame = sb.frames[Math.max(0, Math.min(n, sb.frames.length - 1))]
-  const { overlayIds, activeTree } = visibleAtFrame(sb, n)
-
-  // 单链路收口：非并行时只渲染当前活动进口树，避免多方向同画。
-  const trees = sb.parallel ? sb.trees : sb.trees.filter((t) => t.tree_id === activeTree)
-
-  for (const tree of trees) {
-    for (const edge of tree.edges) {
-      if (!overlayIds.has(edge.id) || traceLayer.hasOverlay(edge.id)) continue
-      const path = resolveEdgePath(sb, edge)
-      if (path.length < 2) continue
-      traceLayer.revealEdge(edge.id, path, { flowPct: edge.flow_pct })
-    }
-    for (const node of tree.nodes) {
-      for (const seg of node.feed_segments ?? []) {
-        if (!seg.id || !overlayIds.has(seg.id) || traceLayer.hasOverlay(seg.id)) continue
-        const path = (seg.path ?? []) as [number, number][]
-        if (path.length < 2) continue
-        traceLayer.revealFeedSegment(seg.id, path, { sharePct: seg.share_pct })
-      }
-    }
-  }
-
-  const visible: Array<{ node: UpstreamTreeNode; id: string }> = []
-  for (const tree of trees) {
-    for (const node of tree.nodes) {
-      const id = node.id ?? node.inter_id ?? ''
-      if (!id || !overlayIds.has(id)) continue
-      if (node.lon == null || node.lat == null) continue
-      visible.push({ node, id })
-    }
-  }
-  const anchors = assignLabelAnchors(visible.map((v) => ({ id: v.id, hop: v.node.hop })))
-
-  for (const { node, id } of visible) {
-    const isTarget = node.role === 'target'
-    const isGov = node.role === 'governance' || node.decision === '治理落点'
-    const role = isTarget ? 'target' : isGov ? 'governance' : 'upstream'
-    traceLayer.revealNode(id, node.lon as number, node.lat as number, { role })
-
-    // 目标（问题进口）路口只保留红色脉冲，不落指标卡，避免主路口堆叠。
-    if (isTarget || !labelsVisibleAtFrame(sb, n, id)) continue
-
-    const sat = node.saturation ?? null
-    const color = isGov ? '#6dffb5' : severityColor(sat)
-    const [dx, dy] = anchors[id] ?? [0, -54]
-    const satTxt = typeof sat === 'number' && sat > 0.01 ? `饱和 ${sat.toFixed(2)}` : '待核查'
-    const splitHtml = formatUpstreamTurnSplitHtml(node.turn_split)
-    const splitLine = splitHtml ? `<div class="us-split">${splitHtml}</div>` : ''
-    const hopTxt = typeof node.hop === 'number' ? `上游${node.hop}` : '上游'
-    const html =
-      `<div class="us-label${isGov ? ' is-gov' : ''}">` +
-      `<div class="us-hop">${hopTxt}</div>` +
-      `<div class="us-name">${isGov ? '★ ' : ''}${node.name ?? id}</div>` +
-      `<div class="us-metric" style="color:${color}">${satTxt}</div>` +
-      `${splitLine}</div>`
-    traceLayer.revealLabel(id, node.lon as number, node.lat as number, html, [dx, dy])
-  }
-
-  const narr = frame?.narration ?? null
-  emit('upstreamNarration', { idx: n, text: narr })
 }
 
 function upstreamCameraSleep(ms: number): Promise<void> {
@@ -437,7 +298,6 @@ function cameraNearTarget(
   return dist < centerEps && Math.abs(zoom - z) < zoomEps
 }
 
-/** 上游溯源允许拉远 zoom（突破分析推进的 clampZoomUp 约束）。 */
 async function flyToUpstreamCorridor(center: [number, number], zoom: number, duration = 1100) {
   if (!map || !AMapLib) return
   if (cameraNearTarget(center, zoom)) return
@@ -452,49 +312,15 @@ async function flyToUpstreamCorridor(center: [number, number], zoom: number, dur
   })
 }
 
-function validFrameCenter(center: [number | null, number | null] | null): [number, number] | null {
-  if (!center || center[0] == null || center[1] == null) return null
-  return [center[0], center[1]]
-}
-
-async function applyUpstreamFrameCamera(n: number) {
-  if (!upstreamStoryboard || !map || !AMapLib || userInteracted.value) return
-  const state = visibleAtFrame(upstreamStoryboard, n)
-  const frame = state.frame
-
-  if (state.fit || frame?.frame_type === 'fit') {
-    const fitTargets = traceLayer?.overlays() ?? []
-    if (fitTargets.length) {
-      await withProgrammatic(async () => {
-        map!.setFitView(fitTargets, true, [90, 120, 150, 120])
-        await upstreamCameraSleep(650)
-        lastUpstreamCenter = null
-        lastUpstreamZoom = map!.getZoom()
-      })
-    }
-    return
-  }
-
-  const center = validFrameCenter(state.center)
-  const zoom = typeof state.zoom === 'number' ? state.zoom : null
-  if (!center || zoom == null) return
-  const duration = frame?.frame_type === 'spread' ? 820 : 980
-  await flyToUpstreamCorridor(center, zoom, duration)
-}
-
-/** 流量溯源：从渠化视角起步，先隐渠化、清空旧高亮，再平滑过渡到溯源 zoom。 */
 async function enterUpstreamFromChannelization(center: [number, number]) {
   if (!map || !AMapLib) return
   const startZoom = map.getZoom()
   lastUpstreamCenter = center
   lastUpstreamZoom = startZoom
 
-  // 1) 淡出渠化舞台（保留当前镜头位姿）
   viewMode.value = 'map'
   await upstreamCameraSleep(UPSTREAM_CHAN_FADE_MS)
 
-  // 2) 移除车道级渠化几何，并清空上一阶段的虚线框 / 进口道高亮 / 浮动结果卡，
-  // 让单链路发光干线在干净底图上呈现（对齐参考项目「干线诊断」表达）。
   disposeChannelization()
   channelizationLocked.value = false
   chanSceneMarkers.value = []
@@ -511,72 +337,34 @@ async function enterUpstreamFromChannelization(center: [number, number]) {
   }
   await upstreamCameraSleep(UPSTREAM_ROAD_HOLD_MS)
 
-  // 3) 从渠化 zoom（~18.5）单次平滑过渡到溯源主视角 16.00
   const targetZoom = UPSTREAM_CORRIDOR_ZOOM
   const duration = Math.abs(startZoom - targetZoom) > 1 ? 1100 : 700
   await flyToUpstreamCorridor(center, targetZoom, duration)
 }
 
-function startUpstreamAuto() {
-  if (!upstreamStoryboard?.frames.length) return
-  upstreamIdx.value = 0
-  void showUpstreamFrame(0)
-  scheduleUpstreamTick()
-}
-
-async function showUpstreamFrame(n: number) {
-  const sb = upstreamStoryboard
-  const frame = sb?.frames[Math.max(0, Math.min(n, (sb?.frames.length ?? 1) - 1))]
-  if (frame?.fit || frame?.frame_type === 'fit') {
-    renderUpstreamFrame(n)
-    await applyUpstreamFrameCamera(n)
-    return
-  }
-  await applyUpstreamFrameCamera(n)
-  renderUpstreamFrame(n)
-}
-
-function scheduleUpstreamTick() {
-  if (upstreamTimer) clearTimeout(upstreamTimer)
-  if (!upstreamStoryboard) return
-  const epoch = upstreamEpoch
-  const frame = upstreamStoryboard.frames[upstreamIdx.value]
-  const delay = upstreamFrameDuration(frame)
-  upstreamTimer = setTimeout(() => {
-    if (epoch !== upstreamEpoch || !upstreamStoryboard) {
-      upstreamTimer = null
-      return
-    }
-    const last = upstreamStoryboard.frames.length - 1
-    if (upstreamIdx.value >= last) {
-      upstreamTimer = null
-      return
-    }
-    upstreamIdx.value += 1
-    void (async () => {
-      await showUpstreamFrame(upstreamIdx.value)
-      if (epoch === upstreamEpoch) scheduleUpstreamTick()
-    })()
-  }, delay)
-}
-
-async function beginUpstreamStoryboard(sb: UpstreamStoryboard, targetHint?: HighlightTurn | null) {
+async function beginUpstreamCorrelateMap(payload: UpstreamCorrelateMap) {
   disposeUpstream()
   if (map && AMapLib) traceLayer = createUpstreamTraceLayer(AMapLib, map)
-  const prepared = prepareUpstreamStoryboard(sb, targetHint)
-  upstreamStoryboard = prepared.storyboard
-  const first = upstreamStoryboard.frames[0]
-  const targetNode = upstreamStoryboard.trees[0]?.nodes.find((n) => n.role === 'target')
-  const center: [number, number] | null =
-    first?.center && first.center[0] != null && first.center[1] != null
-      ? [first.center[0], first.center[1]]
-      : targetNode?.lon != null && targetNode.lat != null
-        ? [targetNode.lon, targetNode.lat]
-        : null
+  upstreamCorrelateMap = payload
+  const target = payload.intersections.find((n) => n.role === 'target')
+  const center = target?.center ?? payload.intersections[0]?.center
   if (center) {
     await enterUpstreamFromChannelization(center)
   }
-  startUpstreamAuto()
+  traceLayer?.renderCorrelateMap(payload)
+  const fitTargets = traceLayer?.overlays() ?? []
+  if (fitTargets.length && map) {
+    await withProgrammatic(async () => {
+      map!.setFitView(fitTargets, true, [60, 80, 120, 340])
+      lastUpstreamCenter = null
+      lastUpstreamZoom = map!.getZoom()
+    })
+  }
+  const distinct = payload.stats?.distinct_upstream ?? payload.intersections.length - 1
+  emit('upstreamNarration', {
+    idx: 0,
+    text: `${payload.approach} 统计途经上游路口 ${distinct} 个，已在地图展示全部 link。`,
+  })
 }
 
 let linkFlashTimer: ReturnType<typeof setInterval> | null = null
@@ -626,7 +414,7 @@ function drawHighlights() {
   if (!map || !AMapLib || !cognition.value?.intersection || channelizationLocked.value) return
   // 流量溯源开始后，全程禁止诊断高亮框（红色遮罩）/进口道高亮重绘，
   // 让地图从溯源阶段起只保留单链路发光干线，直到下一轮分析重置。
-  if (upstreamStoryboard) return
+  if (upstreamCorrelateMap) return
   clearOverlays()
 
   const inter = cognition.value.intersection
@@ -1010,10 +798,10 @@ async function handleAction(action: MapActionEvent) {
       await applyCorridorScanScene(action)
       break
     }
-    case 'upstream_tree': {
-      const sb = action.storyboard
-      if (!sb || !sb.frames?.length) break
-      await beginUpstreamStoryboard(sb, action.highlight_turn ?? props.highlightTurn ?? null)
+    case 'upstream_correlate_map': {
+      const payload = action.correlate_map
+      if (!payload?.intersections?.length) break
+      await beginUpstreamCorrelateMap(payload)
       break
     }
     default:

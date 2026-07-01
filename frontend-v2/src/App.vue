@@ -60,8 +60,7 @@ import {
   formatSkillReuseLines,
 } from './config/presentationCopy'
 import { voiceConfig, voiceTemplate } from './services/voiceConfig'
-import { buildUpstreamProcessText } from './utils/upstreamProcessText'
-import { upstreamStoryboardDurationMs } from './utils/upstreamTiming'
+import { buildCorrelateProcessText, upstreamCorrelateDurationMs } from './utils/upstreamCorrelateProcessText'
 import type { ConversationTurn } from './components/UnderstandingProcessPanel.vue'
 import type MapStage from './components/MapStage.vue'
 
@@ -1466,7 +1465,7 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
       return
     }
 
-    if (action.action === 'upstream_tree') {
+    if (action.action === 'upstream_correlate_map') {
       presentation.setPhase('rule')
       presentationSequence.syncFromPhase('rule')
       presentationSequence.syncFromStepIndex(STEP_INDICES.RULE)
@@ -1474,17 +1473,15 @@ function handleMapStep(data: Record<string, unknown> | undefined, status: string
         (action.highlight_turn ? parseHighlightTurn(action.highlight_turn)?.label : null) ??
         presentation.state.highlightTurn?.label ??
         null
-      const traceText = buildUpstreamProcessText(action.storyboard, targetTurn)
+      const traceText = buildCorrelateProcessText(action.correlate_map, targetTurn)
       if (traceText) {
         enqueueProcess(STEP_INDICES.RULE, traceText, true, true)
       }
-      // RULE 步骤以 silent 方式入队（不触发 onStepStart），此处显式恢复
-      // 原因诊断口播（步骤旁白 + 规则引擎结论）与流量溯源概要讲解。
       enqueueUpstreamIntroVoice()
       void scheduleProcessStepVoice(STEP_INDICES.RULE)
       flushPendingRuleEngineVoice()
       pushMapAction(action)
-      const durationMs = upstreamStoryboardDurationMs(action.storyboard?.frames)
+      const durationMs = upstreamCorrelateDurationMs(action.correlate_map)
       if (durationMs > 0) {
         await sleep(durationMs)
       }

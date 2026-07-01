@@ -75,9 +75,11 @@ from intersection_agent.services.suggestion_context import (
 from intersection_agent.services.user_constraint_merge import merge_user_constraints
 from intersection_agent.services.sustained_metrics_service import SustainedMetricsService
 from intersection_agent.services.timing_profile_service import TimingProfileService
+from intersection_agent.services.upstream_correlate_map_service import UpstreamCorrelateMapService
 from intersection_agent.services.upstream_governance_trace_service import (
     UpstreamGovernanceTraceService,
 )
+from intersection_agent.utils.data_window import build_data_window
 from intersection_agent.utils.thresholds_loader import threshold_value
 from intersection_agent.utils.traffic_labels import DIR8_LABELS
 from intersection_agent.utils.terminal_report import (
@@ -196,6 +198,7 @@ class Orchestrator:
         profile_store: IntersectionProfileStore | None = None,
         case_store: IntersectionCaseStore | None = None,
         upstream_trace: UpstreamGovernanceTraceService | None = None,
+        upstream_correlate_map: UpstreamCorrelateMapService | None = None,
         experience_classifier: ExperienceClassifier | None = None,
     ) -> None:
         self._nlu = nlu or NluService()
@@ -220,6 +223,7 @@ class Orchestrator:
         self._experience_reuse = ExperienceReuseService(self._profile_store)
         self._case_library = CaseLibraryService()
         self._upstream_trace = upstream_trace or UpstreamGovernanceTraceService()
+        self._upstream_correlate_map = upstream_correlate_map or UpstreamCorrelateMapService()
         self._experience_classifier = experience_classifier or ExperienceClassifier()
         self._settings = get_settings()
 
@@ -1829,7 +1833,7 @@ class Orchestrator:
         from intersection_agent.utils.trace_approach import resolve_trace_approach
 
         nlu_dirs = session.nlu.directions if session.nlu else None
-        dir8, _turn_no, approach = resolve_trace_approach(
+        dir8, turn_no, approach = resolve_trace_approach(
             nlu_dirs, by_turn, trigger_saturation=trigger
         )
         if dir8 is None or not approach:
@@ -1856,6 +1860,25 @@ class Orchestrator:
         session.data_payload["upstream_trace"] = trace
         points = trace.get("governance_points") or []
         session.data_payload["upstream_governance_point_count"] = len(points)
+
+        correlate_map = None
+        if session.nlu and session.nlu.time_period:
+            window = build_data_window(session.nlu.time_period)
+            try:
+                correlate_map = await self._upstream_correlate_map.build(
+                    session.inter_id,
+                    dir8=dir8,
+                    turn_no=turn_no,
+                    approach=approach,
+                    window=window,
+                    period_label=session.nlu.time_period.label,
+                    cognition=cognition,
+                )
+            except Exception as exc:  # noqa: BLE001
+                log_event(logger, logging.WARNING, "upstream_correlate_map.failed", error=str(exc))
+        if correlate_map:
+            session.data_payload["upstream_correlate_map"] = correlate_map
+
         if emitter:
             await emitter.emit(
                 "upstream_trace",
@@ -1863,12 +1886,19 @@ class Orchestrator:
                 data={
                     "governance_points": points,
                     "trees": len(trace.get("trees") or []),
+                    "correlate_upstream_count": (correlate_map or {}).get("stats", {}).get(
+                        "distinct_upstream"
+                    ),
                 },
             )
-            storyboard = trace.get("storyboard") or {}
-            if storyboard.get("frames"):
+            if correlate_map:
                 await self._emit_map_sequence(
-                    emitter, action="upstream_tree", data={"storyboard": storyboard}
+                    emitter,
+                    action="upstream_correlate_map",
+                    data={
+                        "correlate_map": correlate_map,
+                        "highlight_turn": approach,
+                    },
                 )
         return len(points)
 

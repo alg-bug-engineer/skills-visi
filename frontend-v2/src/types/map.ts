@@ -96,6 +96,50 @@ export interface MapSceneHud {
   metrics: Array<{ label: string; value: string; severity?: string }>
 }
 
+/** 溯源表全量路口 link 地图（dws_tfc_inter_turn_flow_correlate_m） */
+export interface CorrelateTraceLink {
+  link_id: string
+  link_role: string
+  dir4_label?: string
+  dir8_label?: string
+  road_name?: string
+  lane_num?: number
+  path: Array<[number, number]>
+}
+
+export interface CorrelateTraceIntersection {
+  inter_id: string
+  name: string
+  center: [number, number]
+  role: 'target' | 'upstream'
+  path_coverage?: number | null
+  cor_f_dir8_no?: number | null
+  cor_turn_dir_no?: number | null
+  in_main_corridor?: boolean
+  corridor_hop?: number | null
+  links: CorrelateTraceLink[]
+}
+
+export interface UpstreamCorrelateMap {
+  approach: string
+  dir8_code: number
+  turn_dir_no?: number | null
+  source?: string
+  stats?: {
+    raw_rows?: number
+    distinct_upstream?: number
+    rendered_upstream?: number
+    main_corridor_count?: number
+  }
+  main_corridor_chain?: Array<{
+    hop: number
+    inter_id: string
+    name: string
+    path_coverage: number
+  }>
+  intersections: CorrelateTraceIntersection[]
+}
+
 export interface MapScenePayload {
   action: 'map_scene'
   phase: string
@@ -194,8 +238,10 @@ export interface MapActionEvent {
     envelope_style?: string
   }
   camera?: { center: [number, number]; zoom: number }
-  /** upstream_tree：完整溯源 storyboard，前端本地播放 */
+  /** @deprecated 已由 upstream_correlate_map 替代 */
   storyboard?: UpstreamStoryboard
+  /** upstream_correlate_map：溯源表全量上游路口 link */
+  correlate_map?: UpstreamCorrelateMap
 }
 
 export interface NarrationCard {
