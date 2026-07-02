@@ -24,13 +24,16 @@ async def test_mock_correlate_map_distinct_upstream():
         cognition={"intersection": {"name": "演示路口", "lon": 117.11, "lat": 36.65}},
     )
     assert payload is not None
-    assert payload["stats"]["distinct_upstream"] == 3
+    assert payload["stats"]["distinct_upstream"] == 4
+    assert payload["stats"]["filtered_below_min"] == 1
+    assert payload["stats"]["min_path_coverage"] == 5.0
     assert len(payload["intersections"]) == 4
     target = payload["intersections"][0]
     assert target["role"] == "target"
     assert len(target["links"]) >= 1
     upstream = [n for n in payload["intersections"] if n["role"] == "upstream"]
     assert len(upstream) == 3
+    assert all(n["path_coverage"] >= 5 for n in upstream)
     main = [n for n in upstream if n["in_main_corridor"]]
     assert len(main) == 2
     assert len(payload["main_corridor_chain"]) == 2

@@ -4,6 +4,7 @@ import {
   buildCorrelateLabelHtml,
   coverageNodeStyle,
   defaultOpenUpstreamId,
+  isRenderableUpstream,
 } from '../utils/upstreamCorrelateLabels'
 import type { CorrelateTraceIntersection, UpstreamCorrelateMap } from '../types/map'
 
@@ -27,7 +28,6 @@ const TRACE_COLORS = {
 
 const PARTICLES_PER_EDGE = 3
 const LABEL_OFFSET: [number, number] = [10, -48]
-const MIN_LABEL_COVERAGE = 8
 
 /**
  * 单链路流量溯源渲染层：发光干线（外层 glow + 亮核）、沿线流动粒子（rAF + setPosition）、
@@ -249,12 +249,10 @@ export class UpstreamTraceLayer {
   }
 
   private labelEligible(node: CorrelateTraceIntersection): boolean {
-    if (node.role === 'target') return false
-    const cov = node.path_coverage
-    return cov != null && cov >= MIN_LABEL_COVERAGE
+    return node.role === 'upstream' && isRenderableUpstream(node)
   }
 
-  /** 溯源表全量路口：按路口绘制全部 link + 节点 + 可切换标签。 */
+  /** 溯源表路口：仅渲染有效上游（≥5% 途经、有 link/坐标）+ 目标路口。 */
   renderCorrelateMap(data: UpstreamCorrelateMap): void {
     const COLORS = {
       target: '#22c55e',
@@ -265,6 +263,7 @@ export class UpstreamTraceLayer {
     const defaultOpenId = defaultOpenUpstreamId(data)
 
     for (const node of data.intersections) {
+      if (!isRenderableUpstream(node)) continue
       const isTarget = node.role === 'target'
       const isMain = Boolean(node.in_main_corridor)
       const baseColor = isTarget ? COLORS.target : isMain ? COLORS.main : COLORS.other

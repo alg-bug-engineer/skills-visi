@@ -53,6 +53,8 @@ flow_trace:
 upstream_trace:
   # 进口道过饱和触发溯源的下限（与 flow_trace.trigger_saturation 对齐）。
   trigger_saturation: 0.90
+  # 溯源地图展示：途经占比低于此值的上游路口不渲染（百分数口径，5 = 5%）。
+  min_path_coverage: 5.0
   # 判定"该进口道全饱和、无本地信控空间"的单进口道饱和度下限。
   full_saturation: 0.85
   # 进口道绿灯利用率低于此值视为"绿灯空槽"，存在可调空间。

@@ -4,6 +4,8 @@ import {
   coverageNodeStyle,
   defaultOpenUpstreamId,
   formatCorrelateFeedDirection,
+  isRenderableUpstream,
+  MIN_PATH_COVERAGE,
   stripIntersectionSuffix,
 } from './upstreamCorrelateLabels'
 import type { UpstreamCorrelateMap } from '../types/map'
@@ -45,6 +47,40 @@ describe('upstreamCorrelateLabels', () => {
     expect(html).not.toContain('其他向')
     expect(html).toContain('东直行')
     expect(html).toContain('81.8%')
+  })
+
+  it('filters upstream below min path coverage or without links', () => {
+    expect(MIN_PATH_COVERAGE).toBe(5)
+    expect(
+      isRenderableUpstream({
+        inter_id: 'u1',
+        name: '低占比',
+        center: [1, 1],
+        role: 'upstream',
+        path_coverage: 4.9,
+        links: [{ link_id: 'l1', link_role: 'entrance', path: [[1, 1], [2, 2]] }],
+      }),
+    ).toBe(false)
+    expect(
+      isRenderableUpstream({
+        inter_id: 'u2',
+        name: '有效',
+        center: [1, 1],
+        role: 'upstream',
+        path_coverage: 5,
+        links: [{ link_id: 'l1', link_role: 'entrance', path: [[1, 1], [2, 2]] }],
+      }),
+    ).toBe(true)
+    expect(
+      isRenderableUpstream({
+        inter_id: 'u3',
+        name: '无 link',
+        center: [1, 1],
+        role: 'upstream',
+        path_coverage: 20,
+        links: [],
+      }),
+    ).toBe(false)
   })
 
   it('picks main corridor hop1 as default open id', () => {

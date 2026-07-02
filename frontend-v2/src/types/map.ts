@@ -129,6 +129,8 @@ export interface UpstreamCorrelateMap {
     raw_rows?: number
     distinct_upstream?: number
     rendered_upstream?: number
+    filtered_below_min?: number
+    min_path_coverage?: number
     main_corridor_count?: number
   }
   main_corridor_chain?: Array<{

@@ -18,6 +18,19 @@ const TURN_DIR_LABELS: Record<number, string> = {
   3: '右转',
 }
 
+/** 溯源地图：途经占比低于此值的上游路口不渲染。 */
+export const MIN_PATH_COVERAGE = 5
+
+/** 上游路口是否具备坐标、link 与有效途经占比。 */
+export function isRenderableUpstream(node: CorrelateTraceIntersection): boolean {
+  if (node.role === 'target') return true
+  const cov = node.path_coverage
+  if (cov == null || cov < MIN_PATH_COVERAGE) return false
+  if (!node.center?.length) return false
+  if (!node.links?.length) return false
+  return true
+}
+
 /** 去除路口名末尾「路口」后缀。 */
 export function stripIntersectionSuffix(name: string): string {
   return name.replace(/路口\s*$/u, '').trim() || name

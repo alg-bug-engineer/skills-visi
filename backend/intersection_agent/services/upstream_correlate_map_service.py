@@ -14,9 +14,12 @@ from intersection_agent.services.flow_trace_service import (
 )
 from intersection_agent.services.upstream_topology_service import parse_linestring_wkt
 from intersection_agent.utils.data_window import DataWindow
+from intersection_agent.utils.thresholds_loader import threshold_value
 from intersection_agent.utils.traffic_labels import DIR8_LABELS
 
 logger = logging.getLogger(__name__)
+
+MIN_PATH_COVERAGE_DEFAULT = 5.0
 
 
 def _as_float(value: Any) -> float | None:
@@ -30,6 +33,30 @@ def _as_float(value: Any) -> float | None:
 
 class UpstreamCorrelateMapService:
     """从溯源表拉取某进口×转向的全部上游路口，并附带各路口 link geom。"""
+
+    @staticmethod
+    def _min_path_coverage() -> float:
+        return float(
+            threshold_value(
+                "upstream_trace",
+                "min_path_coverage",
+                default=MIN_PATH_COVERAGE_DEFAULT,
+            )
+        )
+
+    @staticmethod
+    def _eligible_upstream(
+        coverage: float | None,
+        *,
+        has_center: bool,
+        link_count: int,
+        min_cov: float,
+    ) -> bool:
+        if coverage is None or coverage < min_cov:
+            return False
+        if not has_center or link_count < 1:
+            return False
+        return True
 
     def __init__(
         self,
@@ -93,7 +120,11 @@ class UpstreamCorrelateMapService:
             if prev is None or cov > prev["path_coverage"]:
                 upstream_map[cid] = item
 
-        upstream_list = sorted(upstream_map.values(), key=lambda x: -x["path_coverage"])
+        min_cov = self._min_path_coverage()
+        upstream_list = sorted(
+            (u for u in upstream_map.values() if u["path_coverage"] >= min_cov),
+            key=lambda x: -x["path_coverage"],
+        )
         main_turn = turn_no if turn_no is not None else 2
         corridor_chain = [
             u
@@ -132,23 +163,25 @@ class UpstreamCorrelateMapService:
                 center = (float(u["lng"]), float(u["lat"]))
             if not center:
                 continue
-            intersections.append(
-                await self._node_payload(
-                    u["cor_inter_id"],
-                    u["cor_inter_name"],
-                    center,
-                    role="upstream",
-                    path_coverage=round(u["path_coverage"], 1),
-                    cor_f_dir8_no=u["cor_f_dir8_no"],
-                    cor_turn_dir_no=u["cor_turn_dir_no"],
-                    in_main_corridor=u["cor_inter_id"] in corridor_ids,
-                    corridor_hop=u.get("corridor_hop"),
-                )
+            node = await self._node_payload(
+                u["cor_inter_id"],
+                u["cor_inter_name"],
+                center,
+                role="upstream",
+                path_coverage=round(u["path_coverage"], 1),
+                cor_f_dir8_no=u["cor_f_dir8_no"],
+                cor_turn_dir_no=u["cor_turn_dir_no"],
+                in_main_corridor=u["cor_inter_id"] in corridor_ids,
+                corridor_hop=u.get("corridor_hop"),
             )
+            if not node["links"]:
+                continue
+            intersections.append(node)
 
         if len(intersections) < 2:
             return None
 
+        rendered_upstream = len(intersections) - 1
         return {
             "approach": approach,
             "dir8_code": dir8,
@@ -157,7 +190,9 @@ class UpstreamCorrelateMapService:
             "stats": {
                 "raw_rows": len(filtered),
                 "distinct_upstream": len(upstream_map),
-                "rendered_upstream": len(intersections) - 1,
+                "rendered_upstream": rendered_upstream,
+                "filtered_below_min": len(upstream_map) - rendered_upstream,
+                "min_path_coverage": min_cov,
                 "main_corridor_count": len(corridor_chain),
             },
             "main_corridor_chain": [
@@ -261,10 +296,12 @@ class UpstreamCorrelateMapService:
         lon = _as_float(inter.get("lng") or inter.get("lon")) or 117.11
         lat = _as_float(inter.get("lat")) or 36.65
         label = DIR8_LABELS.get(dir8, "西")
+        min_cov = self._min_path_coverage()
         ups = [
             ("mock_up1", f"{label}向演示上游一", 0.01, 90.1, True, 1),
             ("mock_up2", f"{label}向演示上游二", 0.02, 76.5, True, 2),
             ("mock_up3", "其他来向演示路口", -0.01, 15.3, False, None),
+            ("mock_up4", "低占比应过滤", 0.015, 3.2, False, None),
         ]
         intersections: list[dict[str, Any]] = [
             {
@@ -279,8 +316,16 @@ class UpstreamCorrelateMapService:
             }
         ]
         chain = []
+        distinct = len(ups)
+        rendered = 0
         for i, (uid, name, dlon, cov, main, hop) in enumerate(ups, 1):
             ulon, ulat = lon + dlon, lat + dlon * 0.3
+            links = self._mock_links(ulon, ulat, 3)
+            if not self._eligible_upstream(
+                cov, has_center=True, link_count=len(links), min_cov=min_cov
+            ):
+                continue
+            rendered += 1
             intersections.append(
                 {
                     "inter_id": uid,
@@ -292,7 +337,7 @@ class UpstreamCorrelateMapService:
                     "cor_turn_dir_no": turn_no or 2,
                     "in_main_corridor": main,
                     "corridor_hop": hop,
-                    "links": self._mock_links(ulon, ulat, 3),
+                    "links": links,
                 }
             )
             if main and hop:
@@ -303,10 +348,12 @@ class UpstreamCorrelateMapService:
             "turn_dir_no": turn_no,
             "source": "mock",
             "stats": {
-                "raw_rows": 3,
-                "distinct_upstream": 3,
-                "rendered_upstream": 3,
-                "main_corridor_count": 2,
+                "raw_rows": distinct,
+                "distinct_upstream": distinct,
+                "rendered_upstream": rendered,
+                "filtered_below_min": distinct - rendered,
+                "min_path_coverage": min_cov,
+                "main_corridor_count": len(chain),
             },
             "main_corridor_chain": chain,
             "intersections": intersections,
