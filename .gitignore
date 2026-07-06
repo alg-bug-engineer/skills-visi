@@ -1,0 +1,13 @@
+# Credentials and secrets
+docs/postgresql_info.md
+docs/阿里云 api 信息.csv
+docs/gd-js20.md
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+logs/
