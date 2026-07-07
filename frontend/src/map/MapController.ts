@@ -180,15 +180,23 @@ export class MapController {
   private drawTrace(resp: RunResponse | null, target: [number, number] | null) {
     if (target) this.add(this.pulseMarker(target, '#00e5ff', '目标路口'))
     const scenes = resp?.phases?.diagnosis?.map_scenes ?? {}
-    const traces = [
-      ...(scenes.downstream_trace_map?.turn_traces ?? []),
-      ...(resp?.phases?.diagnosis?.flow_trace?.entry_traces ?? []),
+    // 方向由数据来源确定：entry_traces=来向(上游)，turn_traces=去向(下游)。
+    // 仅渲染真实 path（禁止前端合成，见 docs/rule.md 约束19）。
+    const traces: Array<{ path?: unknown; _kind: 'upstream' | 'downstream' }> = [
+      ...(resp?.phases?.diagnosis?.flow_trace?.entry_traces ?? []).map((t: any) => ({
+        ...t,
+        _kind: 'upstream' as const,
+      })),
+      ...(scenes.downstream_trace_map?.turn_traces ?? []).map((t: any) => ({
+        ...t,
+        _kind: 'downstream' as const,
+      })),
     ]
     let drawn = 0
     for (const tr of traces) {
       const path = validPath(tr.path)
       if (path.length < 2) continue
-      const upstream = tr.trace_kind === 'upstream'
+      const upstream = tr._kind === 'upstream'
       const glow = upstream ? '#f5a623' : '#0ea5e9'
       const core = upstream ? '#ffcf7a' : '#38bdf8'
       this.add(new this.AMap.Polyline({ path, strokeColor: glow, strokeWeight: 18, strokeOpacity: 0.2 }))

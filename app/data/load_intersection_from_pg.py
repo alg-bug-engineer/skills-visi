@@ -402,6 +402,57 @@ def _query_adjacent_spacing(
     return _read_pg(sql, {"inter_id": inter_id}, limit=40)
 
 
+def _query_trace_geometry(
+    schema: str,
+    channel_table: str,
+    version_sql: str,
+    inter_id: str,
+) -> list[dict[str, Any]]:
+    """进/出口 link 的真实几何 + 邻接路口中心（支撑流量溯源上下游拓扑）。
+
+    数据真源：折线取 dim_link_info.geom（ST_AsText WKT），邻接路口中心取
+    dim_inter_info.geom_center。entrance link 的 f_inter_id 为上游相邻路口，
+    exit link 的 t_inter_id 为下游相邻路口。禁止前端合成，见 docs/rule.md 约束19。
+    """
+    link_table = "dim_link_info"
+    inter_table = "dim_inter_info"
+    sql = f"""
+        SELECT w.inter_id::text AS inter_id,
+               w.link_id::text AS link_id,
+               w.link_role::text AS link_role,
+               w.dir8_code::text AS dir8_code,
+               w.dir8_label::text AS dir8_label,
+               CASE
+                 WHEN LOWER(w.link_role) IN ('entrance', '进口') THEN l.f_inter_id::text
+                 WHEN LOWER(w.link_role) IN ('exit', '出口') THEN l.t_inter_id::text
+               END AS adjacent_inter_id,
+               CASE
+                 WHEN LOWER(w.link_role) IN ('entrance', '进口') THEN 'upstream'
+                 WHEN LOWER(w.link_role) IN ('exit', '出口') THEN 'downstream'
+               END AS relation_direction,
+               ai.inter_name::text AS adjacent_inter_name,
+               ST_AsText(l.geom) AS geom_wkt,
+               ST_Length(l.geom::geography) AS length_m,
+               ST_X(ST_GeomFromText(ai.geom_center)) AS adjacent_lng,
+               ST_Y(ST_GeomFromText(ai.geom_center)) AS adjacent_lat
+        FROM {schema}.{channel_table} w
+        JOIN {schema}.{link_table} l
+          ON l.link_id = w.link_id
+         AND l.version_id = {version_sql}
+        LEFT JOIN {schema}.{inter_table} ai
+          ON ai.inter_id = CASE
+                 WHEN LOWER(w.link_role) IN ('entrance', '进口') THEN l.f_inter_id
+                 WHEN LOWER(w.link_role) IN ('exit', '出口') THEN l.t_inter_id
+               END
+         AND ai.version_id = {version_sql}
+        WHERE w.version_id = {version_sql}
+          AND w.inter_id = :inter_id
+          AND LOWER(w.link_role) IN ('entrance', 'exit', '进口', '出口')
+        ORDER BY relation_direction, w.dir8_code, length_m DESC NULLS LAST
+    """
+    return _read_pg(sql, {"inter_id": inter_id}, limit=80)
+
+
 def _access_type_label(name: Any, raw_type: Any, category_detail: Any = None) -> str:
     text = f"{name or ''} {raw_type or ''} {category_detail or ''}"
     if any(keyword in text for keyword in ("停车场出入口", "停车场入口", "停车场出口", "出入口")):
@@ -1109,6 +1160,12 @@ def iter_checklist_load(
             "item": item,
         }
 
+    trace_geom_rows, trace_geom_err = _safe_query(
+        _query_trace_geometry, road, channel_table, version_sql, resolved_id
+    )
+    raw["trace_geometry"] = trace_geom_rows
+    query_errors["trace_geometry"] = trace_geom_err
+
     stage_cfg_rows, stage_cfg_err = _safe_query(_query_stage_cfg, flow, resolved_id)
     raw["stage_cfg"] = stage_cfg_rows
     query_errors["stage_cfg"] = stage_cfg_err
@@ -1401,33 +1458,42 @@ def _query_flow_correlate(
 ) -> list[dict[str, Any]]:
     day_label, day_type_label = _flow_correlate_day_labels(day_of_week)
     version_sql = _enabled_version_sql(road_schema)
-    sql = f"""
-        SELECT fc.month, fc.day_of_week, fc.period_type,
-               fc.inter_id, fc.f_dir8_no, fc.turn_dir_no,
-               fc.cor_inter_id, fc.cor_f_dir8_no, fc.cor_turn_dir_no,
-               fc.flow_share_ratio, fc.trace_type,
-               cor_inter.inter_name AS cor_inter_name
-        FROM {flow_schema}.dws_tfc_inter_turn_flow_correlate_m fc
-        LEFT JOIN {road_schema}.dim_inter_info cor_inter
-          ON cor_inter.inter_id = fc.cor_inter_id
-         AND cor_inter.version_id = {version_sql}
-        WHERE fc.inter_id = :inter_id
-          AND fc.is_deleted = 0
-          AND fc.day_of_week IN (:day_label, :day_type_label)
-          AND fc.month = (
-              SELECT MAX(latest.month)
-              FROM {flow_schema}.dws_tfc_inter_turn_flow_correlate_m latest
-              WHERE latest.inter_id = :inter_id
-                AND latest.is_deleted = 0
-          )
-        ORDER BY fc.period_type, fc.f_dir8_no, fc.turn_dir_no, fc.trace_type,
-                 fc.flow_share_ratio DESC NULLS LAST
-    """
-    return _read_pg(
-        sql,
-        {"inter_id": inter_id, "day_label": day_label, "day_type_label": day_type_label},
+
+    def _correlate_sql(day_filter: str) -> str:
+        return f"""
+            SELECT fc.month, fc.day_of_week, fc.period_type,
+                   fc.inter_id, fc.f_dir8_no, fc.turn_dir_no,
+                   fc.cor_inter_id, fc.cor_f_dir8_no, fc.cor_turn_dir_no,
+                   fc.flow_share_ratio, fc.trace_type,
+                   cor_inter.inter_name AS cor_inter_name
+            FROM {flow_schema}.dws_tfc_inter_turn_flow_correlate_m fc
+            LEFT JOIN {road_schema}.dim_inter_info cor_inter
+              ON cor_inter.inter_id = fc.cor_inter_id
+             AND cor_inter.version_id = {version_sql}
+            WHERE fc.inter_id = :inter_id
+              AND fc.is_deleted = 0
+              {day_filter}
+              AND fc.month = (
+                  SELECT MAX(latest.month)
+                  FROM {flow_schema}.dws_tfc_inter_turn_flow_correlate_m latest
+                  WHERE latest.inter_id = :inter_id
+                    AND latest.is_deleted = 0
+              )
+            ORDER BY fc.period_type, fc.f_dir8_no, fc.turn_dir_no, fc.trace_type,
+                     fc.flow_share_ratio DESC NULLS LAST
+        """
+
+    params = {"inter_id": inter_id, "day_label": day_label, "day_type_label": day_type_label}
+    rows = _read_pg(
+        _correlate_sql("AND fc.day_of_week IN (:day_label, :day_type_label)"),
+        params,
         limit=5000,
     )
+    # 该路口无请求日类型（如“周五/工作日”）的月度聚合时，回退到最新月的任意日类型
+    # （仍为真实聚合值，仅放宽日类型），以保证上下游溯源占比可用。禁止合成。
+    if not rows:
+        rows = _read_pg(_correlate_sql(""), {"inter_id": inter_id}, limit=5000)
+    return rows
 
 
 def _query_turn_flow(

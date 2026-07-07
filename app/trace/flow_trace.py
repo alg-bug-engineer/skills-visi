@@ -26,11 +26,15 @@ def build_flow_trace(
     for node in upstream_nodes:
         movements = node.get("upstream_movements") or []
         dom = movements[0] if movements else None
-        if dom:
+        up_name = node.get("upstream_inter_name", "上一路口")
+        vehicles = dom.get("vehicles_of_100") if dom else None
+        if dom and vehicles is not None:
             narrative = (
-                f"{entry_label}约100辆过境车中，约{dom.get('vehicles_of_100', 0)}辆来自上一路口"
-                f"{node.get('upstream_inter_name', '上一路口')}，以{dom.get('turn', '直行')}为主"
+                f"{entry_label}约100辆过境车中，约{vehicles}辆来自上一路口"
+                f"{up_name}，以{dom.get('turn', '直行')}为主"
             )
+        elif dom:
+            narrative = f"{entry_label}来向上游路口{up_name}（占比数据缺失）"
         else:
             narrative = f"{entry_label}暂无可用上一跳溯源"
 
