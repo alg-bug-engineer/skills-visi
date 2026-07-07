@@ -76,7 +76,7 @@ export async function drillToIntersection(
 
 /**
  * 平滑抬升/回拉镜头（允许受控降 zoom，单次动画）。
- * 用于溯源/干线幕从车道级(≈18) 连贯过渡到干线级(17)，禁止硬 setZoomAndCenter 刷新。
+ * 用于溯源/干线阶段从车道级(≈18) 连贯过渡到干线级(17)，禁止硬 setZoomAndCenter 刷新。
  */
 export function smoothPullback(
   map: AMapMap,

@@ -53,7 +53,7 @@ onBeforeUnmount(() => {
   mapInstance?.destroy?.()
 })
 
-// 幕次变化 → 连贯应用地图场景（重放镜头 + 覆盖物）
+// 阶段变化 → 连贯应用地图场景（重放镜头 + 覆盖物）
 watch(
   () => store.currentAct,
   async (idx) => {
@@ -67,7 +67,7 @@ watch(
   },
 )
 
-// 诊断 phase 到达后仅补绘覆盖物/指标（同一幕，不重放镜头，避免二次运镜闪烁）
+// 诊断 phase 到达后仅补绘覆盖物/指标（同一阶段，不重放镜头，避免二次运镜闪烁）
 watch(
   () => store.response?.phases?.diagnosis,
   async (diag) => {
@@ -78,6 +78,16 @@ watch(
         showMetrics: true,
         replayCamera: false,
       })
+  },
+)
+
+// 用户重置/重新开始时，地图覆盖物与溯源结果同步清空并回到城市视角。
+watch(
+  () => store.mapResetSeq,
+  async () => {
+    if (!controller.value) return
+    controller.value.clear()
+    await controller.value.resetToCity()
   },
 )
 </script>
@@ -347,8 +357,22 @@ watch(
   white-space: normal;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
 }
+:global(.topology-label strong) {
+  display: block;
+  color: rgba(232, 244, 255, 0.95);
+}
+:global(.topology-label span) {
+  display: block;
+  margin-top: 2px;
+  color: rgba(138, 160, 184, 0.92);
+  font-size: 9px;
+  font-weight: 500;
+}
 :global(.topology-wrap.is-hot .topology-label) {
   border-color: rgba(56, 189, 248, 0.6);
+  color: #bae6fd;
+}
+:global(.topology-wrap.is-hot .topology-label span) {
   color: #bae6fd;
 }
 :global(.channel-metric-label) {

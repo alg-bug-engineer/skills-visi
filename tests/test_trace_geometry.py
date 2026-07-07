@@ -243,8 +243,9 @@ def test_flow_trace_links_sniff_map_scene_groups_real_links():
     assert scene["available"] is True
     assert scene["phase"] == "flow_trace_links_sniff_map"
     assert scene["trace_direction"] == "upstream"
-    assert scene["stats"]["rendered"] == 3
+    assert scene["stats"]["rendered"] == 2
     assert scene["stats"]["main_corridor"] == 1
+    assert scene["stats"]["hidden_non_main"] == 1
     assert scene["main_corridor_chain"][0]["inter_id"] == "UP1"
 
     target = scene["intersections"][0]
@@ -258,10 +259,7 @@ def test_flow_trace_links_sniff_map_scene_groups_real_links():
     assert peer["path_coverage"] == 71.63
     assert peer["links"][0]["link_id"] == "L_UP"
 
-    other = scene["intersections"][2]
-    assert other["role"] == "upstream"
-    assert other["in_main_corridor"] is False
-    assert other["links"][0]["link_id"] == "L_OTHER"
+    assert [n["inter_id"] for n in scene["intersections"][1:]] == ["UP1"]
 
 
 def test_flow_trace_links_sniff_map_scene_uses_correlate_peer_link_geometry():
@@ -355,6 +353,76 @@ def test_flow_trace_links_sniff_map_scene_uses_correlate_peer_link_geometry():
     assert scene["intersections"][2]["path_coverage"] == 76.5
     assert scene["intersections"][1]["links"][0]["link_id"] == "P1_L"
     json.dumps(scene, ensure_ascii=False)
+
+
+def test_flow_trace_links_sniff_map_scene_only_renders_main_corridor_by_default():
+    raw = _demo_raw()
+    raw["flow_correlate"] = [
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 2,
+            "cor_inter_id": "P1",
+            "cor_inter_name": "主链一",
+            "cor_f_dir8_no": 6,
+            "cor_turn_dir_no": 2,
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 90.1,
+        },
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 2,
+            "cor_inter_id": "P2",
+            "cor_inter_name": "其他来向",
+            "cor_f_dir8_no": 0,
+            "cor_turn_dir_no": 2,
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 35.6,
+        },
+    ]
+    raw["peer_link_geometry"] = [
+        {
+            "inter_id": "P1",
+            "inter_name": "主链一",
+            "lng": 117.09,
+            "lat": 36.65,
+            "link_id": "P1_L",
+            "link_role": "entrance",
+            "geom_wkt": "LINESTRING(117.08 36.65, 117.09 36.65)",
+        },
+        {
+            "inter_id": "P2",
+            "inter_name": "其他来向",
+            "lng": 117.08,
+            "lat": 36.66,
+            "link_id": "P2_L",
+            "link_role": "entrance",
+            "geom_wkt": "LINESTRING(117.08 36.66, 117.08 36.67)",
+        },
+    ]
+    topology = {
+        "target_inter_id": "TARGET",
+        "target_inter_name": "目标",
+        "target_lng": 117.10159,
+        "target_lat": 36.657529,
+        "dir8_code": 6,
+        "turn_dir_no": 2,
+        "upstream_nodes": [],
+        "downstream_nodes": [],
+    }
+
+    scene = build_flow_trace_links_sniff_map_scene(
+        pg_raw=raw,
+        topology=topology,
+        target_profile={"inter_id": "TARGET", "inter_name": "目标", "lng": 117.10159, "lat": 36.657529},
+        direction="西向东",
+        movement="直行",
+    )
+
+    assert scene["available"] is True
+    assert scene["stats"]["distinct_peers"] == 2
+    assert scene["stats"]["rendered"] == 2
+    assert scene["stats"]["hidden_non_main"] == 1
+    assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1"]
 
 
 def test_topology_no_synthesis_when_geometry_missing():

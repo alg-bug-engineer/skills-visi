@@ -17,6 +17,7 @@ import {
 import { buildLegacySniffScene, type TraceSniffScene } from './traceSniff'
 import { ChannelizationLayer } from './channelizationLayer'
 import { DownstreamTopologyLayer, buildDownstreamTopology } from './downstreamTopologyLayer'
+import { sceneEvidencePolicy } from './sceneEvidencePolicy'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AMapNS = any
@@ -29,7 +30,7 @@ const ARTERIAL_ZOOM = 17
 
 export interface ApplySceneOptions {
   showMetrics?: boolean
-  /** false 时仅补绘覆盖物、不重放镜头（流式同幕数据补齐用，避免闪烁）。 */
+  /** false 时仅补绘覆盖物、不重放镜头（流式同阶段数据补齐用，避免闪烁）。 */
   replayCamera?: boolean
 }
 
@@ -107,11 +108,12 @@ export class MapController {
     this.map.add(o)
   }
 
-  /** 应用某一幕：连贯镜头 + 该幕覆盖物。 */
+  /** 应用某一阶段：连贯镜头 + 当前证据覆盖物。 */
   async applyScene(scene: ActMapScene, resp: RunResponse | null, opts: ApplySceneOptions = {}) {
     const showMetrics = opts.showMetrics ?? false
     const replayCamera = opts.replayCamera ?? true
     const token = ++this.sceneToken
+    const policy = sceneEvidencePolicy(scene, { showMetrics })
     this.clear()
 
     const ticket = resp?.diagnosis_ticket
@@ -130,21 +132,21 @@ export class MapController {
         break
       case 'lane':
         if (target) {
-          this.drawIntersection(target, resp, true)
-          this.drawChannelization(resp, target)
+          this.drawIntersection(target, resp, policy.metricMarkers)
+          if (policy.channelization) this.drawChannelization(resp, target)
         }
         break
       case 'trace':
       case 'corridor':
-        this.drawTrace(resp, target)
-        this.drawDownstreamTopology(resp, target)
+        if (policy.trace) this.drawTrace(resp, target)
         break
       case 'control':
-        this.drawControlScope(resp, target)
+        if (policy.controlScope) this.drawControlScope(resp, target)
         break
     }
 
-    if (showMetrics && target) this.drawMetricMarkers(resp, target)
+    if (policy.downstreamTopology) this.drawDownstreamTopology(resp, target)
+    if (policy.metricMarkers && target) this.drawMetricMarkers(resp, target)
   }
 
   /** 连贯运镜：城市→路口→车道 单调下钻(→18)；干线/控制 平滑抬升(→17)。 */
@@ -250,7 +252,7 @@ export class MapController {
   }
 
   /**
-   * 溯源幕：发光双层干线 + 沿线粒子 + 占比缩放节点 + 占比标签。
+   * 溯源阶段：发光双层干线 + 沿线粒子 + 占比缩放节点 + 占比标签。
    * 方向由数据来源确定：entry_traces=来向(上游·琥珀)，turn_traces=去向(下游·青蓝)。
    * 仅渲染真实 path/坐标/占比（禁止前端合成，见 docs/rule.md 约束19）。
    */
@@ -352,8 +354,14 @@ export class MapController {
   }
 
   resetToCity() {
+    this.clear()
     this.currentZoom = 11
     this.userInteracted = false
+    try {
+      this.map.setPitch?.(20)
+    } catch {
+      /* ignore */
+    }
     return flyTo(this.map, JINAN_CENTER, 11, 900)
   }
 }

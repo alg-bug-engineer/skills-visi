@@ -30,6 +30,7 @@ const period: Dict = {
 
 const problem_type: Dict = {
   queue_spillover: '排队溢出',
+  congestion_spillover: '拥堵外溢',
   congestion: '拥堵',
   spillback: '拥堵传导',
   imbalance: '流量失衡',
@@ -49,8 +50,14 @@ const diagnosis_scope: Dict = {
 
 const governance_goal: Dict = {
   mitigate_spillover: '控制溢出扩散',
+  prevent_downstream_congestion_spillover: '避免下游继续外溢',
   clear_queue: '清空排队',
   balance: '均衡放行',
+}
+
+const constraint: Dict = {
+  avoid_downstream_spillover: '优先避免下游继续外溢',
+  protect_downstream: '保护下游承接空间',
 }
 
 const risk_level: Dict = {
@@ -61,7 +68,7 @@ const risk_level: Dict = {
 }
 
 const data_source: Dict = {
-  pg: 'PG 真源',
+  pg: '真实信控数据',
   task_injection: '注入上下文',
   mock: '演示数据',
 }
@@ -82,10 +89,11 @@ const scenario: Dict = {
   mixed: '混合型',
   high_demand_downstream_blocked: '高需求 + 下游受阻',
   local_capacity: '本路口放行不足',
-  downstream_blocked: '下游接不住',
+  downstream_blocked: '下游承接不足',
 }
 
 const plan_id: Dict = {
+  plan_dp: '干线联控方案',
   downstream_protection: '下游保护方案',
   incremental_release: '目标路口小步释放方案',
   arterial_coordination: '干线联控方案',
@@ -114,6 +122,7 @@ const DICTS: Record<string, Dict> = {
   object_type,
   diagnosis_scope,
   governance_goal,
+  constraint,
   risk_level,
   data_source,
   match_method,

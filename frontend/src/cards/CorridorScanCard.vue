@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import { num, meters } from '@/utils/format'
 import BaseCard from './BaseCard.vue'
+import { productCopy } from '@/utils/productCopy'
 
 const store = usePresentationStore()
 const a = computed(() => store.diagnosis?.arterial_analysis ?? null)
@@ -35,11 +36,11 @@ const a = computed(() => store.diagnosis?.arterial_analysis ?? null)
         <span class="mark" />下游先消散 {{ a.need_downstream_dissipation_first ? '需要' : '不需要' }}
       </li>
       <li v-if="a.phase_offset_match">
-        <span class="mark" />相位差匹配：{{ a.phase_offset_match }}
+        <span class="mark" />协调数据：{{ productCopy(a.phase_offset_match) }}
       </li>
     </ul>
 
-    <p v-if="a.summary" class="summary">{{ a.summary }}</p>
+    <p v-if="a.summary" class="summary">{{ productCopy(a.summary) }}</p>
   </BaseCard>
 </template>
 
@@ -57,7 +58,7 @@ const a = computed(() => store.diagnosis?.arterial_analysis ?? null)
   align-items: center;
   gap: 3px;
   padding: 8px 4px;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
 }
@@ -113,6 +114,6 @@ const a = computed(() => store.diagnosis?.arterial_analysis ?? null)
   color: var(--text);
   padding: 8px 10px;
   background: var(--evidence-dim);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
 }
 </style>

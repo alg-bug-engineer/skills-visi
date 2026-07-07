@@ -26,7 +26,7 @@ export interface RunOptions {
   signal?: AbortSignal
 }
 
-/** 运行智能体。MOCK 模式回放真实 fixture（明确来源，非编造）。 */
+/** 运行系统。MOCK 模式回放真实 fixture（明确来源，非编造）。 */
 export async function runAgent(userInput: string, opts: RunOptions = {}): Promise<RunResponse | ApiError> {
   if (MOCK) {
     await delay(400)
@@ -106,7 +106,7 @@ function mockStream(handlers: StreamHandlers): StreamController {
   }
 }
 
-/** 流式运行智能体：真实走 /agent/run/stream；MOCK 走离线模拟。 */
+/** 流式运行系统：真实走 /agent/run/stream；MOCK 走离线模拟。 */
 export function runAgentStream(userInput: string, handlers: StreamHandlers, opts: RunOptions = {}): StreamController {
   if (MOCK) return mockStream(handlers)
   return streamPost(

@@ -12,12 +12,20 @@ export interface DownstreamTopologyNode {
   position: LngLat
   linkId?: string
   highlighted: boolean
+  metrics?: DownstreamTopologyMetrics
 }
 
 export interface DownstreamTopologyEdge {
   id: string
   path: LngLat[]
   highlighted: boolean
+}
+
+export interface DownstreamTopologyMetrics {
+  queueRatio?: number | null
+  saturation?: number | null
+  greenUtilization?: number | null
+  remainingStorageM?: number | null
 }
 
 export interface DownstreamTopology {
@@ -30,10 +38,47 @@ function nodeIdFromTrace(trace: Record<string, unknown>): string {
   return String(trace.downstream_inter_id ?? trace.inter_id ?? trace.name ?? '')
 }
 
+function num(v: unknown): number | null {
+  if (v == null || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+function metricFromRecord(record: Record<string, any> | undefined): DownstreamTopologyMetrics | undefined {
+  if (!record) return undefined
+  const metrics = record.metrics ?? record
+  const result: DownstreamTopologyMetrics = {
+    queueRatio: num(metrics.queue_storage_ratio_max ?? metrics.queue_ratio),
+    saturation: num(metrics.saturation_rate ?? metrics.saturation),
+    greenUtilization: num(metrics.green_utilization),
+    remainingStorageM: num(record.remaining_storage_m ?? metrics.remaining_storage_m),
+  }
+  return Object.values(result).some((v) => v != null) ? result : undefined
+}
+
+function mergeMetrics(
+  primary: DownstreamTopologyMetrics | undefined,
+  fallback: DownstreamTopologyMetrics | undefined,
+): DownstreamTopologyMetrics | undefined {
+  const merged = {
+    queueRatio: primary?.queueRatio ?? fallback?.queueRatio ?? undefined,
+    saturation: primary?.saturation ?? fallback?.saturation ?? undefined,
+    greenUtilization: primary?.greenUtilization ?? fallback?.greenUtilization ?? undefined,
+    remainingStorageM: primary?.remainingStorageM ?? fallback?.remainingStorageM ?? undefined,
+  }
+  return Object.values(merged).some((v) => v != null) ? merged : undefined
+}
+
 export function buildDownstreamTopology(mapScenes: Record<string, any> | undefined, target: LngLat | null): DownstreamTopology {
   const channel = mapScenes?.channelization_map
   const downstream = mapScenes?.downstream_trace_map
   const highlighted = new Set<string>((downstream?.turn_traces ?? []).map(nodeIdFromTrace).filter(Boolean))
+  const adjacentMetrics = new Map<string, DownstreamTopologyMetrics>()
+  for (const item of downstream?.adjacent_intersections ?? []) {
+    const id = String(item.inter_id ?? item.adjacent_inter_id ?? '')
+    const metrics = metricFromRecord(item)
+    if (id && metrics) adjacentMetrics.set(id, metrics)
+  }
   const nodes = new Map<string, DownstreamTopologyNode>()
   const edges: DownstreamTopologyEdge[] = []
 
@@ -53,6 +98,7 @@ export function buildDownstreamTopology(mapScenes: Record<string, any> | undefin
       position,
       linkId: link.link_id,
       highlighted: isHighlighted,
+      metrics: mergeMetrics(adjacentMetrics.get(id), metricFromRecord(link)),
     })
     edges.push({ id: String(link.link_id ?? id), path, highlighted: isHighlighted })
   }
@@ -69,6 +115,7 @@ export function buildDownstreamTopology(mapScenes: Record<string, any> | undefin
       name: String(trace.name ?? '下游路口'),
       position: Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : path[path.length - 1],
       highlighted: true,
+      metrics: mergeMetrics(adjacentMetrics.get(id), metricFromRecord(trace)),
     })
     edges.push({ id: `trace:${id}`, path, highlighted: true })
   }
@@ -126,7 +173,7 @@ export class DownstreamTopologyLayer {
           position: node.position,
           anchor: 'center',
           zIndex: node.highlighted ? 91 : 88,
-          content: `<div class="topology-wrap ${node.highlighted ? 'is-hot' : ''}"><div class="topology-node"></div><div class="topology-label">${node.name}</div></div>`,
+          content: `<div class="topology-wrap ${node.highlighted ? 'is-hot' : ''}"><div class="topology-node"></div><div class="topology-label"><strong>${node.name}</strong><span>${formatNodeMetrics(node.metrics)}</span></div></div>`,
         }),
       )
     }
@@ -138,4 +185,13 @@ export class DownstreamTopologyLayer {
       this.overlays = []
     }
   }
+}
+
+function fmtPct(v: number | null | undefined): string {
+  return v == null ? '暂无' : `${Math.round(v * 100)}%`
+}
+
+function formatNodeMetrics(metrics: DownstreamTopologyMetrics | undefined): string {
+  if (!metrics) return '指标暂无'
+  return `排队 ${fmtPct(metrics.queueRatio)} · 饱和 ${fmtPct(metrics.saturation)}`
 }

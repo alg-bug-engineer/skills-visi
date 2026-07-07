@@ -48,7 +48,7 @@ watch(
       <TransitionGroup name="rise">
         <component :is="INSIGHT_CARDS[k]" v-for="(k, i) in visible" :key="k + i" />
       </TransitionGroup>
-      <p v-if="!visible.length" class="hint">证据卡将随分析进程逐幕浮现…</p>
+      <p v-if="!visible.length" class="hint">证据卡将随分析进程逐步浮现…</p>
     </div>
   </aside>
 </template>

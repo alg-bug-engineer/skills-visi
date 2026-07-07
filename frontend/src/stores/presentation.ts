@@ -41,6 +41,7 @@ interface State {
   toast: string | null
   errorMsg: string | null
   autoPlay: boolean
+  mapResetSeq: number
 }
 
 export const usePresentationStore = defineStore('presentation', {
@@ -63,6 +64,7 @@ export const usePresentationStore = defineStore('presentation', {
     toast: null,
     errorMsg: null,
     autoPlay: true,
+    mapResetSeq: 0,
   }),
 
   getters: {
@@ -186,7 +188,7 @@ export const usePresentationStore = defineStore('presentation', {
       if (snap.trace_id) this.traceId = snap.trace_id
     },
 
-    /** 快照更新后，尝试从等待态进入下一（或首）幕。 */
+    /** 快照更新后，尝试从等待态进入下一（或首个）阶段。 */
     resumeIfReady() {
       if (this.currentAct === -1) {
         if (phaseReady(this.response, 'intent')) {
@@ -225,7 +227,7 @@ export const usePresentationStore = defineStore('presentation', {
       this.currentAct = 0
     },
 
-    /** 当前幕旁白打字完成：揭示证据卡，并按门控推进。 */
+    /** 当前阶段说明打字完成：揭示证据卡，并按门控推进。 */
     onActTyped(index: number) {
       const act = this.acts[index]
       if (!act) return
@@ -233,7 +235,7 @@ export const usePresentationStore = defineStore('presentation', {
       if (act.id === 'act8_plan') this.dock = 'plan'
     },
 
-    /** 打字完成后请求推进：下一幕 phase 未就绪则进入等待态。 */
+    /** 打字完成后请求推进：下一阶段 phase 未就绪则进入等待态。 */
     tryAdvance() {
       if (this.currentAct >= this.lastActIndex) {
         this.status = 'done'
@@ -250,7 +252,7 @@ export const usePresentationStore = defineStore('presentation', {
 
     goToAct(index: number) {
       if (index < 0 || index >= this.acts.length) return
-      // 仅允许跳到已就绪 phase 的幕（流式）；batch 全就绪
+      // 仅允许跳到已就绪 phase 的阶段（流式）；batch 全就绪
       if (this.mode === 'stream' && !phaseReady(this.response, this.acts[index].phase)) return
       this.waiting = false
       this.currentAct = index
@@ -315,6 +317,7 @@ export const usePresentationStore = defineStore('presentation', {
     reset(toInput = true) {
       controller?.close()
       controller = null
+      this.mapResetSeq += 1
       this.status = 'idle'
       this.mode = 'stream'
       this.signal = 'idle'

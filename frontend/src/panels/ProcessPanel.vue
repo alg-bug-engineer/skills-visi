@@ -47,7 +47,7 @@ const { shown, done } = useTyping(lines, {
   },
 })
 
-/** 可见阶段：当前及之前所有已开始的幕 */
+/** 可见阶段：当前及之前所有已开始的阶段 */
 const visibleActs = computed(() => {
   if (currentAct.value < 0) return []
   return acts.value.slice(0, currentAct.value + 1)
@@ -61,7 +61,7 @@ function actStatus(index: number): 'pending' | 'typing' | 'done' {
 
 function isCollapsed(index: number): boolean {
   if (manualExpanded.value.has(index)) return false
-  // 当前幕与上一幕保持展开，便于查看推理明细与证据卡
+  // 当前阶段与上一阶段保持展开，便于查看推理明细与证据卡
   if (index >= currentAct.value - 1 && index <= currentAct.value) return false
   return index < currentAct.value - 1
 }
@@ -94,7 +94,7 @@ watch(currentAct, (idx, prev) => {
   <aside class="reasoning us-panel" data-testid="process-panel">
     <header class="reasoning__hd">
       <span class="reasoning-icon" aria-hidden="true">◆</span>
-      <h2>智能体推理</h2>
+      <h2>处置闭环</h2>
       <button type="button" class="panel-toggle" @click="panelExpanded = !panelExpanded">
         {{ panelExpanded ? '收起' : '展开过程' }}
       </button>
@@ -156,7 +156,7 @@ watch(currentAct, (idx, prev) => {
     </ol>
 
     <p v-if="!panelExpanded && currentAct >= 0" class="summary-strip">
-      智能体推理 · {{ currentAct + 1 }} / {{ acts.length }} 步
+      处置闭环 · {{ currentAct + 1 }} / {{ acts.length }} 步
     </p>
     <p v-else-if="currentAct < 0" class="empty-hint">推演开始后，将按阶段展示推理明细…</p>
   </aside>
@@ -169,6 +169,11 @@ watch(currentAct, (idx, prev) => {
   height: 100%;
   padding: 14px 12px;
   overflow: hidden;
+  border-radius: 8px;
+  border-color: rgba(118, 177, 222, 0.26);
+  background:
+    linear-gradient(180deg, rgba(0, 229, 255, 0.06), transparent 34%),
+    rgba(4, 13, 24, 0.9);
 }
 .reasoning__hd {
   display: flex;
@@ -180,9 +185,8 @@ watch(currentAct, (idx, prev) => {
 .reasoning__hd h2 {
   flex: 1;
   margin: 0;
-  font-family: var(--font-display);
   font-size: 15px;
-  letter-spacing: 2px;
+  letter-spacing: 0;
 }
 .reasoning-icon {
   color: var(--primary);
@@ -190,7 +194,7 @@ watch(currentAct, (idx, prev) => {
 }
 .panel-toggle {
   padding: 4px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
   border: 1px solid var(--panel-border);
   background: transparent;
   color: var(--text-dim);
@@ -224,9 +228,9 @@ watch(currentAct, (idx, prev) => {
   flex: 0 0 16px;
 }
 .rail-icon {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
   border: 1.5px solid var(--primary);
   background: var(--primary-dim);
   flex: 0 0 auto;
@@ -251,14 +255,18 @@ watch(currentAct, (idx, prev) => {
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 4px 0;
-  border: none;
-  background: none;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   text-align: left;
+}
+.step-item.done .step-head,
+.step-item.active .step-head {
+  border-color: rgba(0, 229, 255, 0.14);
 }
 .step-head:disabled {
   cursor: default;

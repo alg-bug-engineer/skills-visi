@@ -7,6 +7,8 @@ import UnderstandingPanel from '@/panels/UnderstandingPanel.vue'
 import ProcessPanel from '@/panels/ProcessPanel.vue'
 import BottomDock from '@/panels/BottomDock.vue'
 import ChannelizationInset from '@/panels/ChannelizationInset.vue'
+import DownstreamTopologyInset from '@/panels/DownstreamTopologyInset.vue'
+import { sceneEvidencePolicy } from '@/map/sceneEvidencePolicy'
 
 const store = usePresentationStore()
 const { status, dock, fullscreen, rollbackBanner, toast } = storeToRefs(store)
@@ -15,6 +17,10 @@ const running = computed(() => status.value !== 'idle')
 const showInset = computed(() => {
   const kind = store.activeAct?.scene.kind
   return running.value && (kind === 'lane' || kind === 'intersection')
+})
+const showTopologyInset = computed(() => {
+  const scene = store.activeAct?.scene
+  return running.value && !!scene && sceneEvidencePolicy(scene).downstreamTopology
 })
 
 watch(toast, (v) => {
@@ -29,8 +35,8 @@ watch(toast, (v) => {
     <header class="topbar">
       <div class="brand">
         <span class="brand__logo">◈</span>
-        <span class="brand__name">TRAFFIC&nbsp;AGENT</span>
-        <span class="brand__sub">排队溢出决策推演</span>
+        <span class="brand__name">济南交通决策控制台</span>
+        <span class="brand__sub">排队溢出处置闭环</span>
       </div>
       <div class="topbar__right">
         <button class="ghost" @click="store.toggleFullscreen()">
@@ -55,6 +61,12 @@ watch(toast, (v) => {
     <Transition name="fade">
       <div v-show="showInset && !fullscreen" class="inset-slot">
         <ChannelizationInset />
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div v-show="showTopologyInset && !fullscreen" class="topology-slot">
+        <DownstreamTopologyInset />
       </div>
     </Transition>
 
@@ -167,6 +179,12 @@ watch(toast, (v) => {
   bottom: 160px;
   z-index: 20;
 }
+.topology-slot {
+  position: absolute;
+  left: calc(var(--insight-w) + 32px);
+  bottom: 160px;
+  z-index: 20;
+}
 .dock-slot {
   position: absolute;
   left: 16px;
@@ -201,13 +219,18 @@ watch(toast, (v) => {
   padding: 10px 16px;
 }
 .dock-slot--plan {
-  height: 46vh;
-  left: 16px;
-  right: 16px;
+  height: min(56vh, 620px);
+  left: max(32px, calc(var(--insight-w) + 40px));
+  right: max(32px, calc(var(--process-w) + 40px));
   top: auto;
   bottom: 16px;
   width: auto;
   transform: none;
+  border-radius: 8px;
+  border-color: rgba(142, 203, 255, 0.36);
+  box-shadow:
+    0 -18px 70px rgba(0, 0, 0, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .rollback {
   position: absolute;

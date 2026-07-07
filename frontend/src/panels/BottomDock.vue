@@ -27,7 +27,7 @@ const signalText = computed(
     <div v-if="dock === 'input'" class="composer">
       <div class="composer__title">
         <h1>排队溢出 · 智能决策控制台</h1>
-        <p>用一句话描述路口问题，智能体将逐幕推演诊断到方案。</p>
+        <p>用一句话描述路口问题，系统将按闭环流程完成诊断、成因分析与方案交付。</p>
       </div>
       <div class="composer__row">
         <textarea

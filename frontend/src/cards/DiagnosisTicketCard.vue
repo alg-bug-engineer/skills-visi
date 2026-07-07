@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import { t, directionMovement } from '@/labels/enums'
 import { pct } from '@/utils/format'
+import { productCopy } from '@/utils/productCopy'
 import BaseCard from './BaseCard.vue'
 
 const store = usePresentationStore()
@@ -13,7 +14,7 @@ const tk = computed(() => store.ticket)
   <BaseCard v-if="tk" title="诊断任务工单" :act="1">
     <dl class="kv">
       <div><dt>对象</dt><dd>{{ t('object_type', tk.object_type) }}</dd></div>
-      <div><dt>路口</dt><dd>{{ tk.intersection_name ?? '—' }}</dd></div>
+      <div><dt>路口</dt><dd>{{ productCopy(tk.intersection_name) || '—' }}</dd></div>
       <div><dt>时间</dt><dd>{{ tk.time_range ?? '—' }}（{{ t('period', tk.period) }}）</dd></div>
       <div><dt>方向转向</dt><dd>{{ directionMovement(tk.direction, tk.movement) }}</dd></div>
       <div>
@@ -25,7 +26,7 @@ const tk = computed(() => store.ticket)
 
     <div v-if="tk.constraints?.length" class="constraints">
       <span class="lbl">约束</span>
-      <span v-for="c in tk.constraints" :key="c" class="tag tag--evidence">{{ c }}</span>
+      <span v-for="c in tk.constraints" :key="c" class="tag tag--evidence">{{ productCopy(t('constraint', c)) }}</span>
     </div>
 
     <div class="conf">

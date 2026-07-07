@@ -75,6 +75,17 @@ describe('downstream topology extraction', () => {
       },
       downstream_trace_map: {
         turn_traces: [{ downstream_inter_id: 'D1' }],
+        adjacent_intersections: [
+          {
+            inter_id: 'D1',
+            metrics: {
+              queue_storage_ratio_max: 0.72,
+              saturation_rate: 0.88,
+              green_utilization: null,
+            },
+            remaining_storage_m: 80,
+          },
+        ],
       },
     }
 
@@ -83,6 +94,10 @@ describe('downstream topology extraction', () => {
     expect(topology.target).toEqual([117.11, 36.65])
     expect(topology.nodes).toHaveLength(2)
     expect(topology.nodes.find((n) => n.id === 'D1')?.highlighted).toBe(true)
+    expect(topology.nodes.find((n) => n.id === 'D1')?.metrics?.queueRatio).toBe(0.72)
+    expect(topology.nodes.find((n) => n.id === 'D1')?.metrics?.saturation).toBe(0.88)
+    expect(topology.nodes.find((n) => n.id === 'D1')?.metrics?.greenUtilization).toBeUndefined()
+    expect(topology.nodes.find((n) => n.id === 'D1')?.metrics?.remainingStorageM).toBe(80)
     expect(topology.nodes.find((n) => n.id === 'D2')?.highlighted).toBe(false)
     expect(topology.edges.every((e) => e.path.length >= 2)).toBe(true)
   })

@@ -369,7 +369,9 @@ def build_flow_trace_links_sniff_map_scene(
             link_id = str(row.get("link_id") or "")
             peer["links"].append(_link_payload(row, channel_by_link.get(link_id, {}), oriented))
 
-    peer_list = list(peers.values())
+    all_peer_list = list(peers.values())
+    peer_list = [node for node in all_peer_list if node.get("in_main_corridor") or node.get("is_topo_anchor")]
+    hidden_non_main = len(all_peer_list) - len(peer_list)
     peer_list.sort(
         key=lambda n: (
             0 if n.get("in_main_corridor") else 1,
@@ -416,10 +418,11 @@ def build_flow_trace_links_sniff_map_scene(
         "logic": "real link geometry + flow_correlate share; target/main/other grouped like link sniff reference",
         "stats": {
             "raw_rows": len(raw.get("flow_correlate") or []),
-            "distinct_peers": len(peer_list),
+            "distinct_peers": len(all_peer_list),
             "rendered": len(intersections),
             "main_corridor": len(main_chain),
             "missing_center": sum(1 for n in peer_list if not n.get("center")),
+            "hidden_non_main": hidden_non_main,
         },
         "main_corridor_chain": main_chain,
         "intersections": intersections,

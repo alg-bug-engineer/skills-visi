@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import { t } from '@/labels/enums'
@@ -34,6 +34,14 @@ const expCount = computed(
     experiencesByType.value.diagnostic.length +
     experiencesByType.value.solution.length,
 )
+
+function openCases() {
+  activeTab.value = 'cases'
+  caseSubTab.value = 'existing'
+}
+
+onMounted(() => window.addEventListener('open-case-library', openCases))
+onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases))
 </script>
 
 <template>

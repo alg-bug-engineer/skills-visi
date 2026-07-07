@@ -5,7 +5,6 @@ defineProps<{ title: string; tone?: 'primary' | 'alarm' | 'evidence' | 'protecte
 <template>
   <section class="card us-panel" :class="`t-${tone ?? 'primary'}`" data-testid="insight-card">
     <header class="card__hd">
-      <span v-if="act != null" class="card__act">幕{{ act }}</span>
       <h3>{{ title }}</h3>
     </header>
     <div class="card__body">
@@ -17,39 +16,16 @@ defineProps<{ title: string; tone?: 'primary' | 'alarm' | 'evidence' | 'protecte
 <style scoped>
 .card {
   padding: 14px;
-  border-left: 3px solid var(--primary);
-}
-.card.t-alarm {
-  border-left-color: var(--alarm);
-}
-.card.t-evidence {
-  border-left-color: var(--evidence);
-}
-.card.t-protected {
-  border-left-color: var(--protected);
+  border-radius: 0;
+  border: 1px solid rgba(146, 161, 181, 0.45);
+  background: rgba(8, 16, 29, 0.76);
+  box-shadow: none;
 }
 .card__hd {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
-}
-.card__act {
-  font-family: var(--font-display);
-  font-size: 11px;
-  color: var(--bg);
-  background: var(--primary);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-.t-alarm .card__act {
-  background: var(--alarm);
-}
-.t-evidence .card__act {
-  background: var(--evidence);
-}
-.t-protected .card__act {
-  background: var(--protected);
 }
 .card__hd h3 {
   margin: 0;

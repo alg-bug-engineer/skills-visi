@@ -1,21 +1,31 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import type { PlanCandidate } from '@/api/types'
 import { t } from '@/labels/enums'
 import PhaseDiagram from '@/viz/PhaseDiagram.vue'
-import TimeSpaceDiagram from '@/viz/TimeSpaceDiagram.vue'
+import { productCopy } from '@/utils/productCopy'
 
 const store = usePresentationStore()
-const { planTab } = storeToRefs(store)
 
 const candidates = computed<PlanCandidate[]>(() => store.plan?.candidates ?? [])
 const recommendedId = computed(() => store.plan?.recommendation?.recommended_plan_id ?? null)
-const selectedId = ref<string | null>(null)
 const selected = computed<PlanCandidate | null>(() => {
-  const id = selectedId.value ?? recommendedId.value
+  const id = recommendedId.value
   return candidates.value.find((c) => c.plan_id === id) ?? (store.plan?.recommended as PlanCandidate) ?? candidates.value[0] ?? null
+})
+const stageTimings = computed(() => selected.value?.timing?.phase_stage_timing_list ?? [])
+const hasTiming = computed(() => Boolean(selected.value?.timing?.cycle_s && stageTimings.value.length))
+const strategyItems = computed(() => {
+  const fromStrategy = store.strategy?.strategy?.recommended ?? []
+  const fromPlan = selected.value?.execution_order ?? []
+  return [...fromStrategy, ...fromPlan].filter(Boolean).slice(0, 6)
+})
+const redLines = computed(() => {
+  const constraints = store.strategy?.strategy?.hard_constraints ?? []
+  const risks = selected.value?.downstream_risk?.reasons ?? []
+  const validation = selected.value?.validation_errors ?? []
+  return [...constraints, ...risks, ...validation].filter(Boolean).slice(0, 5)
 })
 
 const rejecting = ref(false)
@@ -37,101 +47,82 @@ async function onReject() {
   busy.value = false
 }
 
-function statusTone(s?: string) {
-  return s === 'rejected' ? 'alarm' : s === 'valid' ? 'protected' : 'evidence'
-}
 </script>
 
 <template>
   <section class="drawer us-panel" data-testid="plan-drawer">
     <header class="drawer__hd">
-      <div class="tabs">
-        <button :class="{ on: planTab === 'stage_generation' }" @click="store.setPlanTab('stage_generation')">
-          阶段方案
-        </button>
-        <button :class="{ on: planTab === 'plan_comparison' }" @click="store.setPlanTab('plan_comparison')">
-          多方案比选
-        </button>
+      <div>
+        <h3>治理建议</h3>
+        <p>{{ hasTiming ? '配时明细来自后端真实方案数据' : '后端未返回可绘制配时明细' }}</p>
       </div>
-      <span v-if="recommendedId" class="rec">推荐 {{ t('plan_id', recommendedId.split('_').slice(0, 2).join('_')) }}</span>
+      <span v-if="recommendedId" class="rec">建议 {{ t('plan_id', recommendedId.split('_').slice(0, 2).join('_')) }}</span>
     </header>
 
-    <!-- 阶段方案 -->
-    <div v-show="planTab === 'stage_generation'" class="pane">
+    <!-- 治理建议 -->
+    <div class="pane">
       <div v-if="selected" class="stage">
         <div class="stage__left">
-          <h4>{{ selected.name }} · 相位配时</h4>
-          <PhaseDiagram
-            :stages="selected.timing?.phase_stage_timing_list ?? []"
-            :cycle="selected.timing?.cycle_s"
-          />
-          <h4 class="mt">时距图（绿波）</h4>
-          <TimeSpaceDiagram :cycle="selected.timing?.cycle_s" :offset-sec="selected.phase_offset_sec" />
+          <h4>{{ productCopy(selected.name) }} · 相位配时</h4>
+          <template v-if="hasTiming">
+            <PhaseDiagram
+              :stages="stageTimings"
+              :cycle="selected.timing?.cycle_s"
+            />
+            <h4 class="mt">干线协调关系</h4>
+            <p class="data-note">后端未返回节点间距与绝对相位，暂不绘制协调图。</p>
+          </template>
+          <div v-else class="data-missing">
+            <strong>需要后端补齐配时明细</strong>
+            <span>请返回 cycle_s 与 phase_stage_timing_list；前端不使用静态图或模拟阶段数据。</span>
+          </div>
         </div>
         <div class="stage__right">
           <div class="kpi">
             <span class="kpi__k">预期效果</span>
-            <span class="kpi__v ok">{{ selected.expected_effect ?? '—' }}</span>
+            <span class="kpi__v ok">{{ productCopy(selected.expected_effect) || '—' }}</span>
           </div>
           <div class="kpi">
             <span class="kpi__k">风险</span>
-            <span class="kpi__v warn">{{ selected.risk ?? '—' }}</span>
+            <span class="kpi__v warn">{{ productCopy(selected.risk) || '—' }}</span>
           </div>
           <div class="kpi">
             <span class="kpi__k">回滚条件</span>
-            <span class="kpi__v">{{ selected.rollback_condition ?? store.plan?.rollback_conditions?.[0] ?? '—' }}</span>
+            <span class="kpi__v">{{ productCopy(selected.rollback_condition ?? store.plan?.rollback_conditions?.[0]) || '—' }}</span>
           </div>
           <div class="exec" v-if="store.plan?.recommendation?.rationale">
             <span class="kpi__k">推荐理由</span>
-            <p>{{ store.plan.recommendation.rationale }}</p>
+            <p>{{ productCopy(store.plan.recommendation.rationale) }}</p>
+          </div>
+
+          <div v-if="strategyItems.length" class="list-box">
+            <span class="kpi__k">执行策略</span>
+            <ul>
+              <li v-for="(item, i) in strategyItems" :key="i">{{ productCopy(String(item)) }}</li>
+            </ul>
+          </div>
+
+          <div v-if="redLines.length" class="list-box list-box--red">
+            <span class="kpi__k">红线</span>
+            <ul>
+              <li v-for="(item, i) in redLines" :key="i">{{ productCopy(String(item)) }}</li>
+            </ul>
           </div>
         </div>
       </div>
-      <p v-else class="empty">暂无方案数据</p>
+      <p v-else class="empty">暂无治理建议数据</p>
     </div>
 
-    <!-- 多方案比选 -->
-    <div v-show="planTab === 'plan_comparison'" class="pane">
-      <table class="cmp" data-testid="plan-compare">
-        <thead>
-          <tr>
-            <th>方案</th><th>周期</th><th>相位差</th><th>行人</th><th>下游风险</th><th>护栏</th><th>状态</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="c in candidates"
-            :key="c.plan_id"
-            :class="{ sel: (selectedId ?? recommendedId) === c.plan_id }"
-            @click="selectedId = c.plan_id"
-          >
-            <td class="name">{{ c.name }}</td>
-            <td>{{ c.timing?.cycle_s ?? '—' }}s</td>
-            <td>{{ c.phase_offset_sec ?? '—' }}s</td>
-            <td>
-              <span :class="c.pedestrian_constraints?.satisfied ? 'ok' : 'bad'">
-                {{ c.pedestrian_constraints?.satisfied ? '满足' : '违反' }}
-              </span>
-            </td>
-            <td>{{ t('risk_level', c.downstream_risk?.level) }}</td>
-            <td><span :class="c.guardrail_pass ? 'ok' : 'bad'">{{ c.guardrail_pass ? '通过' : '告警' }}</span></td>
-            <td><span :class="`st st--${statusTone(c.status)}`">{{ t('status', c.status) }}</span></td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-if="!candidates.length" class="empty">暂无候选方案</p>
-    </div>
-
-    <!-- 幕九：决策反馈 -->
+    <!-- 反馈决策 -->
     <footer class="drawer__ft">
       <template v-if="!rejecting">
-        <button class="btn btn--ghost" :disabled="busy" @click="rejecting = true">拒绝 / 修改</button>
+        <button class="btn btn--ghost" :disabled="busy" @click="rejecting = true">退回修改</button>
         <button class="btn btn--primary" :disabled="busy || !selected" @click="onAccept">
           {{ busy ? '下发中…' : '接受并下发' }}
         </button>
       </template>
       <template v-else>
-        <input v-model="rejectReason" class="reason" placeholder="填写修改意见，例如：优先保下游、缩小加绿幅度…" />
+        <input v-model="rejectReason" class="reason" placeholder="填写修改意见，例如：优先保护下游、缩小调整幅度…" />
         <button class="btn btn--ghost" :disabled="busy" @click="rejecting = false">取消</button>
         <button class="btn btn--warn" :disabled="busy || !rejectReason.trim()" @click="onReject">
           {{ busy ? '再生成中…' : '提交并再生成' }}
@@ -146,8 +137,10 @@ function statusTone(s?: string) {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 12px 14px;
+  padding: 14px 16px;
   overflow: hidden;
+  border-radius: 0;
+  background: rgba(4, 13, 24, 0.94);
 }
 .drawer__hd {
   display: flex;
@@ -155,24 +148,15 @@ function statusTone(s?: string) {
   justify-content: space-between;
   margin-bottom: 10px;
 }
-.tabs {
-  display: flex;
-  gap: 6px;
+.drawer__hd h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
 }
-.tabs button {
-  padding: 5px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--panel-border);
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 13px;
-  cursor: pointer;
-}
-.tabs button.on {
-  color: var(--bg);
-  background: var(--primary);
-  border-color: var(--primary);
-  font-weight: 600;
+.drawer__hd p {
+  margin: 3px 0 0;
+  color: var(--text-mute);
+  font-size: 12px;
 }
 .rec {
   font-size: 12px;
@@ -197,6 +181,10 @@ function statusTone(s?: string) {
 }
 .kpi {
   margin-bottom: 10px;
+  padding: 10px 11px;
+  border: 1px solid rgba(146, 161, 181, 0.35);
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 0;
 }
 .kpi__k {
   display: block;
@@ -220,56 +208,11 @@ function statusTone(s?: string) {
   line-height: 1.5;
   color: var(--text-dim);
 }
-.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
-}
-.cmp th,
-.cmp td {
-  padding: 7px 8px;
-  text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-.cmp th {
-  color: var(--text-mute);
-  font-weight: 500;
-  font-size: 11px;
-}
-.cmp td {
-  color: var(--text-dim);
-}
-.cmp td.name {
-  color: var(--text);
-}
-.cmp tr {
-  cursor: pointer;
-}
-.cmp tr.sel {
-  background: var(--primary-dim);
-}
 .ok {
   color: var(--protected);
 }
 .bad {
   color: var(--alarm);
-}
-.st {
-  padding: 1px 8px;
-  border-radius: 5px;
-  font-size: 11px;
-}
-.st--protected {
-  color: var(--protected);
-  background: var(--protected-dim);
-}
-.st--alarm {
-  color: var(--alarm);
-  background: var(--alarm-dim);
-}
-.st--evidence {
-  color: var(--evidence);
-  background: var(--evidence-dim);
 }
 .drawer__ft {
   display: flex;
@@ -282,7 +225,7 @@ function statusTone(s?: string) {
 .reason {
   flex: 1;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid var(--panel-border);
   background: rgba(0, 0, 0, 0.3);
   color: var(--text);
@@ -290,7 +233,7 @@ function statusTone(s?: string) {
 }
 .btn {
   padding: 8px 18px;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid transparent;
   cursor: pointer;
   font-size: 13px;
@@ -318,5 +261,41 @@ function statusTone(s?: string) {
   font-size: 13px;
   text-align: center;
   margin-top: 30px;
+}
+.data-missing,
+.data-note {
+  border: 1px solid rgba(146, 161, 181, 0.35);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.data-missing {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.data-missing strong {
+  color: var(--evidence);
+}
+.list-box {
+  margin-bottom: 10px;
+  padding: 10px 11px;
+  border: 1px solid rgba(146, 161, 181, 0.35);
+  background: rgba(255, 255, 255, 0.025);
+}
+.list-box--red {
+  border-color: rgba(255, 80, 80, 0.5);
+}
+.list-box ul {
+  margin: 6px 0 0;
+  padding-left: 16px;
+}
+.list-box li {
+  margin: 4px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
 }
 </style>

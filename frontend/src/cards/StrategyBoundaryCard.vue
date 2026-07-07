@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import BaseCard from './BaseCard.vue'
+import { productCopy } from '@/utils/productCopy'
 
 const store = usePresentationStore()
 const s = computed(() => store.strategy?.strategy ?? null)
@@ -13,32 +14,21 @@ const rollback = computed(() => {
 </script>
 
 <template>
-  <BaseCard v-if="s" title="策略边界（可做 / 不可做）" :act="7" tone="protected">
-    <p v-if="pkg" class="pkg">策略包：{{ pkg }}</p>
+  <BaseCard v-if="s" title="策略包" :act="7" tone="protected">
+    <p v-if="pkg" class="pkg">策略包：{{ productCopy(pkg) }}</p>
 
-    <div class="cols">
-      <div class="col ok">
-        <span class="col__hd">推荐</span>
-        <ul>
-          <li v-for="(x, i) in s.recommended ?? []" :key="i">{{ x }}</li>
-        </ul>
-      </div>
-      <div class="col no">
-        <span class="col__hd">不推荐</span>
-        <ul>
-          <li v-for="(x, i) in s.not_recommended ?? []" :key="i">{{ x }}</li>
-        </ul>
-      </div>
-    </div>
+    <ul class="strategy-list">
+      <li v-for="(x, i) in s.recommended ?? []" :key="i">{{ productCopy(x) }}</li>
+    </ul>
 
     <div v-if="s.hard_constraints?.length" class="hard">
-      <span class="hard__hd">硬约束（红线）</span>
+      <span class="hard__hd">红线</span>
       <div class="hard__tags">
-        <span v-for="(c, i) in s.hard_constraints" :key="i" class="tag">{{ c }}</span>
+        <span v-for="(c, i) in s.hard_constraints" :key="i" class="tag">{{ productCopy(c) }}</span>
       </div>
     </div>
 
-    <p v-if="rollback" class="rollback">回滚触发：{{ rollback }}</p>
+    <p v-if="rollback" class="rollback">回滚触发：{{ productCopy(rollback) }}</p>
   </BaseCard>
 </template>
 
@@ -49,34 +39,12 @@ const rollback = computed(() => {
   color: var(--protected);
   font-weight: 600;
 }
-.cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.col {
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.03);
-}
-.col__hd {
-  font-size: 11px;
-  font-weight: 700;
-  display: block;
-  margin-bottom: 6px;
-}
-.col.ok .col__hd {
-  color: var(--protected);
-}
-.col.no .col__hd {
-  color: var(--alarm);
-}
-.col ul {
+.strategy-list {
   margin: 0;
   padding-left: 16px;
 }
-.col li {
-  font-size: 11.5px;
+.strategy-list li {
+  font-size: 12px;
   line-height: 1.45;
   color: var(--text-dim);
   margin: 4px 0;
@@ -97,7 +65,7 @@ const rollback = computed(() => {
 }
 .tag {
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 11.5px;
   color: var(--alarm);
   background: var(--alarm-dim);
@@ -110,6 +78,6 @@ const rollback = computed(() => {
   padding: 6px 8px;
   border-left: 2px solid var(--evidence);
   background: var(--evidence-dim);
-  border-radius: 0 6px 6px 0;
+  border-radius: 0;
 }
 </style>

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import { pct } from '@/utils/format'
 import BaseCard from './BaseCard.vue'
+import { productCopy } from '@/utils/productCopy'
 
 const store = usePresentationStore()
 const cause = computed(() => store.cause ?? null)
@@ -12,44 +13,51 @@ const maxScore = computed(() => Math.max(0.001, ...Object.values(scores.value)))
 const cards = computed(() => cause.value?.case_cards?.cards ?? [])
 const matched = computed(() => cause.value?.case_cards?.matched_count ?? 0)
 const highSim = computed(() => cause.value?.case_cards?.high_similarity_count ?? 0)
+const narrative = computed(() => productCopy(cause.value?.cause_analysis?.narrative ?? cause.value?.cause_analysis?.primary_cause ?? ''))
+const casePreview = computed(() => cards.value.slice(0, 2))
 
 function roleTone(role?: string) {
   if (role?.includes('主')) return 'alarm'
   if (role?.includes('次')) return 'evidence'
   return 'primary'
 }
+
+function openCaseLibrary() {
+  window.dispatchEvent(new CustomEvent('open-case-library'))
+}
 </script>
 
 <template>
   <BaseCard v-if="cause" title="成因判断 · 相似案例" :act="6" tone="evidence">
-    <ol class="rank">
+    <ul class="rank">
       <li v-for="r in ranking" :key="r.rank" :class="`tone-${roleTone(r.role)}`">
         <span class="rank__role">{{ r.role }}</span>
-        <span class="rank__cause">{{ r.cause }}</span>
+        <span class="rank__cause">{{ productCopy(r.cause) }}</span>
         <span
           v-if="r.cause && scores[r.cause] != null"
           class="rank__bar"
           :style="{ width: `${(scores[r.cause] / maxScore) * 100}%` }"
         />
       </li>
-    </ol>
+    </ul>
+
+    <p v-if="narrative" class="narrative">{{ narrative }}</p>
 
     <div class="cases" v-if="cards.length">
       <div class="cases__hd">
-        <span>相似案例</span>
+        <span>检测到相似案例</span>
         <span class="mute">匹配 {{ matched }} · 高相似 {{ highSim }}</span>
       </div>
-      <div class="cases__scroll" data-testid="case-carousel">
-        <article v-for="(c, i) in cards" :key="c.case_id ?? i" class="case">
+      <div class="case-summary" data-testid="case-carousel">
+        <article v-for="(c, i) in casePreview" :key="c.case_id ?? i" class="case">
           <header>
-            <span class="case__title">{{ c.title ?? '案例' }}</span>
+            <span class="case__title">{{ productCopy(c.title ?? '案例') }}</span>
             <span v-if="c.similarity != null" class="case__sim">{{ pct(c.similarity, 0) }}</span>
           </header>
-          <p v-if="c.action || c.historical_action" class="case__act">措施：{{ c.action ?? c.historical_action }}</p>
-          <p v-if="c.outcome" class="case__out">结果：{{ c.outcome }}</p>
-          <p v-if="c.lesson" class="case__lesson">经验：{{ c.lesson }}</p>
+          <p v-if="c.lesson" class="case__lesson">{{ productCopy(c.lesson) }}</p>
         </article>
       </div>
+      <button type="button" class="case-link" @click="openCaseLibrary">查看案例库</button>
     </div>
     <p v-else class="empty">暂无高相似历史案例（数据暂缺）</p>
   </BaseCard>
@@ -67,12 +75,18 @@ function roleTone(role?: string) {
 .rank li {
   position: relative;
   padding: 6px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.03);
   overflow: hidden;
   display: flex;
   align-items: baseline;
   gap: 8px;
+}
+.narrative {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
 }
 .rank__role {
   font-size: 11px;
@@ -114,18 +128,16 @@ function roleTone(role?: string) {
   color: var(--text-mute);
   font-size: 11px;
 }
-.cases__scroll {
+.case-summary {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  flex-direction: column;
+  gap: 6px;
 }
 .case {
-  flex: 0 0 220px;
   padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: rgba(0, 229, 255, 0.05);
-  border: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(146, 161, 181, 0.35);
 }
 .case header {
   display: flex;
@@ -150,6 +162,17 @@ function roleTone(role?: string) {
 }
 .case__lesson {
   color: var(--evidence-2) !important;
+}
+.case-link {
+  margin-top: 8px;
+  padding: 6px 0;
+  border: 0;
+  border-top: 1px solid rgba(146, 161, 181, 0.35);
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
 }
 .empty {
   margin: 0;
