@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     llm_mock: bool = False
     log_level: str = "INFO"
     case_library_path: str = "data/knowledge_qa.jsonl"
+    allow_demo_fallback: bool = False
+    pg_dsn: str = ""
+    mysql_dsn: str = ""
 
     @property
     def case_library_abs_path(self) -> Path:

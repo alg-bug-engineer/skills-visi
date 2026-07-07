@@ -4,6 +4,7 @@ import pytest
 
 os.environ.setdefault("LLM_MOCK", "true")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
+os.environ.setdefault("ALLOW_DEMO_FALLBACK", "true")
 
 
 @pytest.fixture(autouse=True)

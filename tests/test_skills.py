@@ -38,9 +38,10 @@ async def test_data_analysis_with_custom_metrics():
                 "downstream_volume_vph": 400,
                 "downstream_capacity_vph": 1000,
             },
+            "topology": {"downstream_nodes": [], "upstream_nodes": []},
         },
     )
-    result = await skill.run(context)
+    result = await skill.run(context, settings=Settings(allow_demo_fallback=False))
     assert result.success is True
     assert result.output["overflow_verification"]["risk_level"] == "low"
     assert result.output["problem_confirmed"] is False

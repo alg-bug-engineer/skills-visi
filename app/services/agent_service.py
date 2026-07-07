@@ -43,6 +43,7 @@ class AgentService:
             task=task,
             llm=self.llm,
             case_service=self.case_service,
+            settings=self.settings,
         )
 
         result["diagnosis_ticket"] = result.get("artifacts", {}).get(

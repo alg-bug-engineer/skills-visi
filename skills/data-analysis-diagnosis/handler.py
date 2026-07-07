@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from app.config import Settings, get_settings
+from app.data.diagnosis_input import resolve_diagnosis_inputs
 from app.runtime.skill_types import BaseSkill, SkillContext, SkillResult
 
 logger = logging.getLogger(__name__)
@@ -22,15 +24,34 @@ def _load_script_module(script_name: str):
 
 class DataAnalysisDiagnosisSkill(BaseSkill):
     async def run(self, context: SkillContext, **deps: Any) -> SkillResult:
+        settings: Settings = deps.get("settings") or get_settings()
         ticket = context.task.get("diagnosis_ticket", {})
         spatial = context.task.get("spatial_objects") or context.artifacts.get(
             "intent_understanding", {}
         ).get("spatial_objects", {})
 
-        demo_module = _load_script_module("demo_metrics.py")
-        topo_module = _load_script_module("demo_topology.py")
-        metrics_input = context.task.get("metrics") or demo_module.DEMO_METRICS.copy()
-        topology = context.task.get("topology") or topo_module.build_demo_topology(ticket)
+        resolved = resolve_diagnosis_inputs(context.task, settings, ticket=ticket)
+        if not resolved.get("ok"):
+            logger.warning(
+                "诊断数据不可用 trace_id=%s reason=%s",
+                context.trace_id,
+                resolved.get("reason"),
+            )
+            return SkillResult(
+                skill_id=self.meta.skill_id,
+                phase=self.meta.phase,
+                success=False,
+                output={
+                    "available": False,
+                    "source": resolved.get("source", "none"),
+                    "reason": resolved.get("reason"),
+                },
+                errors=[str(resolved.get("reason"))],
+            )
+
+        metrics_input = resolved["metrics"]
+        topology = resolved["topology"]
+        data_source = resolved.get("source", "unknown")
 
         analyze_module = _load_script_module("analyze_overflow.py")
         output = analyze_module.analyze_overflow(
@@ -39,10 +60,14 @@ class DataAnalysisDiagnosisSkill(BaseSkill):
             topology=topology,
             spatial_objects=spatial,
         )
+        output["data_source"] = data_source
+        if data_source == "mock":
+            output["source"] = "mock"
 
         logger.info(
-            "数据分析完成 trace_id=%s queue_ratio=%s downstream=%s flow_trace=%s",
+            "数据分析完成 trace_id=%s source=%s queue_ratio=%s downstream=%s flow_trace=%s",
             context.trace_id,
+            data_source,
             output["metrics"]["queue_ratio"],
             output["downstream_trace"].get("available"),
             output["flow_trace"].get("available"),
