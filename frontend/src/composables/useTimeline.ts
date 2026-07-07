@@ -124,6 +124,43 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
   }
 }
 
+/** 阶段完成后折叠展示的汇总结论。 */
+export function summaryFor(act: ActDef, resp: RunResponse | null): string {
+  const ticket = resp?.diagnosis_ticket
+  const intent = resp?.phases?.intent
+  const diag = resp?.phases?.diagnosis
+  const cause = resp?.phases?.cause
+  const strategy = resp?.phases?.strategy
+  const plan = resp?.plan
+
+  switch (act.id) {
+    case 'act1_ticket':
+      return `${ticket?.intersection_name ?? '目标路口'}｜${t('problem_type', ticket?.problem_type)}｜${directionMovement(ticket?.direction, ticket?.movement)}`
+    case 'act2_locate':
+      return intent?.spatial_scene?.target?.inter_name
+        ? `已锁定 ${intent.spatial_scene.target.inter_name}`
+        : '空间定位完成'
+    case 'act3_overflow':
+      return diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${pct(diag?.metrics?.saturation)}`
+    case 'act4_bottleneck':
+      return diag?.downstream_diagnosis?.release_answer ?? diag?.downstream_diagnosis?.narrative ?? '瓶颈判断完成'
+    case 'act5_corridor':
+      return diag?.arterial_analysis?.summary ?? '干线溯源完成'
+    case 'act6_cause':
+      return cause?.cause_analysis?.narrative ?? cause?.cause_analysis?.primary_cause ?? '成因判断完成'
+    case 'act7_strategy':
+      return strategy?.strategy?.principles?.[0] ?? '策略推荐完成'
+    case 'act8_plan':
+      return plan?.recommendation?.recommended_plan_id
+        ? `推荐方案 ${plan.recommendation.recommended_plan_id}`
+        : '方案生成完成'
+    case 'act9_feedback':
+      return '等待专家接受 / 拒绝 / 修改后再生成'
+    default:
+      return act.processTitle
+  }
+}
+
 /** 快照中某 phase 是否已就绪（plan 幕查 plan 块）。 */
 export function phaseReady(resp: RunResponse | null, phase: PhaseKey): boolean {
   if (!resp) return false

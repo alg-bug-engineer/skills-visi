@@ -19,7 +19,7 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     await page.getByRole('button', { name: '开始推演' }).click()
 
     // 证据链与理解过程面板出现
-    await expect(page.getByTestId('insight-panel')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('understanding-panel')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('process-panel')).toBeVisible()
 
     // 流式：证据卡随 phase 逐步浮现（先 1 张，稍后增多）
@@ -83,7 +83,7 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     // 回到主页：输入态出现，方案抽屉与侧栏消失
     await expect(page.getByRole('button', { name: '开始推演' })).toBeVisible({ timeout: 15_000 })
     await expect(drawer).toBeHidden()
-    await expect(page.getByTestId('insight-panel')).toBeHidden()
+    await expect(page.getByTestId('understanding-panel')).toBeHidden()
     await page.screenshot({ path: `${SHOTS}/05-home-after-accept.png` })
   })
 })

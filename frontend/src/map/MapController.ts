@@ -1,6 +1,8 @@
 import type { ActMapScene } from '@/composables/useTimeline'
 import type { RunResponse } from '@/api/types'
 import { hasCoord, validPath } from '@/utils/guards'
+import { buildMetricMarkers, markerHtml } from './mapMarkers'
+import { clampZoomUp, drillToIntersection, flyTo, panToVisualCenter } from './amapUtils'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AMapNS = any
@@ -10,7 +12,7 @@ const JINAN_CENTER: [number, number] = [117.02, 36.66]
 
 /**
  * 地图控制器（纯 TS，包裹 AMap.Map 实例）。
- * 负责 2D↔3D 视点过渡与逐幕覆盖物绘制；坐标缺失一律跳过（不编造）。
+ * 镜头连贯推进；覆盖物在镜头到位后绘制，避免闪现。
  */
 export class MapController {
   private AMap: AMapNS
@@ -18,10 +20,13 @@ export class MapController {
   private overlays: any[] = []
   private rafId: number | null = null
   private particles: Array<{ marker: any; path: [number, number][]; t: number; speed: number }> = []
+  private currentZoom = 11
+  private sceneToken = 0
 
   constructor(AMap: AMapNS, map: AMapMap) {
     this.AMap = AMap
     this.map = map
+    this.currentZoom = map.getZoom?.() ?? 11
   }
 
   destroy() {
@@ -46,57 +51,89 @@ export class MapController {
     this.map.add(o)
   }
 
-  /** 应用某一幕：设置视点并绘制该幕覆盖物。 */
-  applyScene(scene: ActMapScene, resp: RunResponse | null) {
+  /** 应用某一幕：连贯镜头 + 该幕覆盖物。 */
+  async applyScene(scene: ActMapScene, resp: RunResponse | null, showMetrics = false) {
+    const token = ++this.sceneToken
     this.clear()
+
     const ticket = resp?.diagnosis_ticket
     const target: [number, number] | null =
       ticket && hasCoord(ticket.lng, ticket.lat) ? [ticket.lng as number, ticket.lat as number] : null
 
-    // 视点过渡（2D↔3D）
+    const targetZoom = clampZoomUp(this.currentZoom, scene.zoom ?? this.currentZoom)
+
     try {
       this.map.setPitch?.(scene.pitch ?? 0)
-      if (scene.zoom) this.map.setZoom?.(scene.zoom, true)
     } catch {
       /* ignore */
     }
 
     switch (scene.kind) {
       case 'city':
-        this.map.setZoomAndCenter?.(scene.zoom ?? 11, target ?? JINAN_CENTER, false, 600)
+        await flyTo(this.map, target ?? JINAN_CENTER, scene.zoom ?? 11, 900)
+        this.currentZoom = scene.zoom ?? 11
         break
       case 'intersection':
-        if (target) this.flyTo(target, scene.zoom ?? 16)
-        if (target) this.drawIntersection(target, resp)
+        if (target) {
+          await drillToIntersection(this.map, target, targetZoom)
+          this.currentZoom = targetZoom
+        }
         break
       case 'lane':
-        if (target) this.flyTo(target, scene.zoom ?? 17)
+        if (target) {
+          await drillToIntersection(this.map, target, targetZoom)
+          this.currentZoom = targetZoom
+        }
+        break
+      case 'trace':
+      case 'corridor':
+      case 'control':
+        if (target) {
+          const z = clampZoomUp(this.currentZoom, scene.zoom ?? 15)
+          await flyTo(this.map, target, z, 800)
+          panToVisualCenter(this.map, target)
+          this.currentZoom = z
+        }
+        break
+    }
+
+    if (token !== this.sceneToken) return
+
+    switch (scene.kind) {
+      case 'intersection':
+        if (target) this.drawIntersection(target, resp, false)
+        break
+      case 'lane':
         if (target) this.drawIntersection(target, resp, true)
         break
       case 'trace':
-        if (target) this.flyTo(target, scene.zoom ?? 15)
         this.drawTrace(resp, target)
         break
       case 'control':
-        if (target) this.flyTo(target, scene.zoom ?? 15)
         this.drawControlScope(resp, target)
         break
       case 'corridor':
-        if (target) this.flyTo(target, scene.zoom ?? 14)
         this.drawTrace(resp, target)
         break
     }
+
+    if (showMetrics && target) this.drawMetricMarkers(resp, target)
   }
 
-  private flyTo(center: [number, number], zoom: number) {
-    try {
-      this.map.setZoomAndCenter?.(zoom, center, false, 700)
-    } catch {
-      this.map.setCenter?.(center)
+  private drawMetricMarkers(resp: RunResponse | null, center: [number, number]) {
+    for (const spec of buildMetricMarkers(resp, center)) {
+      this.add(
+        new this.AMap.Marker({
+          position: spec.position,
+          content: markerHtml(spec),
+          offset: new this.AMap.Pixel(-40, -28),
+          anchor: 'center',
+        }),
+      )
     }
   }
 
-  /** 路口虚线框（围绕真实坐标的视觉边界）+ 目标标记 + highlight_path。 */
+  /** 路口虚线框 + 目标标记 + highlight_path。 */
   private drawIntersection(center: [number, number], resp: RunResponse | null, overflow = false) {
     const d = 0.0016
     const [lng, lat] = center
@@ -130,16 +167,16 @@ export class MapController {
         }),
       )
     }
-    // 上下游节点（仅有坐标者）
     for (const n of resp?.phases?.intent?.spatial_scene?.upstream_nodes ?? []) {
-      if (hasCoord(n.lng, n.lat)) this.add(this.pulseMarker([n.lng as number, n.lat as number], '#f5a623', String(n.inter_name ?? '上游')))
+      if (hasCoord(n.lng, n.lat))
+        this.add(this.pulseMarker([n.lng as number, n.lat as number], '#f5a623', String(n.inter_name ?? '上游')))
     }
     for (const n of resp?.phases?.intent?.spatial_scene?.downstream_nodes ?? []) {
-      if (hasCoord(n.lng, n.lat)) this.add(this.pulseMarker([n.lng as number, n.lat as number], '#38bdf8', String(n.inter_name ?? '下游')))
+      if (hasCoord(n.lng, n.lat))
+        this.add(this.pulseMarker([n.lng as number, n.lat as number], '#38bdf8', String(n.inter_name ?? '下游')))
     }
   }
 
-  /** 干线溯源：发光折线 + 流动粒子（来自 map_scenes / flow_trace 的有坐标 path）。 */
   private drawTrace(resp: RunResponse | null, target: [number, number] | null) {
     if (target) this.add(this.pulseMarker(target, '#00e5ff', '目标路口'))
     const scenes = resp?.phases?.diagnosis?.map_scenes ?? {}
@@ -168,7 +205,6 @@ export class MapController {
     if (drawn > 0) this.startParticles()
   }
 
-  /** 策略控制范围：目标/上游控流/下游保护 标记（仅有坐标者）。 */
   private drawControlScope(resp: RunResponse | null, target: [number, number] | null) {
     const csm = resp?.phases?.strategy?.control_scope_map
     const center = csm?.center && hasCoord(csm.center[0], csm.center[1]) ? (csm.center as [number, number]) : target
@@ -204,6 +240,11 @@ export class MapController {
       this.rafId = requestAnimationFrame(step)
     }
     if (this.rafId == null) this.rafId = requestAnimationFrame(step)
+  }
+
+  resetToCity() {
+    this.currentZoom = 11
+    return flyTo(this.map, JINAN_CENTER, 11, 900)
   }
 }
 

@@ -1,11 +1,30 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import { useTyping } from '@/composables/useTyping'
+import { summaryFor, type CardKey } from '@/composables/useTimeline'
+import DiagnosisTicketCard from '@/cards/DiagnosisTicketCard.vue'
+import DataMetricsCard from '@/cards/DataMetricsCard.vue'
+import BottleneckCard from '@/cards/BottleneckCard.vue'
+import CorridorScanCard from '@/cards/CorridorScanCard.vue'
+import CauseCard from '@/cards/CauseCard.vue'
+import StrategyBoundaryCard from '@/cards/StrategyBoundaryCard.vue'
 
 const store = usePresentationStore()
-const { acts, currentAct } = storeToRefs(store)
+const { acts, currentAct, revealedActs } = storeToRefs(store)
+
+const INSIGHT_CARDS: Record<string, unknown> = {
+  ticket: DiagnosisTicketCard,
+  metrics: DataMetricsCard,
+  bottleneck: BottleneckCard,
+  corridor: CorridorScanCard,
+  cause: CauseCard,
+  strategy: StrategyBoundaryCard,
+}
+
+const panelExpanded = ref(true)
+const manualExpanded = ref<Set<number>>(new Set())
 
 const prefersReduced =
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -27,117 +46,311 @@ const { shown, done } = useTyping(lines, {
     }
   },
 })
+
+/** 可见阶段：当前及之前所有已开始的幕 */
+const visibleActs = computed(() => {
+  if (currentAct.value < 0) return []
+  return acts.value.slice(0, currentAct.value + 1)
+})
+
+function actStatus(index: number): 'pending' | 'typing' | 'done' {
+  if (index < currentAct.value) return 'done'
+  if (index === currentAct.value) return done.value ? 'done' : 'typing'
+  return 'pending'
+}
+
+function isCollapsed(index: number): boolean {
+  if (manualExpanded.value.has(index)) return false
+  // 当前幕与上一幕保持展开，便于查看推理明细与证据卡
+  if (index >= currentAct.value - 1 && index <= currentAct.value) return false
+  return index < currentAct.value - 1
+}
+
+function toggleAct(index: number) {
+  if (actStatus(index) === 'typing') return
+  const next = new Set(manualExpanded.value)
+  if (next.has(index)) next.delete(index)
+  else next.add(index)
+  manualExpanded.value = next
+}
+
+function cardKeyFor(index: number): CardKey | null {
+  const act = acts.value[index]
+  if (!act?.reveal || !(act.reveal in INSIGHT_CARDS)) return null
+  if (!revealedActs.value.includes(index)) return null
+  return act.reveal
+}
+
+watch(currentAct, (idx, prev) => {
+  if (prev != null && prev >= 0 && idx > prev + 1) {
+    const next = new Set(manualExpanded.value)
+    next.delete(prev)
+    manualExpanded.value = next
+  }
+})
 </script>
 
 <template>
-  <aside class="process us-panel" data-testid="process-panel">
-    <header class="process__hd">
-      <span class="dot" />
-      <h2>理解过程</h2>
+  <aside class="reasoning us-panel" data-testid="process-panel">
+    <header class="reasoning__hd">
+      <span class="reasoning-icon" aria-hidden="true">◆</span>
+      <h2>智能体推理</h2>
+      <button type="button" class="panel-toggle" @click="panelExpanded = !panelExpanded">
+        {{ panelExpanded ? '收起' : '展开过程' }}
+      </button>
     </header>
 
-    <ol class="steps">
+    <ol v-show="panelExpanded" class="timeline" data-testid="reasoning-timeline">
       <li
-        v-for="(a, i) in acts"
-        :key="a.id"
-        class="step"
-        :class="{ active: i === currentAct, done: i < currentAct }"
-        @click="store.goToAct(i)"
+        v-for="(act, i) in visibleActs"
+        :key="act.id"
+        class="step-item"
+        :class="{
+          active: i === currentAct && !done,
+          done: actStatus(act.index) === 'done',
+          collapsed: isCollapsed(act.index),
+        }"
       >
-        <span class="step__idx">{{ i < currentAct ? '✓' : i + 1 }}</span>
-        <span class="step__title">{{ a.processTitle }}</span>
+        <div class="rail" aria-hidden="true">
+          <span class="rail-icon" :class="{ pulse: actStatus(act.index) === 'typing' }" />
+          <span v-if="i < visibleActs.length - 1" class="rail-line" />
+        </div>
+
+        <div class="step-main">
+          <button
+            type="button"
+            class="step-head"
+            :disabled="actStatus(act.index) === 'typing'"
+            @click="toggleAct(act.index)"
+          >
+            <span class="caret" :class="{ open: !isCollapsed(act.index) }">▸</span>
+            <span class="step-label">{{ act.processTitle }}</span>
+            <span v-if="actStatus(act.index) === 'typing'" class="status-dot typing" />
+            <span v-else class="status-done">✓</span>
+          </button>
+
+          <div v-show="!isCollapsed(act.index)" class="step-body">
+            <!-- 进行中：流式子步骤 -->
+            <div v-if="act.index === currentAct && !done" class="detail-lines" data-testid="process-typing">
+              <p v-for="(l, li) in shown" :key="li" class="detail-line">
+                <span class="check">✓</span>{{ l
+                }}<span v-if="li === shown.length - 1" class="caret-blink">▍</span>
+              </p>
+            </div>
+
+            <!-- 已完成：汇总 + 可选证据卡 -->
+            <template v-else>
+              <p class="step-summary">{{ summaryFor(act, store.response) }}</p>
+              <div v-if="cardKeyFor(act.index)" class="evidence-slot">
+                <component :is="INSIGHT_CARDS[cardKeyFor(act.index)!]" data-testid="insight-card" />
+              </div>
+            </template>
+          </div>
+
+          <!-- 折叠态仅显示汇总 -->
+          <p v-if="isCollapsed(act.index)" class="step-summary collapsed-summary">
+            {{ summaryFor(act, store.response) }}
+          </p>
+        </div>
       </li>
     </ol>
 
-    <div class="typing" data-testid="process-typing">
-      <p v-for="(l, i) in shown" :key="i" class="typing__line">
-        {{ l }}<span v-if="i === shown.length - 1 && !done" class="caret">▍</span>
-      </p>
-    </div>
+    <p v-if="!panelExpanded && currentAct >= 0" class="summary-strip">
+      智能体推理 · {{ currentAct + 1 }} / {{ acts.length }} 步
+    </p>
+    <p v-else-if="currentAct < 0" class="empty-hint">推演开始后，将按阶段展示推理明细…</p>
   </aside>
 </template>
 
 <style scoped>
-.process {
+.reasoning {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 16px 14px;
+  padding: 14px 12px;
   overflow: hidden;
 }
-.process__hd {
+.reasoning__hd {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  flex: 0 0 auto;
 }
-.process__hd h2 {
+.reasoning__hd h2 {
+  flex: 1;
+  margin: 0;
   font-family: var(--font-display);
   font-size: 15px;
-  letter-spacing: 3px;
-  margin: 0;
-  color: var(--text);
+  letter-spacing: 2px;
 }
-.dot {
+.reasoning-icon {
+  color: var(--primary);
+  font-size: 12px;
+}
+.panel-toggle {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+.panel-toggle:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.step-item {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+}
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 16px;
+  flex: 0 0 16px;
+}
+.rail-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1.5px solid var(--primary);
+  background: var(--primary-dim);
+  flex: 0 0 auto;
+}
+.rail-icon.pulse {
+  border-radius: 50%;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.rail-line {
+  flex: 1;
+  width: 1px;
+  min-height: 12px;
+  background: var(--panel-border);
+  margin: 4px 0;
+}
+.step-main {
+  flex: 1;
+  min-width: 0;
+}
+.step-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.step-head:disabled {
+  cursor: default;
+}
+.step-item.active .step-head {
+  color: var(--primary);
+}
+.step-item.done .step-head {
+  color: var(--protected);
+}
+.caret {
+  font-size: 10px;
+  color: var(--text-mute);
+  transition: transform 0.15s;
+  flex: 0 0 auto;
+}
+.caret.open {
+  transform: rotate(90deg);
+}
+.step-label {
+  flex: 1;
+}
+.status-dot.typing {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--primary);
   box-shadow: var(--glow-primary);
+  animation: pulse 1s infinite;
 }
-.steps {
-  list-style: none;
-  margin: 0 0 12px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  color: var(--text-mute);
-  font-size: 13px;
-  transition: all 0.2s;
-}
-.step.active {
-  color: var(--primary);
-  background: var(--primary-dim);
-}
-.step.done {
+.status-done {
+  font-size: 11px;
   color: var(--protected);
 }
-.step__idx {
-  width: 20px;
-  height: 20px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1px solid currentColor;
-  font-size: 11px;
-  flex: 0 0 auto;
+.step-body {
+  padding: 4px 0 8px 16px;
 }
-.typing {
-  flex: 1;
-  overflow-y: auto;
-  border-top: 1px solid var(--panel-border);
-  padding-top: 12px;
+.detail-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.typing__line {
-  margin: 0 0 8px;
-  font-size: 13px;
-  line-height: 1.55;
+.detail-line {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--text-dim);
-  white-space: pre-wrap;
-  word-break: break-word;
 }
-.caret {
+.detail-line .check {
+  color: var(--protected);
+  margin-right: 6px;
+  font-size: 11px;
+}
+.caret-blink {
   color: var(--primary);
   animation: blink 1s step-end infinite;
+}
+.step-summary {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  border-left: 2px solid var(--primary);
+  background: rgba(0, 229, 255, 0.04);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.collapsed-summary {
+  margin-top: 2px;
+  padding-left: 16px;
+  border-left: none;
+  background: transparent;
+  font-size: 11.5px;
+  color: var(--text-mute);
+}
+.evidence-slot {
+  margin-top: 10px;
+}
+.evidence-slot :deep(.card) {
+  margin: 0;
+}
+.summary-strip,
+.empty-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-mute);
+  text-align: center;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
 }
 @keyframes blink {
   50% {
