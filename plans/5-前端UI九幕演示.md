@@ -30,7 +30,7 @@
 
 ## 目标
 
-1. `frontend/` 下交付 React + TypeScript + Vite 单页演示应用，完整覆盖剧本九幕。
+1. `frontend/` 下交付 **Vue 3 + TypeScript + Vite 独立前后端分离 SPA**（CS 架构：自带 dev server / 独立构建 / 通过 REST + SSE 消费后端，非嵌入式单页 HTML），完整覆盖剧本九幕。
 2. 三栏工作台（GIS 主战场 / 左侧推理证据栏 / 右侧理解过程栏）+ 底部 Dock 状态机（输入框→任务执行栏→方案抽屉）。
 3. 高德地图 JS API 2.0 深色底图 + 逐幕图层（路口高亮、上下游、渠化小窗、干线溯源粒子流、控制范围、干线协调图）。
 4. 前端演出时间线：一次请求全量响应 + 分幕节奏揭示 + 打字机门控的 Sticky Reveal。
@@ -51,14 +51,16 @@
 
 | 维度 | 选型 | 理由 |
 |------|------|------|
-| 框架 | React 18 + TypeScript + Vite | 设计文档以 React 组件/hook（`usePresentation`、`UpstreamTraceLayer.ts`）描述；Vite 启动快、代理简单 |
-| 状态 | Zustand | 轻量、适合演出时间线与多栏协同的集中 store |
+| 框架 | **Vue 3（`<script setup>` SFC）+ TypeScript + Vite** | 按需求采用 Vue 独立工程；设计文档中的 `usePresentation` / `UpstreamTraceLayer` 等按 Vue composable/模块落地（概念不绑定 React） |
+| 架构 | 前后端分离 SPA（CS 架构） | 独立仓内工程，dev server + 独立 `npm run build`；REST（`/agent/run` 等）+ SSE（`/intersection/load/stream`）消费后端 |
+| 状态 | Pinia | Vue 官方状态库，适合演出时间线与三栏协同的集中 store |
+| 路由 | 单视图（可选 Vue Router） | 演示为单页九幕流，暂不需多路由；预留 Router 以便扩展 |
 | 地图 | 高德 JS API 2.0（`@amap/amap-jsapi-loader`） | 集成指南与设计稿强约束；密钥来自 `docs/gd-js20.md` |
-| 动效 | Framer Motion + CSS | 卡片 slide-up、打字机、粒子/发光走 CSS/rAF |
-| 图表 | ECharts（`echarts` + 按需引入） | 时序排队比折线、供需柱状；数据密集大屏 |
-| 样式 | CSS 变量（设计令牌）+ CSS Modules | 精确控制 bespoke 深色信控主题 |
-| 测试 | Vitest（逻辑单测）+ Playwright（截图/布局/遮挡视觉自动化） | 纯函数用 Vitest；UI 排版/遮挡/视觉回归以 Playwright 截图为主 |
-| 联调 | Vite dev proxy `/api` → `http://localhost:8000` | 免 CORS；生产可 `npm run build` 出静态资源 |
+| 动效 | `@vueuse/motion` + Vue `<Transition>` + CSS | 卡片 slide-up、打字机、粒子/发光走 CSS/rAF |
+| 图表 | ECharts（`vue-echarts` 封装 + 按需引入） | 时序排队比折线、供需柱状；数据密集大屏 |
+| 样式 | CSS 变量（设计令牌）+ SFC `<style scoped>` | 精确控制 bespoke 深色信控主题 |
+| 测试 | Vitest + `@vue/test-utils`（逻辑/组件）+ Playwright（截图/布局/遮挡视觉自动化） | 纯函数/组件用 Vitest；UI 排版/遮挡/视觉回归以 Playwright 截图为主 |
+| 联调 | Vite dev proxy `/api` → `http://localhost:8000` | 免 CORS；生产 `npm run build` 出静态资源，可交由 nginx / 任意静态服务托管 |
 
 **主分支**：`20260707140643-5-前端UI九幕演示`
 
@@ -72,50 +74,51 @@ frontend/
   package.json  tsconfig.json  vite.config.ts  .env.example
   README.md
   src/
-    main.tsx  App.tsx
-    theme/tokens.css              # 设计令牌（青/红/琥珀/绿/夜幕）
-    labels/enums.ts               # 枚举→中文字典（direction/period/movement/problem_type/scenario/risk...）
+    main.ts  App.vue                 # 挂载 Pinia + 三栏布局根组件
+    theme/tokens.css                 # 设计令牌（青/红/琥珀/绿/夜幕）
+    labels/enums.ts                  # 枚举→中文字典（direction/period/movement/problem_type/scenario/risk...）
     api/
-      client.ts                   # fetch 封装 + 错误规整
-      sse.ts                      # /intersection/load/stream EventSource 封装
-      types.ts                    # 响应类型（镜像 剧本字段-API对照）
-      endpoints.ts                # run / load / decision / regenerate / cases / health
-    store/
-      presentationStore.ts        # 运行生命周期、幕次、缓冲、揭示门控、Dock 状态机
-      selectors.ts
-    presentation/
-      timeline.ts                 # 幕 → 过程步骤 → 地图场景 → 证据卡 的编排表
-      typing.ts                   # 打字机 hook（onStepComplete → reveal）
+      client.ts                      # fetch 封装 + 错误规整
+      sse.ts                         # /intersection/load/stream EventSource 封装
+      types.ts                       # 响应类型（镜像 剧本字段-API对照）
+      endpoints.ts                   # run / load / decision / regenerate / cases / health
+    stores/
+      presentation.ts                # Pinia：运行生命周期、幕次、缓冲、揭示门控、Dock 状态机
+    composables/
+      usePresentation.ts             # 演出时间线消费 store 的组合式封装
+      useTimeline.ts                 # 幕 → 过程步骤 → 地图场景 → 证据卡 的编排表
+      useTyping.ts                   # 打字机 composable（onStepComplete → reveal）
+      useAMap.ts                     # 地图实例注入/provide-inject
     map/
-      AMapProvider.tsx            # 加载器 + securityJsCode 注入（viewMode:'3D'）
-      MapController.ts            # flyTo / setZoom / setPitch / setRotation（2D俯视↔3D等距）/ 图层生命周期
+      AMapProvider.vue               # 加载器 + securityJsCode 注入（viewMode:'3D'）
+      MapController.ts               # flyTo / setZoom / setPitch / setRotation（2D俯视↔3D等距）/ 图层生命周期
       layers/
-        IntersectionLayer.ts      # 路口 Polygon 虚线框 + 溢流填充
-        HighlightPathLayer.ts     # highlight_path 发光折线 + 上下游节点
-        ChannelizationMini.tsx    # 右下角渠化小窗（arms → 车道饱和上色）
-        UpstreamTraceLayer.ts     # 干线溯源双层发光 Polyline + rAF 粒子 + 节点气泡
-        ControlScopeLayer.ts      # 控制范围（控流闸口/目标/下游盾牌）
-        CorridorLayer.ts          # 第八幕干线协调节点/绿波
+        IntersectionLayer.ts         # 路口 Polygon 虚线框 + 溢流填充
+        HighlightPathLayer.ts        # highlight_path 发光折线 + 上下游节点
+        UpstreamTraceLayer.ts        # 干线溯源双层发光 Polyline + rAF 粒子 + 节点气泡
+        ControlScopeLayer.ts         # 控制范围（控流闸口/目标/下游盾牌）
+        CorridorLayer.ts             # 第八幕干线协调节点/绿波
+      ChannelizationMini.vue         # 右下角渠化小窗（arms → 车道饱和上色）
     panels/
-      ProcessPanel/               # 右栏：步骤 checklist + 打字机日志
-      InsightPanel/               # 左栏：Sticky 证据卡容器
-      BottomDock/                 # 输入框 / 任务执行栏 / 信号灯 / 全屏 FAB
-      PlanDrawer/                 # 第八幕底部抽屉（阶段方案 / 多方案比选）
+      ProcessPanel.vue               # 右栏：步骤 checklist + 打字机日志
+      InsightPanel.vue               # 左栏：Sticky 证据卡容器
+      BottomDock.vue                 # 输入框 / 任务执行栏 / 信号灯 / 流水线进度条 / 全屏 FAB
+      PlanDrawer.vue                 # 第八幕底部抽屉（阶段方案 / 多方案比选）
     cards/
-      DiagnosisTicketCard.tsx     # 幕一
-      RecognitionSteps.tsx        # 幕二（也在 ProcessPanel）
-      DataMetricsCard.tsx         # 幕三（+ 时序折线）
-      OverflowVerdict.tsx         # 幕三 中央判定
-      BottleneckCard.tsx          # 幕四
-      CorridorScanCard.tsx        # 幕五
-      CauseCard.tsx / CaseCarousel.tsx  # 幕六
-      StrategyBoundaryCard.tsx    # 幕七
-      PlanStageView.tsx / PlanCompareMatrix.tsx  # 幕八
-      FeedbackPanel.tsx           # 幕九
+      DiagnosisTicketCard.vue        # 幕一
+      RecognitionSteps.vue           # 幕二（也在 ProcessPanel）
+      DataMetricsCard.vue            # 幕三（+ 时序折线）
+      OverflowVerdict.vue            # 幕三 中央判定
+      BottleneckCard.vue             # 幕四
+      CorridorScanCard.vue           # 幕五
+      CauseCard.vue / CaseCarousel.vue     # 幕六
+      StrategyBoundaryCard.vue       # 幕七
+      PlanStageView.vue / PlanCompareMatrix.vue  # 幕八
+      FeedbackPanel.vue              # 幕九
     utils/  format.ts  vc.ts（供需比派生，仅当字段存在）  guards.ts
-    mock/  run_1_fixture.json     # 从 logs/run_1 拷贝的真实响应，供离线回放
-  tests/                          # Vitest 逻辑单测
-  e2e/                            # Playwright 截图：布局/遮挡/视觉回归 + 九幕演出
+    mock/  run_1_fixture.json        # 从 logs/run_1 拷贝的真实响应，供离线回放
+  tests/                             # Vitest + @vue/test-utils（逻辑/组件）
+  e2e/                               # Playwright 截图：布局/遮挡/视觉回归 + 九幕演出
     playwright.config.ts  baselines/
 ```
 
@@ -153,7 +156,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 
 | 项 | 内容 |
 |----|------|
-| 脚手架 | `npm create vite@latest frontend -- --template react-ts`；接入 zustand / framer-motion / echarts / @amap/amap-jsapi-loader |
+| 脚手架 | `npm create vite@latest frontend -- --template vue-ts`；接入 pinia / @vueuse/motion / echarts + vue-echarts / @amap/amap-jsapi-loader |
 | 测试脚手架 | Vitest + @playwright/test（`npx playwright install chromium`）；`playwright.config.ts` 配视口矩阵与 `toHaveScreenshot` 基线目录 |
 | 代理 | `vite.config.ts` 配 `server.proxy['/api'] → http://localhost:8000` |
 | 令牌 | `theme/tokens.css` 落地设计令牌（`--primary:#00e5ff`、`--alarm:#ff5050`、`--evidence:#f5a623`、`--protected:#6dffb5`、`--bg:#020810`、`--panel:rgba(0,8,16,.92)`）；深色磨砂面板 + backdrop-filter |
@@ -178,14 +181,14 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 ### F2：三栏骨架 + 底部 Dock 状态机 + 演出时间线
 
 - 三栏 CSS Grid（`1fr | 300px | 340px`），≤1100px 转左右浮层；右下角全屏 FAB 收起两侧。
-- `store/presentationStore.ts`：
+- `stores/presentation.ts`（Pinia）：
   - 生命周期 `idle → submitting → running(act:1..9) → done|error`
   - `dataInsightBuffer`（证据卡挂起）、`revealedCards`（已揭示常驻）
   - Dock 状态：`input | task-running | plan-drawer`
   - `phaseResults`、`pipelineComplete`、`completed` 映射底部状态灯
 - **底部流水线进度条（Pipeline Progress Bar）**（对齐 mockup）：常驻横向时间轴，命名节点「问题理解 → 拓扑定位 → 溢出验证 → 成因/策略 → 方案生成 → 反馈下发」，当前幕节点显示 ACTIVE 闪电态，已完成打勾，失败态显示护栏红点 + `phase_results[].errors`
-- `presentation/timeline.ts`：编排表——每幕对应「过程步骤文案（打字）→ 完成事件 → 揭示的证据卡 → 触发的地图场景」。数据源自单次响应，按幕节奏推进；用户可点击「跳到某幕」回看（Sticky 卡不消失）。
-- `presentation/typing.ts`：打字机 hook，`onStepComplete` 触发 `revealInsightsForProcessStep`。
+- `composables/useTimeline.ts`：编排表——每幕对应「过程步骤文案（打字）→ 完成事件 → 揭示的证据卡 → 触发的地图场景」。数据源自单次响应，按幕节奏推进；用户可点击「跳到某幕」回看（Sticky 卡不消失）。
+- `composables/useTyping.ts`：打字机 composable，`onStepComplete` 触发 `revealInsightsForProcessStep`。
 
 **测试 F2**：`tests/store.test.ts`（reveal 门控：卡片先入 buffer，步骤完成才 revealed；Sticky 不因切幕消失）；`tests/timeline.test.ts`（九幕编排完整、幕→卡→场景映射齐全）。
 
@@ -197,7 +200,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 - 降级：`spatial_scene.available=false` 或节点为空 → 展示 `spatial_objects` 文本 + 「拓扑数据不足，建议 POST /intersection/load」提示条。
 - 底部：输入框下沉为任务执行栏，状态「正在解析口头描述…」。
 
-**测试 F3**：`tests/ticketCard.test.tsx`（枚举翻译、约束/置信度渲染）；`tests/recognitionSteps.test.tsx`（5 步状态）；`tests/mapController.test.ts`（flyTo 参数、坐标 null 跳过）。
+**测试 F3**：`tests/ticketCard.spec.ts`（枚举翻译、约束/置信度渲染）；`tests/recognitionSteps.spec.ts`（5 步状态）；`tests/mapController.test.ts`（flyTo 参数、坐标 null 跳过）。
 
 ### F4：幕三~四（溢出验证 + 瓶颈判断）
 
@@ -206,7 +209,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 - `BottleneckCard`：`downstream_diagnosis.release_answer` 突出；`judgment_criteria[]` 清单；`can_simple_add_green=false` 红色禁令。
 - 地图：切路口车道级视角，目标进口标红闪烁；`ChannelizationMini` 从右下滑入，`arms` 车道按排队比上色（<0.6 绿 / 0.6~0.9 橙 / ≥0.9 红 + `!`）。
 
-**测试 F4**：`tests/metricsCard.test.tsx`（阈值配色）；`tests/bottleneckCard.test.tsx`；`tests/channelization.test.tsx`（车道配色阈值）。
+**测试 F4**：`tests/metricsCard.spec.ts`（阈值配色）；`tests/bottleneckCard.spec.ts`；`tests/channelization.spec.ts`（车道配色阈值）。
 
 ### F5：幕五（干线溯源粒子流）
 
@@ -214,7 +217,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 - 坐标/`share_pct` 为 null 的项跳过或标「占比未知」。
 - `CorridorScanCard`：上游到达/放行强度、目标剩余空间、下游承接、`need_upstream_metering`、`summary`。
 
-**测试 F5**：`tests/traceLayer.test.ts`（粒子插值纯函数、空 path 不崩、null 坐标跳过）；`tests/corridorCard.test.tsx`。
+**测试 F5**：`tests/traceLayer.test.ts`（粒子插值纯函数、空 path 不崩、null 坐标跳过）；`tests/corridorCard.spec.ts`。
 
 ### F6：幕六~七（成因/案例 + 策略边界）
 
@@ -223,7 +226,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 - `StrategyBoundaryCard`：`strategy.principles`（防溢流优先高亮）、`recommended`、`not_recommended`（红框禁令）、`hard_constraints`。
 - 地图：`ControlScopeLayer` 读 `control_scope_map`——目标「小步释放」Marker、上游「控流闸口」红 Marker、下游「盾牌」绿 Marker；`upstream_metering_points` 为空则仅渲染已知节点。
 
-**测试 F6**：`tests/causeCard.test.tsx`、`tests/caseCarousel.test.tsx`、`tests/strategyCard.test.tsx`、`tests/controlScopeLayer.test.ts`。
+**测试 F6**：`tests/causeCard.spec.ts`、`tests/caseCarousel.spec.ts`、`tests/strategyCard.spec.ts`、`tests/controlScopeLayer.test.ts`。
 
 ### F7：幕八（方案生成与比选抽屉）
 
@@ -235,7 +238,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 - **契约缺口降级**：`vc_predictions`、供给/需求强度、`corridor_nodes` 后端未透出 → 对应子图渲染「该维度数据暂缺（后端待补）」占位；能从 `timing` 派生的（周期/秒数/相位数）正常展示。登记于「后端契约缺口」附录。
 - 地图联动：`stage_generation` → FlyTo 车道级、转向箭头着色；`plan_comparison` → Zoom Out 干网 + `CorridorLayer`（坐标缺失则退化为示意图）。
 
-**测试 F7**：`tests/planStage.test.tsx`（秒数/缺口占位）、`tests/planCompare.test.tsx`（动态候选数、推荐高亮）、`tests/planDrawer.test.tsx`（Tab 切换驱动地图 action）。
+**测试 F7**：`tests/planStage.spec.ts`（秒数/缺口占位）、`tests/planCompare.spec.ts`（动态候选数、推荐高亮）、`tests/planDrawer.spec.ts`（Tab 切换驱动地图 action）。
 
 ### F8：幕九（反馈闭环 + 兜底）
 
@@ -245,7 +248,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 - 回滚监听：接受后订阅 `/intersection/load/stream`（或轮询），命中回滚条件顶部红色横幅。
 - 断线/异常：`sse.ts` 重连 3 次；失败 Toast 提示「使用预置演示数据（Mock）」切回放。
 
-**测试 F8**：`tests/feedback.test.tsx`（accept/reject payload）、`tests/regenerate.test.tsx`（Differ 高亮）、`tests/cases.test.tsx`、`tests/sse.test.ts`（重连状态机）。
+**测试 F8**：`tests/feedback.spec.ts`（accept/reject payload）、`tests/regenerate.spec.ts`（Differ 高亮）、`tests/cases.spec.ts`、`tests/sse.test.ts`（重连状态机）。
 
 ### F9：联调打磨与交付
 

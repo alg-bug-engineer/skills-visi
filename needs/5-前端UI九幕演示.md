@@ -6,6 +6,8 @@
 
 前端定位为**面向交通决策专家的决策支持中心**，以强视觉、可信、可回看的方式串起：听懂问题 → 定位对象 → 验证溢出 → 判断成因 → 引入案例 → 生成策略 → 形成方案 → 人工可控 → 反馈沉淀。
 
+**工程形态**：采用 **Vue 3 + TypeScript + Vite** 的**独立前后端分离工程（CS 架构）**——独立仓内目录、自带 dev server、独立 `npm run build` 产出可被 nginx/任意静态服务托管的 SPA，通过 REST（`/agent/run` 等）+ SSE（`/intersection/load/stream`）消费后端，**非嵌入式单页 HTML**。
+
 **设计起点（唯一权威）**：`docs/design/`（`README.md` 设计理念 + `UI_design_document.md` 界面规范 + `interaction_logic.md` 交互数据流）。视觉基调对齐 `docs/design/README.md` 引用的决策控制台 mockup（暗色 HUD、3D 等距路网、霓虹排队墙/发光流向、底部流水线进度条）。
 
 ## 与需求 4 的边界
