@@ -1,8 +1,18 @@
 # 开发计划：5-前端 UI 九幕演示
 
 > 目标产物目录：`frontend/`
-> 需求来源：`docs/剧本.md`（叙事验收标准）、`docs/剧本字段-API对照.md`（字段契约）、`docs/前端集成指南.md`（联调）、`analysis/design/UI_design_document.md` 与 `analysis/design/interaction_logic.md`（视觉与交互）
+> **设计起点（唯一权威）**：`docs/design/`（`README.md` 设计理念 + `UI_design_document.md` 界面规范 + `interaction_logic.md` 交互数据流）
+> 叙事与契约：`docs/剧本.md`（叙事验收标准）、`docs/剧本字段-API对照.md`（字段契约）、`docs/前端集成指南.md`（联调）
 > 地图密钥：`docs/gd-js20.md`（高德 JS API 2.0，key + securityJsCode，均经 `.gitignore` 隔离）
+> 高保真视觉基调：`docs/design/README.md` 引用的决策控制台 mockup（暗色 HUD、3D 等距路网、霓虹排队墙/发光流向、底部流水线进度条）
+
+## 设计理念（对齐 docs/design/README.md）
+
+前端定位为**面向交通决策专家的决策支持中心（Decision Support Center）**，而非普通地图看板，贯穿三大原则：
+
+1. **渐进式披露（Progressive Disclosure）**：按专家思考链路（理解→定位→验证→诊断→溯源→策略→方案→反馈）流水线式逐幕披露，每幕只呈现当前最核心的数据与图表，避免信息超载。
+2. **三维立体化地网联动（GIS-UI Co-linking）**：地图是状态的一部分，随流水线在**路网微观（车道级 2D 俯视）↔ 干线宏观（3D 俯仰等距）**间自动切换视点（`viewMode:'3D'` + `pitch`/`rotation`），配合范围聚焦、发光流向、热力粒子。
+3. **专家级业务表达（Expert Domain Language）**：使用排队比 / 饱和度 / 绿灯利用率 / 上游控流削峰等专业指标；方案层提供**双向时距图（Time-Space Diagram）**与**相位结构图**，让专家直判物理可行性。
 
 ## 背景
 
@@ -47,7 +57,7 @@
 | 动效 | Framer Motion + CSS | 卡片 slide-up、打字机、粒子/发光走 CSS/rAF |
 | 图表 | ECharts（`echarts` + 按需引入） | 时序排队比折线、供需柱状；数据密集大屏 |
 | 样式 | CSS 变量（设计令牌）+ CSS Modules | 精确控制 bespoke 深色信控主题 |
-| 测试 | Vitest + React Testing Library + Playwright | 单测 + 组件 + 端到端演出 |
+| 测试 | Vitest（逻辑单测）+ Playwright（截图/布局/遮挡视觉自动化） | 纯函数用 Vitest；UI 排版/遮挡/视觉回归以 Playwright 截图为主 |
 | 联调 | Vite dev proxy `/api` → `http://localhost:8000` | 免 CORS；生产可 `npm run build` 出静态资源 |
 
 **主分支**：`20260707140643-5-前端UI九幕演示`
@@ -77,8 +87,8 @@ frontend/
       timeline.ts                 # 幕 → 过程步骤 → 地图场景 → 证据卡 的编排表
       typing.ts                   # 打字机 hook（onStepComplete → reveal）
     map/
-      AMapProvider.tsx            # 加载器 + securityJsCode 注入
-      MapController.ts            # flyTo / setPitch / 图层生命周期
+      AMapProvider.tsx            # 加载器 + securityJsCode 注入（viewMode:'3D'）
+      MapController.ts            # flyTo / setZoom / setPitch / setRotation（2D俯视↔3D等距）/ 图层生命周期
       layers/
         IntersectionLayer.ts      # 路口 Polygon 虚线框 + 溢流填充
         HighlightPathLayer.ts     # highlight_path 发光折线 + 上下游节点
@@ -104,8 +114,9 @@ frontend/
       FeedbackPanel.tsx           # 幕九
     utils/  format.ts  vc.ts（供需比派生，仅当字段存在）  guards.ts
     mock/  run_1_fixture.json     # 从 logs/run_1 拷贝的真实响应，供离线回放
-  tests/                          # Vitest 单测
-  e2e/                            # Playwright 演出校验
+  tests/                          # Vitest 逻辑单测
+  e2e/                            # Playwright 截图：布局/遮挡/视觉回归 + 九幕演出
+    playwright.config.ts  baselines/
 ```
 
 ---
@@ -143,10 +154,12 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 | 项 | 内容 |
 |----|------|
 | 脚手架 | `npm create vite@latest frontend -- --template react-ts`；接入 zustand / framer-motion / echarts / @amap/amap-jsapi-loader |
+| 测试脚手架 | Vitest + @playwright/test（`npx playwright install chromium`）；`playwright.config.ts` 配视口矩阵与 `toHaveScreenshot` 基线目录 |
 | 代理 | `vite.config.ts` 配 `server.proxy['/api'] → http://localhost:8000` |
 | 令牌 | `theme/tokens.css` 落地设计令牌（`--primary:#00e5ff`、`--alarm:#ff5050`、`--evidence:#f5a623`、`--protected:#6dffb5`、`--bg:#020810`、`--panel:rgba(0,8,16,.92)`）；深色磨砂面板 + backdrop-filter |
 | 字体 | 选用有辨识度的显示体 + 中文正文体（非 Inter/Arial）；数字用等宽以稳住大屏跳动 |
-| 地图 | `AMapProvider` 通过 loader 加载 2.0；`window._AMapSecurityConfig.securityJsCode` 注入 secret；深色自定义样式；济南全域微光网格底图 |
+| 地图 | `AMapProvider` 通过 loader 加载 2.0（`viewMode:'3D'`）；`window._AMapSecurityConfig.securityJsCode` 注入 secret；深色自定义样式；济南全域微光网格底图 |
+| 2D/3D 视点 | `MapController` 提供 `pitch`/`rotation`/`zoom` 平滑过渡：微观诊断幕用近 2D 俯视（pitch≈0），干线溯源/比选幕切 3D 等距（pitch 40~55），对齐 mockup 与 GIS-UI 联动原则 |
 | 环境 | `VITE_AMAP_KEY` / `VITE_AMAP_SECURITY` 走 `.env.local`（不入 git）；`.env.example` 给占位；key/secret 取自 `docs/gd-js20.md` |
 | 安全备注 | JS API 2.0 secret 前端可见，仅本地演示可接受；生产建议加高德服务代理（写入 README 风险提示） |
 
@@ -170,6 +183,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
   - `dataInsightBuffer`（证据卡挂起）、`revealedCards`（已揭示常驻）
   - Dock 状态：`input | task-running | plan-drawer`
   - `phaseResults`、`pipelineComplete`、`completed` 映射底部状态灯
+- **底部流水线进度条（Pipeline Progress Bar）**（对齐 mockup）：常驻横向时间轴，命名节点「问题理解 → 拓扑定位 → 溢出验证 → 成因/策略 → 方案生成 → 反馈下发」，当前幕节点显示 ACTIVE 闪电态，已完成打勾，失败态显示护栏红点 + `phase_results[].errors`
 - `presentation/timeline.ts`：编排表——每幕对应「过程步骤文案（打字）→ 完成事件 → 揭示的证据卡 → 触发的地图场景」。数据源自单次响应，按幕节奏推进；用户可点击「跳到某幕」回看（Sticky 卡不消失）。
 - `presentation/typing.ts`：打字机 hook，`onStepComplete` 触发 `revealInsightsForProcessStep`。
 
@@ -215,6 +229,8 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 
 - `PlanDrawer`：底部上弹抽屉，`planActiveTab: stage_generation | plan_comparison`。
 - Tab1 `PlanStageView`（数据源 `plan.recommended`）：相位卡（`phase_stage_timing_list[]` 秒数/黄/全红 + 流向箭头）、周期/绿信比派生、`upstream_control`、`phase_offset_sec`、`pedestrian_constraints`、`downstream_risk`、`expected_effect`、`rollback_condition`、`guardrail_pass`/`validation_errors`。
+- **相位结构图（Phase Structure）**：按 `phase_stage_timing_list[]` 绘制周期内各相位的绿/黄/全红时序条带（SVG/Canvas），直观呈现相位切换与占比。
+- **双向时距图（Time-Space Diagram）**：以 `phase_offset_sec`、`cycle_s`、上下游节点绿灯窗口绘制绿波带（专家级业务表达）。**依赖数据**：上下游节点间距/车速/各口绿灯窗口——当前 API 仅有 `phase_offset_sec` 与目标口 `timing`，缺上下游节点配时序列 → 首期以「目标口单点相位带 + 已知 offset 示意」呈现，缺失部分标注占位并登记附录 B（不编造节点绿窗）。
 - Tab2 `PlanCompareMatrix`（数据源 `plan.candidates[]`，数量动态、横向滚动）：候选卡 + 推荐结论 `recommendation.rationale`。
 - **契约缺口降级**：`vc_predictions`、供给/需求强度、`corridor_nodes` 后端未透出 → 对应子图渲染「该维度数据暂缺（后端待补）」占位；能从 `timing` 派生的（周期/秒数/相位数）正常展示。登记于「后端契约缺口」附录。
 - 地图联动：`stage_generation` → FlyTo 车道级、转向箭头着色；`plan_comparison` → Zoom Out 干网 + `CorridorLayer`（坐标缺失则退化为示意图）。
@@ -234,7 +250,7 @@ F9 联调打磨 + 全屏 FAB + 打包 + README + 进度文档更新 (P0)
 ### F9：联调打磨与交付
 
 - 页面载入编排：一段式 staggered reveal；全屏 FAB；信号灯 connecting/open/closed 状态。
-- Playwright 端到端（`e2e/`）：`VITE_MOCK=1` 回放 fixture，断言九幕依次揭示、地图 action 触发、抽屉与反馈可交互。
+- Playwright 截图视觉套件（`e2e/`）：`VITE_MOCK=1` 回放 fixture，跑 V-01~V-16（布局/遮挡/视觉回归 + 九幕演出），产出各幕基线截图供人工审阅；开发期用 `webapp-testing` skill 的 `with_server.py` 即时取证。
 - `frontend/README.md`：环境变量、`npm run dev`（需后端 :8000 或 mock）、`npm run build`、AMap 密钥与安全提示。
 - 更新 `docs/项目进度.md`：前端 UI 行进度、九幕前端状态。
 
@@ -257,37 +273,77 @@ VITE_MOCK=1 npm run dev
 
 ## 测试总览
 
+测试分两层：**Vitest 逻辑单测**（纯函数/store/适配器，快、稳、可 CI）+ **Playwright 截图视觉自动化**（排版、UI、遮挡、视觉回归——本项目 UI 验收的主要手段）。所有 UI 测试在 `VITE_MOCK=1` 回放真实 fixture 下运行，保证可重复、无需后端。
+
+### 1. Vitest 逻辑单测
+
 ```
 frontend/tests/
-  tokens.test.ts  enums.test.ts  adapters.test.ts  vc.test.ts
-  store.test.ts   timeline.test.ts
-  ticketCard/recognitionSteps/mapController.test.*
-  metricsCard/bottleneckCard/channelization.test.*
-  traceLayer/corridorCard.test.*
-  causeCard/caseCarousel/strategyCard/controlScopeLayer.test.*
-  planStage/planCompare/planDrawer.test.*
-  feedback/regenerate/cases/sse.test.*
-frontend/e2e/
-  nine-acts.spec.ts
+  enums.test.ts  adapters.test.ts  vc.test.ts        # 枚举回退 / null 安全 / 供需比派生
+  store.test.ts  timeline.test.ts                    # 揭示门控 / Sticky / 九幕编排
+  mapController.test.ts  traceLayer.test.ts           # 坐标 null 跳过 / 粒子插值纯函数
+  guards.test.ts  format.test.ts                      # available=false 守卫 / 数值格式
 ```
+
+### 2. Playwright 截图视觉与布局自动化（重点）
+
+> 采用 Playwright（截图方式）对**布局排版、UI、是否遮挡**做自动化校验。开发期由 `webapp-testing` skill 的 `scripts/with_server.py` 拉起 `npm run dev` 后驱动脚本即时取证；沉淀为 `frontend/e2e/` 可回归套件。
+
+```
+frontend/e2e/
+  playwright.config.ts          # 视口矩阵 1920x1080 / 1440x900 / 1100x800
+  acts.visual.spec.ts           # 九幕逐幕全屏 + 分栏截图 + 视觉回归基线
+  layout.occlusion.spec.ts      # boundingBox 遮挡/溢出断言
+  responsive.spec.ts            # ≤1100px 浮层降级 + FAB 收起
+  baselines/                    # toHaveScreenshot 基线（人工审阅后入库）
+```
+
+**每幕截图产物**（1920×1080）：全屏 + 左证据栏 + 右过程栏 + 底部 Dock/抽屉 + 渠化小窗，共存入 `baselines/act{1..9}_*`，供人工审阅与像素回归。
+
+**自动化布局/遮挡断言**（`layout.occlusion.spec.ts`，用 `locator.boundingBox()`）：
+
+| 用例 ID | 断言（截图 + 几何） |
+|---------|--------------------|
+| V-01 | 三栏无重叠：Insight / Process / 地图容器 bbox 两两不相交；总宽 ≤ 视口宽 |
+| V-02 | 底部 Dock/进度条不遮挡关键卡片：Dock top > 最底部证据卡 bottom |
+| V-03 | 渠化小窗避开输入框与抽屉：mini-window bbox 不与 input/drawer 相交 |
+| V-04 | 第八幕抽屉弹出时左侧策略边界卡仍可见（bbox 在视口内且未被抽屉覆盖） |
+| V-05 | 证据卡文字不溢出容器：`scrollWidth ≤ clientWidth + 1`，无横向截断 |
+| V-06 | 地图气泡标签不被视口边缘裁剪：label bbox 完整在 map bbox 内 |
+| V-07 | 回滚告警横幅出现在顶层且不永久遮挡地图（可关闭后恢复） |
+| V-08 | FAB 收起后左右栏 bbox 移出视口，地图满屏无遮挡 |
+| V-09 | ≤1100px 下右/左栏转浮层，不挤压地图为 0 宽 |
+| V-10 | 关键数字（排队比/秒数）字体渲染无缺字/溢出（截图 + 元素高度阈值） |
+
+**九幕端到端演出**（`acts.visual.spec.ts`）：
+
+| 用例 ID | 阶段 | 场景（截图为证） |
+|---------|------|------------------|
+| V-11 | F3 | 幕一二：工单卡揭示 + 地图 flyTo 后截图；spatial 不可用走文本兜底 |
+| V-12 | F4 | 幕三四：queue_ratio 阈值配色、车道饱和度配色、溢出判定居中卡 |
+| V-13 | F5 | 幕五：溯源粒子层渲染、节点气泡点击展开截图 |
+| V-14 | F6 | 幕六七：案例轮播、not_recommended 红框禁令 |
+| V-15 | F7 | 幕八：抽屉 Tab 切换驱动地图 action；缺口字段显示「数据暂缺」而非假数据 |
+| V-16 | F8/F9 | 反馈接受/拒绝/再生成 Differ 高亮、cases 列表、断线兜底 Toast |
+
+### 3. 逻辑单测用例明细
 
 | 用例 ID | 阶段 | 场景 |
 |---------|------|------|
 | F-01 | F1 | 未知枚举回退不抛错 |
-| F-02 | F1 | fixture → 类型/ null 安全 |
+| F-02 | F1 | fixture → 类型 / null 安全 |
 | F-03 | F2 | 卡片先入 buffer，步骤完成才揭示 |
 | F-04 | F2 | Sticky 卡切幕不消失 |
-| F-05 | F3 | spatial 不可用时文本兜底 |
+| F-05 | F3 | spatial 不可用时文本兜底（逻辑层） |
 | F-06 | F3 | 坐标 null 跳过渲染 |
-| F-07 | F4 | queue_ratio 阈值配色 |
-| F-08 | F4 | 车道饱和度配色 |
+| F-07 | F4 | queue_ratio 阈值配色映射 |
+| F-08 | F4 | 车道饱和度配色映射 |
 | F-09 | F5 | 空 path / null 坐标不崩 |
-| F-10 | F6 | not_recommended 红框禁令 |
+| F-10 | F6 | not_recommended 标记逻辑 |
 | F-11 | F7 | 缺口字段走占位而非假数据 |
-| F-12 | F7 | Tab 切换驱动地图 action |
-| F-13 | F8 | accept/reject/ regenerate payload |
+| F-12 | F7 | Tab 切换派发地图 action |
+| F-13 | F8 | accept/reject/regenerate payload |
 | F-14 | F8 | SSE 重连状态机 |
-| F-15 | F9 | 端到端九幕揭示 |
 
 ---
 
@@ -314,6 +370,7 @@ frontend/e2e/
 | `supply_intensity` / `demand_intensity` | 各方向供需强度柱状 | 占位；如有 `timing` 可派生则派生 |
 | `plan.recommended.corridor_nodes` | 干线协调图节点 | 退化为示意图 |
 | `pre_green_time_s` / `post_green_time_s` | 阶段优化前后对比 | 仅显示 `green_time_s`，无「优化前」列 |
+| 上下游节点绿灯窗口 / 间距 / 车速 | 双向时距图绿波带 | 首期仅目标口相位带 + 已知 offset 示意 |
 | `scenario_report`（部分运行为空） | 检查单摘要 | `available=false` 时隐藏该卡 |
 
 ---
@@ -335,7 +392,8 @@ frontend/e2e/
 - [ ] 九幕在真实后端与 `VITE_MOCK=1` 回放下均可完整演出
 - [ ] 枚举全部中文化；地图/卡片对 null 与 `available=false` 优雅降级
 - [ ] 第八幕缺口字段走占位，无任何硬编码假数据（rule 14）
-- [ ] Vitest 单测 F-01~F-14 全绿；Playwright F-15 通过
+- [ ] Vitest 单测 F-01~F-14 全绿
+- [ ] Playwright 截图套件 V-01~V-16 通过：三栏/Dock/小窗/抽屉无遮挡、无溢出裁剪、≤1100px 降级正常，各幕基线截图归档
 - [ ] `frontend/README.md` 可被前端同学独立联调
 - [ ] `docs/项目进度.md` 前端 UI 行更新
 - [ ] 分支未直接合入 main（rule 1）；如遇 API 陷阱记录 `bugs/`
