@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from app.config import Settings
+from app.llm.qwen import QwenClient
+from app.logging_setup import get_trace_id, set_trace_id
+from app.runtime.executor import SkillExecutor
+from app.runtime.registry import get_registry
+from app.services.case_library import CaseLibraryService
+
+logger = logging.getLogger(__name__)
+
+
+class AgentService:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.llm = QwenClient(settings)
+        self.case_service = CaseLibraryService(settings.case_library_abs_path)
+        self.registry = get_registry()
+        self.executor = SkillExecutor(self.registry)
+
+    async def run(
+        self,
+        user_input: str,
+        *,
+        trace_id: str | None = None,
+        task: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        existing = get_trace_id()
+        if trace_id:
+            tid = set_trace_id(trace_id)
+        elif existing and existing != "-":
+            tid = existing
+        else:
+            tid = set_trace_id()
+        logger.info("智能体任务开始 trace_id=%s", tid)
+
+        result = await self.executor.run_pipeline(
+            trace_id=tid,
+            user_input=user_input,
+            task=task,
+            llm=self.llm,
+            case_service=self.case_service,
+        )
+
+        result["diagnosis_ticket"] = result.get("artifacts", {}).get(
+            "intent_understanding", {}
+        ).get("diagnosis_ticket")
+
+        logger.info(
+            "智能体任务结束 trace_id=%s completed=%s",
+            tid,
+            result.get("completed"),
+        )
+        return result
+
+    def list_skills(self) -> list[dict]:
+        return self.registry.list_skills()

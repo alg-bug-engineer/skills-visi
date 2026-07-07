@@ -9,3 +9,5 @@
 9. 基于 Qwen 开发的交通智能体，基于 skills 逻辑，要实现 skill runtime 的发现、注册等运行时，每个 skill 禁止单独的 md 文档
 10. 使用.env 进行各类变量、密钥等配置
 11. references 是各类参考资源，禁止 import 方式使用，可以拷贝、借鉴其逻辑，禁止提交 git
+12. 约束：修复bug 要记录到 bugs 目录中
+13. 开发前阅读下 bugs 的记录，避免重复犯错

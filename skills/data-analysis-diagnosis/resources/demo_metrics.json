@@ -1,0 +1,16 @@
+{
+  "queue_length_m": 185.0,
+  "storage_length_m": 200.0,
+  "volume_vph": 1680.0,
+  "capacity_vph": 1750.0,
+  "green_utilization": 0.88,
+  "stop_count": 2.4,
+  "avg_delay_s": 78.0,
+  "downstream_queue_length_m": 160.0,
+  "downstream_storage_length_m": 180.0,
+  "downstream_volume_vph": 1520.0,
+  "downstream_capacity_vph": 1600.0,
+  "downstream_green_utilization": 0.82,
+  "upstream_arrival_intensity": "high",
+  "time_series_trend": "持续上升"
+}
