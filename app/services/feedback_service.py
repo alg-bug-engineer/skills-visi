@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from datetime import datetime, timezone
@@ -18,6 +19,40 @@ from app.services.plan_fingerprint import (
 logger = logging.getLogger(__name__)
 
 PlanDecision = Literal["accept", "reject"]
+
+# 参与去重的诊断工单身份字段（认知/诊断经验）。
+_TICKET_IDENTITY_KEYS = (
+    "intersection_name",
+    "problem_type",
+    "direction",
+    "movement",
+    "time_range",
+    "period",
+    "governance_goal",
+    "constraints",
+    "diagnosis_scope",
+)
+
+
+def feedback_signature(entry: dict[str, Any]) -> str:
+    """方案反馈内容指纹：忽略 recorded_at/trace_id，仅取语义内容用于去重。
+
+    覆盖用户各类经验：认知/诊断经验（工单身份 + user_experiences）与方案经验
+    （plan_id/plan_snapshot/decision/拒绝理由）。同一路口同一决策同一方案与经验
+    视为重复，禁止重复落库。
+    """
+    ticket = entry.get("diagnosis_ticket") or {}
+    payload = {
+        "decision": entry.get("decision"),
+        "plan_id": entry.get("plan_id"),
+        "inter_id": entry.get("inter_id"),
+        "rejection_reason": entry.get("rejection_reason"),
+        "ticket_identity": {k: ticket.get(k) for k in _TICKET_IDENTITY_KEYS},
+        "user_experiences": ticket.get("user_experiences") or [],
+        "plan_snapshot": entry.get("plan_snapshot"),
+    }
+    blob = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
 class PlanFeedbackService:
@@ -74,14 +109,24 @@ class PlanFeedbackService:
             },
         }
 
-        self._append_jsonl(entry)
-        self._records = None
-        logger.info(
-            "方案反馈已记录 trace_id=%s plan_id=%s decision=%s",
-            trace_id,
-            plan_id,
-            decision,
-        )
+        signature = feedback_signature(entry)
+        duplicate = any(feedback_signature(rec) == signature for rec in self._load())
+        if duplicate:
+            logger.info(
+                "方案反馈已存在，跳过重复 trace_id=%s plan_id=%s decision=%s",
+                trace_id,
+                plan_id,
+                decision,
+            )
+        else:
+            self._append_jsonl(entry)
+            self._records = None
+            logger.info(
+                "方案反馈已记录 trace_id=%s plan_id=%s decision=%s",
+                trace_id,
+                plan_id,
+                decision,
+            )
         return {
             "ok": True,
             "trace_id": trace_id,
@@ -91,6 +136,7 @@ class PlanFeedbackService:
             "recorded_at": entry["recorded_at"],
             "fingerprint": fingerprint,
             "tags": tags,
+            "duplicate": duplicate,
         }
 
     def search_accepted_plans(

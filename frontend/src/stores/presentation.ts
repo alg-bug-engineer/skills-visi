@@ -237,8 +237,9 @@ export const usePresentationStore = defineStore('presentation', {
         plan_snapshot: this.plan?.recommended ?? undefined,
         diagnosis_ticket: this.ticket ?? undefined,
       })
-      this.toast = '方案已接受并下发，进入执行监测。'
-      this.status = 'done'
+      // 接受并下发后回到主页（输入态）
+      this.reset(true)
+      this.toast = '方案已接受并下发，已返回主页。'
     },
 
     async reject(planId: string, reason: string, restartFrom = 'plan_generation') {
@@ -268,6 +269,7 @@ export const usePresentationStore = defineStore('presentation', {
       controller = null
       this.status = 'idle'
       this.mode = 'stream'
+      this.signal = 'idle'
       this.response = null
       this.currentAct = -1
       this.revealedActs = []

@@ -70,4 +70,20 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     await expect(page.getByPlaceholder(/修改意见/)).toBeVisible()
     await page.screenshot({ path: `${SHOTS}/04-reject.png` })
   })
+
+  test('接受并下发后回到主页', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: '开始推演' }).click()
+
+    const drawer = page.getByTestId('plan-drawer')
+    await expect(drawer).toBeVisible({ timeout: 40_000 })
+
+    await page.getByRole('button', { name: /接受并下发/ }).click()
+
+    // 回到主页：输入态出现，方案抽屉与侧栏消失
+    await expect(page.getByRole('button', { name: '开始推演' })).toBeVisible({ timeout: 15_000 })
+    await expect(drawer).toBeHidden()
+    await expect(page.getByTestId('insight-panel')).toBeHidden()
+    await page.screenshot({ path: `${SHOTS}/05-home-after-accept.png` })
+  })
 })
