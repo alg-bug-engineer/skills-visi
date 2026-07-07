@@ -55,6 +55,35 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def build_public_snapshot(
+    *,
+    trace_id: str,
+    artifacts: dict[str, Any],
+    results: list[dict[str, Any]],
+    task: dict[str, Any] | None = None,
+    completed: bool | None = None,
+    pipeline_complete: bool = False,
+) -> dict[str, Any]:
+    """基于"截至当前"的 artifacts/results 构建公开快照（流式逐 phase 复用）。
+
+    与 build_public_run_response 同构；phases/plan 随 artifacts 增长而逐步补齐。
+    """
+    intent_artifact = (artifacts or {}).get("intent_understanding") or {}
+    diagnosis_ticket = intent_artifact.get("diagnosis_ticket")
+    if not diagnosis_ticket and task:
+        diagnosis_ticket = task.get("diagnosis_ticket")
+
+    result = {
+        "trace_id": trace_id,
+        "completed": completed,
+        "pipeline_complete": pipeline_complete,
+        "diagnosis_ticket": diagnosis_ticket,
+        "artifacts": artifacts or {},
+        "results": results or [],
+    }
+    return build_public_run_response(result)
+
+
 def build_public_skill_catalog(skills: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {

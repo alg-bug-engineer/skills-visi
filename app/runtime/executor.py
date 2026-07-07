@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, AsyncIterator
 
 from app.runtime.pipeline_validation import (
-    DEFAULT_PIPELINE,
     compute_pipeline_complete,
     resolve_pipeline,
 )
@@ -15,11 +14,25 @@ from app.runtime.skill_types import SkillContext, SkillResult
 logger = logging.getLogger(__name__)
 
 
+def _serialize_results(results: list[SkillResult]) -> list[dict[str, Any]]:
+    return [
+        {
+            "skill_id": r.skill_id,
+            "phase": r.phase,
+            "success": r.success,
+            "output": r.output,
+            "errors": r.errors,
+            "duration_ms": r.duration_ms,
+        }
+        for r in results
+    ]
+
+
 class SkillExecutor:
     def __init__(self, registry: SkillRegistry) -> None:
         self.registry = registry
 
-    async def run_pipeline(
+    async def iter_pipeline(
         self,
         *,
         trace_id: str,
@@ -28,7 +41,15 @@ class SkillExecutor:
         skill_ids: list[str] | None = None,
         stop_after: str | None = None,
         **deps: Any,
-    ) -> dict[str, Any]:
+    ) -> AsyncIterator[dict[str, Any]]:
+        """逐 skill 执行并产出事件：
+
+        - ``phase_start``：进入某 skill 前
+        - ``phase_done``：某 skill 完成后（含截至当前的 artifacts/results 快照）
+        - ``final``：整条（子）流水线结束的聚合结果（与 run_pipeline 返回同构）
+
+        失败即在该 skill 的 ``phase_done`` 标记 success=False 后停止（不再产出后续 phase）。
+        """
         task = dict(task or {})
         pipeline = resolve_pipeline(skill_ids=skill_ids, stop_after=stop_after)
         prefilled = dict(task.get("artifacts") or {})
@@ -39,11 +60,20 @@ class SkillExecutor:
             artifacts=dict(prefilled),
         )
         results: list[SkillResult] = []
+        total = len(pipeline)
 
-        logger.info("开始执行流水线 trace_id=%s pipeline=%s", trace_id, pipeline)
+        logger.info("开始流式执行流水线 trace_id=%s pipeline=%s", trace_id, pipeline)
 
-        for skill_id in pipeline:
+        for index, skill_id in enumerate(pipeline):
             skill = self.registry.get(skill_id)
+            yield {
+                "type": "phase_start",
+                "skill_id": skill_id,
+                "phase": skill.meta.phase,
+                "index": index,
+                "total": total,
+            }
+
             start = time.perf_counter()
             logger.info(
                 "执行技能开始 trace_id=%s skill_id=%s phase=%s",
@@ -53,7 +83,7 @@ class SkillExecutor:
             )
             try:
                 result = await skill.run(context, **deps)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - 汇集为失败结果，交由上层转 error 事件
                 logger.exception(
                     "技能执行异常 trace_id=%s skill_id=%s error=%s",
                     trace_id,
@@ -79,27 +109,55 @@ class SkillExecutor:
                 result.duration_ms,
             )
 
+            merged_so_far = {**prefilled, **context.artifacts}
+            yield {
+                "type": "phase_done",
+                "skill_id": skill_id,
+                "phase": result.phase,
+                "index": index,
+                "total": total,
+                "success": result.success,
+                "duration_ms": result.duration_ms,
+                "errors": result.errors,
+                "artifacts": dict(merged_so_far),
+                "results": _serialize_results(results),
+            }
+
             if not result.success:
                 break
 
         merged_artifacts = {**prefilled, **context.artifacts}
         task["artifacts"] = merged_artifacts
-
-        return {
+        yield {
+            "type": "final",
             "trace_id": trace_id,
             "pipeline": pipeline,
             "artifacts": merged_artifacts,
-            "results": [
-                {
-                    "skill_id": r.skill_id,
-                    "phase": r.phase,
-                    "success": r.success,
-                    "output": r.output,
-                    "errors": r.errors,
-                    "duration_ms": r.duration_ms,
-                }
-                for r in results
-            ],
+            "results": _serialize_results(results),
             "completed": all(r.success for r in results),
             "pipeline_complete": compute_pipeline_complete(task, context.artifacts),
         }
+
+    async def run_pipeline(
+        self,
+        *,
+        trace_id: str,
+        user_input: str,
+        task: dict[str, Any] | None = None,
+        skill_ids: list[str] | None = None,
+        stop_after: str | None = None,
+        **deps: Any,
+    ) -> dict[str, Any]:
+        """消费 iter_pipeline，返回聚合结果（保持原有非流式行为不变）。"""
+        final: dict[str, Any] = {}
+        async for event in self.iter_pipeline(
+            trace_id=trace_id,
+            user_input=user_input,
+            task=task,
+            skill_ids=skill_ids,
+            stop_after=stop_after,
+            **deps,
+        ):
+            if event.get("type") == "final":
+                final = {k: v for k, v in event.items() if k != "type"}
+        return final

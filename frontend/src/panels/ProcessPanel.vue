@@ -7,20 +7,22 @@ import { useTyping } from '@/composables/useTyping'
 const store = usePresentationStore()
 const { acts, currentAct } = storeToRefs(store)
 
-const instant = ref(
-  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
-)
+const prefersReduced =
+  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+const isAutomation = typeof navigator !== 'undefined' && (navigator as Navigator).webdriver === true
+const instant = ref(prefersReduced || isAutomation)
 
-const lines = computed(() => store.activeAct?.narration ?? [])
+const lines = computed(() => store.activeNarration)
 
 const { shown, done } = useTyping(lines, {
   instant: instant.value,
   onDone: () => {
     const idx = store.currentAct
+    if (idx < 0) return
     store.onActTyped(idx)
-    if (store.autoPlay && idx < store.lastActIndex) {
+    if (store.autoPlay) {
       window.setTimeout(() => {
-        if (store.currentAct === idx) store.advance()
+        if (store.currentAct === idx) store.tryAdvance()
       }, 750)
     }
   },

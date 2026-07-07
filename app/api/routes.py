@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+import json
+from typing import Any, AsyncIterator, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -139,6 +140,48 @@ async def run_agent(
         stop_after=request.stop_after,
     )
     return build_public_run_response(result)
+
+
+def _sse_frame(event: str, data: Any) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@router.post("/agent/run/stream")
+async def run_agent_stream(
+    request: AgentRunRequest,
+    agent: AgentService = Depends(get_agent_service),
+) -> StreamingResponse:
+    """流式执行智能体：逐 phase 以 SSE 推送，前端边算边渲染。
+
+    非法请求在进入流之前以 422 返回；进入流之后的异常转为 error 事件。
+    """
+    try:
+        validate_pipeline_request(request.skill_ids, request.stop_after)
+    except PipelineValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    async def event_source() -> AsyncIterator[str]:
+        try:
+            async for ev in agent.run_stream(
+                request.user_input,
+                trace_id=request.trace_id,
+                task=request.task,
+                skill_ids=request.skill_ids,
+                stop_after=request.stop_after,
+            ):
+                yield _sse_frame(ev["event"], ev["data"])
+        except Exception as exc:  # noqa: BLE001 - 流内异常转 error 事件而非中断连接
+            yield _sse_frame("error", {"phase": None, "errors": [str(exc)]})
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/agent/plan/regenerate")

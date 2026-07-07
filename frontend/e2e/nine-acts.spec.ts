@@ -22,8 +22,10 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     await expect(page.getByTestId('insight-panel')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('process-panel')).toBeVisible()
 
-    // 至少一张证据卡浮现
+    // 流式：证据卡随 phase 逐步浮现（先 1 张，稍后增多）
     await expect(page.getByTestId('insight-card').first()).toBeVisible({ timeout: 15_000 })
+    const early = await page.getByTestId('insight-card').count()
+    await expect.poll(async () => page.getByTestId('insight-card').count(), { timeout: 25_000 }).toBeGreaterThan(early)
     await page.screenshot({ path: `${SHOTS}/01-early-acts.png` })
 
     // 遮挡检查：左栏右边界 < 右栏左边界（水平不重叠）
@@ -44,11 +46,9 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     await page.getByRole('button', { name: '开始推演' }).click()
     await expect(page.getByTestId('process-panel')).toBeVisible({ timeout: 15_000 })
 
-    // 直接跳到「方案决策」一幕（过程步骤可点击跳转），加速到方案抽屉
-    await page.getByText('方案决策', { exact: true }).click()
-
+    // 流式门控：随各 phase 到达自动推进到幕八，方案抽屉出现
     const drawer = page.getByTestId('plan-drawer')
-    await expect(drawer).toBeVisible({ timeout: 30_000 })
+    await expect(drawer).toBeVisible({ timeout: 40_000 })
     await expect(page.getByTestId('phase-diagram')).toBeVisible()
     await page.waitForTimeout(500)
     await page.screenshot({ path: `${SHOTS}/02-plan-stage.png` })

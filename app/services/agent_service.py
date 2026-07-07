@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, AsyncIterator
 
+from app.api.response_builder import build_public_snapshot
 from app.config import Settings
 from app.llm.qwen import QwenClient
 from app.logging_setup import get_trace_id, set_trace_id
@@ -73,6 +74,86 @@ class AgentService:
             result.get("pipeline_complete"),
         )
         return result
+
+    def _resolve_trace_id(self, trace_id: str | None) -> str:
+        existing = get_trace_id()
+        if trace_id:
+            return set_trace_id(trace_id)
+        if existing and existing != "-":
+            return existing
+        return set_trace_id()
+
+    async def run_stream(
+        self,
+        user_input: str,
+        *,
+        trace_id: str | None = None,
+        task: dict[str, Any] | None = None,
+        skill_ids: list[str] | None = None,
+        stop_after: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """流式执行：逐 phase 产出 SSE-ready 事件 {"event","data"}。
+
+        事件类型：phase_start / phase_done(含增量 snapshot) / error / pipeline_complete。
+        """
+        tid = self._resolve_trace_id(trace_id)
+        logger.info("智能体流式任务开始 trace_id=%s", tid)
+
+        async for ev in self.executor.iter_pipeline(
+            trace_id=tid,
+            user_input=user_input,
+            task=task,
+            skill_ids=skill_ids,
+            stop_after=stop_after,
+            llm=self.llm,
+            case_service=self.case_service,
+            experience_service=self.experience_service,
+            experience_library=self.experience_library,
+            feedback_service=self.feedback_service,
+            settings=self.settings,
+        ):
+            etype = ev.get("type")
+            if etype == "phase_start":
+                yield {
+                    "event": "phase_start",
+                    "data": {k: ev[k] for k in ("skill_id", "phase", "index", "total")},
+                }
+            elif etype == "phase_done":
+                snapshot = build_public_snapshot(
+                    trace_id=tid,
+                    artifacts=ev.get("artifacts") or {},
+                    results=ev.get("results") or [],
+                    task=task,
+                )
+                data = {k: ev[k] for k in ("skill_id", "phase", "index", "total", "success", "duration_ms")}
+                data["snapshot"] = snapshot
+                yield {"event": "phase_done", "data": data}
+                if not ev.get("success"):
+                    yield {
+                        "event": "error",
+                        "data": {
+                            "skill_id": ev.get("skill_id"),
+                            "phase": ev.get("phase"),
+                            "errors": ev.get("errors") or [],
+                        },
+                    }
+            elif etype == "final":
+                snapshot = build_public_snapshot(
+                    trace_id=tid,
+                    artifacts=ev.get("artifacts") or {},
+                    results=ev.get("results") or [],
+                    task=task,
+                    completed=ev.get("completed"),
+                    pipeline_complete=ev.get("pipeline_complete", False),
+                )
+                if ev.get("completed"):
+                    yield {"event": "pipeline_complete", "data": {"snapshot": snapshot}}
+                logger.info(
+                    "智能体流式任务结束 trace_id=%s completed=%s pipeline_complete=%s",
+                    tid,
+                    ev.get("completed"),
+                    ev.get("pipeline_complete"),
+                )
 
     async def regenerate(
         self,

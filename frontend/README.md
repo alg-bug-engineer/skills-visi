@@ -1,6 +1,6 @@
 # 交通智能体 · 排队溢出九幕演示前端
 
-一个独立的 **Vue 3 + TypeScript + Vite** 前后端分离 SPA，围绕「排队溢出」诊断到方案的**九幕递进演出**，把后端智能体的一次性 JSON 响应，以电影化节奏逐幕揭示在 GIS 底图上。
+一个独立的 **Vue 3 + TypeScript + Vite** 前后端分离 SPA，围绕「排队溢出」诊断到方案的**九幕递进演出**。后端以 **SSE 逐 phase 流式**推送结果，前端**边算边渲染**：意图理解一完成，第一张证据卡就浮现，后续 phase 的计算与当前幕动画重叠，用「错位」掩盖步间延时。
 
 设计权威来源：`../docs/design/`（Progressive Disclosure / GIS-UI 联动 / 专家领域语言）。
 
@@ -75,17 +75,23 @@ cd frontend
 npm run dev                # 打开 http://localhost:5173，点「开始推演」即调用真实 /agent/run
 ```
 
-对接的接口：`POST /api/v1/agent/run`、`POST /api/v1/agent/plan/regenerate`、`POST /api/v1/agent/plan/decision`、`GET /api/v1/agent/cases`、`GET /api/v1/health`、`POST /api/v1/intersection/load[/stream]`。
+对接的接口：`POST /api/v1/agent/run/stream`（流式，默认）、`POST /api/v1/agent/run`（一次性，降级兜底）、`POST /api/v1/agent/plan/regenerate`、`POST /api/v1/agent/plan/decision`、`GET /api/v1/agent/cases`、`GET /api/v1/health`。
 
-> 提示：`VITE_MOCK=1` 时前端完全离线回放 `src/mock/`，**不访问后端**——用于无后端时演示；真实联调务必设为 `0`。真实 `/agent/run` 会调用 Qwen + PG，单次可能耗时数秒到数十秒，属正常。
+> 提示：`VITE_MOCK=1` 时前端完全离线**模拟流式**回放 `src/mock/`（按 phase 定时推送），**不访问后端**——用于无后端时演示；真实联调设为 `0`，走 `/agent/run/stream`。真实流程会调用 Qwen + PG，各 phase 依次数秒返回，属正常。
+
+## 流式渐进（路径 B）
+
+- 后端 `POST /agent/run/stream` 每完成一个 phase 推 SSE 事件：`phase_start` → `phase_done`（含**截至当前**的完整公开快照）→ … → `pipeline_complete`；单 phase 失败推 `error` 并停止。见 `needs/6` / `plans/6`。
+- 前端 `api/sse.ts` 用 `fetch + ReadableStream` 解析（POST，EventSource 不支持），含最多 3 次重连；`store` 事件驱动。
+- **门控推进**：某幕所属 phase（`ACT_DEFS[i].phase`）未在快照 `phases` 中就绪时，不进入该幕，Dock 显示「正在（阶段）推演…」；数据到达后自动续推。同一逻辑天然兼容单次 JSON（全 phase 一开始即就绪）。
+- **优雅降级**：流式连接失败超重试 → 自动回退 `POST /agent/run` 单次 JSON + 原节奏，仍可走完九幕。
 
 ## 与后端的契约现实（重要）
 
-- `/api/v1/agent/run` 返回**一次性完整 JSON**（非流式）。九幕的「递进感」由前端 `useTimeline` + `useTyping` 编排节奏，而非后端分片。
+- 流式 `phase_done.snapshot` 为**同结构公开响应**，`phases`/`plan` 随 phase 增长逐步补齐；前端整包覆盖 store，卡片经 getters 自动更新（无需 diff）。
 - 字段多为**枚举编码**（如 `east_to_west`、`evening_peak`），前端 `labels/enums.ts` 统一翻译，未知值原样回退。
 - 地图坐标常**稀疏或为空**（`highlight_path` 仅 1 点、上下游节点无坐标等）。所有覆盖物均做 `hasCoord` 守卫，无坐标则跳过并在面板显示文本兜底。
 - 设计稿提及但后端**当前未透出**的字段（如逐车道 V/C、时距图节点间距/绝对相位）：一律显示「数据暂缺」，**绝不编造**（见 `utils/vc.ts`、`viz/TimeSpaceDiagram.vue`）。
-- 真 SSE 仅 `/intersection/load/stream`；`api/sse.ts` 提供带最多 3 次重连的状态机骨架，失败回调可切 Mock 兜底。
 
 ## 九幕 → 组件映射
 

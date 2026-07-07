@@ -48,6 +48,9 @@ const signalText = computed(
     <!-- 运行态：流水线进度 -->
     <div v-else-if="dock === 'running'" class="pipeline">
       <span class="signal" :class="`signal--${signal}`"><i />{{ signalText }}</span>
+      <span v-if="store.waiting" class="computing" data-testid="computing">
+        <span class="computing__spin" />正在{{ store.computingLabel }}推演…
+      </span>
       <ol class="nodes">
         <li
           v-for="(a, i) in acts"
@@ -192,6 +195,27 @@ const signalText = computed(
 @keyframes pulse {
   50% {
     opacity: 0.3;
+  }
+}
+.computing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--evidence);
+  flex: 0 0 auto;
+}
+.computing__spin {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--evidence-dim);
+  border-top-color: var(--evidence);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 .nodes {
