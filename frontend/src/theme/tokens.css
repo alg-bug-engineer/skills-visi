@@ -1,0 +1,110 @@
+/*
+ * 设计令牌 —— 深色信控主题（对齐 docs/design/UI_design_document.md）
+ * 业务色隐喻：青=关注/进行中；红=溢流/警示；琥珀=证据/上游；绿=保护/通过。
+ */
+:root {
+  /* 主打品牌色 · 智慧极光青 */
+  --primary: #00e5ff;
+  --primary-2: #00d4f0;
+  --primary-dim: rgba(0, 229, 255, 0.14);
+
+  /* 警示 / 溢流 · 溢流霓红 */
+  --alarm: #ff5050;
+  --alarm-2: #ff7b7b;
+  --alarm-dim: rgba(255, 80, 80, 0.12);
+
+  /* 证据 / 关注 · 警戒琥珀 */
+  --evidence: #f5a623;
+  --evidence-2: #ffc266;
+  --evidence-dim: rgba(245, 166, 35, 0.14);
+
+  /* 保护 / 约束 · 协调绿 */
+  --protected: #6dffb5;
+  --protected-2: #10b981;
+  --protected-dim: rgba(109, 255, 181, 0.12);
+
+  /* 背景 · 极暗夜幕 */
+  --bg: #020810;
+  --bg-2: #0b0f19;
+  --grid-line: rgba(0, 229, 255, 0.06);
+
+  /* 面板 · 磨砂石板 */
+  --panel: rgba(0, 8, 16, 0.92);
+  --panel-2: rgba(10, 18, 30, 0.86);
+  --panel-border: rgba(0, 229, 255, 0.18);
+  --panel-blur: blur(12px);
+
+  /* 文本 */
+  --text: #e7f5ff;
+  --text-dim: #8aa0b4;
+  --text-mute: #5a6b7c;
+
+  /* 尺寸 */
+  --insight-w: 320px;
+  --process-w: 340px;
+  --dock-h: 96px;
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  /* 字体 */
+  --font-display: 'Oswald', 'HarmonyOS Sans SC', 'PingFang SC', system-ui, sans-serif;
+  --font-body: 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+
+  /* 阴影 / 发光 */
+  --glow-primary: 0 0 12px rgba(0, 229, 255, 0.55);
+  --glow-alarm: 0 0 12px rgba(255, 80, 80, 0.55);
+  --glow-protected: 0 0 12px rgba(109, 255, 181, 0.5);
+  --shadow-panel: 0 8px 40px rgba(0, 0, 0, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 全局细网格底纹（地图未加载时的兜底氛围） */
+.us-grid-bg {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.us-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+  box-shadow: var(--shadow-panel);
+}
+
+.us-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

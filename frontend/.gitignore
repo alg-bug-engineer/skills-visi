@@ -1,0 +1,18 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env.local
+.env.*.local
+
+# test artifacts
+coverage/
+test-results/
+playwright-report/
+e2e/**/__screenshots__/actual/
+e2e/shots/
+.vite/
+
+# editor / os
+.DS_Store
+*.log

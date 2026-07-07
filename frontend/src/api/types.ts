@@ -1,0 +1,310 @@
+/**
+ * 后端公开响应类型（镜像 docs/剧本字段-API对照.md 与真实响应）。
+ * 约定：可能缺失/为空的字段一律 `| null` 或可选，前端做守卫降级。
+ */
+
+export type LngLat = [number, number]
+
+export interface MatchCandidate {
+  inter_id: string | null
+  inter_name: string | null
+  confidence: number | null
+  source: string | null
+}
+
+export interface UserExperience {
+  experience_type: string
+  content: string
+  source_span?: string | null
+  tags?: Record<string, unknown>
+}
+
+export interface DiagnosisTicket {
+  object_type: string | null
+  intersection_name: string | null
+  intersection_name_candidates?: string[]
+  inter_id: string | null
+  lng: number | null
+  lat: number | null
+  time_range: string | null
+  period: string | null
+  direction: string | null
+  movement: string | null
+  problem_type: string | null
+  constraints: string[]
+  diagnosis_scope: string | null
+  governance_goal: string | null
+  match_confidence: number | null
+  match_method: string | null
+  match_candidates?: MatchCandidate[]
+  user_experiences?: UserExperience[]
+}
+
+export interface RecognitionStep {
+  step: string
+  status: string
+  label: string
+}
+
+export interface SpatialNode {
+  inter_id?: string | null
+  inter_name?: string | null
+  lng?: number | null
+  lat?: number | null
+  [k: string]: unknown
+}
+
+export interface SpatialScene {
+  available: boolean
+  recognition_steps: RecognitionStep[]
+  target: {
+    inter_id: string | null
+    inter_name: string | null
+    lng: number | null
+    lat: number | null
+    direction: string | null
+    movement: string | null
+  } | null
+  highlight_path: LngLat[]
+  upstream_nodes: SpatialNode[]
+  downstream_nodes: SpatialNode[]
+  main_path?: string | null
+}
+
+export interface SpatialObjects {
+  target_intersection?: string
+  target_direction?: string
+  target_movement?: string
+  upstream_scope?: string
+  downstream_scope?: string
+  main_path?: string
+}
+
+export interface IntentPhase {
+  diagnosis_ticket?: DiagnosisTicket
+  spatial_scene?: SpatialScene
+  spatial_objects?: SpatialObjects
+  user_experiences?: UserExperience[]
+}
+
+export interface Metrics {
+  queue_length_m: number | null
+  storage_length_m: number | null
+  queue_ratio: number | null
+  saturation: number | null
+  los?: string | null
+  green_utilization: number | null
+  stop_count: number | null
+  avg_delay_s: number | null
+  time_series_trend: string | null
+  [k: string]: unknown
+}
+
+export interface OverflowVerification {
+  verified: boolean | null
+  risk_level: string | null
+  message: string | null
+}
+
+export interface DownstreamDiagnosis {
+  available?: boolean
+  scenario: string | null
+  release_answer: string | null
+  narrative?: string | null
+  judgment_criteria?: string[]
+  can_simple_add_green: boolean | null
+  expert_question?: string | null
+  [k: string]: unknown
+}
+
+export interface ArterialAnalysis {
+  upstream_arrival_flow_vph: number | null
+  upstream_release_intensity_vph: number | null
+  target_remaining_storage_m: number | null
+  downstream_remaining_storage_m?: number | null
+  downstream_remaining_capacity?: string | null
+  phase_offset_match: string | null
+  need_upstream_metering: boolean | null
+  need_downstream_dissipation_first: boolean | null
+  summary: string | null
+  [k: string]: unknown
+}
+
+export interface MapSceneTurnTrace {
+  movement?: string | null
+  name?: string | null
+  share_pct?: number | null
+  path?: LngLat[]
+  lon?: number | null
+  lat?: number | null
+  trace_kind?: string | null
+  [k: string]: unknown
+}
+
+export interface MapScene {
+  action?: string
+  phase?: string
+  available?: boolean
+  center?: LngLat | null
+  trace_direction?: string
+  turn_traces?: MapSceneTurnTrace[]
+  adjacent_intersections?: Array<{
+    inter_id?: string | null
+    inter_name?: string | null
+    lng?: number | null
+    lat?: number | null
+    metrics?: Record<string, unknown>
+  }>
+  [k: string]: unknown
+}
+
+export interface DiagnosisPhase {
+  metrics?: Metrics
+  downstream_metrics?: Record<string, unknown>
+  overflow_verification?: OverflowVerification
+  downstream_diagnosis?: DownstreamDiagnosis
+  bottleneck_analysis?: { bottleneck_type?: string | null; [k: string]: unknown }
+  arterial_analysis?: ArterialAnalysis
+  flow_trace?: { entry_traces?: MapSceneTurnTrace[]; [k: string]: unknown }
+  map_scenes?: Record<string, MapScene>
+  scenario_report?: {
+    available?: boolean
+    issues?: Array<{ item_id: string; label: string; status: string; summary?: string }>
+    [k: string]: unknown
+  }
+  problem_confirmed?: boolean
+  data_source?: string
+  [k: string]: unknown
+}
+
+export interface CaseCard {
+  case_id?: string
+  title?: string
+  similarity?: number | null
+  similarity_points?: string[]
+  action?: string
+  historical_action?: string
+  outcome?: string
+  lesson?: string
+  [k: string]: unknown
+}
+
+export interface CausePhase {
+  cause_analysis?: {
+    primary_cause?: string
+    secondary_causes?: string[]
+    optimizable_points?: string[]
+    data_gaps?: string[]
+    narrative?: string
+  }
+  cause_scores?: Record<string, number>
+  cause_ranking?: Array<{ rank?: number; cause?: string; role?: string }>
+  case_cards?: {
+    matched_count?: number
+    high_similarity_count?: number
+    cards?: CaseCard[]
+  }
+  arterial_coordination_needed?: boolean
+  [k: string]: unknown
+}
+
+export interface StrategyPhase {
+  strategy?: {
+    principles?: string[]
+    recommended?: string[]
+    not_recommended?: string[]
+    hard_constraints?: string[]
+    trigger_exit_rules?: Record<string, unknown>
+  }
+  strategy_package?: string
+  control_scope_map?: MapScene & {
+    target_intersection?: { inter_id?: string; inter_name?: string; lng?: number; lat?: number }
+    upstream_metering_points?: Array<Record<string, unknown>>
+    downstream_protection_nodes?: Array<Record<string, unknown>>
+  }
+  case_references?: Record<string, unknown>
+  [k: string]: unknown
+}
+
+export interface PhaseStageTiming {
+  phase_stage_id: string
+  phase_stage_name: string
+  green_time_s: number
+  yellow_time_s: number
+  all_red_time_s: number
+  min_green_time_s?: number
+  max_green_time_s?: number
+  split_ratio?: number
+  [k: string]: unknown
+}
+
+export interface PlanCandidate {
+  plan_id: string
+  name: string
+  status: string
+  scenario?: string
+  case_basis?: { matched_cases?: number; lesson?: string }
+  timing?: { cycle_s?: number; phase_stage_timing_list?: PhaseStageTiming[] }
+  upstream_control?: { enabled?: boolean; control_points?: unknown[] }
+  phase_offset_sec?: number
+  pedestrian_constraints?: { satisfied?: boolean; violations?: string[] }
+  downstream_risk?: { level?: string; reasons?: string[] }
+  expected_effect?: string
+  risk?: string
+  rollback_condition?: string
+  execution_order?: string[]
+  guardrail_pass?: boolean
+  validation_errors?: string[]
+  // 设计稿提及但后端当前未透出（附录 B），可选：
+  vc_predictions?: Record<string, number>
+  [k: string]: unknown
+}
+
+export interface PlanBlock {
+  candidates: PlanCandidate[] | null
+  recommended: PlanCandidate | null
+  recommendation: {
+    recommended_plan_id?: string
+    rationale?: string
+  } | null
+  rollback_conditions: string[] | null
+  signal_source: string | null
+  optimizer_engine: string | null
+  all_guardrails_passed: boolean | null
+}
+
+export interface PhaseResult {
+  phase: string
+  success: boolean
+  duration_ms: number | null
+  errors: string[]
+}
+
+export interface RunResponse {
+  trace_id: string | null
+  completed: boolean | null
+  pipeline_complete: boolean
+  diagnosis_ticket: DiagnosisTicket | null
+  phases: {
+    intent?: IntentPhase
+    diagnosis?: DiagnosisPhase
+    cause?: CausePhase
+    strategy?: StrategyPhase
+    plan?: Record<string, unknown>
+  }
+  plan: PlanBlock | null
+  phase_results: PhaseResult[]
+}
+
+export interface HealthResponse {
+  status: string
+  llm_mock: boolean
+  model: string
+  pg_configured: boolean
+}
+
+export interface ApiError {
+  ok: false
+  reason: string
+  detail?: unknown
+}

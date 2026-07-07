@@ -1,0 +1,2012 @@
+{
+  "trace_id": "1d52b87c7ccb4c5c",
+  "completed": true,
+  "pipeline_complete": false,
+  "diagnosis_ticket": {
+    "object_type": "intersection",
+    "intersection_name": "经十路与转山西路路口",
+    "intersection_name_candidates": [
+      "转山西路与经十路交叉口",
+      "经十路与转山西路交叉口",
+      "转山西路经十路路口",
+      "经十路转山西路路口"
+    ],
+    "time_range": "18:10-18:30",
+    "period": "evening_peak",
+    "direction": "east_to_west",
+    "movement": "straight",
+    "problem_type": "queue_spillover",
+    "constraints": [
+      "优先避免下游继续外溢"
+    ],
+    "diagnosis_scope": "intersection",
+    "governance_goal": "mitigate_spillover",
+    "user_experiences": [
+      {
+        "experience_type": "cognitive",
+        "content": "东向西排队溢出到上游",
+        "source_span": "东向西排队溢出到上游",
+        "tags": {
+          "problem_type": "queue_spillover",
+          "direction": "east_to_west",
+          "time_period": "evening_peak"
+        }
+      },
+      {
+        "experience_type": "solution",
+        "content": "优先避免下游继续外溢",
+        "source_span": "优先避免下游继续外溢",
+        "tags": {
+          "strategy_action": "prevent_downstream_spillover",
+          "priority": "high"
+        }
+      }
+    ],
+    "inter_id": "011wwe289qc00001",
+    "lng": 117.10159,
+    "lat": 36.657529,
+    "match_confidence": 1.0,
+    "match_candidates": [
+      {
+        "inter_id": "011wwe289qc00001",
+        "inter_name": "经十路与转山西路路口",
+        "confidence": 1.0,
+        "source": "pg"
+      }
+    ],
+    "match_method": "reversed_order"
+  },
+  "phases": {
+    "intent": {
+      "diagnosis_ticket": {
+        "object_type": "intersection",
+        "intersection_name": "经十路与转山西路路口",
+        "intersection_name_candidates": [
+          "转山西路与经十路交叉口",
+          "经十路与转山西路交叉口",
+          "转山西路经十路路口",
+          "经十路转山西路路口"
+        ],
+        "time_range": "18:10-18:30",
+        "period": "evening_peak",
+        "direction": "east_to_west",
+        "movement": "straight",
+        "problem_type": "queue_spillover",
+        "constraints": [
+          "优先避免下游继续外溢"
+        ],
+        "diagnosis_scope": "intersection",
+        "governance_goal": "mitigate_spillover",
+        "user_experiences": [
+          {
+            "experience_type": "cognitive",
+            "content": "东向西排队溢出到上游",
+            "source_span": "东向西排队溢出到上游",
+            "tags": {
+              "problem_type": "queue_spillover",
+              "direction": "east_to_west",
+              "time_period": "evening_peak"
+            }
+          },
+          {
+            "experience_type": "solution",
+            "content": "优先避免下游继续外溢",
+            "source_span": "优先避免下游继续外溢",
+            "tags": {
+              "strategy_action": "prevent_downstream_spillover",
+              "priority": "high"
+            }
+          }
+        ],
+        "inter_id": "011wwe289qc00001",
+        "lng": 117.10159,
+        "lat": 36.657529,
+        "match_confidence": 1.0,
+        "match_candidates": [
+          {
+            "inter_id": "011wwe289qc00001",
+            "inter_name": "经十路与转山西路路口",
+            "confidence": 1.0,
+            "source": "pg"
+          }
+        ],
+        "match_method": "reversed_order"
+      },
+      "user_experiences": [
+        {
+          "experience_type": "cognitive",
+          "content": "东向西排队溢出到上游",
+          "source_span": "东向西排队溢出到上游",
+          "tags": {
+            "inter_id": "011wwe289qc00001",
+            "intersection_name": "经十路与转山西路路口",
+            "problem_type": "queue_spillover",
+            "time_period": "evening_peak",
+            "direction": "east_to_west",
+            "movement": "straight",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": null,
+            "cause_keywords": [],
+            "strategy_action": null,
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [
+              "优先避免下游继续外溢"
+            ],
+            "confidence": null
+          }
+        },
+        {
+          "experience_type": "solution",
+          "content": "优先避免下游继续外溢",
+          "source_span": "优先避免下游继续外溢",
+          "tags": {
+            "inter_id": "011wwe289qc00001",
+            "intersection_name": "经十路与转山西路路口",
+            "problem_type": "queue_spillover",
+            "time_period": null,
+            "direction": "east_to_west",
+            "movement": "straight",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": null,
+            "cause_keywords": [],
+            "strategy_action": "prevent_downstream_spillover",
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [
+              "优先避免下游继续外溢"
+            ],
+            "confidence": null,
+            "priority": "high"
+          }
+        }
+      ],
+      "spatial_objects": {
+        "target_intersection": "经十路与转山西路路口",
+        "target_direction": "east_to_west",
+        "target_movement": "straight",
+        "upstream_scope": "east_to_west来车来源路段与相邻路口",
+        "downstream_scope": "east_to_west出口路段与下游信控节点",
+        "main_path": "上游来车 → 目标路口 → 下游承接节点"
+      },
+      "spatial_scene": {
+        "available": true,
+        "recognition_steps": [
+          {
+            "step": "intersection_match",
+            "status": "done",
+            "label": "路口匹配完成"
+          },
+          {
+            "step": "approach_direction",
+            "status": "done",
+            "label": "进口方向识别完成"
+          },
+          {
+            "step": "turn_relation",
+            "status": "done",
+            "label": "转向关系识别完成"
+          },
+          {
+            "step": "topology",
+            "status": "pending",
+            "label": "上下游拓扑识别完成"
+          },
+          {
+            "step": "arterial_path",
+            "status": "done",
+            "label": "干线路径识别完成"
+          }
+        ],
+        "target": {
+          "inter_id": "011wwe289qc00001",
+          "inter_name": "经十路与转山西路路口",
+          "lng": 117.10159,
+          "lat": 36.657529,
+          "direction": "east_to_west",
+          "movement": "straight"
+        },
+        "highlight_path": [
+          [
+            117.10159,
+            36.657529
+          ]
+        ],
+        "upstream_nodes": [],
+        "downstream_nodes": [],
+        "main_path": "上游来车 → 经十路与转山西路路口 → 下游承接节点"
+      }
+    },
+    "diagnosis": {
+      "metrics": {
+        "queue_length_m": 158.0,
+        "storage_length_m": 883.94,
+        "queue_ratio": 0.1787,
+        "saturation": 0.0305,
+        "los": "A",
+        "green_utilization": 0.5741,
+        "stop_count": 0.59,
+        "avg_delay_s": 41.04,
+        "time_series_trend": "pg_loaded"
+      },
+      "downstream_metrics": {
+        "queue_ratio": 0.1889,
+        "saturation": 0.0,
+        "green_utilization": 0.8
+      },
+      "upstream_metrics": {
+        "arrival_intensity": "high",
+        "arrival_flow_vph": 103.2,
+        "release_intensity_vph": 98.03999999999999
+      },
+      "target_intersection": {
+        "inter_id": "011wwe289qc00001",
+        "inter_name": "经十路与转山西路路口",
+        "role": "target",
+        "lng": null,
+        "lat": null,
+        "receiving_dir8": null,
+        "receiving_label": null,
+        "metrics": {
+          "avg_delay_s": 41.04,
+          "saturation_rate": 0.0305,
+          "avg_queue_m": 158.0,
+          "max_queue_m": 158.0,
+          "queue_storage_ratio_max": 0.1787,
+          "spillback_risk_max": 0.1787,
+          "level_of_service": "A",
+          "green_utilization": 0.5741,
+          "stop_count": 0.59,
+          "time_series_trend": "pg_loaded"
+        },
+        "by_turn": [
+          {
+            "label": "east_to_weststraight",
+            "turn_saturation": 0.0305,
+            "green_utilization": 0.5741,
+            "flow_vph": 103.2,
+            "queue_ratio": 0.1787
+          }
+        ],
+        "overflow_verification": {
+          "verified": true,
+          "risk_level": "low",
+          "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+        },
+        "remaining_storage_m": 725.94
+      },
+      "spatial_topology": {
+        "target_intersection": "经十路与转山西路路口",
+        "target_direction": "east_to_west",
+        "target_movement": "straight",
+        "upstream_scope": "east_to_west来车来源路段与相邻路口",
+        "downstream_scope": "east_to_west出口路段与下游信控节点",
+        "main_path": "上游来车 → 目标路口 → 下游承接节点"
+      },
+      "downstream_trace": {
+        "available": true,
+        "trace_direction": "downstream",
+        "turn_traces": [
+          {
+            "movement": "东进口直行",
+            "dir8_code": 2,
+            "turn_dir_no": 2,
+            "exit_dir8": 6,
+            "downstream_inter_id": "",
+            "downstream_inter_name": "下游信控节点",
+            "share_pct": null,
+            "path": [],
+            "path_source": "demo",
+            "receiving_dir8": null,
+            "receiving_label": null,
+            "lng": null,
+            "lat": null,
+            "downstream_metrics": {
+              "inter_id": null,
+              "inter_name": "下游信控节点",
+              "role": "downstream",
+              "lng": null,
+              "lat": null,
+              "receiving_dir8": null,
+              "receiving_label": null,
+              "metrics": {
+                "avg_delay_s": null,
+                "saturation_rate": 0.0,
+                "avg_queue_m": 34.0,
+                "max_queue_m": 34.0,
+                "queue_storage_ratio_max": 0.1889,
+                "spillback_risk_max": 0.1889,
+                "level_of_service": "A",
+                "green_utilization": 0.8,
+                "stop_count": null,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": 0.0,
+                  "green_utilization": 0.8,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.1889
+                }
+              ],
+              "overflow_verification": {
+                "verified": true,
+                "risk_level": "low",
+                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+              },
+              "remaining_storage_m": 146.0
+            },
+            "capacity": {
+              "can_release": true,
+              "blocked": false,
+              "reasons": [],
+              "release_guard": "downstream_has_slack"
+            },
+            "trace_kind": "downstream",
+            "narrative": "东进口直行去向下游信控节点，下游仍有余量，可局部增绿清空"
+          }
+        ],
+        "adjacent_intersections": [
+          {
+            "inter_id": null,
+            "inter_name": "下游信控节点",
+            "role": "downstream",
+            "lng": null,
+            "lat": null,
+            "receiving_dir8": null,
+            "receiving_label": null,
+            "metrics": {
+              "avg_delay_s": null,
+              "saturation_rate": 0.0,
+              "avg_queue_m": 34.0,
+              "max_queue_m": 34.0,
+              "queue_storage_ratio_max": 0.1889,
+              "spillback_risk_max": 0.1889,
+              "level_of_service": "A",
+              "green_utilization": 0.8,
+              "stop_count": null,
+              "time_series_trend": null
+            },
+            "by_turn": [
+              {
+                "label": "直行",
+                "turn_saturation": 0.0,
+                "green_utilization": 0.8,
+                "flow_vph": 0.0,
+                "queue_ratio": 0.1889
+              }
+            ],
+            "overflow_verification": {
+              "verified": true,
+              "risk_level": "low",
+              "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+            },
+            "remaining_storage_m": 146.0,
+            "capacity": {
+              "can_release": true,
+              "blocked": false,
+              "reasons": [],
+              "release_guard": "downstream_has_slack"
+            },
+            "linked_movements": [
+              "东进口直行"
+            ],
+            "share_pct": null
+          }
+        ],
+        "governance": {
+          "landing": "local_reallocation",
+          "downstream_blocked": false,
+          "recommendation": "下游可承接，可评估局部增绿清空"
+        },
+        "target_comparison": {
+          "target": {
+            "inter_id": "011wwe289qc00001",
+            "inter_name": "经十路与转山西路路口",
+            "role": "target",
+            "lng": null,
+            "lat": null,
+            "receiving_dir8": null,
+            "receiving_label": null,
+            "metrics": {
+              "avg_delay_s": 41.04,
+              "saturation_rate": 0.0305,
+              "avg_queue_m": 158.0,
+              "max_queue_m": 158.0,
+              "queue_storage_ratio_max": 0.1787,
+              "spillback_risk_max": 0.1787,
+              "level_of_service": "A",
+              "green_utilization": 0.5741,
+              "stop_count": 0.59,
+              "time_series_trend": "pg_loaded"
+            },
+            "by_turn": [
+              {
+                "label": "east_to_weststraight",
+                "turn_saturation": 0.0305,
+                "green_utilization": 0.5741,
+                "flow_vph": 103.2,
+                "queue_ratio": 0.1787
+              }
+            ],
+            "overflow_verification": {
+              "verified": true,
+              "risk_level": "low",
+              "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+            },
+            "remaining_storage_m": 725.94
+          },
+          "downstream_nodes": [
+            {
+              "inter_id": null,
+              "inter_name": "下游信控节点",
+              "role": "downstream",
+              "lng": null,
+              "lat": null,
+              "receiving_dir8": null,
+              "receiving_label": null,
+              "metrics": {
+                "avg_delay_s": null,
+                "saturation_rate": 0.0,
+                "avg_queue_m": 34.0,
+                "max_queue_m": 34.0,
+                "queue_storage_ratio_max": 0.1889,
+                "spillback_risk_max": 0.1889,
+                "level_of_service": "A",
+                "green_utilization": 0.8,
+                "stop_count": null,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": 0.0,
+                  "green_utilization": 0.8,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.1889
+                }
+              ],
+              "overflow_verification": {
+                "verified": true,
+                "risk_level": "low",
+                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+              },
+              "remaining_storage_m": 146.0,
+              "capacity": {
+                "can_release": true,
+                "blocked": false,
+                "reasons": [],
+                "release_guard": "downstream_has_slack"
+              },
+              "linked_movements": [
+                "东进口直行"
+              ],
+              "share_pct": null
+            }
+          ],
+          "same_metric_dimensions": true
+        }
+      },
+      "flow_trace": {
+        "available": false,
+        "reason": "no_upstream_topology"
+      },
+      "arterial_analysis": {
+        "upstream_arrival_flow_vph": 103.2,
+        "upstream_release_intensity_vph": 98.03999999999999,
+        "target_remaining_storage_m": 725.94,
+        "downstream_remaining_storage_m": 146.0,
+        "phase_offset_match": "pg",
+        "need_upstream_metering": false,
+        "need_downstream_dissipation_first": false,
+        "upstream_arrival_intensity": "high",
+        "summary": "上下游压力可控，可评估局部优化"
+      },
+      "downstream_diagnosis": {
+        "available": true,
+        "scenario": "mixed",
+        "release_answer": "绿灯给了也用不上",
+        "can_simple_add_green": false,
+        "primary_downstream": {
+          "inter_id": null,
+          "inter_name": "下游信控节点",
+          "metrics": {
+            "avg_delay_s": null,
+            "saturation_rate": 0.0,
+            "avg_queue_m": 34.0,
+            "max_queue_m": 34.0,
+            "queue_storage_ratio_max": 0.1889,
+            "spillback_risk_max": 0.1889,
+            "level_of_service": "A",
+            "green_utilization": 0.8,
+            "stop_count": null,
+            "time_series_trend": null
+          },
+          "by_turn": [
+            {
+              "label": "直行",
+              "turn_saturation": 0.0,
+              "green_utilization": 0.8,
+              "flow_vph": 0.0,
+              "queue_ratio": 0.1889
+            }
+          ],
+          "remaining_storage_m": 146.0,
+          "capacity": {
+            "can_release": true,
+            "blocked": false,
+            "reasons": [],
+            "release_guard": "downstream_has_slack"
+          }
+        },
+        "judgment_criteria": {
+          "target_queue_high": false,
+          "target_saturation_high": false,
+          "target_green_utilization_high": false,
+          "downstream_queue_high": false,
+          "downstream_near_saturation": false,
+          "add_green_spillback_risk": false
+        },
+        "narrative": "排队高但绿灯利用率低，可能存在下游阻塞、出口不畅或检测异常",
+        "expert_question": "加绿以后，车有没有地方去？"
+      },
+      "map_scenes": {
+        "downstream_trace_map": {
+          "action": "map_scene",
+          "phase": "downstream_trace_map",
+          "available": true,
+          "center": null,
+          "trace_direction": "downstream",
+          "turn_traces": [
+            {
+              "movement": "东进口直行",
+              "downstream_inter_id": "",
+              "name": "下游信控节点",
+              "share_pct": null,
+              "path": [],
+              "lon": null,
+              "lat": null,
+              "capacity": {
+                "blocked": false,
+                "can_release": true
+              },
+              "trace_kind": "downstream"
+            }
+          ],
+          "adjacent_intersections": [
+            {
+              "inter_id": null,
+              "inter_name": "下游信控节点",
+              "lng": null,
+              "lat": null,
+              "metrics": {
+                "avg_delay_s": null,
+                "saturation_rate": 0.0,
+                "avg_queue_m": 34.0,
+                "max_queue_m": 34.0,
+                "queue_storage_ratio_max": 0.1889,
+                "spillback_risk_max": 0.1889,
+                "level_of_service": "A",
+                "green_utilization": 0.8,
+                "stop_count": null,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": 0.0,
+                  "green_utilization": 0.8,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.1889
+                }
+              ],
+              "remaining_storage_m": 146.0,
+              "capacity": {
+                "can_release": true,
+                "blocked": false,
+                "reasons": [],
+                "release_guard": "downstream_has_slack"
+              }
+            }
+          ],
+          "hud": {
+            "title": "下游一跳去向",
+            "metrics": [
+              {
+                "label": "治理落点",
+                "value": "local_reallocation",
+                "severity": "low"
+              },
+              {
+                "label": "建议",
+                "value": "下游可承接，可评估局部增绿清空"
+              }
+            ]
+          }
+        },
+        "arterial_analysis": {
+          "action": "map_scene",
+          "phase": "upstream_correlate_map",
+          "available": false
+        }
+      },
+      "overflow_verification": {
+        "verified": true,
+        "risk_level": "low",
+        "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+      },
+      "bottleneck_analysis": {
+        "bottleneck_type": "downstream_or_channelization",
+        "label": "绿灯给了也用不上",
+        "can_simple_add_green": false,
+        "reason": "排队高但绿灯利用率低，可能存在下游阻塞、出口不畅或检测异常"
+      },
+      "problem_confirmed": false,
+      "target": {
+        "intersection": "经十路与转山西路路口",
+        "direction": "east_to_west",
+        "movement": "straight",
+        "dir8_code": 2,
+        "turn_dir_no": 2
+      },
+      "scenario_report": {
+        "available": true,
+        "dimensions": [
+          {
+            "dimension": "demand",
+            "status": "normal",
+            "summary": "目标方向排队比 0.1787"
+          },
+          {
+            "dimension": "capacity",
+            "status": "normal",
+            "summary": "目标方向饱和度 0.0305"
+          },
+          {
+            "dimension": "data_quality",
+            "status": "gap",
+            "summary": "4 项检查单数据缺失"
+          },
+          {
+            "dimension": "spatial",
+            "status": "ok",
+            "summary": "目标方向 east_to_weststraight"
+          }
+        ],
+        "issues": [
+          {
+            "item_id": "inter_basic_info",
+            "label": "路口交叉道路等级、形态",
+            "status": "has_data",
+            "summary": "信号化 · inter · 经十路与转山西路路口",
+            "table": "road6.dim_inter_info + dim_link_info"
+          },
+          {
+            "item_id": "channelization",
+            "label": "进口/出口/渠化",
+            "status": "has_data",
+            "summary": "进口 4 条 / 出口 5 条",
+            "table": "road6.dwd_tfc_rltn_wide_inter_ft_link"
+          },
+          {
+            "item_id": "lane_detail",
+            "label": "车道明细",
+            "status": "has_data",
+            "summary": "50 条车道记录",
+            "table": "road6.dwd_tfc_rltn_wide_inter_ft_lane"
+          },
+          {
+            "item_id": "adjacent_spacing",
+            "label": "相邻路口间距、进口道路等级",
+            "status": "has_data",
+            "summary": "最短关联路段 48 m · 上游 6 / 下游 9 · 道路等级 城市主干道/城市次干道",
+            "table": "road6.dwd_tfc_rltn_wide_inter_ft_link + dim_link_info"
+          },
+          {
+            "item_id": "aoi_sources",
+            "label": "周边交通发生源/吸引源",
+            "status": "has_data",
+            "summary": "800m范围吸引源/出入口：停车场8处、商圈2处、其他1处、学校1处",
+            "table": "xianchang.ods_amap_aoi_info + xianchang.ods_amap_poi_info"
+          },
+          {
+            "item_id": "min_green_cfg",
+            "label": "各方向最小绿",
+            "status": "has_data",
+            "summary": "6 个转向 · 最小绿 14~14s · 1728 条时序",
+            "table": "xianchang.dws_turn_min_green_5min_mm"
+          },
+          {
+            "item_id": "turn_flow",
+            "label": "转向流量",
+            "status": "has_data",
+            "summary": "全天转向流量 77173",
+            "table": "xianchang.dws_inter_link_turn_flow_5min_mm"
+          },
+          {
+            "item_id": "flow_correlate",
+            "label": "转向流量溯源",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dws_tfc_inter_turn_flow_correlate_m"
+          },
+          {
+            "item_id": "lane_flow",
+            "label": "车道流量",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_tfc_lane_roadcross_flow_5mi"
+          },
+          {
+            "item_id": "turn_saturation",
+            "label": "转向/相位饱和度",
+            "status": "has_data",
+            "summary": "最高转向饱和度 1.93 · 1728 条",
+            "table": "xianchang.dws_turn_saturation_5min_mm"
+          },
+          {
+            "item_id": "inter_evaluation",
+            "label": "路口综合评价",
+            "status": "has_data",
+            "summary": "饱和度 0.6089 · LOS B",
+            "table": "xianchang.dws_inter_evaluation_5min_mm"
+          },
+          {
+            "item_id": "turn_perf",
+            "label": "排队/延误/停车/溢流",
+            "status": "has_data",
+            "summary": "最大排队 277 m · 2430 条",
+            "table": "xianchang.dws_inter_dir_turn_perf_5min_mm"
+          },
+          {
+            "item_id": "green_utilization",
+            "label": "绿灯利用率/空放",
+            "status": "has_data",
+            "summary": "平均绿灯利用率 0.50",
+            "table": "xianchang.dws_turn_green_utilization_5min_mm"
+          },
+          {
+            "item_id": "lane_capacity",
+            "label": "车道通行能力",
+            "status": "has_data",
+            "summary": "车道能力合计 2310227",
+            "table": "xianchang.dws_lane_capacity_5min_mm"
+          },
+          {
+            "item_id": "lane_saturation_headway",
+            "label": "车道级饱和流率",
+            "status": "has_data",
+            "summary": "饱和流率 1333~1564 pcu/h · 324 条",
+            "table": "xianchang.dim_lane_saturation_headway"
+          },
+          {
+            "item_id": "plan_cfg",
+            "label": "当前方案/周期",
+            "status": "has_data",
+            "summary": "方案 29 个 · 周期 130s",
+            "table": "xianchang.dwd_ctl_inter_plan_cfg"
+          },
+          {
+            "item_id": "stage_timing",
+            "label": "阶段绿信比",
+            "status": "has_data",
+            "summary": "方案 29 个 · 周期 130s",
+            "table": "xianchang.dwd_ctl_inter_plan_stage_timing"
+          },
+          {
+            "item_id": "signal_lane_mapping",
+            "label": "信号原子↔车道",
+            "status": "has_data",
+            "summary": "174 条原子-车道映射",
+            "table": "xianchang.dwd_ctl_inter_signal_atom_lane_mapping"
+          },
+          {
+            "item_id": "schedule_cfg",
+            "label": "时段方案数",
+            "status": "has_data",
+            "summary": "104 条时段调度",
+            "table": "xianchang.dwd_ctl_inter_schedule_cfg"
+          },
+          {
+            "item_id": "complaint_records",
+            "label": "投诉台账",
+            "status": "has_data",
+            "summary": "3 条投诉",
+            "table": "xianchang.dwd_tfc_complaint_inter_issue"
+          },
+          {
+            "item_id": "field_survey",
+            "label": "现场调研",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_tfc_field_survey_inter_issue"
+          },
+          {
+            "item_id": "expert_strong_attractor",
+            "label": "强吸引点上下文标签",
+            "status": "no_data",
+            "summary": "",
+            "table": null
+          }
+        ],
+        "summary": {
+          "total": 22,
+          "has_data": 18,
+          "no_data": 4
+        }
+      },
+      "topology": {
+        "target_inter_id": "011wwe289qc00001",
+        "target_inter_name": "经十路与转山西路路口",
+        "target_lng": null,
+        "target_lat": null,
+        "dir8_code": 2,
+        "turn_dir_no": 2,
+        "period_type": "EVENING_PEAK",
+        "day_basis": "工作日",
+        "upstream_arrival_flow_vph": 103.2,
+        "upstream_release_intensity_vph": 98.03999999999999,
+        "upstream_arrival_intensity": "high",
+        "phase_offset_match": "pg",
+        "upstream_nodes": [],
+        "downstream_nodes": [
+          {
+            "inter_id": null,
+            "inter_name": "下游信控节点",
+            "role": "downstream",
+            "lng": null,
+            "lat": null,
+            "queue_length_m": 34.0,
+            "storage_length_m": 180.0,
+            "volume_vph": 0.0,
+            "capacity_vph": 1600.0,
+            "green_utilization": 0.8
+          }
+        ],
+        "caveat": "PG 拓扑：来自 flow_correlate / turn_perf"
+      },
+      "data_source": "pg"
+    },
+    "cause": {
+      "cause_analysis": {
+        "primary_cause": "信号控制不当（绿灯利用率低，存在空放现象）",
+        "secondary_causes": [
+          "交通秩序干扰（周边投诉较多，可能存在秩序问题）"
+        ],
+        "optimizable_points": [
+          "优化信号配时方案，提高绿灯利用率",
+          "排查交通秩序问题，减少干扰因素"
+        ],
+        "data_gaps": [
+          "转向流量溯源数据缺失",
+          "车道流量数据缺失",
+          "现场调研数据缺失",
+          "强吸引点上下文标签数据缺失",
+          "转向流量溯源数据不足",
+          "车道流量数据不足",
+          "现场调研数据不足",
+          "强吸引点上下文标签数据不足"
+        ],
+        "narrative": "经十路与转山西路路口东向西直行方向在晚高峰期间出现排队溢出问题。诊断数据显示，该方向排队长度为158米，占进口道存储长度的17.87%，但饱和度仅为0.0305，绿灯利用率为0.5741，表明存在明显的绿灯空放现象。上游来车强度较高（103.2 vph），但释放强度不足（98.04 vph），说明信号控制未能有效匹配交通需求。下游节点仍有承接能力（剩余存储146米），具备优化空间。历史案例显示，类似场景下通过优化相位设计、重新分配绿信比、实施协同控制等措施，可有效缓解排队溢出问题。",
+        "cause_ranking": [
+          {
+            "rank": 1,
+            "cause": "信号控制不当（绿灯利用率低，存在空放现象）",
+            "role": "主因"
+          },
+          {
+            "rank": 2,
+            "cause": "交通秩序干扰（周边投诉较多，可能存在秩序问题）",
+            "role": "次因"
+          },
+          {
+            "rank": 3,
+            "cause": "上游来车强度较高",
+            "role": "诱因"
+          }
+        ]
+      },
+      "cause_scores": {
+        "scores": {
+          "demand": 0.0,
+          "supply": 0.0,
+          "control": 0.4,
+          "order": 0.4,
+          "event": 0.0,
+          "coordination": 0.0
+        },
+        "ranked_dimensions": [
+          {
+            "dimension": "control",
+            "label": "信号控制不当",
+            "score": 0.4
+          },
+          {
+            "dimension": "order",
+            "label": "交通秩序干扰",
+            "score": 0.4
+          },
+          {
+            "dimension": "demand",
+            "label": "交通需求压力",
+            "score": 0.0
+          },
+          {
+            "dimension": "supply",
+            "label": "通行供给不足",
+            "score": 0.0
+          },
+          {
+            "dimension": "event",
+            "label": "事件与阻塞",
+            "score": 0.0
+          },
+          {
+            "dimension": "coordination",
+            "label": "协调联动不足",
+            "score": 0.0
+          }
+        ],
+        "primary_dimension": "control",
+        "issue_flags": [
+          {
+            "issue_code": "empty_green",
+            "dimension": "control",
+            "value": 0.5741
+          },
+          {
+            "issue_code": "public_complaint",
+            "dimension": "order",
+            "value": 3
+          }
+        ],
+        "scoring_method": "deterministic_thresholds"
+      },
+      "cause_ranking": [
+        {
+          "rank": 1,
+          "cause": "信号控制不当（绿灯利用率低，存在空放现象）",
+          "role": "主因"
+        },
+        {
+          "rank": 2,
+          "cause": "交通秩序干扰（周边投诉较多，可能存在秩序问题）",
+          "role": "次因"
+        },
+        {
+          "rank": 3,
+          "cause": "上游来车强度较高",
+          "role": "诱因"
+        }
+      ],
+      "similar_cases": [
+        {
+          "score": 4.0,
+          "scene": "广东省汕头市金平区中山路与龙眼路交叉口（中山-龙眼路口），属老城区核心路段，周边密集分布多所中小学、住宅区及办公区，交通需求旺盛；受东迁潮汐流影响，早高峰东往西、晚高峰西往东车流集中；同期中山路东西向实施道路改造施工，导致该路口及相邻的长平-龙眼、中山-东厦、中山-金环等四个路口在高峰时段频繁出现连锁性拥堵。",
+          "diagnosis": "晚高峰期间东出口严重回溢，排队车辆溢出至上游各进口道，导致全路口通行效率崩溃；成因包括三方面：一是潮汐流下西往东方向车流量激增（文中明确晚高峰西往东为主流），叠加东出口仅剩两条车道（施工压缩一半）、且东进口北侧与西进口南侧被占，直行车辆需大幅绕行弧线通过，车速显著降低；二是东出口路段设有多个公交站点，公交车频繁靠站上下客（图3所示），形成移动瓶颈，加剧回溢；三是上下游路口（如中山-金环）缺乏协调，",
+          "solution": "① 优化相位设计：增设南北向搭接相位，实行东西向单边放行（避免双向同时放行导致冲突），取消东、西进口左转与行人同放相位，消除人车冲突；② 重新分配绿信比并压缩周期时长，提升信号响应效率；③ 实施晚高峰协同控制：将中山-龙眼路口与下游中山-金环路口统一设置公共周期，实现绿波衔接，确保东出口车流快速抵达中山-金环路口西进口；④ 对上游西往东方向实施截流管控，具体在中山-（金新至东厦）路段关键节点进行流",
+          "effect": "东出口回溢现象基本消失，晚高峰车辆平均仅需两次排队即可通过路口；晚高峰结束时间较优化前提前约15分钟；人车冲突显著缓解，行人过街安全性提升，路口通行秩序明显改善；整体通行效率提升，有效遏制施工引发的“打结”与片区级拥堵蔓延。"
+        },
+        {
+          "score": 4.0,
+          "scene": "广西南宁市青秀区月湾路沿线的丹凤-月湾路口与长湖-月湾路口，两T型交叉口间距仅60米，属超短间距信控交叉口；周边分布多个大型住宅小区，是居民通勤高频出行节点，早高峰（07:00–09:00）与晚高峰（17:00–19:30）车流密集，路段容车量低、车流交互频繁，易发生上下游相互溢出。",
+          "diagnosis": "长湖-月湾路口原全天采用黄闪控制，导致早晚高峰南北直行与西左转车辆无序交织、冲突严重，行人过街安全隐患突出；因缺乏信号约束，北往南方向车辆无法及时清空，滞留车辆反堵至上游丹凤-月湾路口，形成“回溢—死结”恶性循环；实测显示高峰期路段内车辆滞留长度达80–120米，平均通行延误较优化前上升42%，双向绿波中断，协调失效，整体通行秩序濒临瘫痪。",
+          "solution": "① 高峰时段启用红绿灯控：长湖-月湾路口仅在早晚高峰启用信号控制，取消黄闪；② 搭接相位设计：在长湖-月湾路口采用“南直行早断+迟启动”搭接相位组合，精准匹配60米短距清空需求；③ 二次放行机制：丹凤-月湾路口高峰设置南单边二次放行，缓解南往北回溢；④ 分时段精细化配时：全天划分为早平峰、早高峰、平峰、晚高峰、夜间平峰5个时段，其中长湖-月湾路口仅高峰启控，平峰/夜间恢复黄闪；⑤ 双向绿波协调：以",
+          "effect": "晚高峰路段内滞留车辆减少63%，早晚高峰平均延误指数下降37.5%，双向大部分车辆实现不停车通过（绿波通行率提升至89%），行人过街冲突事件归零，驾驶人投诉率下降72%，回溢“死结”现象彻底消除。"
+        },
+        {
+          "score": 4.0,
+          "scene": "晚高峰时段，大量下班车流从工业区经主干道涌入老城区居民区，形成典型“职住分离”交通流特征；该主干道上存在一个关键瓶颈交叉口，其上游路段连续分布若干相邻交叉口，路段整体呈现单向长距离、高流量、易排队溢出的交通特性，属城市核心区通勤主通道。",
+          "diagnosis": "瓶颈交叉口在晚高峰持续处于饱和状态（流量达设计通行能力100%以上），车辆排队长度频繁超过上下游交叉口间距（实测平均排队达350–450米），导致排队回溢至上游第2–3个交叉口，引发“锁死效应”；上游车流集中抵达加剧瓶颈冲突，造成该交叉口平均延误达186秒/车，通行效率下降37%，并波及整条主干道通行秩序，下游居民区路网节点平均拥堵指数上升至8.2（满分为10）。",
+          "solution": "以瓶颈交叉口为终点，向上游选取关联度≥0.65的4个相邻交叉口构建红波带控制范围（含瓶颈口共5个控制节点）；采用投票法启动机制——连续5次检测中4次出现瓶颈口饱和且排队长度＞路口间距（实测阈值设为320米）即触发红波带；统一信号周期为120秒，依据路段平均车速42 km/h与路口间距（如A-B段680米、B-C段520米等）计算相对相位差，设置A→B相位差为58秒、B→C为45秒、C→D为39秒、",
+          "effect": "瓶颈交叉口小时通行量提升12.3%（由2140pcu/h增至2403pcu/h），平均排队长度缩短至210米以内，排队回溢发生率下降89%；上游关键路径车辆到达瓶颈口的行程时间标准差降低41%，车流时空分布趋于均匀，主干道整体平均车速由18.6 km/h提升至24.3 km/h。"
+        }
+      ],
+      "case_cards": {
+        "matched_count": 779,
+        "high_similarity_count": 49,
+        "cards": [
+          {
+            "case_id": "A",
+            "title": "广东省汕头市金平区中山路与龙眼路交叉口（中山-龙眼路口），属老城区核心路段，周边密集分布多所中小学、住宅区及办公区，交通需求旺盛；受东迁潮汐流影响，早高峰东往西",
+            "similarity_points": [
+              "晚高峰短时段",
+              "目标方向排队高",
+              "下游节点高饱和",
+              "上游来车冲击"
+            ],
+            "historical_action": "① 优化相位设计：增设南北向搭接相位，实行东西向单边放行（避免双向同时放行导致冲突），取消东、西进口左转与行人同放相位，消除人车冲突；② 重新分配绿信比并压缩周期时长，提升信号响应效率；③ 实施晚高峰协同控制：将中山-龙眼路口与下游中山-金",
+            "outcome": "东出口回溢现象基本消失，晚高峰车辆平均仅需两次排队即可通过路口；晚高峰结束时间较优化前提前约15分钟；人车冲突显著缓解，行人过街安全性提升，路口通行秩序明显改善；整体通行效率提升，有效遏制施工引发的“打结”与片区级拥堵蔓延。",
+            "lesson": "东出口回溢现象基本消失，晚高峰车辆平均仅需两次排队即可通过路口；晚高峰结束时间较优化前提前约15分钟；人车冲突显著缓解，行人过街安全性提升，路口通行秩序明显改善；整体通行效率提升，有效遏制施工引发的“打结”与片区级拥堵蔓延。",
+            "case_type": "recommended",
+            "score": 4.0
+          },
+          {
+            "case_id": "B",
+            "title": "广西南宁市青秀区月湾路沿线的丹凤-月湾路口与长湖-月湾路口，两T型交叉口间距仅60米，属超短间距信控交叉口；周边分布多个大型住宅小区，是居民通勤高频出行节点，早",
+            "similarity_points": [
+              "晚高峰短时段",
+              "下游节点高饱和",
+              "上游来车冲击"
+            ],
+            "historical_action": "① 高峰时段启用红绿灯控：长湖-月湾路口仅在早晚高峰启用信号控制，取消黄闪；② 搭接相位设计：在长湖-月湾路口采用“南直行早断+迟启动”搭接相位组合，精准匹配60米短距清空需求；③ 二次放行机制：丹凤-月湾路口高峰设置南单边二次放行，缓解南",
+            "outcome": "晚高峰路段内滞留车辆减少63%，早晚高峰平均延误指数下降37.5%，双向大部分车辆实现不停车通过（绿波通行率提升至89%），行人过街冲突事件归零，驾驶人投诉率下降72%，回溢“死结”现象彻底消除。",
+            "lesson": "晚高峰路段内滞留车辆减少63%，早晚高峰平均延误指数下降37.5%，双向大部分车辆实现不停车通过（绿波通行率提升至89%），行人过街冲突事件归零，驾驶人投诉率下降72%，回溢“死结”现象彻底消除。",
+            "case_type": "recommended",
+            "score": 4.0
+          },
+          {
+            "case_id": "C",
+            "title": "晚高峰时段，大量下班车流从工业区经主干道涌入老城区居民区，形成典型“职住分离”交通流特征；该主干道上存在一个关键瓶颈交叉口，其上游路段连续分布若干相邻交叉口，路",
+            "similarity_points": [
+              "晚高峰短时段",
+              "目标方向排队高",
+              "下游节点高饱和",
+              "上游来车冲击"
+            ],
+            "historical_action": "以瓶颈交叉口为终点，向上游选取关联度≥0.65的4个相邻交叉口构建红波带控制范围（含瓶颈口共5个控制节点）；采用投票法启动机制——连续5次检测中4次出现瓶颈口饱和且排队长度＞路口间距（实测阈值设为320米）即触发红波带；统一信号周期为120",
+            "outcome": "瓶颈交叉口小时通行量提升12.3%（由2140pcu/h增至2403pcu/h），平均排队长度缩短至210米以内，排队回溢发生率下降89%；上游关键路径车辆到达瓶颈口的行程时间标准差降低41%，车流时空分布趋于均匀，主干道整体平均车速由18",
+            "lesson": "瓶颈交叉口小时通行量提升12.3%（由2140pcu/h增至2403pcu/h），平均排队长度缩短至210米以内，排队回溢发生率下降89%；上游关键路径车辆到达瓶颈口的行程时间标准差降低41%，车流时空分布趋于均匀，主干道整体平均车速由18",
+            "case_type": "recommended",
+            "score": 4.0
+          }
+        ]
+      },
+      "user_experience_refs": [],
+      "evidence_summary": {
+        "target_queue_ratio": 0.1787,
+        "target_saturation": 0.0305,
+        "target_green_utilization": 0.5741,
+        "downstream_queue_ratio": 0.1889,
+        "downstream_saturation": 0.0,
+        "downstream_intersections": [
+          {
+            "inter_id": null,
+            "inter_name": "下游信控节点",
+            "queue_ratio": 0.1889,
+            "saturation": 0.0,
+            "blocked": false
+          }
+        ],
+        "upstream_entry_traces": [],
+        "upstream_governance_hints": [],
+        "arterial_summary": "上下游压力可控，可评估局部优化",
+        "need_upstream_metering": false,
+        "need_downstream_dissipation_first": false,
+        "downstream_release_answer": "绿灯给了也用不上",
+        "downstream_scenario": "mixed",
+        "downstream_narrative": "排队高但绿灯利用率低，可能存在下游阻塞、出口不畅或检测异常",
+        "judgment_criteria": {
+          "target_queue_high": false,
+          "target_saturation_high": false,
+          "target_green_utilization_high": false,
+          "downstream_queue_high": false,
+          "downstream_near_saturation": false,
+          "add_green_spillback_risk": false
+        },
+        "bottleneck_type": "downstream_or_channelization"
+      },
+      "arterial_coordination_needed": false
+    },
+    "strategy": {
+      "strategy": {
+        "principles": [
+          "防溢流优先：优先避免下游继续外溢，确保交通流稳定",
+          "精准匹配：信号配时应与实际交通需求精准匹配，避免绿灯空放",
+          "协同优化：考虑上下游节点协同，避免局部优化导致整体恶化",
+          "秩序保障：排查并解决交通秩序问题，减少干扰因素"
+        ],
+        "not_recommended": [
+          "单点激进加绿：当前绿灯利用率低，单纯增加绿灯时间无法解决根本问题，可能导致资源浪费和下游压力增大",
+          "忽视秩序问题：仅关注信号控制而忽视交通秩序干扰，无法全面提升路口运行效率",
+          "盲目扩大绿信比：在未明确转向流量和车道流量数据的情况下，盲目调整绿信比可能引发新的拥堵点"
+        ],
+        "recommended": [
+          "优化信号配时方案：根据实际交通需求重新分配绿信比，提高绿灯利用率，减少空放现象",
+          "排查交通秩序问题：针对周边投诉较多的情况，开展现场调研，排查并解决交通秩序干扰因素",
+          "实施协同控制：评估上下游节点协同控制方案，确保交通流在路网中的顺畅运行",
+          "局部增绿清空：在确保下游可承接的前提下，适当增加关键方向绿灯时间，快速清空排队车辆"
+        ],
+        "hard_constraints": [
+          "优先避免下游继续外溢",
+          "确保行人过街安全",
+          "保障公共交通优先通行"
+        ],
+        "trigger_exit_rules": {
+          "rollback_condition": "下游排队比持续上升时回滚至原方案",
+          "rules": [
+            "排队长度持续增加且超过进口道存储长度80%",
+            "绿灯利用率持续低于0.6且排队长度超过100米",
+            "周边投诉数量显著增加"
+          ]
+        },
+        "explanation": "当前路口东向西直行方向存在明显的绿灯空放现象，绿灯利用率仅为0.5741，而排队长度已达158米，占进口道存储长度的17.87%。这表明信号控制未能有效匹配交通需求，单纯增加绿灯时间无法解决根本问题。同时，交通秩序干扰也是重要次因，需综合施策。通过优化信号配时、排查秩序问题、实施协同控制等措施，可有效缓解排队溢出问题，提升路口整体运行效率。",
+        "narrative": null,
+        "source": "hybrid"
+      },
+      "strategy_package": "downstream_protection",
+      "package_scores": {
+        "downstream_protection": 0.6,
+        "incremental_release": 0.0,
+        "arterial_coordination": 0.0
+      },
+      "strategy_instruction": {
+        "package": "downstream_protection",
+        "strategy": "downstream_protection",
+        "name": "下游保护方案",
+        "target_green_delta": -2,
+        "cycle_delta": 0,
+        "upstream_control": false,
+        "target_saturation": 0.75,
+        "rollback_condition": "下游排队比持续上升时回滚至原方案",
+        "principles": [
+          "防溢流优先",
+          "可回滚",
+          "先判断下游承接能力",
+          "先保护下游，不宜继续强放"
+        ],
+        "not_recommended": [
+          "单点激进加绿"
+        ],
+        "trigger_exit_rules": {
+          "rollback_condition": "下游排队比持续上升时回滚至原方案"
+        }
+      },
+      "case_references": {
+        "failure_lesson": "单点加绿后下游排队继续增长",
+        "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+        "matched_count": 3
+      },
+      "control_scope_map": {
+        "action": "map_scene",
+        "phase": "strategy_control_scope",
+        "available": true,
+        "center": [
+          117.10159,
+          36.657529
+        ],
+        "target_intersection": {
+          "inter_id": "011wwe289qc00001",
+          "inter_name": "经十路与转山西路路口",
+          "lng": 117.10159,
+          "lat": 36.657529
+        },
+        "upstream_metering_points": [],
+        "downstream_protection_nodes": [
+          {
+            "inter_id": null,
+            "inter_name": "下游信控节点",
+            "lng": null,
+            "lat": null,
+            "blocked": false
+          }
+        ],
+        "risk_boundary": "controlled_release"
+      }
+    },
+    "plan": {
+      "candidates": [
+        {
+          "plan_id": "downstream_protection",
+          "name": "下游保护方案",
+          "status": "valid",
+          "scenario": "下游信控节点承接不足，目标路口不宜继续强放",
+          "case_basis": {
+            "failure_lesson": "单点加绿后下游排队继续增长",
+            "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+            "matched_count": 3
+          },
+          "timing": {
+            "cycle_s": 42,
+            "phase_stage_timing_list": [
+              {
+                "phase_stage_id": "1",
+                "phase_stage_name": "西直、东直",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              },
+              {
+                "phase_stage_id": "2",
+                "phase_stage_name": "东左、西左",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              },
+              {
+                "phase_stage_id": "3",
+                "phase_stage_name": "南直",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              }
+            ]
+          },
+          "upstream_control": {
+            "enabled": false,
+            "control_points": []
+          },
+          "phase_offset_sec": 0,
+          "pedestrian_constraints": {
+            "satisfied": true,
+            "violations": []
+          },
+          "downstream_risk": {
+            "level": "medium",
+            "reasons": [
+              "需持续监测下游承接能力"
+            ]
+          },
+          "expected_effect": "抑制向下游继续送车，避免外溢扩散",
+          "risk": "目标进口排队缓解速度较慢，需配合上游控流",
+          "rollback_condition": "下游排队比持续上升时回滚至原方案",
+          "validation_errors": [],
+          "guardrail_pass": true,
+          "execution_order": [
+            "先保护下游",
+            "维持目标方向保守放行",
+            "持续监测排队比"
+          ],
+          "timing_source": "signal_optimization_engine"
+        },
+        {
+          "plan_id": "incremental_release",
+          "name": "目标路口小步释放方案",
+          "status": "valid",
+          "scenario": "下游仍有部分承接空间，east_to_west排队较高",
+          "case_basis": {
+            "failure_lesson": "单点加绿后下游排队继续增长",
+            "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+            "matched_count": 3
+          },
+          "timing": {
+            "cycle_s": 42,
+            "phase_stage_timing_list": [
+              {
+                "phase_stage_id": "1",
+                "phase_stage_name": "西直、东直",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              },
+              {
+                "phase_stage_id": "2",
+                "phase_stage_name": "东左、西左",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              },
+              {
+                "phase_stage_id": "3",
+                "phase_stage_name": "南直",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              }
+            ]
+          },
+          "upstream_control": {
+            "enabled": false,
+            "control_points": []
+          },
+          "phase_offset_sec": 0,
+          "pedestrian_constraints": {
+            "satisfied": true,
+            "violations": []
+          },
+          "downstream_risk": {
+            "level": "medium",
+            "reasons": [
+              "需持续监测下游承接能力"
+            ]
+          },
+          "expected_effect": "小幅缓解目标进口排队，保留回滚空间",
+          "risk": "下游排队继续增长需立即回滚",
+          "rollback_condition": "下游排队比持续上升时回滚至原方案",
+          "validation_errors": [],
+          "guardrail_pass": true,
+          "execution_order": [
+            "确认下游余量",
+            "小步增加目标方向有效绿",
+            "监测下游饱和度"
+          ],
+          "timing_source": "signal_optimization_engine"
+        },
+        {
+          "plan_id": "arterial_coordination",
+          "name": "干线联控方案",
+          "status": "valid",
+          "scenario": "下游信控节点接不住，上游持续来车，目标路口接近溢出",
+          "case_basis": {
+            "failure_lesson": "单点加绿后下游排队继续增长",
+            "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+            "matched_count": 3
+          },
+          "timing": {
+            "cycle_s": 42,
+            "phase_stage_timing_list": [
+              {
+                "phase_stage_id": "1",
+                "phase_stage_name": "西直、东直",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              },
+              {
+                "phase_stage_id": "2",
+                "phase_stage_name": "东左、西左",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              },
+              {
+                "phase_stage_id": "3",
+                "phase_stage_name": "南直",
+                "green_time_s": 14,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "min_green_time_s": 14,
+                "max_green_time_s": 160,
+                "greenTime": 14,
+                "yellowTime": 3,
+                "allRedTime": 2,
+                "minGreenTime": 14,
+                "maxGreenTime": 160,
+                "split_ratio": 0.3333
+              }
+            ]
+          },
+          "upstream_control": {
+            "enabled": false,
+            "control_points": []
+          },
+          "phase_offset_sec": 0,
+          "pedestrian_constraints": {
+            "satisfied": true,
+            "violations": []
+          },
+          "downstream_risk": {
+            "level": "medium",
+            "reasons": [
+              "需持续监测下游承接能力"
+            ]
+          },
+          "expected_effect": "上游削峰+目标小步释放，降低干线传导风险",
+          "risk": "上游控流幅度不能过大，否则可能造成上游新溢出",
+          "rollback_condition": "下游排队比持续上升时回滚至原方案",
+          "validation_errors": [],
+          "guardrail_pass": true,
+          "execution_order": [
+            "先保护下游",
+            "再平滑上游来车",
+            "最后小步释放目标方向"
+          ],
+          "timing_source": "signal_optimization_engine"
+        }
+      ],
+      "recommended": {
+        "plan_id": "arterial_coordination",
+        "name": "干线联控方案",
+        "status": "valid",
+        "scenario": "下游信控节点接不住，上游持续来车，目标路口接近溢出",
+        "case_basis": {
+          "failure_lesson": "单点加绿后下游排队继续增长",
+          "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+          "matched_count": 3
+        },
+        "timing": {
+          "cycle_s": 42,
+          "phase_stage_timing_list": [
+            {
+              "phase_stage_id": "1",
+              "phase_stage_name": "西直、东直",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            },
+            {
+              "phase_stage_id": "2",
+              "phase_stage_name": "东左、西左",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            },
+            {
+              "phase_stage_id": "3",
+              "phase_stage_name": "南直",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            }
+          ]
+        },
+        "upstream_control": {
+          "enabled": false,
+          "control_points": []
+        },
+        "phase_offset_sec": 0,
+        "pedestrian_constraints": {
+          "satisfied": true,
+          "violations": []
+        },
+        "downstream_risk": {
+          "level": "medium",
+          "reasons": [
+            "需持续监测下游承接能力"
+          ]
+        },
+        "expected_effect": "上游削峰+目标小步释放，降低干线传导风险",
+        "risk": "上游控流幅度不能过大，否则可能造成上游新溢出",
+        "rollback_condition": "下游排队比持续上升时回滚至原方案",
+        "validation_errors": [],
+        "guardrail_pass": true,
+        "execution_order": [
+          "先保护下游",
+          "再平滑上游来车",
+          "最后小步释放目标方向"
+        ],
+        "timing_source": "signal_optimization_engine"
+      },
+      "recommendation": {
+        "recommended_plan_id": "downstream_protection_011wwe289qc00001",
+        "rationale": "当前路口东向西直行方向绿灯利用率仅0.5741，排队长度158米占进口道存储长度17.87%，存在明显绿灯空放与排队溢出风险。策略包'下游保护方案'得分最高(0.6)，核心原则为防溢流优先、先保护下游不宜继续强放。通过target_green_delta=-2适度缩减东向西绿灯时间，避免下游继续外溢，同时保持周期不变(cycle_delta=0)以维持上下游协同稳定性。该方案符合'先判断下游承接能力、小步释放'的成功经验，规避了'单点激进加绿导致下游排队继续增长'的失败教训。",
+        "execution_order": [
+          {
+            "step": 1,
+            "action": "reduce_green_time",
+            "target": "east_to_west_straight",
+            "delta": -2,
+            "description": "东向西直行方向绿灯时间减少2秒，降低放行强度，防止下游继续外溢"
+          },
+          {
+            "step": 2,
+            "action": "monitor_downstream_queue",
+            "target": "downstream_protection_nodes",
+            "description": "实时监控下游信控节点排队长度，若排队比持续上升则触发回滚条件"
+          },
+          {
+            "step": 3,
+            "action": "check_traffic_order",
+            "target": "intersection_surroundings",
+            "description": "排查路口周边交通秩序干扰因素，减少非机动车及行人违规对机动车通行的影响"
+          },
+          {
+            "step": 4,
+            "action": "evaluate_coordination",
+            "target": "upstream_downstream_nodes",
+            "description": "评估上下游节点协同控制方案，确保交通流在路网中顺畅运行"
+          }
+        ]
+      },
+      "all_guardrails_passed": true,
+      "signal_source": "pg",
+      "optimizer_engine": "signal_optimization_engine",
+      "user_solution_refs": [],
+      "accepted_plan_refs": [],
+      "rejected_plan_avoidance": [],
+      "rollback_conditions": [
+        "下游排队比持续上升时回滚至原方案",
+        "下游排队比持续上升",
+        "上游排队超过安全边界",
+        "目标方向绿灯利用率异常下降"
+      ]
+    }
+  },
+  "plan": {
+    "candidates": [
+      {
+        "plan_id": "downstream_protection",
+        "name": "下游保护方案",
+        "status": "valid",
+        "scenario": "下游信控节点承接不足，目标路口不宜继续强放",
+        "case_basis": {
+          "failure_lesson": "单点加绿后下游排队继续增长",
+          "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+          "matched_count": 3
+        },
+        "timing": {
+          "cycle_s": 42,
+          "phase_stage_timing_list": [
+            {
+              "phase_stage_id": "1",
+              "phase_stage_name": "西直、东直",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            },
+            {
+              "phase_stage_id": "2",
+              "phase_stage_name": "东左、西左",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            },
+            {
+              "phase_stage_id": "3",
+              "phase_stage_name": "南直",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            }
+          ]
+        },
+        "upstream_control": {
+          "enabled": false,
+          "control_points": []
+        },
+        "phase_offset_sec": 0,
+        "pedestrian_constraints": {
+          "satisfied": true,
+          "violations": []
+        },
+        "downstream_risk": {
+          "level": "medium",
+          "reasons": [
+            "需持续监测下游承接能力"
+          ]
+        },
+        "expected_effect": "抑制向下游继续送车，避免外溢扩散",
+        "risk": "目标进口排队缓解速度较慢，需配合上游控流",
+        "rollback_condition": "下游排队比持续上升时回滚至原方案",
+        "validation_errors": [],
+        "guardrail_pass": true,
+        "execution_order": [
+          "先保护下游",
+          "维持目标方向保守放行",
+          "持续监测排队比"
+        ],
+        "timing_source": "signal_optimization_engine"
+      },
+      {
+        "plan_id": "incremental_release",
+        "name": "目标路口小步释放方案",
+        "status": "valid",
+        "scenario": "下游仍有部分承接空间，east_to_west排队较高",
+        "case_basis": {
+          "failure_lesson": "单点加绿后下游排队继续增长",
+          "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+          "matched_count": 3
+        },
+        "timing": {
+          "cycle_s": 42,
+          "phase_stage_timing_list": [
+            {
+              "phase_stage_id": "1",
+              "phase_stage_name": "西直、东直",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            },
+            {
+              "phase_stage_id": "2",
+              "phase_stage_name": "东左、西左",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            },
+            {
+              "phase_stage_id": "3",
+              "phase_stage_name": "南直",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            }
+          ]
+        },
+        "upstream_control": {
+          "enabled": false,
+          "control_points": []
+        },
+        "phase_offset_sec": 0,
+        "pedestrian_constraints": {
+          "satisfied": true,
+          "violations": []
+        },
+        "downstream_risk": {
+          "level": "medium",
+          "reasons": [
+            "需持续监测下游承接能力"
+          ]
+        },
+        "expected_effect": "小幅缓解目标进口排队，保留回滚空间",
+        "risk": "下游排队继续增长需立即回滚",
+        "rollback_condition": "下游排队比持续上升时回滚至原方案",
+        "validation_errors": [],
+        "guardrail_pass": true,
+        "execution_order": [
+          "确认下游余量",
+          "小步增加目标方向有效绿",
+          "监测下游饱和度"
+        ],
+        "timing_source": "signal_optimization_engine"
+      },
+      {
+        "plan_id": "arterial_coordination",
+        "name": "干线联控方案",
+        "status": "valid",
+        "scenario": "下游信控节点接不住，上游持续来车，目标路口接近溢出",
+        "case_basis": {
+          "failure_lesson": "单点加绿后下游排队继续增长",
+          "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+          "matched_count": 3
+        },
+        "timing": {
+          "cycle_s": 42,
+          "phase_stage_timing_list": [
+            {
+              "phase_stage_id": "1",
+              "phase_stage_name": "西直、东直",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            },
+            {
+              "phase_stage_id": "2",
+              "phase_stage_name": "东左、西左",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            },
+            {
+              "phase_stage_id": "3",
+              "phase_stage_name": "南直",
+              "green_time_s": 14,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 160,
+              "greenTime": 14,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 160,
+              "split_ratio": 0.3333
+            }
+          ]
+        },
+        "upstream_control": {
+          "enabled": false,
+          "control_points": []
+        },
+        "phase_offset_sec": 0,
+        "pedestrian_constraints": {
+          "satisfied": true,
+          "violations": []
+        },
+        "downstream_risk": {
+          "level": "medium",
+          "reasons": [
+            "需持续监测下游承接能力"
+          ]
+        },
+        "expected_effect": "上游削峰+目标小步释放，降低干线传导风险",
+        "risk": "上游控流幅度不能过大，否则可能造成上游新溢出",
+        "rollback_condition": "下游排队比持续上升时回滚至原方案",
+        "validation_errors": [],
+        "guardrail_pass": true,
+        "execution_order": [
+          "先保护下游",
+          "再平滑上游来车",
+          "最后小步释放目标方向"
+        ],
+        "timing_source": "signal_optimization_engine"
+      }
+    ],
+    "recommended": {
+      "plan_id": "arterial_coordination",
+      "name": "干线联控方案",
+      "status": "valid",
+      "scenario": "下游信控节点接不住，上游持续来车，目标路口接近溢出",
+      "case_basis": {
+        "failure_lesson": "单点加绿后下游排队继续增长",
+        "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+        "matched_count": 3
+      },
+      "timing": {
+        "cycle_s": 42,
+        "phase_stage_timing_list": [
+          {
+            "phase_stage_id": "1",
+            "phase_stage_name": "西直、东直",
+            "green_time_s": 14,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 14,
+            "max_green_time_s": 160,
+            "greenTime": 14,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 14,
+            "maxGreenTime": 160,
+            "split_ratio": 0.3333
+          },
+          {
+            "phase_stage_id": "2",
+            "phase_stage_name": "东左、西左",
+            "green_time_s": 14,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 14,
+            "max_green_time_s": 160,
+            "greenTime": 14,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 14,
+            "maxGreenTime": 160,
+            "split_ratio": 0.3333
+          },
+          {
+            "phase_stage_id": "3",
+            "phase_stage_name": "南直",
+            "green_time_s": 14,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 14,
+            "max_green_time_s": 160,
+            "greenTime": 14,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 14,
+            "maxGreenTime": 160,
+            "split_ratio": 0.3333
+          }
+        ]
+      },
+      "upstream_control": {
+        "enabled": false,
+        "control_points": []
+      },
+      "phase_offset_sec": 0,
+      "pedestrian_constraints": {
+        "satisfied": true,
+        "violations": []
+      },
+      "downstream_risk": {
+        "level": "medium",
+        "reasons": [
+          "需持续监测下游承接能力"
+        ]
+      },
+      "expected_effect": "上游削峰+目标小步释放，降低干线传导风险",
+      "risk": "上游控流幅度不能过大，否则可能造成上游新溢出",
+      "rollback_condition": "下游排队比持续上升时回滚至原方案",
+      "validation_errors": [],
+      "guardrail_pass": true,
+      "execution_order": [
+        "先保护下游",
+        "再平滑上游来车",
+        "最后小步释放目标方向"
+      ],
+      "timing_source": "signal_optimization_engine"
+    },
+    "recommendation": {
+      "recommended_plan_id": "downstream_protection_011wwe289qc00001",
+      "rationale": "当前路口东向西直行方向绿灯利用率仅0.5741，排队长度158米占进口道存储长度17.87%，存在明显绿灯空放与排队溢出风险。策略包'下游保护方案'得分最高(0.6)，核心原则为防溢流优先、先保护下游不宜继续强放。通过target_green_delta=-2适度缩减东向西绿灯时间，避免下游继续外溢，同时保持周期不变(cycle_delta=0)以维持上下游协同稳定性。该方案符合'先判断下游承接能力、小步释放'的成功经验，规避了'单点激进加绿导致下游排队继续增长'的失败教训。",
+      "execution_order": [
+        {
+          "step": 1,
+          "action": "reduce_green_time",
+          "target": "east_to_west_straight",
+          "delta": -2,
+          "description": "东向西直行方向绿灯时间减少2秒，降低放行强度，防止下游继续外溢"
+        },
+        {
+          "step": 2,
+          "action": "monitor_downstream_queue",
+          "target": "downstream_protection_nodes",
+          "description": "实时监控下游信控节点排队长度，若排队比持续上升则触发回滚条件"
+        },
+        {
+          "step": 3,
+          "action": "check_traffic_order",
+          "target": "intersection_surroundings",
+          "description": "排查路口周边交通秩序干扰因素，减少非机动车及行人违规对机动车通行的影响"
+        },
+        {
+          "step": 4,
+          "action": "evaluate_coordination",
+          "target": "upstream_downstream_nodes",
+          "description": "评估上下游节点协同控制方案，确保交通流在路网中顺畅运行"
+        }
+      ]
+    },
+    "rollback_conditions": [
+      "下游排队比持续上升时回滚至原方案",
+      "下游排队比持续上升",
+      "上游排队超过安全边界",
+      "目标方向绿灯利用率异常下降"
+    ],
+    "signal_source": "pg",
+    "optimizer_engine": "signal_optimization_engine",
+    "all_guardrails_passed": true
+  },
+  "phase_results": [
+    {
+      "phase": "intent_understanding",
+      "success": true,
+      "duration_ms": 76679.78,
+      "errors": []
+    },
+    {
+      "phase": "data_analysis_diagnosis",
+      "success": true,
+      "duration_ms": 9844.0,
+      "errors": []
+    },
+    {
+      "phase": "cause_analysis",
+      "success": true,
+      "duration_ms": 52905.43,
+      "errors": []
+    },
+    {
+      "phase": "strategy_generation",
+      "success": true,
+      "duration_ms": 77543.01,
+      "errors": []
+    },
+    {
+      "phase": "plan_generation",
+      "success": true,
+      "duration_ms": 35338.78,
+      "errors": []
+    }
+  ]
+}
