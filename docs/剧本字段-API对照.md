@@ -198,6 +198,9 @@ POST /api/v1/agent/plan/decision
 | 剧本字段 | API 路径 | 类型 | 备注 |
 |----------|----------|------|------|
 | 策略原则 | `phases.strategy.strategy.principles` | string[] | 防溢流优先、下游保护等 |
+| 推荐策略 | `phases.strategy.strategy.recommended` | string[] | |
+| 硬约束 | `phases.strategy.strategy.hard_constraints` | string[] | |
+| 触发/退出规则 | `phases.strategy.strategy.trigger_exit_rules` | object | |
 | 不推荐策略 | `phases.strategy.strategy.not_recommended` | string[] | |
 | 策略包 | `phases.strategy.strategy_package` | string | downstream_protection / incremental_release / arterial_coordination |
 | 优化器契约 | `phases.strategy.strategy_instruction` | object | 供方案生成使用 |
@@ -205,7 +208,14 @@ POST /api/v1/agent/plan/decision
 | 案例引用 | `phases.strategy.case_references` | object | `failure_lesson`, `success_lesson`, `matched_count` |
 | 包评分 | `phases.strategy.package_scores` | object | |
 
-> **缺口**：LLM 输出的 `recommended` / `hard_constraints` / `trigger_exit_rules` 未写入 artifact，前端暂不可用。
+---
+
+## 第三幕补充：场景检查单
+
+| 剧本字段 | API 路径 | 类型 | 备注 |
+|----------|----------|------|------|
+| 场景报告 | `phases.diagnosis.scenario_report` | object | 需 PG/checklist |
+| 检查项 | `phases.diagnosis.scenario_report.issues[]` | array | `item_id`, `label`, `status`, `summary` |
 
 ---
 
@@ -219,12 +229,12 @@ POST /api/v1/agent/plan/decision
 |----------|----------|------|------|
 | 候选方案列表 | `plan.candidates[]` | array | 见下表 |
 | 推荐方案 | `plan.recommended` | object | 与某一 candidate 同构 |
+| 推荐理由 | `plan.recommendation.rationale` | string | |
+| 推荐 plan_id | `plan.recommendation.recommended_plan_id` | string | |
 | 回滚条件 | `plan.rollback_conditions` | string[] | |
 | 配时来源 | `plan.signal_source` | string | pg / task_injection / mock |
 | 优化引擎 | `plan.optimizer_engine` | string | |
 | 全部过护栏 | `plan.all_guardrails_passed` | boolean | |
-
-> **缺口**：`plan.recommendation.rationale` 仅在 `phases.plan.recommendation`，精简 `plan` 未透出。
 
 ### 完整块 `phases.plan`
 
@@ -281,7 +291,8 @@ POST /api/v1/agent/plan/decision
 |----------|------------|------|------|
 | 接受方案 | `POST /agent/plan/decision` `decision=accept` | ✅ | 写入 `data/plan_feedback.jsonl` |
 | 拒绝方案 | `decision=reject` + `rejection_reason` | ✅ | |
-| 修改后再生成 | — | ❌ | 本期未实现 |
+| 修改后再生成 | `POST /agent/plan/regenerate` | ✅ | 从 `restart_from` 起重跑 |
+| 近期案例列表 | `GET /agent/cases` | ✅ | textbook / recommended / risk |
 | 执行效果回填 | — | ❌ | 无 evaluation-feedback |
 | 专家评价 | — | ❌ | |
 | 推荐/风险案例标记 | `plan_feedback.retrieval` | ✅ | `as_recommended_case` / `as_risk_case` |
@@ -295,11 +306,27 @@ POST /api/v1/agent/plan/decision
 | 剧本元素 | API 路径 | 说明 |
 |----------|----------|------|
 | 当前阶段 | `phase_results[].phase` | intent / diagnosis / cause / strategy / plan |
+| 本段是否完成 | `completed` | 本次请求执行段 |
+| 全流水线完成 | `pipeline_complete` | 五段均已产出 artifact |
 | 是否成功 | `phase_results[].success` | |
 | 耗时 | `phase_results[].duration_ms` | |
 | 错误 | `phase_results[].errors` | 失败时展示 |
 
 流水线在某一 Skill 失败时 `completed=false`，后续 Skill 不执行。
+
+---
+
+## 路口加载与分步执行
+
+```http
+POST /api/v1/intersection/load
+POST /api/v1/intersection/load/stream
+POST /api/v1/agent/run        # 支持 skill_ids、stop_after
+POST /api/v1/agent/plan/regenerate
+GET  /api/v1/agent/cases
+```
+
+详见 `docs/前端集成指南.md`。
 
 ---
 

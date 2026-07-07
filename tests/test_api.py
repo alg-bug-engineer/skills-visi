@@ -54,6 +54,9 @@ async def test_run_agent_endpoint(script_user_input):
     assert "pipeline" not in data
     assert "phases" in data
     assert data["plan"]["recommended"]["plan_id"] == "arterial_coordination"
+    assert data["plan"]["recommendation"]["rationale"]
+    assert data["phases"]["strategy"]["strategy"]["recommended"]
+    assert "pipeline_complete" in data
     assert all("skill_id" not in item for item in data["phase_results"])
 
 

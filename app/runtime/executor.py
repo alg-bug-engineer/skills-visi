@@ -4,18 +4,15 @@ import logging
 import time
 from typing import Any
 
+from app.runtime.pipeline_validation import (
+    DEFAULT_PIPELINE,
+    compute_pipeline_complete,
+    resolve_pipeline,
+)
 from app.runtime.registry import SkillRegistry
 from app.runtime.skill_types import SkillContext, SkillResult
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_PIPELINE = [
-    "intent_understanding",
-    "data_analysis_diagnosis",
-    "cause_analysis",
-    "strategy_generation",
-    "plan_generation",
-]
 
 
 class SkillExecutor:
@@ -29,13 +26,17 @@ class SkillExecutor:
         user_input: str,
         task: dict[str, Any] | None = None,
         skill_ids: list[str] | None = None,
+        stop_after: str | None = None,
         **deps: Any,
     ) -> dict[str, Any]:
-        pipeline = skill_ids or DEFAULT_PIPELINE
+        task = dict(task or {})
+        pipeline = resolve_pipeline(skill_ids=skill_ids, stop_after=stop_after)
+        prefilled = dict(task.get("artifacts") or {})
         context = SkillContext(
             trace_id=trace_id,
             user_input=user_input,
-            task=task or {},
+            task=task,
+            artifacts=dict(prefilled),
         )
         results: list[SkillResult] = []
 
@@ -81,10 +82,13 @@ class SkillExecutor:
             if not result.success:
                 break
 
+        merged_artifacts = {**prefilled, **context.artifacts}
+        task["artifacts"] = merged_artifacts
+
         return {
             "trace_id": trace_id,
             "pipeline": pipeline,
-            "artifacts": context.artifacts,
+            "artifacts": merged_artifacts,
             "results": [
                 {
                     "skill_id": r.skill_id,
@@ -97,4 +101,5 @@ class SkillExecutor:
                 for r in results
             ],
             "completed": all(r.success for r in results),
+            "pipeline_complete": compute_pipeline_complete(task, context.artifacts),
         }

@@ -7,6 +7,7 @@ from typing import Any
 
 from app.llm.qwen import QwenClient
 from app.runtime.skill_types import BaseSkill, SkillContext, SkillResult
+from app.trace.scenario_report import checklist_data_gaps
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,9 @@ class CauseAnalysisSkill(BaseSkill):
         ticket = context.task.get("diagnosis_ticket", {})
 
         cause_scores = score_module.score_cause_dimensions(diagnosis, task=context.task)
+
+        scenario_report = diagnosis.get("scenario_report") or {}
+        checklist_gaps = checklist_data_gaps(scenario_report)
 
         similar_cases = []
         case_cards: dict[str, Any] = {"matched_count": 0, "high_similarity_count": 0, "cards": []}
@@ -77,6 +81,10 @@ class CauseAnalysisSkill(BaseSkill):
                 success=False,
                 errors=["成因分析返回非 JSON 结构"],
             )
+
+        if checklist_gaps:
+            merged_gaps = list(dict.fromkeys((llm_result.get("data_gaps") or []) + checklist_gaps))
+            llm_result["data_gaps"] = merged_gaps
 
         cause_ranking = llm_result.get("cause_ranking") or score_module.build_cause_ranking_from_scores(
             cause_scores, diagnosis

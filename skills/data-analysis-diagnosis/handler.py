@@ -8,6 +8,7 @@ from typing import Any
 from app.config import Settings, get_settings
 from app.data.diagnosis_input import resolve_diagnosis_inputs
 from app.runtime.skill_types import BaseSkill, SkillContext, SkillResult
+from app.trace.scenario_report import build_scenario_report
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,12 @@ class DataAnalysisDiagnosisSkill(BaseSkill):
             topology=topology,
             spatial_objects=spatial,
         )
+        output["scenario_report"] = build_scenario_report(
+            context.task.get("checklist_queries"),
+            output.get("metrics"),
+            ticket=ticket,
+        )
+        output["topology"] = topology
         output["data_source"] = data_source
         if data_source == "mock":
             output["source"] = "mock"

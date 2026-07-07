@@ -76,10 +76,10 @@ class QwenClient:
             return self._mock_intent(user_prompt)
         if "成因" in system_prompt or "cause" in system_prompt.lower():
             return self._mock_cause_analysis()
+        if "方案生成" in system_prompt or "recommended_plan_id" in system_prompt:
+            return self._mock_plan()
         if "策略" in system_prompt:
             return self._mock_strategy()
-        if "方案" in system_prompt:
-            return self._mock_plan()
         if response_json:
             return {"summary": "mock response", "source": "llm_mock"}
         return "mock response"
@@ -179,6 +179,14 @@ class QwenClient:
             ],
             "not_recommended": ["单点激进加绿"],
             "recommended": ["下游保护约束下的小步释放", "上游控流 + 干线协调"],
+            "hard_constraints": [
+                "最小绿灯、黄灯全红与行人过街约束不可突破",
+                "下游排队比超阈值时禁止继续增大目标方向放行",
+            ],
+            "trigger_exit_rules": {
+                "rollback_condition": "下游排队比持续上升、上游排队超过安全边界时回滚",
+                "human_review": "目标方向绿灯利用率异常下降时转人工复核",
+            },
             "explanation": "下游接不住时不宜单点加绿，应采用干线联控策略。",
             "source": "llm_mock",
         }

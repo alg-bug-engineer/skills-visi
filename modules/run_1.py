@@ -29,7 +29,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from app.config import Settings, get_settings
 from app.llm.qwen import QwenClient
 from app.logging_setup import setup_logging, set_trace_id
-from app.runtime.executor import DEFAULT_PIPELINE
+from app.runtime.pipeline_validation import DEFAULT_PIPELINE
 from app.runtime.registry import get_registry
 from app.runtime.skill_types import SkillContext, SkillResult
 from app.services.case_library import CaseLibraryService

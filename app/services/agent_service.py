@@ -7,6 +7,7 @@ from app.config import Settings
 from app.llm.qwen import QwenClient
 from app.logging_setup import get_trace_id, set_trace_id
 from app.runtime.executor import SkillExecutor
+from app.runtime.pipeline_validation import skills_from_restart
 from app.runtime.registry import get_registry
 from app.services.case_library import CaseLibraryService
 from app.services.experience_library import ExperienceLibraryService
@@ -33,6 +34,8 @@ class AgentService:
         *,
         trace_id: str | None = None,
         task: dict[str, Any] | None = None,
+        skill_ids: list[str] | None = None,
+        stop_after: str | None = None,
     ) -> dict[str, Any]:
         existing = get_trace_id()
         if trace_id:
@@ -47,6 +50,8 @@ class AgentService:
             trace_id=tid,
             user_input=user_input,
             task=task,
+            skill_ids=skill_ids,
+            stop_after=stop_after,
             llm=self.llm,
             case_service=self.case_service,
             experience_service=self.experience_service,
@@ -55,16 +60,46 @@ class AgentService:
             settings=self.settings,
         )
 
-        result["diagnosis_ticket"] = result.get("artifacts", {}).get(
-            "intent_understanding", {}
-        ).get("diagnosis_ticket")
+        intent_artifact = result.get("artifacts", {}).get("intent_understanding", {})
+        if intent_artifact.get("diagnosis_ticket"):
+            result["diagnosis_ticket"] = intent_artifact["diagnosis_ticket"]
+        elif task and task.get("diagnosis_ticket"):
+            result["diagnosis_ticket"] = task["diagnosis_ticket"]
 
         logger.info(
-            "智能体任务结束 trace_id=%s completed=%s",
+            "智能体任务结束 trace_id=%s completed=%s pipeline_complete=%s",
             tid,
             result.get("completed"),
+            result.get("pipeline_complete"),
         )
         return result
 
+    async def regenerate(
+        self,
+        *,
+        trace_id: str,
+        user_input: str,
+        task: dict[str, Any],
+        restart_from: str = "plan_generation",
+    ) -> dict[str, Any]:
+        skill_ids = skills_from_restart(restart_from)
+        merged_task = dict(task)
+        merged_task["modification_input"] = user_input
+        return await self.run(
+            user_input,
+            trace_id=trace_id,
+            task=merged_task,
+            skill_ids=skill_ids,
+        )
+
     def list_skills(self) -> list[dict]:
         return self.registry.list_skills()
+
+
+def validate_pipeline_request(
+    skill_ids: list[str] | None,
+    stop_after: str | None,
+) -> None:
+    from app.runtime.pipeline_validation import resolve_pipeline
+
+    resolve_pipeline(skill_ids=skill_ids, stop_after=stop_after)

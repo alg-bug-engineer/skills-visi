@@ -27,6 +27,7 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
         plan_block = {
             "candidates": plan_artifact.get("candidates"),
             "recommended": plan_artifact.get("recommended"),
+            "recommendation": plan_artifact.get("recommendation"),
             "rollback_conditions": plan_artifact.get("rollback_conditions"),
             "signal_source": plan_artifact.get("signal_source"),
             "optimizer_engine": plan_artifact.get("optimizer_engine"),
@@ -46,6 +47,7 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
     return {
         "trace_id": result.get("trace_id"),
         "completed": result.get("completed"),
+        "pipeline_complete": result.get("pipeline_complete", False),
         "diagnosis_ticket": result.get("diagnosis_ticket"),
         "phases": phases,
         "plan": plan_block,

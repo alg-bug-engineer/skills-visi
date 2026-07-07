@@ -107,6 +107,10 @@ def build_strategy_profile(
     instruction = build_strategy_instruction(package, cause=cause, diagnosis=diagnosis)
     llm_strategy = llm_strategy or {}
 
+    trigger_exit = _merge_trigger_exit_rules(
+        llm_strategy.get("trigger_exit_rules"),
+        instruction.get("trigger_exit_rules"),
+    )
     return {
         "strategy_package": package,
         "package_scores": package_scores,
@@ -114,6 +118,11 @@ def build_strategy_profile(
         "strategy": {
             "principles": llm_strategy.get("principles") or instruction["principles"],
             "not_recommended": llm_strategy.get("not_recommended") or instruction["not_recommended"],
+            "recommended": llm_strategy.get("recommended") or _recommended_for_package(package),
+            "hard_constraints": llm_strategy.get("hard_constraints")
+            or _hard_constraints(package, diagnosis),
+            "trigger_exit_rules": trigger_exit,
+            "explanation": llm_strategy.get("explanation"),
             "narrative": llm_strategy.get("narrative"),
             "source": llm_strategy.get("source", "hybrid"),
         },
@@ -136,3 +145,33 @@ def _not_recommended(package: str, diagnosis: dict[str, Any]) -> list[str]:
     if package == "incremental_release":
         items.append("无监测条件下大幅加绿")
     return items
+
+
+def _recommended_for_package(package: str) -> list[str]:
+    mapping = {
+        "downstream_protection": ["下游保护约束下的保守放行"],
+        "incremental_release": ["下游保护约束下的小步释放"],
+        "arterial_coordination": ["上游控流 + 目标小步释放 + 下游保护"],
+    }
+    return mapping.get(package, mapping["downstream_protection"])
+
+
+def _hard_constraints(package: str, diagnosis: dict[str, Any]) -> list[str]:
+    items = ["最小绿灯、黄灯全红与行人过街约束不可突破"]
+    if diagnosis.get("downstream_trace", {}).get("governance", {}).get("downstream_blocked"):
+        items.append("下游排队比超阈值时禁止继续增大目标方向放行")
+    if package == "arterial_coordination":
+        items.append("上游控流幅度不得导致上游路口新溢出")
+    return items
+
+
+def _merge_trigger_exit_rules(
+    llm_rules: Any,
+    instruction_rules: dict[str, Any] | None,
+) -> dict[str, Any]:
+    merged: dict[str, Any] = dict(instruction_rules or {})
+    if isinstance(llm_rules, dict):
+        merged.update(llm_rules)
+    elif isinstance(llm_rules, list):
+        merged["rules"] = llm_rules
+    return merged
