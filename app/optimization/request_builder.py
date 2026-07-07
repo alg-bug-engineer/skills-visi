@@ -76,28 +76,40 @@ def _build_phase_plan(signal: dict[str, Any], inter_id: str) -> dict[str, Any]:
 
     phase_stages = []
     for stage in stages:
-        movement_key = str(stage.get("movement_key") or stage.get("phase_stage_name") or "")
-        dir8, turn = _movement_to_dir8_turn(movement_key)
-        flow = int(stage.get("turnFlowTotal") or stage.get("flow_vph") or 500)
-        phase_stages.append(
-            {
-                "phaseStageId": str(stage.get("phase_stage_id") or stage.get("phaseStageId") or ""),
-                "phaseStageName": str(stage.get("phase_stage_name") or stage.get("phaseStageName") or ""),
-                "phaseDirInfoDTOList": [
-                    {
-                        "dir8No": dir8,
-                        "turnDirNo": turn,
-                        "turnFlowTotal": flow,
-                        "laneCount": int(stage.get("laneCount") or 2),
-                    }
-                ],
-                "greenTime": int(stage.get("greenTime") or stage.get("green_time_s") or 0),
-                "yellowTime": int(stage.get("yellowTime") or stage.get("yellow_time_s") or 3),
-                "allRedTime": int(stage.get("allRedTime") or stage.get("all_red_time_s") or 2),
-                "minGreenTime": int(stage.get("minGreenTime") or stage.get("min_green_time_s") or 15),
-                "maxGreenTime": int(stage.get("maxGreenTime") or stage.get("max_green_time_s") or 60),
-            }
-        )
+        green = _int_or_none(stage.get("greenTime"), stage.get("green_time_s"))
+        yellow = _int_or_none(stage.get("yellowTime"), stage.get("yellow_time_s")) or 3
+        all_red = _int_or_none(stage.get("allRedTime"), stage.get("all_red_time_s")) or 2
+        min_green = _int_or_none(stage.get("minGreenTime"), stage.get("min_green_time_s"))
+        max_green = _int_or_none(stage.get("maxGreenTime"), stage.get("max_green_time_s"))
+
+        phase_stage = {
+            "phaseStageId": str(stage.get("phase_stage_id") or stage.get("phaseStageId") or ""),
+            "phaseStageName": str(stage.get("phase_stage_name") or stage.get("phaseStageName") or ""),
+            "phaseDirInfoDTOList": _resolve_stage_dir_infos(stage),
+            "greenTime": green or 0,
+            "yellowTime": yellow,
+            "allRedTime": all_red,
+            # currentTiming / greenBounds 让优化引擎按真实现状绿与真实最小绿定界，
+            # 否则引擎回落默认机动车最小绿 14s（见 signal_optimization_engine
+            # single_intersection._stage_min_green_s / _stage_history_green_s）。
+            "currentTiming": {
+                "greenSec": green,
+                "yellowSec": yellow,
+                "allRedSec": all_red,
+            },
+        }
+        green_bounds: dict[str, Any] = {}
+        if min_green is not None:
+            green_bounds["minGreenS"] = min_green
+            phase_stage["minGreenTime"] = min_green
+            phase_stage["min_green_s"] = min_green
+        if max_green is not None:
+            green_bounds["maxGreenS"] = max_green
+            phase_stage["maxGreenTime"] = max_green
+            phase_stage["max_green_s"] = max_green
+        if green_bounds:
+            phase_stage["greenBounds"] = green_bounds
+        phase_stages.append(phase_stage)
 
     return {
         "interId": inter_id,
@@ -105,6 +117,60 @@ def _build_phase_plan(signal: dict[str, Any], inter_id: str) -> dict[str, Any]:
         "phasePlanName": str(signal.get("plan_name") or "现状方案"),
         "phaseStageInfoList": phase_stages,
     }
+
+
+def _resolve_stage_dir_infos(stage: dict[str, Any]) -> list[dict[str, Any]]:
+    """优先使用后端已绑定的真实逐转向流量，缺失时按释放转向标注降级。
+
+    不再使用固定占位流量（原 500）。绑定不到真实流量的转向以 turnFlowTotal=0
+    传入（引擎据此走虚拟流量→最小绿，而非编造需求）。
+    """
+    bound = stage.get("phaseDirInfoDTOList")
+    if isinstance(bound, list) and bound:
+        infos: list[dict[str, Any]] = []
+        for item in bound:
+            if not isinstance(item, dict):
+                continue
+            dir8 = item.get("dir8No")
+            turn = item.get("turnDirNo")
+            if dir8 is None or turn is None:
+                continue  # 无法定位方向的转向不下发，避免错配
+            vph = item.get("turnFlowTotal")
+            entry: dict[str, Any] = {
+                "dir8No": int(dir8),
+                "turnDirNo": int(turn),
+                "turnFlowTotal": float(vph) if vph is not None else 0.0,
+            }
+            lane = item.get("laneCount")
+            if lane:
+                entry["laneCount"] = int(lane)
+            infos.append(entry)
+        if infos:
+            return infos
+
+    # 降级：无绑定流量（如 fixture 现状配时），按阶段释放转向给单条方向，
+    # 不带流量（引擎走虚拟流量→最小绿），显式区别于真实需求。
+    movement_key = str(stage.get("movement_key") or stage.get("phase_stage_name") or "")
+    dir8, turn = _movement_to_dir8_turn(movement_key)
+    entry = {"dir8No": dir8, "turnDirNo": turn}
+    flow = stage.get("turnFlowTotal") or stage.get("flow_vph")
+    if flow is not None:
+        entry["turnFlowTotal"] = float(flow)
+    lane = stage.get("laneCount")
+    if lane:
+        entry["laneCount"] = int(lane)
+    return [entry]
+
+
+def _int_or_none(*values: Any) -> int | None:
+    for value in values:
+        if value is None or value == "":
+            continue
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def _movement_to_dir8_turn(movement_key: str) -> tuple[int, int]:

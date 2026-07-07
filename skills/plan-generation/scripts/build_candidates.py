@@ -81,6 +81,7 @@ def build_plan_candidates(
             continue
 
         timing_source = "adjust_phase_timing"
+        optimizer_degraded_reason: str | None = None
         if run_single_point_optimizer is not None:
             optimized = run_single_point_optimizer(
                 signal=signal,
@@ -94,6 +95,10 @@ def build_plan_candidates(
                 adjusted["cycle_s"] = optimized["cycle_s"]
                 timing_source = optimized.get("engine") or "signal_optimization_engine"
                 optimizer_engine = timing_source
+            elif optimized.get("degraded"):
+                # 优化输入缺失/结果塌缩：回退真实现状配时调整（adjust_phase_timing），
+                # 不以退化占位配时冒充优化结果，并透传降级原因供审计。
+                optimizer_degraded_reason = optimized.get("reason")
 
         plan_body = {
             **draft,
@@ -135,6 +140,8 @@ def build_plan_candidates(
                 "guardrail_pass": guardrail_pass,
                 "execution_order": definition.get("execution_order"),
                 "timing_source": timing_source,
+                "optimizer_degraded": optimizer_degraded_reason is not None,
+                "optimizer_degraded_reason": optimizer_degraded_reason,
             }
         )
     return candidates, optimizer_engine

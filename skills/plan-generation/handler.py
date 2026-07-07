@@ -158,6 +158,7 @@ class PlanGenerationSkill(BaseSkill):
         output = {
             "candidates": candidates,
             "recommended": recommended,
+            "recommended_plan_id": recommended["plan_id"],
             "recommendation": llm_result,
             "all_guardrails_passed": all(c.get("guardrail_pass") for c in candidates),
             "signal_source": signal_resolved.get("source"),

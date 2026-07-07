@@ -1,5 +1,5 @@
 {
-  "trace_id": "043a079385bd474b",
+  "trace_id": "734b59d1ca494370",
   "completed": true,
   "pipeline_complete": true,
   "diagnosis_ticket": {
@@ -7,10 +7,10 @@
     "intersection_name": "经十路与转山西路路口",
     "intersection_name_candidates": [
       "转山西路与经十路路口",
-      "经十路-转山西路",
-      "转山西路-经十路"
+      "经十路转山西路",
+      "转山西路经十路"
     ],
-    "time_range": "18:10 - 18:30",
+    "time_range": "18:10-18:30",
     "period": "evening_rush_hour",
     "direction": "east_to_west",
     "movement": "through",
@@ -18,12 +18,12 @@
     "constraints": {
       "priority": "prevent_downstream_spillback"
     },
-    "diagnosis_scope": "signal_timing_and_capacity",
-    "governance_goal": "eliminate_queue_spillback_upstream_and_downstream",
+    "diagnosis_scope": "signal_timing_optimization",
+    "governance_goal": "clear_queue_and_prevent_spillback",
     "user_experiences": [
       {
         "experience_type": "cognitive",
-        "content": "东向西方向在18:10至18:30期间发生排队溢出至上游的现象",
+        "content": "东向西方向在18:10至18:30期间发生排队溢出至上游路段",
         "source_span": "六点十分到六点半，东向西排队溢出到上游",
         "tags": {
           "problem_type": "queue_spillback",
@@ -33,10 +33,11 @@
       },
       {
         "experience_type": "solution",
-        "content": "优先避免下游继续外溢",
+        "content": "控制信号配时或采取其他措施，优先防止下游路口继续发生溢出",
         "source_span": "优先避免下游继续外溢",
         "tags": {
-          "strategy_action": "control_downstream_spillback"
+          "strategy_action": "prevent_downstream_spillback",
+          "constraint_type": "downstream_capacity_limit"
         }
       }
     ],
@@ -61,10 +62,10 @@
         "intersection_name": "经十路与转山西路路口",
         "intersection_name_candidates": [
           "转山西路与经十路路口",
-          "经十路-转山西路",
-          "转山西路-经十路"
+          "经十路转山西路",
+          "转山西路经十路"
         ],
-        "time_range": "18:10 - 18:30",
+        "time_range": "18:10-18:30",
         "period": "evening_rush_hour",
         "direction": "east_to_west",
         "movement": "through",
@@ -72,12 +73,12 @@
         "constraints": {
           "priority": "prevent_downstream_spillback"
         },
-        "diagnosis_scope": "signal_timing_and_capacity",
-        "governance_goal": "eliminate_queue_spillback_upstream_and_downstream",
+        "diagnosis_scope": "signal_timing_optimization",
+        "governance_goal": "clear_queue_and_prevent_spillback",
         "user_experiences": [
           {
             "experience_type": "cognitive",
-            "content": "东向西方向在18:10至18:30期间发生排队溢出至上游的现象",
+            "content": "东向西方向在18:10至18:30期间发生排队溢出至上游路段",
             "source_span": "六点十分到六点半，东向西排队溢出到上游",
             "tags": {
               "problem_type": "queue_spillback",
@@ -87,10 +88,11 @@
           },
           {
             "experience_type": "solution",
-            "content": "优先避免下游继续外溢",
+            "content": "控制信号配时或采取其他措施，优先防止下游路口继续发生溢出",
             "source_span": "优先避免下游继续外溢",
             "tags": {
-              "strategy_action": "control_downstream_spillback"
+              "strategy_action": "prevent_downstream_spillback",
+              "constraint_type": "downstream_capacity_limit"
             }
           }
         ],
@@ -111,7 +113,7 @@
       "user_experiences": [
         {
           "experience_type": "cognitive",
-          "content": "东向西方向在18:10至18:30期间发生排队溢出至上游的现象",
+          "content": "东向西方向在18:10至18:30期间发生排队溢出至上游路段",
           "source_span": "六点十分到六点半，东向西排队溢出到上游",
           "tags": {
             "inter_id": "011wwe289qc00001",
@@ -136,7 +138,7 @@
         },
         {
           "experience_type": "solution",
-          "content": "优先避免下游继续外溢",
+          "content": "控制信号配时或采取其他措施，优先防止下游路口继续发生溢出",
           "source_span": "优先避免下游继续外溢",
           "tags": {
             "inter_id": "011wwe289qc00001",
@@ -149,14 +151,15 @@
             "severity": null,
             "cause_dimension": null,
             "cause_keywords": [],
-            "strategy_action": "control_downstream_spillback",
+            "strategy_action": "prevent_downstream_spillback",
             "related_poi": [],
             "target_phase": null,
             "adjustment_direction": null,
             "constraints": {
               "priority": "prevent_downstream_spillback"
             },
-            "confidence": null
+            "confidence": null,
+            "constraint_type": "downstream_capacity_limit"
           }
         }
       ],
@@ -8441,40 +8444,40 @@
     },
     "cause": {
       "cause_analysis": {
-        "primary_cause": "信号控制策略与下游通行能力不匹配（绿灯空放/无效释放）",
+        "primary_cause": "信号配时与下游通行能力不匹配（绿灯空放/利用率低）",
         "secondary_causes": [
-          "上游交通流集中汇入导致进口道排队累积",
-          "下游节点（岔口/辅路路口）实际通行能力受限或存在隐性瓶颈"
+          "上游来车集中度高，缺乏协调控制导致车流叠加",
+          "下游节点（岔口/海右路路口）实际通行能力受限或存在隐性瓶颈"
         ],
         "optimizable_points": [
-          "实施局部绿信比优化：在确认下游具备承接能力的前提下，适当增加东进口直行相位绿灯时间，利用剩余空间清空排队。",
-          "开展现场调研：核实下游“岔口”及“经十路辅路与海右路路口”是否存在违停、公交停靠或车道功能异常导致的隐性阻塞。",
-          "强化干线协调：若下游通畅，需解决相位差缺失问题，建立与上游奥体西路路口的联动控制，避免上游连续放行导致目标路口饱和。"
+          "局部增加东进口直行相位绿灯时间，提升当前绿灯利用率",
+          "实施上下游路口信号协调（绿波），平滑上游奥体西路方向车流到达",
+          "排查下游‘岔口’及‘经十路辅路与海右路路口’是否存在物理瓶颈或违停占道"
         ],
         "data_gaps": [
-          "下游相邻路口（经十路辅路与海右路路口、岔口）的实时排队长度、饱和度及信号灯配时数据缺失。",
-          "路段平均行驶速度及相位差（Offset）数据缺失，无法精确计算绿波协调效果。",
-          "车道级流量分布数据缺失，难以判断直行与转向车流的具体冲突点。",
+          "下游相邻路口（经十路辅路与海右路、岔口）的实时排队长度与饱和度数据缺失",
+          "路段平均行驶速度与行程时间数据缺失，影响协调方案精准计算",
+          "车道级流量分布数据缺失，无法精确识别具体拥堵车道",
           "车道流量数据不足",
           "现场调研数据不足",
           "强吸引点上下文标签数据不足"
         ],
-        "narrative ": "经十路与转山西路路口在东向西方向晚高峰出现排队溢出风险。诊断数据显示，该方向饱和度极低（0.03），但排队长度达158米，且绿灯利用率仅为0.57，呈现典型的“绿灯给了也用不上”的空放现象。这表明核心矛盾并非路口自身通行能力不足，而是信号放行效率低下或下游受阻。上游流量溯源显示，约72%的车流来自奥体西路与经十路路口，形成集中的潮汐流。虽然下游拓扑显示有承接余量，但由于缺乏下游实时数据和相位协调信息，系统判定为控制不当。参考汕头中山-龙眼路口案例，当出口方向存在瓶颈或上下游缺乏协调时，极易引发回溢；本案例中，通过局部增绿和下游排查有望解决溢出问题。",
+        "narrable": "经十路与转山西路路口晚高峰东向西直行方向出现排队溢出风险。核心矛盾在于：虽然目标路口饱和度极低（0.03），但排队长度达158米且绿灯利用率仅57%（存在空放现象），表明‘绿灯给了也用不上’。这通常由下游出口不畅或上游车流未协调导致。历史案例显示，类似‘绿灯空放+下游回溢’问题通过优化相位搭接、实施下游优先的局部增绿以及上下游协调控制可显著缓解。建议优先验证下游通畅性并调整配时。",
         "cause_ranking": [
           {
             "rank": 1,
-            "cause": "信号控制策略与下游通行能力不匹配（绿灯空放/无效释放）",
+            "cause": "信号配时与下游通行能力不匹配（绿灯空放/利用率低）",
             "role": "主因"
           },
           {
             "rank": 2,
-            "cause": "上游交通流集中汇入导致进口道排队累积",
-            "role": "诱因"
+            "cause": "上游来车集中度高，缺乏协调控制导致车流叠加",
+            "role": "次因"
           },
           {
             "rank": 3,
-            "cause": "下游节点（岔口/辅路路口）实际通行能力受限或存在隐性瓶颈",
-            "role": "次因"
+            "cause": "下游节点（岔口/海右路路口）实际通行能力受限或存在隐性瓶颈",
+            "role": "诱因"
           }
         ]
       },
@@ -8547,18 +8550,18 @@
       "cause_ranking": [
         {
           "rank": 1,
-          "cause": "信号控制策略与下游通行能力不匹配（绿灯空放/无效释放）",
+          "cause": "信号配时与下游通行能力不匹配（绿灯空放/利用率低）",
           "role": "主因"
         },
         {
           "rank": 2,
-          "cause": "上游交通流集中汇入导致进口道排队累积",
-          "role": "诱因"
+          "cause": "上游来车集中度高，缺乏协调控制导致车流叠加",
+          "role": "次因"
         },
         {
           "rank": 3,
-          "cause": "下游节点（岔口/辅路路口）实际通行能力受限或存在隐性瓶颈",
-          "role": "次因"
+          "cause": "下游节点（岔口/海右路路口）实际通行能力受限或存在隐性瓶颈",
+          "role": "诱因"
         }
       ],
       "similar_cases": [
@@ -8836,37 +8839,36 @@
     "strategy": {
       "strategy": {
         "principles": [
-          "防溢流优先原则：在下游通行能力未完全确认前，严禁盲目增加绿灯时间，防止因下游饱和导致排队回溢至上游路口或主干道。",
-          "供需匹配原则：信号配时必须与下游实际承接能力动态匹配，确保“放得出去”且“接得住”，避免无效释放。",
-          "协同联动原则：强化上下游路口的协调控制，通过相位差（Offset）优化实现绿波通行，减少上游连续放行造成的目标路口瞬时压力。",
-          "渐进优化原则：采取小步快跑的局部微调策略，结合实时数据反馈逐步调整，而非一次性大幅改变配时方案。"
+          "防溢流优先原则：将防止下游路口（岔口/海右路）发生溢出作为最高约束，任何配时调整不得以牺牲下游通行能力为代价。",
+          "供需匹配原则：基于下游实际通行能力反推上游允许的最大放行量，避免‘绿灯空放’造成的时间资源浪费。",
+          "协调平滑原则：通过上下游信号协调（绿波或感应控制），削峰填谷，减少上游车流集中到达导致的瞬时拥堵。",
+          "动态适应原则：根据实时排队长度和饱和度动态调整相位时长，而非固定配时，以应对晚高峰流态变化。"
         ],
         "not_recommended": [
-          "单点激进加绿：在未核实下游是否存在隐性瓶颈（如违停、公交停靠、车道功能异常）的情况下，直接大幅增加东进口直行绿灯时间。此举极易导致下游路口迅速饱和，引发严重的排队溢出风险。",
-          "忽视下游状态的独立优化：仅关注本路口饱和度低的现象而忽略下游拥堵状况，脱离干线协调体系进行孤立配时调整。",
-          "静态长周期配时：采用固定不变的长时间绿灯方案，无法适应潮汐流变化及下游动态波动，缺乏灵活性。"
+          "单点激进增加东进口直行绿灯时间：在下游通行能力受限或存在隐性瓶颈的情况下，单纯增加绿灯只会加剧下游排队溢出风险，导致拥堵向上游蔓延。",
+          "忽视下游状态的静态配时优化：不考虑下游路口实时饱和度和排队长度的固定周期方案，无法解决‘绿灯给了也用不上’的核心矛盾。",
+          "仅依赖局部增绿而不进行协调控制：缺乏上下游联动，上游车流仍会集中到达下游节点，导致下游迅速饱和，局部优化效果短暂且不稳定。"
         ],
         "recommended": [
-          "下游能力核实与清理：立即开展现场调研，重点排查下游岔口及辅路路口是否存在违停、事故或设施故障导致的隐性阻塞，清除物理瓶颈后再考虑信号优化。",
-          "局部绿信比动态调整：在确认下游具备承接余量的前提下，适度增加东进口直行相位绿灯时间，利用剩余空间有序清空排队车辆，同时严格监控下游排队长度阈值。",
-          "建立上下游协调机制：若下游通畅，需解决相位差缺失问题，建立与上游奥体西路路口的联动控制，避免上游连续放行导致目标路口饱和，实现干线绿波协调。",
-          "实施溢出预警干预：设置下游排队长度预警阈值，一旦检测到下游接近饱和，立即触发信号控制降级策略（如缩短绿灯或切断流入），优先保障路网整体畅通。"
+          "实施下游优先的局部增绿策略：仅在确认下游路口有空余通行能力（未饱和、无溢出风险）的前提下，适度增加东进口直行绿灯时间，并设置严格的溢出预警阈值。",
+          "建立上下游信号协调机制：针对奥体西路方向来车，实施绿波带或自适应协调控制，平滑车流到达曲线，避免多股车流叠加冲击下游瓶颈。",
+          "排查并消除下游物理瓶颈：重点检查岔口及经十路辅路与海右路路口的车道渠化、违停占道情况，必要时通过交通管理手段（如严管违停）恢复下游实际通行能力。",
+          "引入排队长度反馈控制：利用检测数据实时监控下游排队长度，当接近溢出临界值时，自动缩短上游绿灯时间或提前切换相位，强制截断上游车流。"
         ],
         "hard_constraints": [
-          "严禁在下游排队长度超过安全阈值时增加任何进口道的绿灯时间。",
-          "所有局部配时调整不得破坏现有干线协调的基本相位关系，除非经过严格的仿真验证。",
-          "必须保留足够的行人过街及安全间隙时间，不得压缩必要的安全相位。"
+          "严禁在下游路口饱和度>0.9或排队长度超过物理存储空间80%时增加东进口直行绿灯时间。",
+          "所有配时调整必须确保下游路口不发生向上一级路口的回流溢出。",
+          "相位切换必须保留足够的全红清空时间，防止冲突。"
         ],
         "trigger_exit_rules": {
           "rollback_condition": "下游排队比持续上升时回滚至原方案",
           "rules": [
-            "下游相邻路口（经十路辅路与海右路路口、岔口）出现持续排队溢出并波及主线交通流。",
-            "现场调研发现下游存在严重物理阻塞（如事故、大规模违停）且短期内无法清除。",
-            "调整后东进口排队长度在3个信号周期内无显著下降趋势，或下游饱和度急剧上升。",
-            "检测到检测器数据异常或通信中断，无法实时监控下游状态。"
+            "下游路口排队长度连续3个周期低于安全阈值（如50米）。",
+            "东进口绿灯利用率提升至75%以上且下游无溢出迹象。",
+            "检测到下游存在严重物理阻塞（如事故、严重违停）时，立即停止增绿策略，转为上游截流模式。"
           ]
         },
-        "explanation": "当前核心矛盾并非路口自身通行能力不足，而是信号放行效率低下与下游潜在阻塞的错配。数据显示绿灯利用率极低（0.57）但排队较长，呈现典型的“空放”现象。若直接激进加绿，由于下游存在隐性瓶颈或缺乏协调，新增车流将无法及时消散，反而加剧溢出风险。因此，策略重心应从“单纯增加供给”转向“疏通出口+协调联动”。首先需排除下游物理障碍，其次通过局部增绿配合上下游协调，确保车流平稳疏散，最终实现防溢流与通行效率的双重提升。",
+        "explanation": "当前核心问题是‘绿灯利用率低’与‘下游排队高’并存，表明问题根源不在于上游绿灯时间绝对不足，而在于下游通行能力受限或车流到达不协调。若盲目增加东进口绿灯时间，会导致更多车辆涌入已饱和的下游路段，引发严重的溢出效应（Spillback），使拥堵范围扩大至上游多个路口。因此，治理策略必须从‘单向增绿’转向‘双向协调’与‘下游容量管控’。首先需确保下游通畅（排查物理瓶颈），其次通过协调控制平滑上游车流，最后在下游有余量的前提下谨慎释放上游需求，实现系统整体效率最大化而非单一路口指标优化。",
         "narrative": null,
         "source": "hybrid"
       },
@@ -8963,54 +8965,122 @@
             "matched_count": 3
           },
           "timing": {
-            "cycle_s": 42,
+            "cycle_s": 98,
             "phase_stage_timing_list": [
               {
                 "phase_stage_id": "1",
                 "phase_stage_name": "西直、东直",
-                "green_time_s": 14,
+                "green_time_s": 36,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 36,
+                "max_green_time_s": 78,
+                "greenTime": 36,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 36,
+                "maxGreenTime": 78,
+                "split_ratio": 0.3673,
+                "phase_saturation": 0.8746
               },
               {
                 "phase_stage_id": "2",
                 "phase_stage_name": "东左、西左",
-                "green_time_s": 14,
+                "green_time_s": 12,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 12,
+                "max_green_time_s": 20,
+                "greenTime": 12,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 12,
+                "maxGreenTime": 20,
+                "split_ratio": 0.1224,
+                "phase_saturation": 0.833
               },
               {
                 "phase_stage_id": "3",
                 "phase_stage_name": "南直",
-                "green_time_s": 14,
+                "green_time_s": 35,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 35,
+                "max_green_time_s": 64,
+                "greenTime": 35,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 35,
+                "maxGreenTime": 64,
+                "split_ratio": 0.3571,
+                "phase_saturation": 0.75
               }
-            ]
+            ],
+            "meta": {
+              "solver": "scipy_slsqp_document_model",
+              "target_saturation": 0.75,
+              "max_phase_saturation": 0.8746,
+              "total_turn_flow_vph": 4078.0,
+              "direction_intensity_list": [
+                {
+                  "movementKey": "d6_t2",
+                  "label": "西-直行",
+                  "dir8No": 6,
+                  "turnDirNo": 2,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d2_t2",
+                  "label": "东-直行",
+                  "dir8No": 2,
+                  "turnDirNo": 2,
+                  "intensity": 0.8746
+                },
+                {
+                  "movementKey": "d2_t1",
+                  "label": "东-左转",
+                  "dir8No": 2,
+                  "turnDirNo": 1,
+                  "intensity": 0.833
+                },
+                {
+                  "movementKey": "d2_t0",
+                  "label": "东-掉头",
+                  "dir8No": 2,
+                  "turnDirNo": 0,
+                  "intensity": 0.75,
+                  "historyVirtualFlowVph": 79.4
+                },
+                {
+                  "movementKey": "d6_t1",
+                  "label": "西-左转",
+                  "dir8No": 6,
+                  "turnDirNo": 1,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d4_t2",
+                  "label": "南-直行",
+                  "dir8No": 4,
+                  "turnDirNo": 2,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d4_t1",
+                  "label": "南-左转",
+                  "dir8No": 4,
+                  "turnDirNo": 1,
+                  "intensity": 0.75
+                }
+              ],
+              "notes": [
+                "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+                "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+                "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：东-掉头 79vph（现状放行12s，平均比值0.48）。",
+                "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直 45s→78s、南直 45s→64s。",
+                "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+              ]
+            }
           },
           "upstream_control": {
             "enabled": false,
@@ -9038,6 +9108,8 @@
             "持续监测排队比"
           ],
           "timing_source": "signal_optimization_engine",
+          "optimizer_degraded": false,
+          "optimizer_degraded_reason": null,
           "user_experience_basis": "优先避免下游继续外溢",
           "provenance": {
             "accepted_plan_ref": {
@@ -9057,54 +9129,122 @@
             "matched_count": 3
           },
           "timing": {
-            "cycle_s": 42,
+            "cycle_s": 98,
             "phase_stage_timing_list": [
               {
                 "phase_stage_id": "1",
                 "phase_stage_name": "西直、东直",
-                "green_time_s": 14,
+                "green_time_s": 36,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 36,
+                "max_green_time_s": 78,
+                "greenTime": 36,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 36,
+                "maxGreenTime": 78,
+                "split_ratio": 0.3673,
+                "phase_saturation": 0.8746
               },
               {
                 "phase_stage_id": "2",
                 "phase_stage_name": "东左、西左",
-                "green_time_s": 14,
+                "green_time_s": 12,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 12,
+                "max_green_time_s": 20,
+                "greenTime": 12,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 12,
+                "maxGreenTime": 20,
+                "split_ratio": 0.1224,
+                "phase_saturation": 0.833
               },
               {
                 "phase_stage_id": "3",
                 "phase_stage_name": "南直",
-                "green_time_s": 14,
+                "green_time_s": 35,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 35,
+                "max_green_time_s": 64,
+                "greenTime": 35,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 35,
+                "maxGreenTime": 64,
+                "split_ratio": 0.3571,
+                "phase_saturation": 0.75
               }
-            ]
+            ],
+            "meta": {
+              "solver": "scipy_slsqp_document_model",
+              "target_saturation": 0.75,
+              "max_phase_saturation": 0.8746,
+              "total_turn_flow_vph": 4078.0,
+              "direction_intensity_list": [
+                {
+                  "movementKey": "d6_t2",
+                  "label": "西-直行",
+                  "dir8No": 6,
+                  "turnDirNo": 2,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d2_t2",
+                  "label": "东-直行",
+                  "dir8No": 2,
+                  "turnDirNo": 2,
+                  "intensity": 0.8746
+                },
+                {
+                  "movementKey": "d2_t1",
+                  "label": "东-左转",
+                  "dir8No": 2,
+                  "turnDirNo": 1,
+                  "intensity": 0.833
+                },
+                {
+                  "movementKey": "d2_t0",
+                  "label": "东-掉头",
+                  "dir8No": 2,
+                  "turnDirNo": 0,
+                  "intensity": 0.75,
+                  "historyVirtualFlowVph": 79.4
+                },
+                {
+                  "movementKey": "d6_t1",
+                  "label": "西-左转",
+                  "dir8No": 6,
+                  "turnDirNo": 1,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d4_t2",
+                  "label": "南-直行",
+                  "dir8No": 4,
+                  "turnDirNo": 2,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d4_t1",
+                  "label": "南-左转",
+                  "dir8No": 4,
+                  "turnDirNo": 1,
+                  "intensity": 0.75
+                }
+              ],
+              "notes": [
+                "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+                "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+                "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：东-掉头 79vph（现状放行12s，平均比值0.48）。",
+                "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直 45s→78s、南直 45s→64s。",
+                "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+              ]
+            }
           },
           "upstream_control": {
             "enabled": false,
@@ -9132,6 +9272,8 @@
             "监测下游饱和度"
           ],
           "timing_source": "signal_optimization_engine",
+          "optimizer_degraded": false,
+          "optimizer_degraded_reason": null,
           "user_experience_basis": "优先避免下游继续外溢",
           "provenance": {
             "accepted_plan_ref": {
@@ -9151,54 +9293,122 @@
             "matched_count": 3
           },
           "timing": {
-            "cycle_s": 42,
+            "cycle_s": 98,
             "phase_stage_timing_list": [
               {
                 "phase_stage_id": "1",
                 "phase_stage_name": "西直、东直",
-                "green_time_s": 14,
+                "green_time_s": 36,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 36,
+                "max_green_time_s": 78,
+                "greenTime": 36,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 36,
+                "maxGreenTime": 78,
+                "split_ratio": 0.3673,
+                "phase_saturation": 0.8746
               },
               {
                 "phase_stage_id": "2",
                 "phase_stage_name": "东左、西左",
-                "green_time_s": 14,
+                "green_time_s": 12,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 12,
+                "max_green_time_s": 20,
+                "greenTime": 12,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 12,
+                "maxGreenTime": 20,
+                "split_ratio": 0.1224,
+                "phase_saturation": 0.833
               },
               {
                 "phase_stage_id": "3",
                 "phase_stage_name": "南直",
-                "green_time_s": 14,
+                "green_time_s": 35,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "min_green_time_s": 14,
-                "max_green_time_s": 160,
-                "greenTime": 14,
+                "min_green_time_s": 35,
+                "max_green_time_s": 64,
+                "greenTime": 35,
                 "yellowTime": 3,
                 "allRedTime": 2,
-                "minGreenTime": 14,
-                "maxGreenTime": 160,
-                "split_ratio": 0.3333
+                "minGreenTime": 35,
+                "maxGreenTime": 64,
+                "split_ratio": 0.3571,
+                "phase_saturation": 0.75
               }
-            ]
+            ],
+            "meta": {
+              "solver": "scipy_slsqp_document_model",
+              "target_saturation": 0.75,
+              "max_phase_saturation": 0.8746,
+              "total_turn_flow_vph": 4078.0,
+              "direction_intensity_list": [
+                {
+                  "movementKey": "d6_t2",
+                  "label": "西-直行",
+                  "dir8No": 6,
+                  "turnDirNo": 2,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d2_t2",
+                  "label": "东-直行",
+                  "dir8No": 2,
+                  "turnDirNo": 2,
+                  "intensity": 0.8746
+                },
+                {
+                  "movementKey": "d2_t1",
+                  "label": "东-左转",
+                  "dir8No": 2,
+                  "turnDirNo": 1,
+                  "intensity": 0.833
+                },
+                {
+                  "movementKey": "d2_t0",
+                  "label": "东-掉头",
+                  "dir8No": 2,
+                  "turnDirNo": 0,
+                  "intensity": 0.75,
+                  "historyVirtualFlowVph": 79.4
+                },
+                {
+                  "movementKey": "d6_t1",
+                  "label": "西-左转",
+                  "dir8No": 6,
+                  "turnDirNo": 1,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d4_t2",
+                  "label": "南-直行",
+                  "dir8No": 4,
+                  "turnDirNo": 2,
+                  "intensity": 0.75
+                },
+                {
+                  "movementKey": "d4_t1",
+                  "label": "南-左转",
+                  "dir8No": 4,
+                  "turnDirNo": 1,
+                  "intensity": 0.75
+                }
+              ],
+              "notes": [
+                "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+                "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+                "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：东-掉头 79vph（现状放行12s，平均比值0.48）。",
+                "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直 45s→78s、南直 45s→64s。",
+                "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+              ]
+            }
           },
           "upstream_control": {
             "enabled": false,
@@ -9226,6 +9436,8 @@
             "最后小步释放目标方向"
           ],
           "timing_source": "signal_optimization_engine",
+          "optimizer_degraded": false,
+          "optimizer_degraded_reason": null,
           "user_experience_basis": "优先避免下游继续外溢",
           "provenance": {
             "accepted_plan_ref": {
@@ -9246,54 +9458,122 @@
           "matched_count": 3
         },
         "timing": {
-          "cycle_s": 42,
+          "cycle_s": 98,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "1",
               "phase_stage_name": "西直、东直",
-              "green_time_s": 14,
+              "green_time_s": 36,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 36,
+              "max_green_time_s": 78,
+              "greenTime": 36,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 36,
+              "maxGreenTime": 78,
+              "split_ratio": 0.3673,
+              "phase_saturation": 0.8746
             },
             {
               "phase_stage_id": "2",
               "phase_stage_name": "东左、西左",
-              "green_time_s": 14,
+              "green_time_s": 12,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 12,
+              "max_green_time_s": 20,
+              "greenTime": 12,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 12,
+              "maxGreenTime": 20,
+              "split_ratio": 0.1224,
+              "phase_saturation": 0.833
             },
             {
               "phase_stage_id": "3",
               "phase_stage_name": "南直",
-              "green_time_s": 14,
+              "green_time_s": 35,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 35,
+              "max_green_time_s": 64,
+              "greenTime": 35,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 35,
+              "maxGreenTime": 64,
+              "split_ratio": 0.3571,
+              "phase_saturation": 0.75
             }
-          ]
+          ],
+          "meta": {
+            "solver": "scipy_slsqp_document_model",
+            "target_saturation": 0.75,
+            "max_phase_saturation": 0.8746,
+            "total_turn_flow_vph": 4078.0,
+            "direction_intensity_list": [
+              {
+                "movementKey": "d6_t2",
+                "label": "西-直行",
+                "dir8No": 6,
+                "turnDirNo": 2,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d2_t2",
+                "label": "东-直行",
+                "dir8No": 2,
+                "turnDirNo": 2,
+                "intensity": 0.8746
+              },
+              {
+                "movementKey": "d2_t1",
+                "label": "东-左转",
+                "dir8No": 2,
+                "turnDirNo": 1,
+                "intensity": 0.833
+              },
+              {
+                "movementKey": "d2_t0",
+                "label": "东-掉头",
+                "dir8No": 2,
+                "turnDirNo": 0,
+                "intensity": 0.75,
+                "historyVirtualFlowVph": 79.4
+              },
+              {
+                "movementKey": "d6_t1",
+                "label": "西-左转",
+                "dir8No": 6,
+                "turnDirNo": 1,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d4_t2",
+                "label": "南-直行",
+                "dir8No": 4,
+                "turnDirNo": 2,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d4_t1",
+                "label": "南-左转",
+                "dir8No": 4,
+                "turnDirNo": 1,
+                "intensity": 0.75
+              }
+            ],
+            "notes": [
+              "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+              "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+              "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：东-掉头 79vph（现状放行12s，平均比值0.48）。",
+              "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直 45s→78s、南直 45s→64s。",
+              "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+            ]
+          }
         },
         "upstream_control": {
           "enabled": false,
@@ -9321,6 +9601,8 @@
           "持续监测排队比"
         ],
         "timing_source": "signal_optimization_engine",
+        "optimizer_degraded": false,
+        "optimizer_degraded_reason": null,
         "user_experience_basis": "优先避免下游继续外溢",
         "provenance": {
           "accepted_plan_ref": {
@@ -9329,14 +9611,15 @@
           }
         }
       },
+      "recommended_plan_id": "downstream_protection",
       "recommendation": {
         "recommended_plan_id": "downstream_protection",
-        "rationale": "当前核心矛盾为下游承接能力不足导致的排队溢出风险，而非单纯的本路口通行效率问题。策略明确禁止单点激进加绿，强调‘防溢流优先’与‘供需匹配’。鉴于已接受方案（arterial_coordination）侧重于上游控流，而本次工单重点在于目标路口的直接保护与动态调整，故推荐执行‘下游保护方案’。该方案通过局部绿信比动态调整（适度增绿以清空排队但严格监控阈值）及建立上下游协调机制，在确保下游不饱和的前提下有序疏散车流，符合渐进优化原则。",
+        "rationale": "当前核心矛盾为下游路口（岔口/海右路）通行能力受限导致排队溢出，且用户经验与策略均强调‘防溢流优先’。盲目增加东进口绿灯会加剧下游饱和，引发严重回流。因此，必须执行‘下游保护方案’：首先通过排查物理瓶颈和建立上下游协调机制平滑车流；其次，在严格监控下游状态（饱和度<0.9、排队长度安全）的前提下，适度减少东进口直行绿灯时间（target_green_delta: -2），实施上游截流与小步释放，确保下游不溢出后再考虑恢复通行效率。该方案符合‘供需匹配’与‘动态适应’原则，能有效遏制拥堵蔓延。",
         "execution_order": [
-          "1. 下游能力核实与清理：排查经十路辅路与海右路、岔口等下游节点隐性阻塞。",
-          "2. 实施溢出预警干预：设置下游排队长度阈值，触发降级策略以防溢出。",
-          "3. 局部绿信比动态调整：确认下游余量后，适度增加东进口直行绿灯时间。",
-          "4. 建立上下游协调机制：优化相位差，实现干线绿波协调，避免上游连续放行压力。"
+          "1. 立即启动下游节点（岔口、海右路）物理瓶颈排查与违停严管，恢复下游实际通行能力。",
+          "2. 建立奥体西路至经十路的信号协调控制，平滑上游到达曲线，避免车流叠加冲击下游。",
+          "3. 实施东进口直行绿灯缩减策略（-2秒），并设置严格的溢出预警阈值，当检测到下游排队接近临界值时自动缩短绿灯或提前切换相位。",
+          "4. 实时监控下游排队长度，若连续3个周期低于安全阈值且绿灯利用率提升，再逐步评估是否恢复配时；若下游排队持续上升，立即回滚至原方案。"
         ]
       },
       "all_guardrails_passed": true,
@@ -9607,54 +9890,122 @@
           "matched_count": 3
         },
         "timing": {
-          "cycle_s": 42,
+          "cycle_s": 98,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "1",
               "phase_stage_name": "西直、东直",
-              "green_time_s": 14,
+              "green_time_s": 36,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 36,
+              "max_green_time_s": 78,
+              "greenTime": 36,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 36,
+              "maxGreenTime": 78,
+              "split_ratio": 0.3673,
+              "phase_saturation": 0.8746
             },
             {
               "phase_stage_id": "2",
               "phase_stage_name": "东左、西左",
-              "green_time_s": 14,
+              "green_time_s": 12,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 12,
+              "max_green_time_s": 20,
+              "greenTime": 12,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 12,
+              "maxGreenTime": 20,
+              "split_ratio": 0.1224,
+              "phase_saturation": 0.833
             },
             {
               "phase_stage_id": "3",
               "phase_stage_name": "南直",
-              "green_time_s": 14,
+              "green_time_s": 35,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 35,
+              "max_green_time_s": 64,
+              "greenTime": 35,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 35,
+              "maxGreenTime": 64,
+              "split_ratio": 0.3571,
+              "phase_saturation": 0.75
             }
-          ]
+          ],
+          "meta": {
+            "solver": "scipy_slsqp_document_model",
+            "target_saturation": 0.75,
+            "max_phase_saturation": 0.8746,
+            "total_turn_flow_vph": 4078.0,
+            "direction_intensity_list": [
+              {
+                "movementKey": "d6_t2",
+                "label": "西-直行",
+                "dir8No": 6,
+                "turnDirNo": 2,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d2_t2",
+                "label": "东-直行",
+                "dir8No": 2,
+                "turnDirNo": 2,
+                "intensity": 0.8746
+              },
+              {
+                "movementKey": "d2_t1",
+                "label": "东-左转",
+                "dir8No": 2,
+                "turnDirNo": 1,
+                "intensity": 0.833
+              },
+              {
+                "movementKey": "d2_t0",
+                "label": "东-掉头",
+                "dir8No": 2,
+                "turnDirNo": 0,
+                "intensity": 0.75,
+                "historyVirtualFlowVph": 79.4
+              },
+              {
+                "movementKey": "d6_t1",
+                "label": "西-左转",
+                "dir8No": 6,
+                "turnDirNo": 1,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d4_t2",
+                "label": "南-直行",
+                "dir8No": 4,
+                "turnDirNo": 2,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d4_t1",
+                "label": "南-左转",
+                "dir8No": 4,
+                "turnDirNo": 1,
+                "intensity": 0.75
+              }
+            ],
+            "notes": [
+              "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+              "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+              "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：东-掉头 79vph（现状放行12s，平均比值0.48）。",
+              "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直 45s→78s、南直 45s→64s。",
+              "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+            ]
+          }
         },
         "upstream_control": {
           "enabled": false,
@@ -9682,6 +10033,8 @@
           "持续监测排队比"
         ],
         "timing_source": "signal_optimization_engine",
+        "optimizer_degraded": false,
+        "optimizer_degraded_reason": null,
         "user_experience_basis": "优先避免下游继续外溢",
         "provenance": {
           "accepted_plan_ref": {
@@ -9701,54 +10054,122 @@
           "matched_count": 3
         },
         "timing": {
-          "cycle_s": 42,
+          "cycle_s": 98,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "1",
               "phase_stage_name": "西直、东直",
-              "green_time_s": 14,
+              "green_time_s": 36,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 36,
+              "max_green_time_s": 78,
+              "greenTime": 36,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 36,
+              "maxGreenTime": 78,
+              "split_ratio": 0.3673,
+              "phase_saturation": 0.8746
             },
             {
               "phase_stage_id": "2",
               "phase_stage_name": "东左、西左",
-              "green_time_s": 14,
+              "green_time_s": 12,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 12,
+              "max_green_time_s": 20,
+              "greenTime": 12,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 12,
+              "maxGreenTime": 20,
+              "split_ratio": 0.1224,
+              "phase_saturation": 0.833
             },
             {
               "phase_stage_id": "3",
               "phase_stage_name": "南直",
-              "green_time_s": 14,
+              "green_time_s": 35,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 35,
+              "max_green_time_s": 64,
+              "greenTime": 35,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 35,
+              "maxGreenTime": 64,
+              "split_ratio": 0.3571,
+              "phase_saturation": 0.75
             }
-          ]
+          ],
+          "meta": {
+            "solver": "scipy_slsqp_document_model",
+            "target_saturation": 0.75,
+            "max_phase_saturation": 0.8746,
+            "total_turn_flow_vph": 4078.0,
+            "direction_intensity_list": [
+              {
+                "movementKey": "d6_t2",
+                "label": "西-直行",
+                "dir8No": 6,
+                "turnDirNo": 2,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d2_t2",
+                "label": "东-直行",
+                "dir8No": 2,
+                "turnDirNo": 2,
+                "intensity": 0.8746
+              },
+              {
+                "movementKey": "d2_t1",
+                "label": "东-左转",
+                "dir8No": 2,
+                "turnDirNo": 1,
+                "intensity": 0.833
+              },
+              {
+                "movementKey": "d2_t0",
+                "label": "东-掉头",
+                "dir8No": 2,
+                "turnDirNo": 0,
+                "intensity": 0.75,
+                "historyVirtualFlowVph": 79.4
+              },
+              {
+                "movementKey": "d6_t1",
+                "label": "西-左转",
+                "dir8No": 6,
+                "turnDirNo": 1,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d4_t2",
+                "label": "南-直行",
+                "dir8No": 4,
+                "turnDirNo": 2,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d4_t1",
+                "label": "南-左转",
+                "dir8No": 4,
+                "turnDirNo": 1,
+                "intensity": 0.75
+              }
+            ],
+            "notes": [
+              "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+              "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+              "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：东-掉头 79vph（现状放行12s，平均比值0.48）。",
+              "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直 45s→78s、南直 45s→64s。",
+              "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+            ]
+          }
         },
         "upstream_control": {
           "enabled": false,
@@ -9776,6 +10197,8 @@
           "监测下游饱和度"
         ],
         "timing_source": "signal_optimization_engine",
+        "optimizer_degraded": false,
+        "optimizer_degraded_reason": null,
         "user_experience_basis": "优先避免下游继续外溢",
         "provenance": {
           "accepted_plan_ref": {
@@ -9795,54 +10218,122 @@
           "matched_count": 3
         },
         "timing": {
-          "cycle_s": 42,
+          "cycle_s": 98,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "1",
               "phase_stage_name": "西直、东直",
-              "green_time_s": 14,
+              "green_time_s": 36,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 36,
+              "max_green_time_s": 78,
+              "greenTime": 36,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 36,
+              "maxGreenTime": 78,
+              "split_ratio": 0.3673,
+              "phase_saturation": 0.8746
             },
             {
               "phase_stage_id": "2",
               "phase_stage_name": "东左、西左",
-              "green_time_s": 14,
+              "green_time_s": 12,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 12,
+              "max_green_time_s": 20,
+              "greenTime": 12,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 12,
+              "maxGreenTime": 20,
+              "split_ratio": 0.1224,
+              "phase_saturation": 0.833
             },
             {
               "phase_stage_id": "3",
               "phase_stage_name": "南直",
-              "green_time_s": 14,
+              "green_time_s": 35,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "min_green_time_s": 14,
-              "max_green_time_s": 160,
-              "greenTime": 14,
+              "min_green_time_s": 35,
+              "max_green_time_s": 64,
+              "greenTime": 35,
               "yellowTime": 3,
               "allRedTime": 2,
-              "minGreenTime": 14,
-              "maxGreenTime": 160,
-              "split_ratio": 0.3333
+              "minGreenTime": 35,
+              "maxGreenTime": 64,
+              "split_ratio": 0.3571,
+              "phase_saturation": 0.75
             }
-          ]
+          ],
+          "meta": {
+            "solver": "scipy_slsqp_document_model",
+            "target_saturation": 0.75,
+            "max_phase_saturation": 0.8746,
+            "total_turn_flow_vph": 4078.0,
+            "direction_intensity_list": [
+              {
+                "movementKey": "d6_t2",
+                "label": "西-直行",
+                "dir8No": 6,
+                "turnDirNo": 2,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d2_t2",
+                "label": "东-直行",
+                "dir8No": 2,
+                "turnDirNo": 2,
+                "intensity": 0.8746
+              },
+              {
+                "movementKey": "d2_t1",
+                "label": "东-左转",
+                "dir8No": 2,
+                "turnDirNo": 1,
+                "intensity": 0.833
+              },
+              {
+                "movementKey": "d2_t0",
+                "label": "东-掉头",
+                "dir8No": 2,
+                "turnDirNo": 0,
+                "intensity": 0.75,
+                "historyVirtualFlowVph": 79.4
+              },
+              {
+                "movementKey": "d6_t1",
+                "label": "西-左转",
+                "dir8No": 6,
+                "turnDirNo": 1,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d4_t2",
+                "label": "南-直行",
+                "dir8No": 4,
+                "turnDirNo": 2,
+                "intensity": 0.75
+              },
+              {
+                "movementKey": "d4_t1",
+                "label": "南-左转",
+                "dir8No": 4,
+                "turnDirNo": 1,
+                "intensity": 0.75
+              }
+            ],
+            "notes": [
+              "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+              "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+              "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：东-掉头 79vph（现状放行12s，平均比值0.48）。",
+              "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直 45s→78s、南直 45s→64s。",
+              "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+            ]
+          }
         },
         "upstream_control": {
           "enabled": false,
@@ -9870,6 +10361,8 @@
           "最后小步释放目标方向"
         ],
         "timing_source": "signal_optimization_engine",
+        "optimizer_degraded": false,
+        "optimizer_degraded_reason": null,
         "user_experience_basis": "优先避免下游继续外溢",
         "provenance": {
           "accepted_plan_ref": {
@@ -9890,54 +10383,122 @@
         "matched_count": 3
       },
       "timing": {
-        "cycle_s": 42,
+        "cycle_s": 98,
         "phase_stage_timing_list": [
           {
             "phase_stage_id": "1",
             "phase_stage_name": "西直、东直",
-            "green_time_s": 14,
+            "green_time_s": 36,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
-            "min_green_time_s": 14,
-            "max_green_time_s": 160,
-            "greenTime": 14,
+            "min_green_time_s": 36,
+            "max_green_time_s": 78,
+            "greenTime": 36,
             "yellowTime": 3,
             "allRedTime": 2,
-            "minGreenTime": 14,
-            "maxGreenTime": 160,
-            "split_ratio": 0.3333
+            "minGreenTime": 36,
+            "maxGreenTime": 78,
+            "split_ratio": 0.3673,
+            "phase_saturation": 0.8746
           },
           {
             "phase_stage_id": "2",
             "phase_stage_name": "东左、西左",
-            "green_time_s": 14,
+            "green_time_s": 12,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
-            "min_green_time_s": 14,
-            "max_green_time_s": 160,
-            "greenTime": 14,
+            "min_green_time_s": 12,
+            "max_green_time_s": 20,
+            "greenTime": 12,
             "yellowTime": 3,
             "allRedTime": 2,
-            "minGreenTime": 14,
-            "maxGreenTime": 160,
-            "split_ratio": 0.3333
+            "minGreenTime": 12,
+            "maxGreenTime": 20,
+            "split_ratio": 0.1224,
+            "phase_saturation": 0.833
           },
           {
             "phase_stage_id": "3",
             "phase_stage_name": "南直",
-            "green_time_s": 14,
+            "green_time_s": 35,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
-            "min_green_time_s": 14,
-            "max_green_time_s": 160,
-            "greenTime": 14,
+            "min_green_time_s": 35,
+            "max_green_time_s": 64,
+            "greenTime": 35,
             "yellowTime": 3,
             "allRedTime": 2,
-            "minGreenTime": 14,
-            "maxGreenTime": 160,
-            "split_ratio": 0.3333
+            "minGreenTime": 35,
+            "maxGreenTime": 64,
+            "split_ratio": 0.3571,
+            "phase_saturation": 0.75
           }
-        ]
+        ],
+        "meta": {
+          "solver": "scipy_slsqp_document_model",
+          "target_saturation": 0.75,
+          "max_phase_saturation": 0.8746,
+          "total_turn_flow_vph": 4078.0,
+          "direction_intensity_list": [
+            {
+              "movementKey": "d6_t2",
+              "label": "西-直行",
+              "dir8No": 6,
+              "turnDirNo": 2,
+              "intensity": 0.75
+            },
+            {
+              "movementKey": "d2_t2",
+              "label": "东-直行",
+              "dir8No": 2,
+              "turnDirNo": 2,
+              "intensity": 0.8746
+            },
+            {
+              "movementKey": "d2_t1",
+              "label": "东-左转",
+              "dir8No": 2,
+              "turnDirNo": 1,
+              "intensity": 0.833
+            },
+            {
+              "movementKey": "d2_t0",
+              "label": "东-掉头",
+              "dir8No": 2,
+              "turnDirNo": 0,
+              "intensity": 0.75,
+              "historyVirtualFlowVph": 79.4
+            },
+            {
+              "movementKey": "d6_t1",
+              "label": "西-左转",
+              "dir8No": 6,
+              "turnDirNo": 1,
+              "intensity": 0.75
+            },
+            {
+              "movementKey": "d4_t2",
+              "label": "南-直行",
+              "dir8No": 4,
+              "turnDirNo": 2,
+              "intensity": 0.75
+            },
+            {
+              "movementKey": "d4_t1",
+              "label": "南-左转",
+              "dir8No": 4,
+              "turnDirNo": 1,
+              "intensity": 0.75
+            }
+          ],
+          "notes": [
+            "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+            "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+            "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：东-掉头 79vph（现状放行12s，平均比值0.48）。",
+            "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直 45s→78s、南直 45s→64s。",
+            "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+          ]
+        }
       },
       "upstream_control": {
         "enabled": false,
@@ -9965,6 +10526,8 @@
         "持续监测排队比"
       ],
       "timing_source": "signal_optimization_engine",
+      "optimizer_degraded": false,
+      "optimizer_degraded_reason": null,
       "user_experience_basis": "优先避免下游继续外溢",
       "provenance": {
         "accepted_plan_ref": {
@@ -9973,14 +10536,15 @@
         }
       }
     },
+    "recommended_plan_id": "downstream_protection",
     "recommendation": {
       "recommended_plan_id": "downstream_protection",
-      "rationale": "当前核心矛盾为下游承接能力不足导致的排队溢出风险，而非单纯的本路口通行效率问题。策略明确禁止单点激进加绿，强调‘防溢流优先’与‘供需匹配’。鉴于已接受方案（arterial_coordination）侧重于上游控流，而本次工单重点在于目标路口的直接保护与动态调整，故推荐执行‘下游保护方案’。该方案通过局部绿信比动态调整（适度增绿以清空排队但严格监控阈值）及建立上下游协调机制，在确保下游不饱和的前提下有序疏散车流，符合渐进优化原则。",
+      "rationale": "当前核心矛盾为下游路口（岔口/海右路）通行能力受限导致排队溢出，且用户经验与策略均强调‘防溢流优先’。盲目增加东进口绿灯会加剧下游饱和，引发严重回流。因此，必须执行‘下游保护方案’：首先通过排查物理瓶颈和建立上下游协调机制平滑车流；其次，在严格监控下游状态（饱和度<0.9、排队长度安全）的前提下，适度减少东进口直行绿灯时间（target_green_delta: -2），实施上游截流与小步释放，确保下游不溢出后再考虑恢复通行效率。该方案符合‘供需匹配’与‘动态适应’原则，能有效遏制拥堵蔓延。",
       "execution_order": [
-        "1. 下游能力核实与清理：排查经十路辅路与海右路、岔口等下游节点隐性阻塞。",
-        "2. 实施溢出预警干预：设置下游排队长度阈值，触发降级策略以防溢出。",
-        "3. 局部绿信比动态调整：确认下游余量后，适度增加东进口直行绿灯时间。",
-        "4. 建立上下游协调机制：优化相位差，实现干线绿波协调，避免上游连续放行压力。"
+        "1. 立即启动下游节点（岔口、海右路）物理瓶颈排查与违停严管，恢复下游实际通行能力。",
+        "2. 建立奥体西路至经十路的信号协调控制，平滑上游到达曲线，避免车流叠加冲击下游。",
+        "3. 实施东进口直行绿灯缩减策略（-2秒），并设置严格的溢出预警阈值，当检测到下游排队接近临界值时自动缩短绿灯或提前切换相位。",
+        "4. 实时监控下游排队长度，若连续3个周期低于安全阈值且绿灯利用率提升，再逐步评估是否恢复配时；若下游排队持续上升，立即回滚至原方案。"
       ]
     },
     "rollback_conditions": [
@@ -9997,31 +10561,31 @@
     {
       "phase": "intent_understanding",
       "success": true,
-      "duration_ms": 5961.75,
+      "duration_ms": 6736.29,
       "errors": []
     },
     {
       "phase": "data_analysis_diagnosis",
       "success": true,
-      "duration_ms": 11507.63,
+      "duration_ms": 11110.7,
       "errors": []
     },
     {
       "phase": "cause_analysis",
       "success": true,
-      "duration_ms": 6196.11,
+      "duration_ms": 10118.02,
       "errors": []
     },
     {
       "phase": "strategy_generation",
       "success": true,
-      "duration_ms": 8225.74,
+      "duration_ms": 7544.5,
       "errors": []
     },
     {
       "phase": "plan_generation",
       "success": true,
-      "duration_ms": 4459.05,
+      "duration_ms": 4087.68,
       "errors": []
     }
   ]

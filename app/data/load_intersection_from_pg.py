@@ -1263,6 +1263,18 @@ def _assemble_task_from_raw(
         stage_cfg_rows,
         stage_motor_rows,
     )
+    if signal:
+        from app.data.turn_flow_binding import bind_turn_flows_to_signal
+
+        bind_turn_flows_to_signal(
+            signal,
+            flow_rows=flow_rows,
+            saturation_rows=sat_rows,
+            signal_lane_mapping_rows=signal_lane_mapping_rows,
+            channel_rows=channel_rows,
+            stage_motor_flow_rows=stage_motor_rows,
+            period=(f"step:{step_index}-{step_index_end}" if step_index is not None else None),
+        )
     context = _build_context(
         inter, day_of_week, complaint_rows, survey_rows, metrics, checklist_queries, step_index, aoi_rows
     )

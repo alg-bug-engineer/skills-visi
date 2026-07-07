@@ -27,6 +27,8 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
         plan_block = {
             "candidates": plan_artifact.get("candidates"),
             "recommended": plan_artifact.get("recommended"),
+            "recommended_plan_id": plan_artifact.get("recommended_plan_id")
+            or (plan_artifact.get("recommended") or {}).get("plan_id"),
             "recommendation": plan_artifact.get("recommendation"),
             "rollback_conditions": plan_artifact.get("rollback_conditions"),
             "signal_source": plan_artifact.get("signal_source"),
