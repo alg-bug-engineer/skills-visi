@@ -7,6 +7,17 @@ os.environ.setdefault("LOG_LEVEL", "WARNING")
 os.environ.setdefault("ALLOW_DEMO_FALLBACK", "true")
 
 
+@pytest.fixture
+def overflow_fixtures():
+    import json
+    from pathlib import Path
+
+    fixtures = Path(__file__).resolve().parent / "fixtures"
+    metrics = json.loads((fixtures / "overflow_metrics.json").read_text(encoding="utf-8"))
+    topology = json.loads((fixtures / "overflow_topology.json").read_text(encoding="utf-8"))
+    return metrics, topology
+
+
 @pytest.fixture(autouse=True)
 def reset_skill_registry():
     from app.runtime.registry import reset_registry

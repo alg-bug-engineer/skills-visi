@@ -25,9 +25,12 @@ class StrategyGenerationSkill(BaseSkill):
     async def run(self, context: SkillContext, **deps: Any) -> SkillResult:
         llm: QwenClient = deps["llm"]
         package_module = _load_script_module("select_package.py")
+        scope_module = _load_script_module("build_control_scope.py")
 
         cause = context.artifacts.get("cause_analysis", {})
         diagnosis = context.artifacts.get("data_analysis_diagnosis", {})
+        ticket = context.task.get("diagnosis_ticket", {})
+
         downstream_diag = diagnosis.get("downstream_diagnosis", {})
         arterial = diagnosis.get("arterial_analysis", {})
 
@@ -57,6 +60,7 @@ class StrategyGenerationSkill(BaseSkill):
             "strategy": llm_result,
             "strategy_package": package_module.select_strategy_package(cause, diagnosis),
             "case_references": package_module.extract_case_lessons(cause),
+            "control_scope_map": scope_module.build_control_scope_map(diagnosis, ticket),
         }
         logger.info(
             "策略生成完成 trace_id=%s package=%s",

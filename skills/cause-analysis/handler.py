@@ -31,10 +31,15 @@ class CauseAnalysisSkill(BaseSkill):
         ticket = context.task.get("diagnosis_ticket", {})
 
         similar_cases = []
+        case_cards: dict[str, Any] = {"matched_count": 0, "high_similarity_count": 0, "cards": []}
         if case_service:
             similar_cases = case_service.search_similar(
                 problem_type=ticket.get("problem_type", "排队溢出"),
                 limit=3,
+            )
+            case_cards = case_service.search_case_cards(
+                problem_type=ticket.get("problem_type", "排队溢出"),
+                limit=6,
             )
 
         prompt = (
@@ -63,6 +68,7 @@ class CauseAnalysisSkill(BaseSkill):
             "cause_analysis": llm_result,
             "cause_ranking": cause_ranking,
             "similar_cases": similar_cases,
+            "case_cards": case_cards,
             "evidence_summary": evidence_module.build_evidence(diagnosis),
             "arterial_coordination_needed": evidence_module.needs_arterial_coordination(diagnosis),
         }

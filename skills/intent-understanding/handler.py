@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import logging
 from pathlib import Path
 from typing import Any
 
+from app.config import Settings, get_settings
+from app.data.intersection_registry import enrich_ticket
 from app.llm.qwen import QwenClient
 from app.runtime.skill_types import BaseSkill, SkillContext, SkillResult
 
 logger = logging.getLogger(__name__)
+
+FIXTURES_ROOT = Path(__file__).resolve().parents[2] / "tests" / "fixtures"
 
 
 def _load_script_module(script_name: str):
@@ -21,8 +26,21 @@ def _load_script_module(script_name: str):
     return module
 
 
+def _preview_topology(inter_id: str | None) -> dict[str, Any]:
+    if not inter_id:
+        return {}
+    path = FIXTURES_ROOT / "overflow_topology.json"
+    if not path.exists():
+        return {}
+    topology = json.loads(path.read_text(encoding="utf-8"))
+    if topology.get("target_inter_id") == inter_id:
+        return topology
+    return {}
+
+
 class IntentUnderstandingSkill(BaseSkill):
     async def run(self, context: SkillContext, **deps: Any) -> SkillResult:
+        settings: Settings = deps.get("settings") or get_settings()
         llm: QwenClient = deps["llm"]
         logger.info(
             "意图理解开始 trace_id=%s input_len=%d",
@@ -43,17 +61,23 @@ class IntentUnderstandingSkill(BaseSkill):
                 errors=["意图理解返回非 JSON 结构"],
             )
 
+        enriched = enrich_ticket(parsed)
         spatial_module = _load_script_module("build_spatial_objects.py")
+        scene_module = _load_script_module("build_spatial_scene.py")
+        topology_preview = context.task.get("topology") or _preview_topology(enriched.get("inter_id"))
+
         ticket = {
-            "diagnosis_ticket": parsed,
-            "spatial_objects": spatial_module.build_spatial_objects(parsed),
+            "diagnosis_ticket": enriched,
+            "spatial_objects": spatial_module.build_spatial_objects(enriched),
+            "spatial_scene": scene_module.build_spatial_scene(enriched, topology=topology_preview),
         }
         context.task.update(ticket)
         logger.info(
-            "意图理解完成 trace_id=%s intersection=%s problem=%s",
+            "意图理解完成 trace_id=%s intersection=%s inter_id=%s problem=%s",
             context.trace_id,
-            parsed.get("intersection_name"),
-            parsed.get("problem_type"),
+            enriched.get("intersection_name"),
+            enriched.get("inter_id"),
+            enriched.get("problem_type"),
         )
         return SkillResult(
             skill_id=self.meta.skill_id,

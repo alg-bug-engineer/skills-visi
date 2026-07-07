@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from app.config import Settings
+from app.data.intersection_registry import enrich_ticket
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ def resolve_diagnosis_inputs(
 ) -> dict[str, Any]:
     """Return metrics + topology with explicit data source; never silent demo."""
     ticket = ticket or task.get("diagnosis_ticket") or {}
+    ticket = enrich_ticket(ticket)
 
     injected_metrics = task.get("metrics")
     injected_topology = task.get("topology")

@@ -1,0 +1,47 @@
+{
+  "inter_id": "demo_wenhua_shunhua",
+  "current_cycle_s": 120,
+  "max_cycle_s": 150,
+  "phase_stage_timing_list": [
+    {
+      "phase_stage_id": "S1",
+      "phase_stage_name": "东进口直行",
+      "greenTime": 30,
+      "yellowTime": 3,
+      "allRedTime": 2,
+      "minGreenTime": 18,
+      "maxGreenTime": 50,
+      "movement_key": "东向西直行"
+    },
+    {
+      "phase_stage_id": "S2",
+      "phase_stage_name": "西进口直行",
+      "greenTime": 28,
+      "yellowTime": 3,
+      "allRedTime": 2,
+      "minGreenTime": 18,
+      "maxGreenTime": 50,
+      "movement_key": "西向东直行"
+    },
+    {
+      "phase_stage_id": "S3",
+      "phase_stage_name": "南进口直行",
+      "greenTime": 25,
+      "yellowTime": 3,
+      "allRedTime": 2,
+      "minGreenTime": 15,
+      "maxGreenTime": 45,
+      "movement_key": "南向北直行"
+    },
+    {
+      "phase_stage_id": "S4",
+      "phase_stage_name": "北进口直行",
+      "greenTime": 25,
+      "yellowTime": 3,
+      "allRedTime": 2,
+      "minGreenTime": 15,
+      "maxGreenTime": 45,
+      "movement_key": "北向南直行"
+    }
+  ]
+}

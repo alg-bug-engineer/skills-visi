@@ -33,16 +33,24 @@ async def test_full_pipeline_with_mock_llm(script_user_input):
     assert diagnosis["downstream_diagnosis"]["release_answer"] == "下游接不住"
     assert diagnosis["map_scenes"]["downstream_trace_map"]["turn_traces"]
 
+    intent = result["artifacts"]["intent_understanding"]
+    assert intent["spatial_scene"]["available"] is True
+    assert intent["diagnosis_ticket"]["inter_id"] == "demo_wenhua_shunhua"
+
     cause = result["artifacts"]["cause_analysis"]
     assert cause["arterial_coordination_needed"] is True
     assert len(cause["similar_cases"]) > 0
+    assert cause["case_cards"]["cards"]
 
     strategy = result["artifacts"]["strategy_generation"]
     assert strategy["strategy_package"] == "arterial_coordination"
     assert "单点激进加绿" in strategy["strategy"]["not_recommended"]
+    assert strategy["control_scope_map"]["available"] is True
 
     plan = result["artifacts"]["plan_generation"]
     assert plan["recommended"]["plan_id"] == "arterial_coordination"
+    assert plan["recommended"]["guardrail_pass"] is True
+    assert plan["recommended"]["timing"]["phase_stage_timing_list"]
     assert len(plan["candidates"]) == 3
 
 
