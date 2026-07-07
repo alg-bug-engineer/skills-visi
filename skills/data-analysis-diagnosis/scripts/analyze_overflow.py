@@ -9,6 +9,7 @@ from app.metrics.traffic import (
     classify_release_bottleneck,
     level_of_service,
 )
+from app.trace.coordination import build_coordination_diagram
 from app.trace.downstream_diagnosis import build_downstream_diagnosis
 from app.trace.downstream_trace import build_downstream_trace
 from app.trace.flow_trace import build_arterial_analysis, build_flow_trace
@@ -29,6 +30,8 @@ def analyze_overflow(
     topology: dict[str, Any] | None = None,
     spatial_objects: dict[str, Any] | None = None,
     pg_raw: dict[str, Any] | None = None,
+    signal: dict[str, Any] | None = None,
+    scope: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     direction = ticket.get("direction", "东向西")
     movement = ticket.get("movement", "直行")
@@ -52,6 +55,7 @@ def analyze_overflow(
     downstream_trace = {"available": False, "reason": "no_topology"}
     flow_trace = {"available": False, "reason": "no_upstream_topology"}
     arterial_analysis: dict[str, Any] = {}
+    coordination: dict[str, Any] = {"available": False, "reason": "no_topology"}
     downstream_diagnosis: dict[str, Any] = {"available": False}
     map_scenes: dict[str, Any] = {}
 
@@ -74,6 +78,30 @@ def analyze_overflow(
             flow_trace=flow_trace,
             topology=topology,
         )
+        coordination = build_coordination_diagram(
+            topology=topology,
+            signal=signal or {},
+            spacing_detail=(scope or {}).get("adjacent_inter_spacing_detail"),
+            adjacent_offsets=(pg_raw or {}).get("adjacent_offsets"),
+            speed_by_key=(pg_raw or {}).get("link_speed"),
+        )
+        # 用真实相位关系替换占位串 phase_offset_match="pg"（缺失即降级）。
+        arterial_analysis["phase_offset_available"] = bool(coordination.get("available"))
+        if coordination.get("available"):
+            main_up = next(
+                (
+                    node
+                    for node in coordination["nodes"]
+                    if node["role"] == "upstream" and node["phase_diff_s"] is not None
+                ),
+                None,
+            )
+            arterial_analysis["phase_offset_match"] = (
+                f"上游相位差 {main_up['phase_diff_s']:+.0f}s" if main_up else "已协调"
+            )
+        else:
+            arterial_analysis["phase_offset_match"] = None
+            arterial_analysis["phase_offset_reason"] = coordination.get("reason")
 
     primary_downstream = (
         (downstream_trace.get("adjacent_intersections") or [{}])[0]
@@ -112,6 +140,7 @@ def analyze_overflow(
                 flow_trace=flow_trace,
                 arterial_analysis=arterial_analysis,
                 center=center,
+                coordination=coordination,
             ),
             "flow_trace_links_sniff_map": build_flow_trace_links_sniff_map_scene(
                 pg_raw=pg_raw,
@@ -153,6 +182,7 @@ def analyze_overflow(
         "downstream_trace": downstream_trace,
         "flow_trace": flow_trace,
         "arterial_analysis": arterial_analysis,
+        "coordination": coordination,
         "downstream_diagnosis": downstream_diagnosis,
         "map_scenes": map_scenes,
         "overflow_verification": overflow,

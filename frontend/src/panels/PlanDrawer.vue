@@ -4,9 +4,12 @@ import { usePresentationStore } from '@/stores/presentation'
 import type { PlanCandidate } from '@/api/types'
 import { t } from '@/labels/enums'
 import PhaseDiagram from '@/viz/PhaseDiagram.vue'
+import CoordinationDiagram from '@/panels/CoordinationDiagram.vue'
 import { productCopy } from '@/utils/productCopy'
 
 const store = usePresentationStore()
+
+const coordination = computed(() => store.diagnosis?.coordination ?? null)
 
 const candidates = computed<PlanCandidate[]>(() => store.plan?.candidates ?? [])
 const recommendedId = computed(() => store.plan?.recommendation?.recommended_plan_id ?? null)
@@ -70,7 +73,7 @@ async function onReject() {
               :cycle="selected.timing?.cycle_s"
             />
             <h4 class="mt">干线协调关系</h4>
-            <p class="data-note">后端未返回节点间距与绝对相位，暂不绘制协调图。</p>
+            <CoordinationDiagram :coordination="coordination" />
           </template>
           <div v-else class="data-missing">
             <strong>需要后端补齐配时明细</strong>

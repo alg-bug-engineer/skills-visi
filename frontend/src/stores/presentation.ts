@@ -8,7 +8,6 @@ import { ACT_DEFS, narrationFor, phaseReady, type ActDef, type CardKey, type Pha
 export type RunStatus = 'idle' | 'submitting' | 'running' | 'done' | 'error'
 export type DockState = 'input' | 'running' | 'plan'
 export type SignalState = 'idle' | 'connecting' | 'open' | 'closed' | 'error'
-export type PlanTab = 'stage_generation' | 'plan_comparison'
 export type RunMode = 'stream' | 'batch'
 
 // 流控制器保存在模块作用域，避免进入响应式系统。
@@ -35,7 +34,6 @@ interface State {
   acts: ActDef[]
   currentAct: number
   revealedActs: number[]
-  planTab: PlanTab
   fullscreen: boolean
   rollbackBanner: string | null
   toast: string | null
@@ -58,7 +56,6 @@ export const usePresentationStore = defineStore('presentation', {
     acts: ACT_DEFS,
     currentAct: -1,
     revealedActs: [],
-    planTab: 'stage_generation',
     fullscreen: false,
     rollbackBanner: null,
     toast: null,
@@ -259,9 +256,6 @@ export const usePresentationStore = defineStore('presentation', {
     },
 
     revealCard(_key: CardKey) {},
-    setPlanTab(tab: PlanTab) {
-      this.planTab = tab
-    },
     toggleFullscreen() {
       this.fullscreen = !this.fullscreen
     },
@@ -328,7 +322,6 @@ export const usePresentationStore = defineStore('presentation', {
       this.computingPhase = null
       this.rollbackBanner = null
       this.errorMsg = null
-      this.planTab = 'stage_generation'
       if (toInput) this.dock = 'input'
     },
   },

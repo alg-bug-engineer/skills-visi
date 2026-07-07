@@ -61,6 +61,8 @@ class DataAnalysisDiagnosisSkill(BaseSkill):
             topology=topology,
             spatial_objects=spatial,
             pg_raw=context.task.get("pg_raw") or {},
+            signal=context.task.get("signal") or {},
+            scope=context.task.get("scope") or {},
         )
         output["scenario_report"] = build_scenario_report(
             context.task.get("checklist_queries"),

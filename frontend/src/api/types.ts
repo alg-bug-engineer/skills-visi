@@ -130,6 +130,32 @@ export interface ArterialAnalysis {
   [k: string]: unknown
 }
 
+export interface CoordinationNode {
+  inter_id: string | null
+  inter_name?: string | null
+  lng?: number | null
+  lat?: number | null
+  role: 'upstream' | 'target' | 'downstream'
+  spacing_m: number | null
+  spacing_source?: string | null
+  offset_abs_s: number | null
+  offset_source?: string | null
+  phase_diff_s: number | null
+  travel_speed_kmh: number | null
+  travel_time_s: number | null
+  travel_source?: string | null
+}
+
+export interface Coordination {
+  available: boolean
+  reason?: string
+  direction?: 'inbound' | 'outbound' | 'bidirectional' | 'unknown'
+  cycle_s?: number | null
+  source?: string | null
+  target?: { inter_id?: string | null; inter_name?: string | null; lng?: number | null; lat?: number | null }
+  nodes?: CoordinationNode[]
+}
+
 export interface MapSceneTurnTrace {
   movement?: string | null
   name?: string | null
@@ -165,6 +191,7 @@ export interface DiagnosisPhase {
   downstream_diagnosis?: DownstreamDiagnosis
   bottleneck_analysis?: { bottleneck_type?: string | null; [k: string]: unknown }
   arterial_analysis?: ArterialAnalysis
+  coordination?: Coordination
   flow_trace?: { entry_traces?: MapSceneTurnTrace[]; [k: string]: unknown }
   map_scenes?: Record<string, MapScene>
   scenario_report?: {

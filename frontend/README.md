@@ -26,7 +26,7 @@ frontend/
 │  ├─ composables/    # useTimeline（九幕定义）、useTyping（打字机）
 │  ├─ stores/         # presentation：运行生命周期 + 演出状态
 │  ├─ map/            # AMapProvider + MapController（逐幕 2D/3D 场景）
-│  ├─ viz/            # PhaseDiagram（相位配时）、TimeSpaceDiagram（绿波）
+│  ├─ viz/            # PhaseDiagram（相位配时）；协调时距见 panels/CoordinationDiagram
 │  ├─ cards/          # 左侧证据卡（工单/数据/瓶颈/干线/成因/策略）
 │  ├─ panels/         # InsightPanel / ProcessPanel / BottomDock / PlanDrawer …
 │  ├─ theme/tokens.css# 设计令牌（深色信控主题）
@@ -109,7 +109,7 @@ PYTHONPATH=. .venv/bin/python scripts/capture_frontend_mock.py --live "转山西
 - 流式 `phase_done.snapshot` 为**同结构公开响应**，`phases`/`plan` 随 phase 增长逐步补齐；前端整包覆盖 store，卡片经 getters 自动更新（无需 diff）。
 - 字段多为**枚举编码**（如 `east_to_west`、`evening_peak`），前端 `labels/enums.ts` 统一翻译，未知值原样回退。
 - 地图坐标常**稀疏或为空**（`highlight_path` 仅 1 点、上下游节点无坐标等）。所有覆盖物均做 `hasCoord` 守卫，无坐标则跳过并在面板显示文本兜底。
-- 设计稿提及但后端**当前未透出**的字段（如逐车道 V/C、时距图节点间距/绝对相位）：一律显示「数据暂缺」，**绝不编造**（见 `utils/vc.ts`、`viz/TimeSpaceDiagram.vue`）。
+- 设计稿提及但后端**当前未透出**的字段（如逐车道 V/C）：一律显示「数据暂缺」，**绝不编造**（见 `utils/vc.ts`）。干线协调时距图 `panels/CoordinationDiagram.vue` 仅消费后端真实 `diagnosis.coordination.nodes`，缺间距/绝对相位/速度即 `available:false` 降级。
 
 ## 九幕 → 组件映射
 

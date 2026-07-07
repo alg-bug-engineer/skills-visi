@@ -34,7 +34,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from app.api.response_builder import build_public_run_response
 
 DEFAULT_INPUT = (
-    "转山西路与经十路交叉口，六点十分到六点半，"
+    "经十路与转山西路路口，六点十分到六点半，"
     "东向西排队溢出到上游，优先避免下游继续外溢。"
 )
 DEFAULT_OUT = Path("frontend/src/mock/run_1_fixture.json")

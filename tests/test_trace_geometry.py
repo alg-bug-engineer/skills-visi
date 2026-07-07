@@ -425,6 +425,92 @@ def test_flow_trace_links_sniff_map_scene_only_renders_main_corridor_by_default(
     assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1"]
 
 
+def test_flow_trace_links_sniff_scene_filters_by_period():
+    """跨时段聚合会虚增溯源流量点：只应渲染诊断时段（晚高峰）的真实 peer。"""
+    raw = _demo_raw()
+    raw["flow_correlate"] = [
+        {
+            "f_dir8_no": 6, "turn_dir_no": 2, "cor_inter_id": "P1", "cor_inter_name": "晚高峰主链",
+            "cor_f_dir8_no": 6, "cor_turn_dir_no": 2, "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 90.1, "period_type": "EVENING_PEAK",
+        },
+        {
+            "f_dir8_no": 6, "turn_dir_no": 2, "cor_inter_id": "P2", "cor_inter_name": "早高峰额外",
+            "cor_f_dir8_no": 6, "cor_turn_dir_no": 2, "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 80.0, "period_type": "MORNING_PEAK",
+        },
+        {
+            "f_dir8_no": 6, "turn_dir_no": 2, "cor_inter_id": "P3", "cor_inter_name": "平峰额外",
+            "cor_f_dir8_no": 6, "cor_turn_dir_no": 2, "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 70.0, "period_type": "OFF_PEAK",
+        },
+    ]
+    raw["peer_link_geometry"] = [
+        {"inter_id": pid, "inter_name": pid, "lng": 117.09, "lat": 36.65, "link_id": f"{pid}_L",
+         "link_role": "entrance", "geom_wkt": "LINESTRING(117.08 36.65, 117.09 36.65)"}
+        for pid in ("P1", "P2", "P3")
+    ]
+    topology = {
+        "target_inter_id": "TARGET", "target_inter_name": "目标",
+        "target_lng": 117.10159, "target_lat": 36.657529,
+        "dir8_code": 6, "turn_dir_no": 2, "period_type": "EVENING_PEAK",
+        "upstream_nodes": [], "downstream_nodes": [],
+    }
+
+    scene = build_flow_trace_links_sniff_map_scene(
+        pg_raw=raw, topology=topology,
+        target_profile={"inter_id": "TARGET", "inter_name": "目标", "lng": 117.10159, "lat": 36.657529},
+        direction="西向东", movement="直行",
+    )
+
+    assert scene["available"] is True
+    assert scene["stats"]["period_type"] == "EVENING_PEAK"
+    assert scene["stats"]["distinct_peers"] == 1  # 仅晚高峰 P1，早高峰/平峰不计入
+    assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1"]
+
+
+def test_flow_trace_links_sniff_scene_period_falls_back_when_empty():
+    """诊断时段无 flow_correlate 行时回退全时段真实数据，避免溯源空场景。"""
+    raw = _demo_raw()
+    raw["flow_correlate"] = [
+        {
+            "f_dir8_no": 6, "turn_dir_no": 2, "cor_inter_id": "P1", "cor_inter_name": "早高峰主链",
+            "cor_f_dir8_no": 6, "cor_turn_dir_no": 2, "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 90.1, "period_type": "MORNING_PEAK",
+        },
+    ]
+    raw["peer_link_geometry"] = [
+        {"inter_id": "P1", "inter_name": "P1", "lng": 117.09, "lat": 36.65, "link_id": "P1_L",
+         "link_role": "entrance", "geom_wkt": "LINESTRING(117.08 36.65, 117.09 36.65)"}
+    ]
+    topology = {
+        "target_inter_id": "TARGET", "target_inter_name": "目标",
+        "target_lng": 117.10159, "target_lat": 36.657529,
+        "dir8_code": 6, "turn_dir_no": 2, "period_type": "EVENING_PEAK",
+        "upstream_nodes": [], "downstream_nodes": [],
+    }
+
+    scene = build_flow_trace_links_sniff_map_scene(
+        pg_raw=raw, topology=topology,
+        target_profile={"inter_id": "TARGET", "inter_name": "目标", "lng": 117.10159, "lat": 36.657529},
+        direction="西向东", movement="直行",
+    )
+
+    assert scene["available"] is True
+    assert scene["stats"]["period_type"] is None  # 回退到全时段
+    assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1"]
+
+
+def test_topology_resolves_period_from_ticket():
+    raw = _demo_raw()
+    topo_am = topology_from_pg_raw(raw, {"direction": "东向西", "movement": "直行", "period": "早高峰"}, raw["inter"])
+    topo_pm = topology_from_pg_raw(raw, {"direction": "东向西", "movement": "直行", "period": "晚高峰"}, raw["inter"])
+    topo_default = topology_from_pg_raw(raw, {"direction": "东向西", "movement": "直行"}, raw["inter"])
+    assert topo_am["period_type"] == "MORNING_PEAK"
+    assert topo_pm["period_type"] == "EVENING_PEAK"
+    assert topo_default["period_type"] == "EVENING_PEAK"
+
+
 def test_topology_no_synthesis_when_geometry_missing():
     raw = _demo_raw()
     raw["trace_geometry"] = []

@@ -204,6 +204,10 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
     volume_vph = float(metrics_for_diagnosis(raw.get("metrics") or {}, ticket).get("volume_vph") or 0)
     has_geometry = bool(upstream_nodes or downstream_nodes)
 
+    from app.trace.map_scene import resolve_correlate_period
+
+    period_type = resolve_correlate_period(ticket.get("period"), ticket.get("time_range")) or "EVENING_PEAK"
+
     return {
         "target_inter_id": str(inter.get("inter_id") or ticket.get("inter_id") or ""),
         "target_inter_name": inter.get("inter_name") or ticket.get("intersection_name"),
@@ -212,12 +216,12 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
         "dir8_code": dir8_code,
         "turn_dir_no": turn_dir_no,
         "exit_dir8": exit_dir8,
-        "period_type": "EVENING_PEAK",
+        "period_type": period_type,
         "day_basis": "工作日",
         "upstream_arrival_flow_vph": volume_vph,
         "upstream_release_intensity_vph": volume_vph * 0.95,
         "upstream_arrival_intensity": "high",
-        "phase_offset_match": "pg",
+        "phase_offset_match": None,
         "upstream_nodes": upstream_nodes,
         "downstream_nodes": downstream_nodes,
         "geometry_source": "dim_link_info.geom" if has_geometry else "unavailable",

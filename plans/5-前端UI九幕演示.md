@@ -397,7 +397,7 @@ frontend/e2e/
 - **F1** 类型化 `api/*`（client/endpoints/sse）、枚举字典 `labels/enums.ts`（未知值回退）、`src/mock/run_1_fixture.json` 真实响应回放（`VITE_MOCK=1`）✅
 - **F2** 三栏布局（地图 + 左证据链 + 右过程） + Pinia `stores/presentation` + `useTimeline` 九幕 + `useTyping` 打字机 + `BottomDock` 输入/流水线/抽屉三态 ✅
 - **F3~F7** 六张证据卡（工单/数据+溢出/瓶颈/干线/成因+案例/策略边界）+ `MapController` 逐幕 2D/3D 场景（路口框、highlight、上下游节点、干线粒子流、控制范围），坐标缺失一律守卫跳过 ✅
-- **F7** 方案抽屉：`viz/PhaseDiagram`（相位配时）、`viz/TimeSpaceDiagram`（绿波，数据不足显式「暂缺」）、多方案比选表 ✅
+- **F7** 方案抽屉：`viz/PhaseDiagram`（相位配时）、`panels/CoordinationDiagram`（干线协调时距，消费后端真实字段，数据不足显式「暂缺」）、多方案比选表 ✅
 - **F8** 接受 / 拒绝再生成（调用 `plan/decision` + `plan/regenerate`）、Toast、回滚横幅、SSE 重连骨架兜底 ✅
 - **F9** Vitest 19 例全绿（枚举回退 / 格式化 / 坐标守卫 / V-C 不编造 / 九幕构建降级）；Playwright 3 例全绿（输入态、运行三栏无遮挡、方案抽屉相位图+比选+拒绝，含包围盒遮挡断言）；`frontend/README.md` 完成 ✅
 

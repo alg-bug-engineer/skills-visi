@@ -6,6 +6,38 @@ from typing import Any
 
 from app.trace.geometry import orient_path, parse_linestring_wkt
 
+# flow_correlate.period_type 采用大写代码；中文时段（ticket.period）映射到该代码，
+# 用于把溯源 peer 限定在与诊断一致的单一时段，避免跨时段聚合导致流量点虚增。
+_PERIOD_CODE_BY_CN = {
+    "早高峰": "MORNING_PEAK",
+    "晚高峰": "EVENING_PEAK",
+    "白平峰": "OFF_PEAK",
+    "午平峰": "OFF_PEAK",
+    "平峰": "OFF_PEAK",
+}
+_PERIOD_CODES = {"MORNING_PEAK", "EVENING_PEAK", "OFF_PEAK"}
+
+
+def resolve_correlate_period(*candidates: Any) -> str | None:
+    """把中文时段或已是大写代码的时段解析为 flow_correlate.period_type 代码。"""
+    for candidate in candidates:
+        if not candidate:
+            continue
+        text = str(candidate).strip()
+        upper = text.upper()
+        if upper in _PERIOD_CODES:
+            return upper
+        for cn, code in _PERIOD_CODE_BY_CN.items():
+            if cn in text:
+                return code
+    return None
+
+
+def _period_match(row: dict[str, Any], period_type: str | None) -> bool:
+    if not period_type:
+        return True
+    return str(row.get("period_type") or "").upper() == period_type
+
 
 def _json_number(value: Any) -> int | float | None:
     if value is None:
@@ -70,14 +102,22 @@ def _channelization_by_link(raw: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return out
 
 
-def _best_share_by_inter(raw: dict[str, Any], dir8_code: int, turn_dir_no: int) -> dict[str, float]:
+def _best_share_by_inter(
+    raw: dict[str, Any],
+    dir8_code: int,
+    turn_dir_no: int,
+    period_type: str | None = None,
+) -> dict[str, float]:
     """Return real flow-correlate share by correlated intersection id.
 
     Preferred rows match the problem movement; same-entry fallback is retained because the
     reference sniff view shows all real peers rather than fabricating missing percentages.
+    ``period_type`` limits rows to a single diagnosis period (真实单时段口径)。
     """
     best: dict[str, tuple[float, float]] = {}
     for row in raw.get("flow_correlate") or []:
+        if not _period_match(row, period_type):
+            continue
         try:
             row_dir8 = int(row.get("f_dir8_no"))
         except (TypeError, ValueError):
@@ -105,11 +145,18 @@ def _correlate_peers(
     dir8_code: int,
     turn_dir_no: int,
     trace_direction: str,
+    period_type: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Aggregate all real flow-correlate peers for the requested movement."""
+    """Aggregate all real flow-correlate peers for the requested movement.
+
+    ``period_type`` limits rows to a single diagnosis period（真实单时段口径），避免跨
+    早/晚高峰/平峰聚合导致溯源流量点虚增。
+    """
     trace_type = "UPSTREAM" if trace_direction == "downstream" else "DOWNSTREAM"
     peers: dict[str, dict[str, Any]] = {}
     for row in raw.get("flow_correlate") or []:
+        if not _period_match(row, period_type):
+            continue
         try:
             row_dir8 = int(row.get("f_dir8_no"))
             row_turn = int(row.get("turn_dir_no"))
@@ -263,7 +310,8 @@ def build_flow_trace_links_sniff_map_scene(
 
     dir8_code = int(topo.get("dir8_code") or 0)
     turn_dir_no = int(topo.get("turn_dir_no") or 2)
-    shares = _best_share_by_inter(raw, dir8_code, turn_dir_no)
+    period_type = resolve_correlate_period(topo.get("period_type"))
+    shares = _best_share_by_inter(raw, dir8_code, turn_dir_no, period_type)
     channel_by_link = _channelization_by_link(raw)
 
     target_links: list[dict[str, Any]] = []
@@ -298,7 +346,19 @@ def build_flow_trace_links_sniff_map_scene(
         dir8_code=dir8_code,
         turn_dir_no=turn_dir_no,
         trace_direction=trace_dir,
+        period_type=period_type,
     )
+    period_applied = period_type
+    if not correlate_peers and period_type:
+        # 该时段无 flow_correlate 行（真实数据缺口）时回退全时段，避免溯源空场景；不合成。
+        correlate_peers = _correlate_peers(
+            raw,
+            dir8_code=dir8_code,
+            turn_dir_no=turn_dir_no,
+            trace_direction=trace_dir,
+            period_type=None,
+        )
+        period_applied = None
     peer_geometry = _peer_link_geometry_from_raw(raw)
     missing_geometry_ids = [
         str(peer.get("cor_inter_id"))
@@ -423,6 +483,7 @@ def build_flow_trace_links_sniff_map_scene(
             "main_corridor": len(main_chain),
             "missing_center": sum(1 for n in peer_list if not n.get("center")),
             "hidden_non_main": hidden_non_main,
+            "period_type": period_applied,
         },
         "main_corridor_chain": main_chain,
         "intersections": intersections,
@@ -611,6 +672,7 @@ def build_flow_map_scene(
     flow_trace: dict[str, Any],
     arterial_analysis: dict[str, Any],
     center: tuple[float, float] | None = None,
+    coordination: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not flow_trace.get("available"):
         return {"action": "map_scene", "phase": "upstream_correlate_map", "available": False}
@@ -675,4 +737,5 @@ def build_flow_map_scene(
             ],
         },
         "speakable": arterial_analysis.get("summary"),
+        "coordination": coordination or {"available": False, "reason": "no_coordination"},
     }
