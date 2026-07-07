@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from app.config import Settings
+from app.data.intersection_matcher import generate_name_variants
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +104,7 @@ class QwenClient:
         return {
             "object_type": "路口",
             "intersection_name": intersection,
+            "intersection_name_candidates": generate_name_variants(intersection.replace("交叉口", "路口")),
             "time_range": time_range,
             "period": "晚高峰",
             "direction": direction,

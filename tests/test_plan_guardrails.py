@@ -124,7 +124,7 @@ def test_build_candidates_produces_phase_timing(signal_plan, overflow_fixtures):
     strategy = {"strategy_package": "arterial_coordination", "case_references": {"matched_count": 2}}
     ticket = {"direction": "东向西", "movement": "直行", "intersection_name": "文化西路与舜华路交叉口"}
 
-    candidates = build.build_plan_candidates(
+    candidates, optimizer_engine = build.build_plan_candidates(
         strategy,
         ticket,
         diagnosis,
@@ -140,3 +140,4 @@ def test_build_candidates_produces_phase_timing(signal_plan, overflow_fixtures):
     assert recommended["guardrail_pass"] is True
     assert recommended["timing"]["phase_stage_timing_list"]
     assert recommended["upstream_control"]["enabled"] is True
+    assert optimizer_engine in (None, "signal_optimization_engine")

@@ -42,7 +42,8 @@ def build_plan_candidates(
     adjust_phase_timing,
     build_strategy_instruction,
     validate_plan_guardrails,
-) -> list[dict[str, Any]]:
+    run_single_point_optimizer=None,
+) -> tuple[list[dict[str, Any]], str | None]:
     diagnosis = diagnosis or {}
     direction = ticket.get("direction", "东向西")
     downstream_name = (
@@ -52,6 +53,7 @@ def build_plan_candidates(
     case_lessons = strategy.get("case_references") or {}
 
     candidates: list[dict[str, Any]] = []
+    optimizer_engine: str | None = None
     for definition in PLAN_DEFINITIONS:
         plan_id = definition["plan_id"]
         strategy_instruction = build_strategy_instruction(strategy, plan_id)
@@ -77,6 +79,21 @@ def build_plan_candidates(
                 )
             )
             continue
+
+        timing_source = "adjust_phase_timing"
+        if run_single_point_optimizer is not None:
+            optimized = run_single_point_optimizer(
+                signal=signal,
+                ticket=ticket,
+                diagnosis=diagnosis,
+                strategy_instruction=strategy_instruction,
+                constraints=constraints,
+            )
+            if optimized.get("ok"):
+                adjusted["timing"] = optimized["timing"]
+                adjusted["cycle_s"] = optimized["cycle_s"]
+                timing_source = optimized.get("engine") or "signal_optimization_engine"
+                optimizer_engine = timing_source
 
         plan_body = {
             **draft,
@@ -117,9 +134,10 @@ def build_plan_candidates(
                 "validation_errors": validation_errors,
                 "guardrail_pass": guardrail_pass,
                 "execution_order": definition.get("execution_order"),
+                "timing_source": timing_source,
             }
         )
-    return candidates
+    return candidates, optimizer_engine
 
 
 def _rejected_candidate(

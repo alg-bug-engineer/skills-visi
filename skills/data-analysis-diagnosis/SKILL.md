@@ -9,14 +9,11 @@ metadata:
   enabled: true
   handler_class: DataAnalysisDiagnosisSkill
   script_files:
-    - scripts/demo_metrics.py
-    - scripts/demo_topology.py
     - scripts/analyze_overflow.py
   reference_files:
     - references/rules.md
     - references/thresholds.md
-  resource_files:
-    demo_data: resources/demo_metrics.json
+  resource_files: {}
   execution_steps:
     - step_id: verify_overflow
       title: 溢出验证

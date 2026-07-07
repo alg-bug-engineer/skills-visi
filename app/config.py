@@ -22,10 +22,21 @@ class Settings(BaseSettings):
     allow_demo_fallback: bool = False
     pg_dsn: str = ""
     mysql_dsn: str = ""
+    pg_schema: str = "road6"
+    pg_flow_schema: str = "xianchang"
+    pg_dim_inter_table: str = "dim_inter_info"
+    pg_channel_table: str = "dwd_tfc_rltn_wide_inter_ft_link"
+    signal_opt_engine_src: str = ""
+    feedback_log_path: str = "data/plan_feedback.jsonl"
 
     @property
     def case_library_abs_path(self) -> Path:
         path = Path(self.case_library_path)
+        return path if path.is_absolute() else PROJECT_ROOT / path
+
+    @property
+    def feedback_log_abs_path(self) -> Path:
+        path = Path(self.feedback_log_path)
         return path if path.is_absolute() else PROJECT_ROOT / path
 
 

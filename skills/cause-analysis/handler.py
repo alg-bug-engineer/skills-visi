@@ -27,8 +27,12 @@ class CauseAnalysisSkill(BaseSkill):
         case_service = deps.get("case_service")
         evidence_module = _load_script_module("build_evidence.py")
 
+        score_module = _load_script_module("score_cause_dimensions.py")
+
         diagnosis = context.artifacts.get("data_analysis_diagnosis", {})
         ticket = context.task.get("diagnosis_ticket", {})
+
+        cause_scores = score_module.score_cause_dimensions(diagnosis, task=context.task)
 
         similar_cases = []
         case_cards: dict[str, Any] = {"matched_count": 0, "high_similarity_count": 0, "cards": []}
@@ -45,8 +49,9 @@ class CauseAnalysisSkill(BaseSkill):
         prompt = (
             f"诊断工单: {ticket}\n"
             f"指标分析: {diagnosis}\n"
+            f"确定性成因评分: {cause_scores}\n"
             f"相似案例: {similar_cases[:2]}\n"
-            "请结合指标判断主因，并说明历史案例佐证。"
+            "请结合指标与 cause_scores 判断主因，并说明历史案例佐证。"
         )
         llm_result = await llm.chat(
             system_prompt=self.load_resource("system"),
@@ -61,11 +66,13 @@ class CauseAnalysisSkill(BaseSkill):
                 errors=["成因分析返回非 JSON 结构"],
             )
 
-        cause_ranking = llm_result.get("cause_ranking") or evidence_module.default_cause_ranking(
-            diagnosis, llm_result
+        cause_ranking = llm_result.get("cause_ranking") or score_module.build_cause_ranking_from_scores(
+            cause_scores, diagnosis
         )
+
         output = {
             "cause_analysis": llm_result,
+            "cause_scores": cause_scores,
             "cause_ranking": cause_ranking,
             "similar_cases": similar_cases,
             "case_cards": case_cards,

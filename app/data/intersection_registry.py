@@ -1,10 +1,11 @@
-"""Intersection name → inter_id registry (fixture-backed; PG lookup in follow-up)."""
+"""Intersection name → inter_id registry with PG lookup for production."""
 
 from __future__ import annotations
 
 import json
 import logging
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,9 @@ def resolve_intersection(
         for record in registry.values():
             if str(record.get("inter_id")) == str(inter_id):
                 return record
+        pg_record = _resolve_from_pg(inter_id=inter_id)
+        if pg_record:
+            return pg_record
 
     if not intersection_name:
         return None
@@ -48,22 +52,93 @@ def resolve_intersection(
         if key in norm_name or norm_name in key:
             return record
 
-    logger.info("路口未在注册表命中 name=%s", intersection_name)
+    pg_record = _resolve_from_pg(inter_name=intersection_name)
+    if pg_record:
+        return pg_record
+
+    logger.info("路口未在注册表/PG 命中 name=%s", intersection_name)
     return None
 
 
-def enrich_ticket(ticket: dict[str, Any]) -> dict[str, Any]:
-    """Attach inter_id and coordinates when resolvable."""
-    enriched = dict(ticket)
-    record = resolve_intersection(
-        enriched.get("intersection_name"),
-        inter_id=enriched.get("inter_id"),
+@lru_cache(maxsize=256)
+def _resolve_from_pg(
+    *,
+    inter_id: str | None = None,
+    inter_name: str | None = None,
+) -> dict[str, Any] | None:
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.pg_dsn:
+        return None
+
+    try:
+        from app.data.pg_client import read_pg_rows
+    except Exception:
+        return None
+
+    version_sql = (
+        f"(SELECT version_id FROM {settings.pg_schema}.dim_data_version "
+        "WHERE is_enable = 1 LIMIT 1)"
     )
-    if not record:
-        return enriched
-    enriched.setdefault("inter_id", record.get("inter_id"))
-    if record.get("lng") is not None:
-        enriched.setdefault("lng", record["lng"])
-    if record.get("lat") is not None:
-        enriched.setdefault("lat", record["lat"])
-    return enriched
+    table = settings.pg_dim_inter_table
+    schema = settings.pg_schema
+
+    if inter_id:
+        sql = f"""
+            SELECT inter_id, inter_name, geom_center
+            FROM {schema}.{table}
+            WHERE version_id = {version_sql}
+              AND inter_id = %(inter_id)s
+            LIMIT 1
+        """
+        params = {"inter_id": inter_id}
+    elif inter_name:
+        sql = f"""
+            SELECT inter_id, inter_name, geom_center
+            FROM {schema}.{table}
+            WHERE version_id = {version_sql}
+              AND is_signalized = 1
+              AND inter_name LIKE %(pattern)s
+            ORDER BY LENGTH(inter_name)
+            LIMIT 1
+        """
+        params = {"pattern": f"%{inter_name}%"}
+    else:
+        return None
+
+    try:
+        rows = read_pg_rows(sql, params, limit=1)
+    except Exception as exc:
+        logger.warning("PG 路口解析失败 inter_id=%s name=%s err=%s", inter_id, inter_name, exc)
+        return None
+
+    if not rows:
+        return None
+
+    row = rows[0]
+    lng, lat = _parse_geom_center(row.get("geom_center"))
+    return {
+        "inter_id": row.get("inter_id"),
+        "inter_name": row.get("inter_name"),
+        "lng": lng,
+        "lat": lat,
+        "source": "pg",
+    }
+
+
+def _parse_geom_center(geom_center: Any) -> tuple[float | None, float | None]:
+    if not geom_center:
+        return None, None
+    text = str(geom_center)
+    match = re.search(r"([-\d.]+)[,\s]+([-\d.]+)", text)
+    if not match:
+        return None, None
+    return float(match.group(1)), float(match.group(2))
+
+
+def enrich_ticket(ticket: dict[str, Any], *, user_input: str = "") -> dict[str, Any]:
+    """Attach inter_id and coordinates when resolvable (fixture or PG matcher)."""
+    from app.data.intersection_matcher import enrich_ticket_with_match
+
+    return enrich_ticket_with_match(ticket, user_input=user_input)

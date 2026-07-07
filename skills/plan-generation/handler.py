@@ -50,6 +50,7 @@ class PlanGenerationSkill(BaseSkill):
         timing_module = _load_script_module("generate_timing_plan.py")
         adjust_module = _load_script_module("adjust_phase_timing.py")
         guardrail_module = _load_script_module("validate_plan_guardrails.py")
+        optimizer_module = _load_script_module("run_single_point_optimizer.py")
 
         llm_result = await llm.chat(
             system_prompt=self.load_resource("system"),
@@ -64,7 +65,7 @@ class PlanGenerationSkill(BaseSkill):
                 errors=["方案生成返回非 JSON 结构"],
             )
 
-        candidates = candidates_module.build_plan_candidates(
+        candidates, optimizer_engine = candidates_module.build_plan_candidates(
             strategy,
             ticket,
             diagnosis,
@@ -74,6 +75,7 @@ class PlanGenerationSkill(BaseSkill):
             adjust_phase_timing=adjust_module.adjust_phase_timing,
             build_strategy_instruction=adjust_module.build_strategy_instruction,
             validate_plan_guardrails=guardrail_module.validate_plan_guardrails,
+            run_single_point_optimizer=optimizer_module.run_single_point_optimizer,
         )
 
         valid_candidates = [c for c in candidates if c.get("guardrail_pass")]
@@ -104,6 +106,7 @@ class PlanGenerationSkill(BaseSkill):
             "recommendation": llm_result,
             "all_guardrails_passed": all(c.get("guardrail_pass") for c in candidates),
             "signal_source": signal_resolved.get("source"),
+            "optimizer_engine": optimizer_engine,
             "rollback_conditions": [
                 recommended.get("rollback_condition"),
                 "下游排队比持续上升",

@@ -24,8 +24,9 @@ def _load_script_module(script_name: str):
 class StrategyGenerationSkill(BaseSkill):
     async def run(self, context: SkillContext, **deps: Any) -> SkillResult:
         llm: QwenClient = deps["llm"]
-        package_module = _load_script_module("select_package.py")
+        profile_module = _load_script_module("build_strategy_profile.py")
         scope_module = _load_script_module("build_control_scope.py")
+        package_module = _load_script_module("select_package.py")
 
         cause = context.artifacts.get("cause_analysis", {})
         diagnosis = context.artifacts.get("data_analysis_diagnosis", {})
@@ -36,6 +37,7 @@ class StrategyGenerationSkill(BaseSkill):
 
         prompt = (
             f"成因分析: {cause.get('cause_analysis', {})}\n"
+            f"确定性成因评分: {cause.get('cause_scores', {})}\n"
             f"瓶颈: {diagnosis.get('bottleneck_analysis', {})}\n"
             f"下游判断: {downstream_diag.get('release_answer')} — {downstream_diag.get('narrative')}\n"
             f"干线分析: {arterial.get('summary')}\n"
@@ -56,9 +58,12 @@ class StrategyGenerationSkill(BaseSkill):
                 errors=["策略生成返回非 JSON 结构"],
             )
 
+        profile = profile_module.build_strategy_profile(cause, diagnosis, llm_result)
         output = {
-            "strategy": llm_result,
-            "strategy_package": package_module.select_strategy_package(cause, diagnosis),
+            "strategy": profile["strategy"],
+            "strategy_package": profile["strategy_package"],
+            "package_scores": profile["package_scores"],
+            "strategy_instruction": profile["strategy_instruction"],
             "case_references": package_module.extract_case_lessons(cause),
             "control_scope_map": scope_module.build_control_scope_map(diagnosis, ticket),
         }

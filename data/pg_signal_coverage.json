@@ -1,0 +1,185 @@
+{
+  "count": 30,
+  "intersections": [
+    {
+      "inter_id": "011wwe289qc00001",
+      "inter_name": "经十路与转山西路路口",
+      "stage_cnt": 8,
+      "timing_rows": 186
+    },
+    {
+      "inter_id": "011wwe28ctu00001",
+      "inter_name": "奥体西路与经十路路口",
+      "stage_cnt": 11,
+      "timing_rows": 176
+    },
+    {
+      "inter_id": "011wwe288ct00001",
+      "inter_name": "经十路辅路与洪山路路口",
+      "stage_cnt": 17,
+      "timing_rows": 174
+    },
+    {
+      "inter_id": "011wwe293dv00001",
+      "inter_name": "经十路辅路与草山岭西路路口",
+      "stage_cnt": 8,
+      "timing_rows": 171
+    },
+    {
+      "inter_id": "011wwe299uq00001",
+      "inter_name": "经十路与舜华路路口",
+      "stage_cnt": 16,
+      "timing_rows": 165
+    },
+    {
+      "inter_id": "011wwe291ey00001",
+      "inter_name": "奥体中路与经十路路口",
+      "stage_cnt": 8,
+      "timing_rows": 157
+    },
+    {
+      "inter_id": "011wwe22xn400001",
+      "inter_name": "旅游路与转山西路路口",
+      "stage_cnt": 16,
+      "timing_rows": 127
+    },
+    {
+      "inter_id": "011wwe0rvxj00001",
+      "inter_name": "二环东路出口与二环东路辅路路口",
+      "stage_cnt": 15,
+      "timing_rows": 125
+    },
+    {
+      "inter_id": "011wwe293wd00001",
+      "inter_name": "草山岭中路与草山岭南路路口",
+      "stage_cnt": 11,
+      "timing_rows": 117
+    },
+    {
+      "inter_id": "011wwe22wfv00001",
+      "inter_name": "旅游路与洪山路路口",
+      "stage_cnt": 7,
+      "timing_rows": 101
+    },
+    {
+      "inter_id": "011wwe28dm500001",
+      "inter_name": "姚家东路与茂岭二号路路口",
+      "stage_cnt": 11,
+      "timing_rows": 88
+    },
+    {
+      "inter_id": "011wwe2929q00001",
+      "inter_name": "奥体东路与龙奥北路路口",
+      "stage_cnt": 10,
+      "timing_rows": 87
+    },
+    {
+      "inter_id": "011wwe28fmc00001",
+      "inter_name": "奥体西路与解放东路路口",
+      "stage_cnt": 13,
+      "timing_rows": 76
+    },
+    {
+      "inter_id": "011wwe22mcj00001",
+      "inter_name": "旅游路与浆水泉路路口",
+      "stage_cnt": 11,
+      "timing_rows": 66
+    },
+    {
+      "inter_id": "011wwe2854m00001",
+      "inter_name": "二环东路与工业南路路口",
+      "stage_cnt": 6,
+      "timing_rows": 62
+    },
+    {
+      "inter_id": "011wwe29mts00001",
+      "inter_name": "天辰路与颖秀路路口",
+      "stage_cnt": 11,
+      "timing_rows": 58
+    },
+    {
+      "inter_id": "011wwe284fk00001",
+      "inter_name": "二环东路与解放路路口",
+      "stage_cnt": 7,
+      "timing_rows": 57
+    },
+    {
+      "inter_id": "011wwe23pum00001",
+      "inter_name": "龙奥南路与龙洞立交桥路口",
+      "stage_cnt": 13,
+      "timing_rows": 56
+    },
+    {
+      "inter_id": "011wwe294sq00001",
+      "inter_name": "坤顺路与奥体中路路口",
+      "stage_cnt": 10,
+      "timing_rows": 55
+    },
+    {
+      "inter_id": "011wwe0xby600001",
+      "inter_name": "吉祥苑商业街与文化东路路口",
+      "stage_cnt": 3,
+      "timing_rows": 54
+    },
+    {
+      "inter_id": "011wwe28fty00001",
+      "inter_name": "坤顺路与奥体西路路口",
+      "stage_cnt": 10,
+      "timing_rows": 54
+    },
+    {
+      "inter_id": "011wwe2909y00001",
+      "inter_name": "龙奥北路与龙奥西路路口",
+      "stage_cnt": 10,
+      "timing_rows": 54
+    },
+    {
+      "inter_id": "011wwe29jt700001",
+      "inter_name": "崇华路与工业南路路口",
+      "stage_cnt": 12,
+      "timing_rows": 51
+    },
+    {
+      "inter_id": "011wwe294k300001",
+      "inter_name": "解放东路与奥体中路路口",
+      "stage_cnt": 10,
+      "timing_rows": 49
+    },
+    {
+      "inter_id": "011wwe2867z00001",
+      "inter_name": "浆水泉路与解放东路路口",
+      "stage_cnt": 7,
+      "timing_rows": 49
+    },
+    {
+      "inter_id": "011wwe295cm00001",
+      "inter_name": "奥体中路与新泺大街路口",
+      "stage_cnt": 7,
+      "timing_rows": 48
+    },
+    {
+      "inter_id": "011wwe28vhw00001",
+      "inter_name": "奥体西路与工业南路路口",
+      "stage_cnt": 7,
+      "timing_rows": 47
+    },
+    {
+      "inter_id": "011wwe28d3t00001",
+      "inter_name": "华阳路与解放东路路口",
+      "stage_cnt": 4,
+      "timing_rows": 46
+    },
+    {
+      "inter_id": "011wwe29h9n00001",
+      "inter_name": "天辰路与奥体中路路口",
+      "stage_cnt": 7,
+      "timing_rows": 45
+    },
+    {
+      "inter_id": "011wwe290wy00001",
+      "inter_name": "龙奥东路与龙奥北路路口",
+      "stage_cnt": 7,
+      "timing_rows": 44
+    }
+  ]
+}

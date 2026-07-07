@@ -21,13 +21,16 @@ def resolve_signal_plan(
 ) -> dict[str, Any]:
     """Return signal plan with explicit source; never silent invent."""
     injected = task.get("signal")
-    if isinstance(injected, dict) and injected.get("phase_stage_timing_list"):
-        return {
-            "ok": True,
-            "signal": injected,
-            "source": "task_injection",
-            "constraints": _merge_constraints(task, injected),
-        }
+    if isinstance(injected, dict):
+        if injected.get("stage_detail") and not injected.get("phase_stage_timing_list"):
+            injected = _normalize_pg_signal(injected)
+        if injected.get("phase_stage_timing_list") or injected.get("phasePlanOfTimeList"):
+            return {
+                "ok": True,
+                "signal": injected,
+                "source": task.get("signal_source") or "task_injection",
+                "constraints": _merge_constraints(task, injected),
+            }
 
     inter_id = ticket.get("inter_id") or task.get("inter_id")
     if inter_id:
@@ -66,3 +69,26 @@ def _merge_constraints(task: dict[str, Any], signal: dict[str, Any]) -> dict[str
         "max_cycle_s": task_constraints.get("max_cycle_s") or signal.get("max_cycle_s"),
         "default_cycle_s": signal.get("current_cycle_s"),
     }
+
+
+def _normalize_pg_signal(signal: dict[str, Any]) -> dict[str, Any]:
+    if signal.get("phase_stage_timing_list"):
+        return signal
+    stages = []
+    for row in signal.get("stage_detail") or []:
+        green = int(row.get("green_sec") or row.get("greenTime") or 0)
+        stages.append(
+            {
+                "phase_stage_id": str(row.get("stage_no") or row.get("phase_stage_id") or ""),
+                "phase_stage_name": row.get("release_movements") or row.get("phase_stage_name") or "",
+                "greenTime": green,
+                "yellowTime": int(row.get("yellow_sec") or row.get("yellowTime") or 3),
+                "allRedTime": int(row.get("all_red_sec") or row.get("allRedTime") or 2),
+                "minGreenTime": int(row.get("min_green_sec") or row.get("minGreenTime") or 15),
+                "maxGreenTime": int(row.get("max_green_sec") or row.get("maxGreenTime") or green + 30),
+                "movement_key": row.get("release_movements") or row.get("movement_key"),
+            }
+        )
+    normalized = dict(signal)
+    normalized["phase_stage_timing_list"] = stages
+    return normalized

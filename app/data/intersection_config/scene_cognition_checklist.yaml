@@ -1,0 +1,136 @@
+version: 1.0.0
+phase: scene_cognition
+items:
+- item_id: inter_basic_info
+  category: static
+  label: 路口交叉道路等级、形态
+  profile_field: supply_profile.inter_type, supply_profile.intersection_shape, scenario_report.basicScenario.nodeAttributes
+  table: road6.dim_inter_info + dim_link_info
+  data_key: inter
+- item_id: channelization
+  category: static
+  label: 进口/出口/渠化
+  profile_field: supply_profile.channelization, scenario_report.basicScenario.nodeAttributes.inboundLanes
+  table: road6.dwd_tfc_rltn_wide_inter_ft_link
+  data_key: channelization
+- item_id: lane_detail
+  category: static
+  label: 车道明细
+  profile_field: supply_profile.lanes, scenario_report.basicScenario.nodeAttributes.turnLaneConfig
+  table: road6.dwd_tfc_rltn_wide_inter_ft_lane
+  data_key: lane_detail
+- item_id: adjacent_spacing
+  category: static
+  label: 相邻路口间距、进口道路等级
+  profile_field: supply_profile.adjacent_inter_spacing_m, supply_profile.road_levels, scenario_report.basicScenario.spatialCoordination
+  table: road6.dwd_tfc_rltn_wide_inter_ft_link + dim_link_info
+  data_key: adjacent_spacing
+- item_id: aoi_sources
+  category: context
+  label: 周边交通发生源/吸引源
+  profile_field: context.aoi_sources, scenario_report.basicScenario.attractionSources
+  table: xianchang.ods_amap_aoi_info + xianchang.ods_amap_poi_info
+  data_key: aoi_sources
+- item_id: min_green_cfg
+  category: control
+  label: 各方向最小绿
+  profile_field: control_profile.min_green_s
+  table: xianchang.dws_turn_min_green_5min_mm
+  data_key: min_green
+- item_id: turn_flow
+  category: dynamic
+  label: 转向流量
+  profile_field: demand_profile.movement_volume, scenario_report.flowAndDemand.turnFlows
+  table: xianchang.dws_inter_link_turn_flow_5min_mm
+  data_key: turn_flow
+- item_id: flow_correlate
+  category: dynamic
+  label: 转向流量溯源
+  profile_field: scenario_report.flowAndDemand.flowTrace
+  table: xianchang.dws_tfc_inter_turn_flow_correlate_m
+  data_key: flow_correlate
+- item_id: lane_flow
+  category: dynamic
+  label: 车道流量
+  profile_field: demand_profile.lane_volume, scenario_report.flowAndDemand.demandCharacteristics
+  table: xianchang.dwd_tfc_lane_roadcross_flow_5mi
+  data_key: lane_flow
+- item_id: turn_saturation
+  category: dynamic
+  label: 转向/相位饱和度
+  profile_field: traffic_state.movement_saturation, scenario_report.operationalStatus.saturations
+  table: xianchang.dws_turn_saturation_5min_mm
+  data_key: turn_saturation
+- item_id: inter_evaluation
+  category: dynamic
+  label: 路口综合评价
+  profile_field: traffic_state.saturation, scenario_report.capacityAndSupply.totalCapacity
+  table: xianchang.dws_inter_evaluation_5min_mm
+  data_key: evaluation
+- item_id: turn_perf
+  category: dynamic
+  label: 排队/延误/停车/溢流
+  profile_field: traffic_state.queue_m, scenario_report.operationalStatus.queues
+  table: xianchang.dws_inter_dir_turn_perf_5min_mm
+  data_key: turn_perf
+- item_id: green_utilization
+  category: dynamic
+  label: 绿灯利用率/空放
+  profile_field: traffic_state.green_utilization, scenario_report.operationalStatus.greenUtilization
+  table: xianchang.dws_turn_green_utilization_5min_mm
+  data_key: green_utilization
+- item_id: lane_capacity
+  category: dynamic
+  label: 车道通行能力
+  profile_field: supply_profile.movement_capacity, scenario_report.capacityAndSupply.turnCapacities
+  table: xianchang.dws_lane_capacity_5min_mm
+  data_key: lane_capacity
+- item_id: lane_saturation_headway
+  category: dynamic
+  label: 车道级饱和流率
+  profile_field: scenario_report.capacityAndSupply.saturationFlowRates
+  table: xianchang.dim_lane_saturation_headway
+  data_key: lane_saturation_headway
+- item_id: plan_cfg
+  category: control
+  label: 当前方案/周期
+  profile_field: control_profile.current_cycle_s
+  table: xianchang.dwd_ctl_inter_plan_cfg
+  data_key: plan
+- item_id: stage_timing
+  category: control
+  label: 阶段绿信比
+  profile_field: control_profile.phase_splits
+  table: xianchang.dwd_ctl_inter_plan_stage_timing
+  data_key: plan
+- item_id: signal_lane_mapping
+  category: control
+  label: 信号原子↔车道
+  profile_field: audit.signal_lane_mapping
+  table: xianchang.dwd_ctl_inter_signal_atom_lane_mapping
+  data_key: signal_lane_mapping
+- item_id: schedule_cfg
+  category: control
+  label: 时段方案数
+  profile_field: control_profile.time_plan_count
+  table: xianchang.dwd_ctl_inter_schedule_cfg
+  data_key: schedule_cfg
+- item_id: complaint_records
+  category: context
+  label: 投诉台账
+  profile_field: context_tags
+  table: xianchang.dwd_tfc_complaint_inter_issue
+  data_key: complaints
+- item_id: field_survey
+  category: context
+  label: 现场调研
+  profile_field: context_tags
+  table: xianchang.dwd_tfc_field_survey_inter_issue
+  data_key: field_survey
+- item_id: expert_strong_attractor
+  category: context
+  label: 强吸引点上下文标签
+  profile_field: traffic_state.queue_m
+  data_key: expert_strong_attractor
+  source_experience_id: EXP-SCENE-003
+  requires_human_review: true

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import logging
 from pathlib import Path
@@ -13,7 +12,6 @@ from app.data.intersection_registry import enrich_ticket
 
 logger = logging.getLogger(__name__)
 
-SKILLS_ROOT = Path(__file__).resolve().parent.parent.parent / "skills"
 FIXTURES_ROOT = Path(__file__).resolve().parent.parent.parent / "tests" / "fixtures"
 
 
@@ -38,10 +36,17 @@ def resolve_diagnosis_inputs(
         }
 
     inter_id = ticket.get("inter_id") or task.get("inter_id")
-    if settings.pg_dsn and inter_id:
-        loaded = _load_from_pg(inter_id=inter_id, ticket=ticket, settings=settings)
+    if settings.pg_dsn and (inter_id or ticket.get("intersection_name")):
+        from app.data.load_pg_bundle import load_pg_diagnosis_bundle
+
+        loaded = load_pg_diagnosis_bundle(task, ticket, settings)
         if loaded.get("ok"):
-            return loaded
+            return {
+                "ok": True,
+                "metrics": loaded["metrics"],
+                "topology": loaded["topology"],
+                "source": "pg",
+            }
         if not settings.allow_demo_fallback:
             return loaded
 
@@ -63,53 +68,24 @@ def resolve_diagnosis_inputs(
         ),
     }
 
-
-def _load_from_pg(
-    *,
-    inter_id: str,
-    ticket: dict[str, Any],
-    settings: Settings,
-) -> dict[str, Any]:
-    """PG loader placeholder — implemented in stage A follow-up."""
-    _ = settings
-    logger.info("PG 加载尚未实现 inter_id=%s", inter_id)
-    return {
-        "ok": False,
-        "available": False,
-        "source": "pg",
-        "reason": f"pg_loader_not_implemented: inter_id={inter_id}",
-        "intersection_name": ticket.get("intersection_name"),
-    }
+def _load_demo_data(ticket: dict[str, Any]) -> dict[str, Any]:
+    """Explicit test-only demo path: fixtures only, never skill demo scripts."""
+    fixture_metrics = FIXTURES_ROOT / "overflow_metrics.json"
+    fixture_topology = FIXTURES_ROOT / "overflow_topology.json"
+    if not (fixture_metrics.exists() and fixture_topology.exists()):
+        return {
+            "metrics": {},
+            "topology": {},
+            "reason": "demo fixture 缺失：tests/fixtures/overflow_metrics.json",
+        }
+    metrics = json.loads(fixture_metrics.read_text(encoding="utf-8"))
+    topology = json.loads(fixture_topology.read_text(encoding="utf-8"))
+    topology.setdefault("target_inter_name", ticket.get("intersection_name"))
+    return {"metrics": metrics, "topology": topology}
 
 
 def _load_demo_module(skill_scripts: str, module_name: str):
-    script_path = SKILLS_ROOT / skill_scripts
-    spec = importlib.util.spec_from_file_location(module_name, script_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"无法加载 demo 脚本: {script_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _load_demo_data(ticket: dict[str, Any]) -> dict[str, Any]:
-    fixture_metrics = FIXTURES_ROOT / "overflow_metrics.json"
-    fixture_topology = FIXTURES_ROOT / "overflow_topology.json"
-    if fixture_metrics.exists() and fixture_topology.exists():
-        metrics = json.loads(fixture_metrics.read_text(encoding="utf-8"))
-        topology = json.loads(fixture_topology.read_text(encoding="utf-8"))
-        topology.setdefault("target_inter_name", ticket.get("intersection_name"))
-        return {"metrics": metrics, "topology": topology}
-
-    metrics_module = _load_demo_module(
-        "data-analysis-diagnosis/scripts/demo_metrics.py",
-        "demo_metrics",
+    raise RuntimeError(
+        "生产路径禁止加载 skills 内 demo 脚本；请使用 PG/task 注入，"
+        "或测试环境 ALLOW_DEMO_FALLBACK=true + tests/fixtures"
     )
-    topo_module = _load_demo_module(
-        "data-analysis-diagnosis/scripts/demo_topology.py",
-        "demo_topology",
-    )
-    return {
-        "metrics": metrics_module.DEMO_METRICS.copy(),
-        "topology": topo_module.build_demo_topology(ticket),
-    }

@@ -1,0 +1,82 @@
+# 按场景类型分化的诊断与信控上限规则
+
+version: "1.0.0"
+
+scene_types:
+  单点配时优化:
+    match:
+      scope_level: intersection
+      default: true
+    diagnosis:
+      priority_boost: [service_imbalance, empty_green, oversaturation, excess_delay]
+      deprioritize: [green_wave_break]
+      control_ceiling_default: high
+      static_dominant_ceiling: low
+
+  干线协调优化:
+    match:
+      scope_level: corridor
+      context_tags: [corridor, green_wave, arterial_coordination]
+    diagnosis:
+      priority_boost: [green_wave_break, spillback, service_imbalance]
+      deprioritize: [plan_granularity]
+      control_ceiling_default: medium
+      static_dominant_ceiling: low
+      problem_source_hint: corridor_coordination
+
+  区域拥堵治理:
+    match:
+      scope_level: region
+      context_tags: [region_congestion, area_governance]
+    diagnosis:
+      priority_boost: [oversaturation, spillback, downstream_blockage]
+      deprioritize: [empty_green, cycle_timing_issue]
+      control_ceiling_default: low
+      static_dominant_ceiling: none
+      problem_source_hint: structural_or_demand_management
+
+  应急优先:
+    match:
+      context_tags: [emergency, incident, special_event]
+      context_flag: emergency
+    diagnosis:
+      priority_boost: [spillback, downstream_blockage, external_disturbance]
+      deprioritize: [plan_granularity, empty_green]
+      control_ceiling_default: medium
+      static_dominant_ceiling: low
+      problem_source_hint: external_disturbance
+
+problem_source_rules:
+  static_supply_constraint:
+    when:
+      static_triggered_min: 2
+      no_dynamic_high_leverage: true
+    problem_source: static_supply_constraint
+    control_ceiling: low
+
+  external_disturbance:
+    when:
+      issue_codes: [external_disturbance, downstream_blockage]
+      context_tags_any: [construction, incident, illegal_parking]
+    problem_source: external_disturbance
+    control_ceiling: none
+
+  traffic_order:
+    when:
+      issue_codes: [external_disturbance, public_complaint]
+      cause_top: order
+    problem_source: traffic_order_interference
+    control_ceiling: low
+
+  control_mismatch:
+    when:
+      dynamic_triggered_min: 1
+      control_cause_min: 0.35
+    problem_source: control_parameter_mismatch
+    control_ceiling: high
+
+  stable:
+    when:
+      no_triggered_issues: true
+    problem_source: stable_operation
+    control_ceiling: none

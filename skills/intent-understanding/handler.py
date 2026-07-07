@@ -61,7 +61,12 @@ class IntentUnderstandingSkill(BaseSkill):
                 errors=["意图理解返回非 JSON 结构"],
             )
 
-        enriched = enrich_ticket(parsed)
+        pre_ticket = context.task.get("diagnosis_ticket") or {}
+        if pre_ticket.get("inter_id") or pre_ticket.get("intersection_name"):
+            merged = {**parsed, **pre_ticket}
+        else:
+            merged = parsed
+        enriched = enrich_ticket(merged, user_input=context.user_input)
         spatial_module = _load_script_module("build_spatial_objects.py")
         scene_module = _load_script_module("build_spatial_scene.py")
         topology_preview = context.task.get("topology") or _preview_topology(enriched.get("inter_id"))
