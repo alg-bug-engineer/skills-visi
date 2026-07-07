@@ -40,13 +40,15 @@ export interface ActDef {
 export const ACT_DEFS: ActDef[] = [
   { index: 0, id: 'act1_ticket', phase: 'intent', pipelineNode: '问题理解', processTitle: '理解问题', reveal: 'ticket', scene: { kind: 'city', pitch: 20, zoom: 11 } },
   { index: 1, id: 'act2_locate', phase: 'intent', pipelineNode: '拓扑定位', processTitle: '空间定位', reveal: null, scene: { kind: 'intersection', pitch: 15, zoom: 16 } },
-  { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '溢出验证', processTitle: '指标加载与溢出验证', reveal: 'metrics', scene: { kind: 'lane', pitch: 0, zoom: 17 } },
-  { index: 3, id: 'act4_bottleneck', phase: 'diagnosis', pipelineNode: '瓶颈判断', processTitle: '本路口放不出去 vs 下游接不住', reveal: 'bottleneck', scene: { kind: 'lane', pitch: 10, zoom: 16 } },
-  { index: 4, id: 'act5_corridor', phase: 'diagnosis', pipelineNode: '干线溯源', processTitle: '流量溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 15 } },
-  { index: 5, id: 'act6_cause', phase: 'cause', pipelineNode: '成因/案例', processTitle: '成因判断与相似检索', reveal: 'cause', scene: { kind: 'trace', pitch: 50, zoom: 15 } },
-  { index: 6, id: 'act7_strategy', phase: 'strategy', pipelineNode: '策略生成', processTitle: '策略推荐', reveal: 'strategy', scene: { kind: 'control', pitch: 45, zoom: 15 } },
-  { index: 7, id: 'act8_plan', phase: 'plan', pipelineNode: '方案生成', processTitle: '方案决策', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 16 } },
-  { index: 8, id: 'act9_feedback', phase: 'plan', pipelineNode: '反馈下发', processTitle: '等待方案下发确认', reveal: 'feedback', scene: { kind: 'corridor', pitch: 50, zoom: 14 } },
+  // 渠化详情：连贯下钻到 18（车道级）
+  { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '溢出验证', processTitle: '指标加载与溢出验证', reveal: 'metrics', scene: { kind: 'lane', pitch: 0, zoom: 18 } },
+  { index: 3, id: 'act4_bottleneck', phase: 'diagnosis', pipelineNode: '瓶颈判断', processTitle: '本路口放不出去 vs 下游接不住', reveal: 'bottleneck', scene: { kind: 'lane', pitch: 10, zoom: 18 } },
+  // 干线溯源：从 18 平滑抬升到 17（干线级）
+  { index: 4, id: 'act5_corridor', phase: 'diagnosis', pipelineNode: '干线溯源', processTitle: '流量溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 17 } },
+  { index: 5, id: 'act6_cause', phase: 'cause', pipelineNode: '成因/案例', processTitle: '成因判断与相似检索', reveal: 'cause', scene: { kind: 'trace', pitch: 50, zoom: 17 } },
+  { index: 6, id: 'act7_strategy', phase: 'strategy', pipelineNode: '策略生成', processTitle: '策略推荐', reveal: 'strategy', scene: { kind: 'control', pitch: 45, zoom: 17 } },
+  { index: 7, id: 'act8_plan', phase: 'plan', pipelineNode: '方案生成', processTitle: '方案决策', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 18 } },
+  { index: 8, id: 'act9_feedback', phase: 'plan', pipelineNode: '反馈下发', processTitle: '等待方案下发确认', reveal: 'feedback', scene: { kind: 'corridor', pitch: 50, zoom: 17 } },
 ]
 
 function lines(...xs: (string | null | undefined | false)[]): string[] {
@@ -121,6 +123,43 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
       return lines('一次处置不是结束，而是下一次判断的经验…', '请专家接受 / 拒绝 / 修改后再生成。')
     default:
       return []
+  }
+}
+
+/** 阶段完成后折叠展示的汇总结论。 */
+export function summaryFor(act: ActDef, resp: RunResponse | null): string {
+  const ticket = resp?.diagnosis_ticket
+  const intent = resp?.phases?.intent
+  const diag = resp?.phases?.diagnosis
+  const cause = resp?.phases?.cause
+  const strategy = resp?.phases?.strategy
+  const plan = resp?.plan
+
+  switch (act.id) {
+    case 'act1_ticket':
+      return `${ticket?.intersection_name ?? '目标路口'}｜${t('problem_type', ticket?.problem_type)}｜${directionMovement(ticket?.direction, ticket?.movement)}`
+    case 'act2_locate':
+      return intent?.spatial_scene?.target?.inter_name
+        ? `已锁定 ${intent.spatial_scene.target.inter_name}`
+        : '空间定位完成'
+    case 'act3_overflow':
+      return diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${pct(diag?.metrics?.saturation)}`
+    case 'act4_bottleneck':
+      return diag?.downstream_diagnosis?.release_answer ?? diag?.downstream_diagnosis?.narrative ?? '瓶颈判断完成'
+    case 'act5_corridor':
+      return diag?.arterial_analysis?.summary ?? '干线溯源完成'
+    case 'act6_cause':
+      return cause?.cause_analysis?.narrative ?? cause?.cause_analysis?.primary_cause ?? '成因判断完成'
+    case 'act7_strategy':
+      return strategy?.strategy?.principles?.[0] ?? '策略推荐完成'
+    case 'act8_plan':
+      return plan?.recommendation?.recommended_plan_id
+        ? `推荐方案 ${plan.recommendation.recommended_plan_id}`
+        : '方案生成完成'
+    case 'act9_feedback':
+      return '等待专家接受 / 拒绝 / 修改后再生成'
+    default:
+      return act.processTitle
   }
 }
 

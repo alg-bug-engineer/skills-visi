@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { isApiError } from '@/api/client'
 import { runAgent, runAgentStream, regeneratePlan, submitDecision, DEMO_INPUT } from '@/api/endpoints'
 import type { StreamController, StreamEvent } from '@/api/sse'
-import type { RunResponse } from '@/api/types'
+import type { RunResponse, UserExperience, CaseCard } from '@/api/types'
 import { ACT_DEFS, narrationFor, phaseReady, type ActDef, type CardKey, type PhaseKey } from '@/composables/useTimeline'
 
 export type RunStatus = 'idle' | 'submitting' | 'running' | 'done' | 'error'
@@ -82,6 +82,54 @@ export const usePresentationStore = defineStore('presentation', {
     isRevealed: (s) => (i: number) => s.revealedActs.includes(i),
     lastActIndex: (s) => s.acts.length - 1,
     computingLabel: (s) => (s.computingPhase ? PHASE_LABEL[s.computingPhase] : ''),
+    /** 按类型分桶的用户经验（认知/诊断/方案） */
+    experiencesByType(s): { cognitive: UserExperience[]; diagnostic: UserExperience[]; solution: UserExperience[] } {
+      const all: UserExperience[] = [
+        ...(s.response?.diagnosis_ticket?.user_experiences ?? []),
+        ...(s.response?.phases?.intent?.user_experiences ?? []),
+      ]
+      const seen = new Set<string>()
+      const unique = all.filter((e) => {
+        const key = `${e.experience_type}:${e.content}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      const cognitive = unique.filter((e) => e.experience_type === 'cognitive')
+      const diagnostic = unique.filter((e) => e.experience_type === 'diagnostic')
+      const solution = unique.filter((e) => e.experience_type === 'solution')
+      // 诊断经验补充：成因分析
+      const cause = s.response?.phases?.cause
+      if (cause?.cause_analysis?.primary_cause) {
+        diagnostic.push({
+          experience_type: 'diagnostic',
+          content: cause.cause_analysis.primary_cause,
+          source_span: '成因分析',
+        })
+      }
+      for (const r of cause?.cause_ranking ?? []) {
+        if (r.cause && r.cause !== cause?.cause_analysis?.primary_cause) {
+          diagnostic.push({
+            experience_type: 'diagnostic',
+            content: String(r.cause),
+            source_span: r.role ?? '成因排序',
+          })
+        }
+      }
+      return { cognitive, diagnostic, solution }
+    },
+    /** 已有案例（相似检索结果） */
+    existingCases(s): CaseCard[] {
+      const cards = s.response?.phases?.cause?.case_cards?.cards ?? []
+      const similar = (s.response?.phases?.cause as { similar_cases?: CaseCard[] } | undefined)?.similar_cases ?? []
+      const merged = [...cards]
+      for (const sc of similar) {
+        if (!merged.some((c) => c.case_id === sc.case_id && c.title === sc.title)) merged.push(sc)
+      }
+      return merged
+    },
+    experienceReady: (s) => phaseReady(s.response, 'intent'),
+    casesReady: (s) => phaseReady(s.response, 'cause'),
   },
 
   actions: {

@@ -16,3 +16,4 @@
 16. **数据真源**：指标、拓扑、现状配时、最小绿等必须从 PG/MySQL 或调用方注入的 `task` 上下文读取；无数据时 `available: false` + `reason`，不得自动回落到 `demo_metrics` / `demo_topology`
 17. **剧本是验收标准**：`docs/剧本.md` 每一幕所需的前端字段必须在对应 Skill 输出中有结构化定义；缺失字段视为未完成，不得以文案或 LLM 自由发挥替代。前端对接路径见 `docs/剧本字段-API对照.md`
 18. **生产化开发须先写计划**：涉及 Skill 行为变更、数据接入、护栏补齐时，先在 `plans/` 目录编写开发计划（含测试与回滚），再开分支实施
+19. **前端禁止合成/伪造数据**：前端只做「呈现」，不得凭方向、存储长度、占比等标量在客户端合成路网几何（link 折线、节点坐标）、指标或任何业务数据。若前端可视化缺少所需字段（如流量溯源的上下游 link `path`、节点经纬度、占比等），必须修改**后端接口**补全真实数据（数据真源见约束16：来自 PG `dim_link_info.geom` / `dim_inter_info.geom_center` 等），随后运行 `scripts/capture_frontend_mock.py` 重新采集 `frontend/src/mock/*_fixture.json`，使前端 `VITE_MOCK=1` 调试数据与真实后端一致。无法从后端取得真实数据时，字段返回 `available:false` + `reason`，前端据此降级为「暂无数据」提示，**严禁前端造数**。

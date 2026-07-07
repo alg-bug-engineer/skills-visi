@@ -3,7 +3,7 @@ import { computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import AMapProvider from '@/map/AMapProvider.vue'
-import InsightPanel from '@/panels/InsightPanel.vue'
+import UnderstandingPanel from '@/panels/UnderstandingPanel.vue'
 import ProcessPanel from '@/panels/ProcessPanel.vue'
 import BottomDock from '@/panels/BottomDock.vue'
 import ChannelizationInset from '@/panels/ChannelizationInset.vue'
@@ -42,7 +42,7 @@ watch(toast, (v) => {
 
     <Transition name="fade">
       <aside v-show="running && !fullscreen" class="rail rail--left" :class="{ 'rail--up': dock === 'plan' }">
-        <InsightPanel />
+        <UnderstandingPanel />
       </aside>
     </Transition>
 
@@ -69,7 +69,14 @@ watch(toast, (v) => {
       <div v-if="toast" class="toast us-panel">{{ toast }}</div>
     </Transition>
 
-    <footer class="dock-slot us-panel" :class="{ 'dock-slot--plan': dock === 'plan' }">
+    <footer
+      class="dock-slot us-panel"
+      :class="{
+        'dock-slot--input': dock === 'input',
+        'dock-slot--running': dock === 'running',
+        'dock-slot--plan': dock === 'plan',
+      }"
+    >
       <BottomDock />
     </footer>
   </div>
@@ -168,9 +175,39 @@ watch(toast, (v) => {
   z-index: 25;
   padding: 14px 18px;
   border-radius: var(--radius);
+  transition:
+    top 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    bottom 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    left 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    right 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.dock-slot--input {
+  left: 50%;
+  right: auto;
+  top: 50%;
+  bottom: auto;
+  width: min(640px, calc(100% - 32px));
+  transform: translate(-50%, -50%);
+}
+.dock-slot--running {
+  left: 16px;
+  right: 16px;
+  top: auto;
+  bottom: 16px;
+  width: auto;
+  transform: none;
+  padding: 10px 16px;
 }
 .dock-slot--plan {
   height: 46vh;
+  left: 16px;
+  right: 16px;
+  top: auto;
+  bottom: 16px;
+  width: auto;
+  transform: none;
 }
 .rollback {
   position: absolute;

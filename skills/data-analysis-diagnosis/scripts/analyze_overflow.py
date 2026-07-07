@@ -13,7 +13,12 @@ from app.trace.downstream_diagnosis import build_downstream_diagnosis
 from app.trace.downstream_trace import build_downstream_trace
 from app.trace.flow_trace import build_arterial_analysis, build_flow_trace
 from app.trace.intersection_profile import build_intersection_profile
-from app.trace.map_scene import build_downstream_map_scene, build_flow_map_scene
+from app.trace.map_scene import (
+    build_channelization_map_scene,
+    build_downstream_map_scene,
+    build_flow_map_scene,
+    build_flow_trace_links_sniff_map_scene,
+)
 from app.trace.topology import resolve_dir8_turn
 
 
@@ -23,6 +28,7 @@ def analyze_overflow(
     *,
     topology: dict[str, Any] | None = None,
     spatial_objects: dict[str, Any] | None = None,
+    pg_raw: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     direction = ticket.get("direction", "东向西")
     movement = ticket.get("movement", "直行")
@@ -92,6 +98,11 @@ def analyze_overflow(
         if target_profile.get("lng") is not None and target_profile.get("lat") is not None:
             center = (float(target_profile["lng"]), float(target_profile["lat"]))
         map_scenes = {
+            "channelization_map": build_channelization_map_scene(
+                pg_raw=pg_raw,
+                target_profile=target_profile,
+                center=center,
+            ),
             "downstream_trace_map": build_downstream_map_scene(
                 downstream_trace=downstream_trace,
                 target_profile=target_profile,
@@ -101,6 +112,13 @@ def analyze_overflow(
                 flow_trace=flow_trace,
                 arterial_analysis=arterial_analysis,
                 center=center,
+            ),
+            "flow_trace_links_sniff_map": build_flow_trace_links_sniff_map_scene(
+                pg_raw=pg_raw,
+                topology=topology,
+                target_profile=target_profile,
+                direction=direction,
+                movement=movement,
             ),
         }
 

@@ -26,6 +26,17 @@ DIRECTION_MOVEMENT = {
     "西北向东南": (7, 2),
 }
 
+EN_DIRECTION_MOVEMENT = {
+    "east_to_west": (2, 2),
+    "west_to_east": (6, 2),
+    "south_to_north": (4, 2),
+    "north_to_south": (0, 2),
+    "northeast_to_southwest": (1, 2),
+    "southeast_to_northwest": (3, 2),
+    "southwest_to_northeast": (5, 2),
+    "northwest_to_southeast": (7, 2),
+}
+
 
 def exit_dir8_for_turn(entrance_dir8: int, turn: int) -> int | None:
     try:
@@ -51,10 +62,28 @@ def movement_label(dir8: int | None, turn: int | None) -> str:
 
 
 def resolve_dir8_turn(direction: str, movement: str = "直行") -> tuple[int, int]:
+    raw_direction = str(direction or "").strip()
+    raw_movement = str(movement or "").strip().lower()
+    turn_map = {
+        "左转": 1,
+        "left": 1,
+        "left_turn": 1,
+        "直行": 2,
+        "straight": 2,
+        "through": 2,
+        "右转": 3,
+        "right": 3,
+        "right_turn": 3,
+        "掉头": 4,
+        "uturn": 4,
+        "u_turn": 4,
+    }
+    turn = turn_map.get(raw_movement, 2)
+    normalized_direction = raw_direction.lower().replace("-", "_").replace(" ", "_")
+    if normalized_direction in EN_DIRECTION_MOVEMENT:
+        return EN_DIRECTION_MOVEMENT[normalized_direction][0], turn
     if direction in DIRECTION_MOVEMENT:
-        return DIRECTION_MOVEMENT[direction]
-    turn_map = {"左转": 1, "直行": 2, "右转": 3, "掉头": 4}
-    turn = turn_map.get(movement, 2)
+        return DIRECTION_MOVEMENT[direction][0], turn
     for label, pair in DIRECTION_MOVEMENT.items():
         if direction in label:
             return pair[0], turn

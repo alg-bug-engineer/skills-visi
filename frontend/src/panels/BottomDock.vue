@@ -93,11 +93,13 @@ const signalText = computed(
   font-size: 22px;
   letter-spacing: 2px;
   color: var(--text);
+  text-align: center;
 }
 .composer__title p {
   margin: 4px 0 12px;
   font-size: 13px;
   color: var(--text-dim);
+  text-align: center;
 }
 .composer__row {
   display: flex;
