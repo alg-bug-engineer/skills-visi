@@ -1,0 +1,88 @@
+# 用户经验三类标签 schema（需求3）
+
+version: "1.0.0"
+
+experience_types:
+  cognitive:
+    description: 路口画像 / 问题现象
+    required_tags:
+      - problem_type
+    optional_tags:
+      - inter_id
+      - intersection_name
+      - time_period
+      - direction
+      - movement
+      - spatial_structure
+      - severity
+
+  diagnostic:
+    description: 用户对成因的主观判断
+    required_tags:
+      - cause_dimension
+    optional_tags:
+      - cause_keywords
+      - related_poi
+      - time_period
+      - confidence
+
+  solution:
+    description: 用户提出的处置建议
+    required_tags:
+      - strategy_action
+    optional_tags:
+      - target_phase
+      - adjustment_direction
+      - constraints
+
+cause_dimensions:
+  - demand
+  - supply
+  - control
+  - order
+  - event
+  - coordination
+
+strategy_actions:
+  - 加绿
+  - 减绿
+  - 控流
+  - 协调
+  - 相位调整
+  - 渠化
+  - 单点放行
+  - 上游控流
+
+time_period_synonyms:
+  下午时段:
+    - 下午
+    - 午后
+    - 15点
+    - 16点
+    - 17点
+  晚高峰:
+    - 晚高峰
+    - 傍晚
+    - 18点
+    - 19点
+  早高峰:
+    - 早高峰
+    - 早晨
+    - 7点
+    - 8点
+  平峰:
+    - 平峰
+    - 日间
+
+related_poi_keywords:
+  学校:
+    - 小学
+    - 中学
+    - 学校
+    - 放学
+    - 接送
+  医院:
+    - 医院
+  商圈:
+    - 商场
+    - 商圈

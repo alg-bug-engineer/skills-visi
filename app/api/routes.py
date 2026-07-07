@@ -35,6 +35,10 @@ class PlanDecisionRequest(BaseModel):
         None,
         description="可选：关联诊断工单，便于反馈沉淀",
     )
+    artifacts_summary: dict[str, Any] | None = Field(
+        None,
+        description="可选：流水线 artifacts 摘要，用于指纹与标签沉淀",
+    )
 
 
 def get_agent_service(settings: Settings = Depends(get_settings)) -> AgentService:
@@ -84,4 +88,5 @@ async def submit_plan_decision(
         rejection_reason=request.rejection_reason,
         plan_snapshot=request.plan_snapshot,
         diagnosis_ticket=request.diagnosis_ticket,
+        artifacts_summary=request.artifacts_summary,
     )

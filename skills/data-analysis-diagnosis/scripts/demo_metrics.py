@@ -1,4 +1,7 @@
-"""演示剧本默认指标（文化西路与舜华路交叉口 东向西直行）。"""
+"""Fixture 维护脚本：仅用于 `tests/generate_fixtures.py` 刷新 overflow 样例。
+
+生产路径禁止引用；请使用 PG、`task` 注入，或 `tests/fixtures/overflow_metrics.json`。
+"""
 
 DEMO_METRICS = {
     "queue_length_m": 185.0,

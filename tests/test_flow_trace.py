@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,8 @@ import pytest
 from app.trace.downstream_trace import assess_downstream_capacity
 from app.trace.intersection_profile import build_intersection_profile
 from app.trace.topology import exit_dir8_for_turn, resolve_dir8_turn
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 def _load_skill_script(name: str):
@@ -23,9 +26,11 @@ def _load_skill_script(name: str):
 
 
 _analyze = _load_skill_script("analyze_overflow.py")
-_demo_topo = _load_skill_script("demo_topology.py")
 analyze_overflow = _analyze.analyze_overflow
-build_demo_topology = _demo_topo.build_demo_topology
+
+
+def _load_overflow_topology() -> dict:
+    return json.loads((FIXTURES / "overflow_topology.json").read_text(encoding="utf-8"))
 
 
 def test_exit_dir8_for_turn():
@@ -65,7 +70,7 @@ def test_analyze_overflow_with_topology():
         "direction": "东向西",
         "movement": "直行",
     }
-    topology = build_demo_topology(ticket)
+    topology = _load_overflow_topology()
     result = analyze_overflow(
         {
             "queue_length_m": 185,

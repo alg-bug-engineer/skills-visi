@@ -33,10 +33,11 @@ def resolve_signal_plan(
             }
 
     inter_id = ticket.get("inter_id") or task.get("inter_id")
-    if inter_id:
+    if inter_id and settings.allow_demo_fallback:
         fixture = FIXTURES_ROOT / f"signal_plan_{inter_id}.json"
         if fixture.exists():
             signal = json.loads(fixture.read_text(encoding="utf-8"))
+            logger.warning("使用 signal fixture source=fixture_registry inter_id=%s", inter_id)
             return {
                 "ok": True,
                 "signal": signal,

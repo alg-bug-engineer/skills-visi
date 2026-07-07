@@ -5,6 +5,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from app.services.plan_fingerprint import (
+    build_metrics_summary,
+    build_topology_hash,
+)
 from app.config import Settings, get_settings
 from app.data.load_signal_plan import resolve_signal_plan
 from app.llm.qwen import QwenClient
@@ -32,6 +36,36 @@ class PlanGenerationSkill(BaseSkill):
         ticket = context.task.get("diagnosis_ticket", {})
         diagnosis = context.artifacts.get("data_analysis_diagnosis", {})
 
+        experience_library = deps.get("experience_library")
+        feedback_service = deps.get("feedback_service")
+        user_solution_refs: list[dict[str, Any]] = []
+        accepted_plan_refs: list[dict[str, Any]] = []
+        rejected_plan_avoidance: list[dict[str, Any]] = []
+
+        fingerprint = {
+            "problem_type": ticket.get("problem_type"),
+            "topology_hash": build_topology_hash(diagnosis.get("topology") or context.task.get("topology")),
+            "metrics_summary": build_metrics_summary(diagnosis),
+        }
+        if experience_library:
+            user_solution_refs = experience_library.search_solution(
+                inter_id=ticket.get("inter_id"),
+                intersection_name=ticket.get("intersection_name"),
+                limit=5,
+            )
+        if feedback_service:
+            accepted_plan_refs = feedback_service.search_accepted_plans(
+                fingerprint=fingerprint,
+                inter_id=ticket.get("inter_id"),
+                problem_type=ticket.get("problem_type"),
+                limit=3,
+            )
+            rejected_plan_avoidance = feedback_service.search_rejected_patterns(
+                inter_id=ticket.get("inter_id"),
+                problem_type=ticket.get("problem_type"),
+                limit=5,
+            )
+
         signal_resolved = resolve_signal_plan(context.task, ticket, settings)
         if not signal_resolved.get("ok"):
             return SkillResult(
@@ -54,7 +88,12 @@ class PlanGenerationSkill(BaseSkill):
 
         llm_result = await llm.chat(
             system_prompt=self.load_resource("system"),
-            user_prompt=f"策略: {strategy}\n工单: {ticket}",
+            user_prompt=(
+                f"策略: {strategy}\n工单: {ticket}\n"
+                f"用户方案经验: {user_solution_refs[:2]}\n"
+                f"已接受方案: {accepted_plan_refs[:1]}\n"
+                f"否决规避: {rejected_plan_avoidance[:2]}"
+            ),
             trace_id=context.trace_id,
         )
         if not isinstance(llm_result, dict):
@@ -100,6 +139,22 @@ class PlanGenerationSkill(BaseSkill):
             valid_candidates[-1],
         )
 
+        rejected_ids = {item.get("plan_id") for item in rejected_plan_avoidance}
+        if recommended_id in rejected_ids or recommended["plan_id"] in rejected_ids:
+            recommended["risk_warning"] = "该策略类型曾被专家否决，请谨慎采用"
+        for candidate in candidates:
+            if candidate.get("plan_id") in rejected_ids:
+                candidate["risk_warning"] = "类似策略曾被否决"
+            if user_solution_refs:
+                candidate["user_experience_basis"] = user_solution_refs[0].get("content")
+            if accepted_plan_refs:
+                candidate["provenance"] = {
+                    "accepted_plan_ref": {
+                        "trace_id": accepted_plan_refs[0].get("trace_id"),
+                        "plan_id": accepted_plan_refs[0].get("plan_id"),
+                    }
+                }
+
         output = {
             "candidates": candidates,
             "recommended": recommended,
@@ -107,6 +162,9 @@ class PlanGenerationSkill(BaseSkill):
             "all_guardrails_passed": all(c.get("guardrail_pass") for c in candidates),
             "signal_source": signal_resolved.get("source"),
             "optimizer_engine": optimizer_engine,
+            "user_solution_refs": user_solution_refs,
+            "accepted_plan_refs": accepted_plan_refs,
+            "rejected_plan_avoidance": rejected_plan_avoidance,
             "rollback_conditions": [
                 recommended.get("rollback_condition"),
                 "下游排队比持续上升",

@@ -10,6 +10,7 @@ metadata:
   handler_class: IntentUnderstandingSkill
   script_files:
     - scripts/build_spatial_objects.py
+    - scripts/extract_user_experiences.py
   reference_files:
     - references/rules.md
     - references/output_schema.md
@@ -21,6 +22,11 @@ metadata:
       instruction: 调用 LLM 将自然语言拆解为诊断工单字段。
       script: scripts/build_spatial_objects.py
       function: build_spatial_objects
+    - step_id: extract_user_experiences
+      title: 拆分用户经验
+      instruction: 将认知/诊断/方案三类经验结构化并补全标签。
+      script: scripts/extract_user_experiences.py
+      function: extract_user_experiences
 ---
 
 # 意图理解
@@ -31,5 +37,5 @@ metadata:
 
 ## 输出约束
 
-- 必须输出 `diagnosis_ticket` 与 `spatial_objects`
+- 必须输出 `diagnosis_ticket`、`user_experiences` 与 `spatial_objects`
 - 不得在此阶段输出指标计算或治理方案

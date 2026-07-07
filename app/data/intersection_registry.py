@@ -14,11 +14,21 @@ logger = logging.getLogger(__name__)
 FIXTURES_ROOT = Path(__file__).resolve().parent.parent.parent / "tests" / "fixtures"
 
 
+def fixture_registry_enabled() -> bool:
+    """Fixture registry is for tests and explicit demo mode only."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    return bool(settings.allow_demo_fallback or not settings.pg_dsn)
+
+
 def _normalize_name(name: str) -> str:
     return re.sub(r"\s+", "", name or "").strip()
 
 
 def load_registry() -> dict[str, dict[str, Any]]:
+    if not fixture_registry_enabled():
+        return {}
     path = FIXTURES_ROOT / "intersection_registry.json"
     if not path.exists():
         return {}
@@ -31,32 +41,39 @@ def resolve_intersection(
     *,
     inter_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Resolve intersection record by id or fuzzy name match."""
-    registry = load_registry()
+    """Resolve intersection record by id or fuzzy name match (PG first in production)."""
     if inter_id:
-        for record in registry.values():
-            if str(record.get("inter_id")) == str(inter_id):
-                return record
         pg_record = _resolve_from_pg(inter_id=inter_id)
         if pg_record:
             return pg_record
+        registry = load_registry()
+        for record in registry.values():
+            if str(record.get("inter_id")) == str(inter_id):
+                record = dict(record)
+                record.setdefault("source", "fixture")
+                return record
 
     if not intersection_name:
         return None
-
-    key = _normalize_name(intersection_name)
-    if key in registry:
-        return registry[key]
-
-    for norm_name, record in registry.items():
-        if key in norm_name or norm_name in key:
-            return record
 
     pg_record = _resolve_from_pg(inter_name=intersection_name)
     if pg_record:
         return pg_record
 
-    logger.info("路口未在注册表/PG 命中 name=%s", intersection_name)
+    registry = load_registry()
+    key = _normalize_name(intersection_name)
+    if key in registry:
+        record = dict(registry[key])
+        record.setdefault("source", "fixture")
+        return record
+
+    for norm_name, record in registry.items():
+        if key in norm_name or norm_name in key:
+            matched = dict(record)
+            matched.setdefault("source", "fixture")
+            return matched
+
+    logger.info("路口未在 PG/注册表命中 name=%s inter_id=%s", intersection_name, inter_id)
     return None
 
 

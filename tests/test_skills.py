@@ -17,6 +17,33 @@ async def test_intent_understanding_skill(script_user_input):
     ticket = result.output["diagnosis_ticket"]
     assert ticket["direction"] == "东向西"
     assert ticket["movement"] == "直行"
+    assert "user_experiences" in result.output
+
+
+@pytest.mark.asyncio
+async def test_intent_understanding_three_experiences(tmp_path):
+    user_input = (
+        "文化西路与舜华路交叉口下午3点经常拥堵，"
+        "这附近有一个小学那时候放学家长接送孩子导致的，"
+        "应该增加一点绿灯时间。"
+    )
+    skill = load_skill_from_dir(PROJECT_ROOT / "skills" / "intent-understanding")
+    context = SkillContext(trace_id="unit-exp", user_input=user_input)
+    llm = QwenClient(Settings(llm_mock=True))
+    experience_path = tmp_path / "user_experience.jsonl"
+    from app.services.experience_service import ExperienceService
+    from app.services.experience_library import ExperienceLibraryService
+
+    result = await skill.run(
+        context,
+        llm=llm,
+        experience_service=ExperienceService(experience_path),
+        experience_library=ExperienceLibraryService(experience_path),
+    )
+    assert result.success is True
+    experiences = result.output["user_experiences"]
+    assert len(experiences) == 3
+    assert experience_path.exists()
 
 
 @pytest.mark.asyncio

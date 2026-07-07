@@ -189,7 +189,11 @@ def match_intersection(
     min_confidence: float = 0.55,
 ) -> dict[str, Any]:
     """Match user/LLM intersection expression to PG registry record."""
-    from app.data.intersection_registry import load_registry, _parse_geom_center
+    from app.data.intersection_registry import (
+        fixture_registry_enabled,
+        load_registry,
+        _parse_geom_center,
+    )
 
     query_terms = collect_search_terms(
         primary_name=primary_name,
@@ -197,11 +201,9 @@ def match_intersection(
         user_input=user_input,
     )
 
-    registry = load_registry()
-    registry_candidates = list(registry.values())
-
     pg_candidates = search_pg_candidates(query_terms, limit=15)
-    all_candidates = registry_candidates + pg_candidates
+    registry_candidates = list(load_registry().values()) if fixture_registry_enabled() else []
+    all_candidates = pg_candidates + registry_candidates
 
     scored: list[dict[str, Any]] = []
     seen_ids: set[str] = set()

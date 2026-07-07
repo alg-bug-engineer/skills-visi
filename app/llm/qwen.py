@@ -94,6 +94,8 @@ class QwenClient:
         time_match = re.search(r"(\d{1,2}[:：]\d{2}).*?(\d{1,2}[:：]\d{2})", user_prompt)
         if time_match:
             time_range = f"{time_match.group(1).replace('：', ':')}-{time_match.group(2).replace('：', ':')}"
+        elif "下午" in user_prompt and "3点" in user_prompt:
+            time_range = "15:00-16:00"
 
         direction = "东向西"
         for d in ("东向西", "西向东", "南向北", "北向南"):
@@ -101,20 +103,59 @@ class QwenClient:
                 direction = d
                 break
 
-        return {
+        problem_type = "排队溢出"
+        if "拥堵" in user_prompt and "溢出" not in user_prompt:
+            problem_type = "拥堵"
+
+        user_experiences: list[dict[str, Any]] = []
+        if re.search(r"(经常|时常).{0,12}(拥堵|排队|溢出)", user_prompt) or "下午" in user_prompt:
+            user_experiences.append(
+                {
+                    "experience_type": "cognitive",
+                    "content": f"{intersection}下午经常拥堵",
+                    "source_span": user_prompt[:80],
+                    "tags": {"problem_type": problem_type, "time_period": "下午时段"},
+                }
+            )
+        if re.search(r"(学校|接送|放学|导致)", user_prompt):
+            user_experiences.append(
+                {
+                    "experience_type": "diagnostic",
+                    "content": "附近有学校放学家长接送导致拥堵",
+                    "source_span": user_prompt[:120],
+                    "tags": {
+                        "cause_dimension": "event",
+                        "cause_keywords": ["学校", "接送", "放学"],
+                        "related_poi": ["学校"],
+                    },
+                }
+            )
+        if re.search(r"(应该|建议).{0,8}(加绿|绿灯)", user_prompt):
+            user_experiences.append(
+                {
+                    "experience_type": "solution",
+                    "content": "应该增加绿灯时间",
+                    "source_span": user_prompt[-40:],
+                    "tags": {"strategy_action": "加绿"},
+                }
+            )
+
+        payload = {
             "object_type": "路口",
             "intersection_name": intersection,
             "intersection_name_candidates": generate_name_variants(intersection.replace("交叉口", "路口")),
             "time_range": time_range,
-            "period": "晚高峰",
+            "period": "晚高峰" if "18" in time_range else "下午时段",
             "direction": direction,
             "movement": "直行",
-            "problem_type": "排队溢出",
-            "constraints": ["优先避免下游继续外溢"],
+            "problem_type": problem_type,
+            "constraints": ["优先避免下游继续外溢"] if "外溢" in user_prompt else [],
             "diagnosis_scope": ["目标路口", "上游来车", "下游承接", "干线协调"],
             "governance_goal": "控制溢出扩散，而不是单点清队",
+            "user_experiences": user_experiences,
             "source": "llm_mock",
         }
+        return payload
 
     def _mock_cause_analysis(self) -> dict[str, Any]:
         return {

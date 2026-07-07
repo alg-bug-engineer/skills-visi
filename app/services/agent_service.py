@@ -9,6 +9,9 @@ from app.logging_setup import get_trace_id, set_trace_id
 from app.runtime.executor import SkillExecutor
 from app.runtime.registry import get_registry
 from app.services.case_library import CaseLibraryService
+from app.services.experience_library import ExperienceLibraryService
+from app.services.experience_service import ExperienceService
+from app.services.feedback_service import PlanFeedbackService
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +21,9 @@ class AgentService:
         self.settings = settings
         self.llm = QwenClient(settings)
         self.case_service = CaseLibraryService(settings.case_library_abs_path)
+        self.experience_service = ExperienceService(settings.user_experience_abs_path)
+        self.experience_library = ExperienceLibraryService(settings.user_experience_abs_path)
+        self.feedback_service = PlanFeedbackService(settings.feedback_log_abs_path)
         self.registry = get_registry()
         self.executor = SkillExecutor(self.registry)
 
@@ -43,6 +49,9 @@ class AgentService:
             task=task,
             llm=self.llm,
             case_service=self.case_service,
+            experience_service=self.experience_service,
+            experience_library=self.experience_library,
+            feedback_service=self.feedback_service,
             settings=self.settings,
         )
 

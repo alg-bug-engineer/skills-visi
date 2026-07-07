@@ -67,15 +67,37 @@ class IntentUnderstandingSkill(BaseSkill):
         else:
             merged = parsed
         enriched = enrich_ticket(merged, user_input=context.user_input)
+        extract_module = _load_script_module("extract_user_experiences.py")
+        user_experiences = extract_module.extract_user_experiences(
+            parsed=dict(merged),
+            user_input=context.user_input,
+            diagnosis_ticket=enriched,
+        )
         spatial_module = _load_script_module("build_spatial_objects.py")
         scene_module = _load_script_module("build_spatial_scene.py")
-        topology_preview = context.task.get("topology") or _preview_topology(enriched.get("inter_id"))
+        topology_preview = context.task.get("topology")
+        if not topology_preview and settings.allow_demo_fallback:
+            topology_preview = _preview_topology(enriched.get("inter_id"))
+        if not topology_preview:
+            topology_preview = {}
 
         ticket = {
             "diagnosis_ticket": enriched,
+            "user_experiences": user_experiences,
             "spatial_objects": spatial_module.build_spatial_objects(enriched),
             "spatial_scene": scene_module.build_spatial_scene(enriched, topology=topology_preview),
         }
+
+        experience_service = deps.get("experience_service")
+        if experience_service and user_experiences:
+            experience_service.persist_from_intent(
+                trace_id=context.trace_id,
+                user_experiences=user_experiences,
+                diagnosis_ticket=enriched,
+            )
+            experience_library = deps.get("experience_library")
+            if experience_library is not None:
+                experience_library.reload()
         context.task.update(ticket)
         logger.info(
             "意图理解完成 trace_id=%s intersection=%s inter_id=%s problem=%s",

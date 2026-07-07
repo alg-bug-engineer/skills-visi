@@ -36,6 +36,7 @@ class CauseAnalysisSkill(BaseSkill):
 
         similar_cases = []
         case_cards: dict[str, Any] = {"matched_count": 0, "high_similarity_count": 0, "cards": []}
+        user_experience_refs: list[dict[str, Any]] = []
         if case_service:
             similar_cases = case_service.search_similar(
                 problem_type=ticket.get("problem_type", "排队溢出"),
@@ -46,11 +47,22 @@ class CauseAnalysisSkill(BaseSkill):
                 limit=6,
             )
 
+        experience_library = deps.get("experience_library")
+        if experience_library:
+            user_experience_refs = experience_library.search_diagnostic(
+                inter_id=ticket.get("inter_id"),
+                intersection_name=ticket.get("intersection_name"),
+                cause_dimension=None,
+                keywords=["学校", "接送", "下游", "上游"],
+                limit=5,
+            )
+
         prompt = (
             f"诊断工单: {ticket}\n"
             f"指标分析: {diagnosis}\n"
             f"确定性成因评分: {cause_scores}\n"
             f"相似案例: {similar_cases[:2]}\n"
+            f"用户诊断经验: {user_experience_refs[:2]}\n"
             "请结合指标与 cause_scores 判断主因，并说明历史案例佐证。"
         )
         llm_result = await llm.chat(
@@ -76,6 +88,7 @@ class CauseAnalysisSkill(BaseSkill):
             "cause_ranking": cause_ranking,
             "similar_cases": similar_cases,
             "case_cards": case_cards,
+            "user_experience_refs": user_experience_refs,
             "evidence_summary": evidence_module.build_evidence(diagnosis),
             "arterial_coordination_needed": evidence_module.needs_arterial_coordination(diagnosis),
         }

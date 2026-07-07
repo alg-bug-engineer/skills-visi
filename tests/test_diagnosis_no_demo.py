@@ -108,3 +108,30 @@ async def test_pipeline_stops_when_diagnosis_unavailable(script_user_input):
     assert len(result["results"]) == 2
     assert result["results"][1]["skill_id"] == "data_analysis_diagnosis"
     assert result["results"][1]["success"] is False
+
+
+def test_fixture_registry_disabled_in_production_mode(monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setenv("ALLOW_DEMO_FALLBACK", "false")
+    monkeypatch.setenv("PG_DSN", "postgresql://example")
+    get_settings.cache_clear()
+
+    from app.data.intersection_registry import load_registry, resolve_intersection
+
+    assert load_registry() == {}
+    assert resolve_intersection("文化西路与舜华路交叉口") is None
+
+    get_settings.cache_clear()
+
+
+def test_signal_plan_skips_fixture_without_demo_fallback():
+    from app.data.load_signal_plan import resolve_signal_plan
+
+    resolved = resolve_signal_plan(
+        {"inter_id": "demo_wenhua_shunhua"},
+        {"inter_id": "demo_wenhua_shunhua"},
+        Settings(allow_demo_fallback=False, pg_dsn="postgresql://example"),
+    )
+    assert resolved["ok"] is False
+    assert resolved["source"] == "none"

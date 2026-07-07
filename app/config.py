@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     pg_channel_table: str = "dwd_tfc_rltn_wide_inter_ft_link"
     signal_opt_engine_src: str = ""
     feedback_log_path: str = "data/plan_feedback.jsonl"
+    user_experience_path: str = "data/user_experience.jsonl"
 
     @property
     def case_library_abs_path(self) -> Path:
@@ -37,6 +38,11 @@ class Settings(BaseSettings):
     @property
     def feedback_log_abs_path(self) -> Path:
         path = Path(self.feedback_log_path)
+        return path if path.is_absolute() else PROJECT_ROOT / path
+
+    @property
+    def user_experience_abs_path(self) -> Path:
+        path = Path(self.user_experience_path)
         return path if path.is_absolute() else PROJECT_ROOT / path
 
 
