@@ -60,6 +60,7 @@ class DataAnalysisDiagnosisSkill(BaseSkill):
             ticket,
             topology=topology,
             spatial_objects=spatial,
+            pg_raw=context.task.get("pg_raw") or {},
         )
         output["scenario_report"] = build_scenario_report(
             context.task.get("checklist_queries"),

@@ -7,7 +7,7 @@ const MOCK = import.meta.env.VITE_MOCK === '1'
 
 /** 演示句默认输入（对齐 run_1）。 */
 export const DEMO_INPUT =
-  '转山西路与经十路交叉口，六点十分到六点半，东向西排队溢出到上游，优先避免下游继续外溢。'
+  '奥体西路与经十路交叉口，六点十分到六点半，西向东直行进口道，分析流量溯源和下游拓扑，优先避免下游继续外溢。'
 
 function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms))

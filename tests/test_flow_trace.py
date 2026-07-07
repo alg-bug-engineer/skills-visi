@@ -40,6 +40,8 @@ def test_exit_dir8_for_turn():
 
 def test_resolve_dir8_turn():
     assert resolve_dir8_turn("东向西", "直行") == (2, 2)
+    assert resolve_dir8_turn("west_to_east", "straight") == (6, 2)
+    assert resolve_dir8_turn("east_to_west", "straight") == (2, 2)
 
 
 def test_downstream_capacity_blocked():

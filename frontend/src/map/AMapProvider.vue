@@ -53,24 +53,31 @@ onBeforeUnmount(() => {
   mapInstance?.destroy?.()
 })
 
-// 幕次变化 → 连贯应用地图场景
+// 幕次变化 → 连贯应用地图场景（重放镜头 + 覆盖物）
 watch(
   () => store.currentAct,
   async (idx) => {
     const act = store.acts[idx]
     if (!act || !controller.value) return
-    const metrics = idx >= 2 && phaseReady(store.response, 'diagnosis')
-    await controller.value.applyScene(act.scene, store.response, metrics)
+    const showMetrics = idx >= 2 && phaseReady(store.response, 'diagnosis')
+    await controller.value.applyScene(act.scene, store.response, {
+      showMetrics,
+      replayCamera: true,
+    })
   },
 )
 
-// 诊断 phase 到达后补绘指标（流式门控）
+// 诊断 phase 到达后仅补绘覆盖物/指标（同一幕，不重放镜头，避免二次运镜闪烁）
 watch(
   () => store.response?.phases?.diagnosis,
   async (diag) => {
     if (!diag || store.currentAct < 0 || !controller.value) return
     const act = store.acts[store.currentAct]
-    if (act) await controller.value.applyScene(act.scene, store.response, true)
+    if (act)
+      await controller.value.applyScene(act.scene, store.response, {
+        showMetrics: true,
+        replayCamera: false,
+      })
   },
 )
 </script>
@@ -201,6 +208,169 @@ watch(
   height: 8px;
   border-radius: 50%;
   box-shadow: 0 0 8px 2px currentColor;
+}
+
+/* ── 流量溯源单链路发光层（呈现逻辑对齐 references/流量溯源，配色本项目主题） ── */
+:global(.trace-node) {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f5a623;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 14px rgba(245, 166, 35, 0.78), 0 0 34px rgba(245, 166, 35, 0.26);
+  transition: opacity 0.45s ease;
+}
+:global(.trace-node)::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  color: rgba(245, 166, 35, 0.72);
+  animation: trace-ripple 2.2s ease-out infinite;
+}
+:global(.trace-node.is-down) {
+  background: #0ea5e9;
+  box-shadow: 0 0 14px rgba(14, 165, 233, 0.78), 0 0 34px rgba(14, 165, 233, 0.26);
+}
+:global(.trace-node.is-down)::after {
+  color: rgba(56, 189, 248, 0.7);
+}
+:global(.trace-node.is-gov) {
+  background: #2ed573;
+  box-shadow: 0 0 16px rgba(46, 213, 115, 0.78), 0 0 36px rgba(46, 213, 115, 0.22);
+}
+:global(.trace-node.is-gov)::after {
+  color: rgba(46, 213, 115, 0.68);
+}
+:global(.trace-node.is-target) {
+  width: 18px;
+  height: 18px;
+  background: #ff5050;
+  box-shadow: 0 0 18px rgba(255, 80, 80, 0.9), 0 0 44px rgba(255, 80, 80, 0.32);
+}
+:global(.trace-node.is-target)::after {
+  inset: -11px;
+  color: rgba(255, 80, 80, 0.82);
+}
+:global(.trace-node.is-scaled) {
+  border-width: 2px;
+}
+:global(.trace-node.is-scaled)::after {
+  inset: -6px;
+}
+@keyframes trace-ripple {
+  0% {
+    opacity: 0.88;
+    transform: scale(0.45);
+  }
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(2.15);
+  }
+}
+:global(.trace-label) {
+  min-width: 88px;
+  max-width: 200px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 166, 35, 0.42);
+  background: rgba(6, 12, 24, 0.94);
+  white-space: nowrap;
+  font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.42);
+  transform: translate(-50%, -50%);
+}
+:global(.trace-label.is-downstream) {
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #bae6fd;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: normal;
+  line-height: 1.35;
+}
+:global(.trace-label .trace-name) {
+  font-size: 12px;
+  font-weight: 700;
+  color: #eaf4ff;
+  line-height: 1.3;
+}
+:global(.trace-label .trace-metric) {
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 1px;
+  line-height: 1.35;
+}
+:global(.topology-wrap) {
+  position: relative;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+:global(.topology-node) {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #8aa0b8;
+  border: 2px solid rgba(240, 248, 255, 0.9);
+  box-shadow: 0 0 12px rgba(138, 160, 184, 0.65);
+}
+:global(.topology-node.is-target) {
+  width: 18px;
+  height: 18px;
+  background: #ff5050;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(255, 80, 80, 0.9), 0 0 44px rgba(255, 80, 80, 0.32);
+}
+:global(.topology-wrap.is-hot .topology-node) {
+  background: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.9), 0 0 34px rgba(14, 165, 233, 0.34);
+}
+:global(.topology-label) {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  min-width: 96px;
+  max-width: 160px;
+  padding: 4px 7px;
+  border: 1px solid rgba(138, 160, 184, 0.45);
+  border-radius: 6px;
+  background: rgba(6, 12, 24, 0.9);
+  color: rgba(232, 244, 255, 0.92);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
+}
+:global(.topology-wrap.is-hot .topology-label) {
+  border-color: rgba(56, 189, 248, 0.6);
+  color: #bae6fd;
+}
+:global(.channel-metric-label) {
+  transform: translate(-50%, -50%);
+  min-width: 112px;
+  padding: 4px 7px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: rgba(0, 6, 14, 0.9);
+  font-size: 9px;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.42);
+}
+:global(.channel-metric-label strong),
+:global(.channel-metric-label span) {
+  display: block;
+}
+:global(.channel-metric-label span) {
+  margin-top: 1px;
+  color: rgba(225, 238, 252, 0.88);
 }
 :global(.map-marker) {
   padding: 6px 10px;

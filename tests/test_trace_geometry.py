@@ -5,8 +5,12 @@
 
 from __future__ import annotations
 
+import json
+from decimal import Decimal
+
 from app.data.pg_adapters import topology_from_pg_raw
 from app.trace.geometry import orient_path, parse_linestring_wkt, parse_point_wkt
+from app.trace.map_scene import build_channelization_map_scene, build_flow_trace_links_sniff_map_scene
 
 
 def test_parse_linestring_wkt():
@@ -117,6 +121,240 @@ def test_topology_builds_real_geometry_nodes():
     assert len(down["path"]) == 3
     assert down["path"][0] == [117.10159, 36.6575]  # 起点靠近目标
     assert down["share_pct"] == 42.1
+
+
+def test_channelization_map_scene_joins_real_link_geometry():
+    raw = {
+        "channelization": [
+            {
+                "link_id": "L_IN",
+                "link_role": "entrance",
+                "dir8_code": "6",
+                "dir8_label": "西进口",
+                "dir4_label": "西进口",
+                "lane_num": 3,
+                "c_lane_num": 3,
+                "lane_info": "B|C|D",
+                "turn_move": "直行",
+            },
+            {
+                "link_id": "L_OUT",
+                "link_role": "exit",
+                "dir8_code": "2",
+                "dir8_label": "东出口",
+                "dir4_label": "东出口",
+                "lane_num": 2,
+                "c_lane_num": 2,
+                "lane_info": None,
+                "turn_move": None,
+            },
+        ],
+        "trace_geometry": [
+            {
+                "link_id": "L_IN",
+                "geom_wkt": "LINESTRING(117.10 36.65, 117.11 36.65)",
+                "adjacent_inter_id": "UP",
+                "adjacent_inter_name": "上游路口",
+                "adjacent_lng": 117.10,
+                "adjacent_lat": 36.65,
+                "relation_direction": "upstream",
+            },
+            {
+                "link_id": "L_OUT",
+                "geom_wkt": "LINESTRING(117.11 36.65, 117.12 36.65)",
+                "adjacent_inter_id": "DOWN",
+                "adjacent_inter_name": "下游路口",
+                "adjacent_lng": 117.12,
+                "adjacent_lat": 36.65,
+                "relation_direction": "downstream",
+            },
+        ],
+        "turn_saturation": [{"link_id": "L_IN", "turn_saturation": 0.86}],
+        "green_utilization": [{"link_id": "L_IN", "green_utilization": 0.57}],
+        "turn_perf": [{"link_id": "L_IN", "queue_len_max": 158}],
+        "turn_flow": [{"link_id": "L_IN", "turn_flow_total": 620}],
+        "lane_capacity": [{"link_id": "L_IN", "lane_capacity": 1500}],
+    }
+
+    scene = build_channelization_map_scene(
+        pg_raw=raw,
+        target_profile={"inter_id": "T", "inter_name": "目标", "lng": 117.11, "lat": 36.65},
+        center=(117.11, 36.65),
+    )
+
+    assert scene["available"] is True
+    assert scene["center"] == [117.11, 36.65]
+    assert len(scene["links"]) == 2
+    entrance = scene["links"][0]
+    assert entrance["path"] == [[117.10, 36.65], [117.11, 36.65]]
+    assert entrance["lane_info"] == "B|C|D"
+    assert entrance["metrics"]["saturation"] == 0.86
+    assert entrance["metrics"]["green_utilization"] == 0.57
+    assert entrance["metrics"]["queue_m"] == 158
+    assert scene["links"][1]["adjacent_inter_id"] == "DOWN"
+    assert scene["links"][1]["adjacent_inter_name"] == "下游路口"
+
+
+def test_channelization_map_scene_requires_real_geometry():
+    scene = build_channelization_map_scene(
+        pg_raw={"channelization": [{"link_id": "L_IN", "link_role": "entrance"}], "trace_geometry": []},
+        target_profile={"lng": 117.11, "lat": 36.65},
+    )
+
+    assert scene["available"] is False
+    assert scene["reason"] == "no_channelization_geometry"
+
+
+def test_flow_trace_links_sniff_map_scene_groups_real_links():
+    raw = _demo_raw()
+    raw["channelization"] = [
+        {
+            "link_id": "L_UP",
+            "link_role": "entrance",
+            "dir8_code": "2",
+            "dir8_label": "东进口",
+            "dir4_label": "东进口",
+            "lane_num": 3,
+        },
+        {
+            "link_id": "L_DOWN",
+            "link_role": "exit",
+            "dir8_code": "6",
+            "dir8_label": "西出口",
+            "dir4_label": "西出口",
+            "lane_num": 2,
+        },
+    ]
+    topology = topology_from_pg_raw(raw, {"direction": "东向西", "movement": "直行"}, raw["inter"])
+
+    scene = build_flow_trace_links_sniff_map_scene(
+        pg_raw=raw,
+        topology=topology,
+        target_profile={
+            "inter_id": "TARGET",
+            "inter_name": "经十路与转山西路路口",
+            "lng": 117.10159,
+            "lat": 36.657529,
+        },
+        direction="东向西",
+        movement="直行",
+    )
+
+    assert scene["available"] is True
+    assert scene["phase"] == "flow_trace_links_sniff_map"
+    assert scene["trace_direction"] == "upstream"
+    assert scene["stats"]["rendered"] == 3
+    assert scene["stats"]["main_corridor"] == 1
+    assert scene["main_corridor_chain"][0]["inter_id"] == "UP1"
+
+    target = scene["intersections"][0]
+    assert target["role"] == "target"
+    assert len(target["links"]) == 3
+    assert target["links"][0]["path"] == [[117.111, 36.659], [117.106, 36.658], [117.10159, 36.6575]]
+
+    peer = scene["intersections"][1]
+    assert peer["role"] == "upstream"
+    assert peer["in_main_corridor"] is True
+    assert peer["path_coverage"] == 71.63
+    assert peer["links"][0]["link_id"] == "L_UP"
+
+    other = scene["intersections"][2]
+    assert other["role"] == "upstream"
+    assert other["in_main_corridor"] is False
+    assert other["links"][0]["link_id"] == "L_OTHER"
+
+
+def test_flow_trace_links_sniff_map_scene_uses_correlate_peer_link_geometry():
+    raw = _demo_raw()
+    raw["flow_correlate"] = [
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 2,
+            "cor_inter_id": "P1",
+            "cor_inter_name": "主链一",
+            "cor_f_dir8_no": 6,
+            "cor_turn_dir_no": 2,
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 90.1,
+        },
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 2,
+            "cor_inter_id": "P2",
+            "cor_inter_name": "主链二",
+            "cor_f_dir8_no": 6,
+            "cor_turn_dir_no": 2,
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 76.5,
+        },
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 2,
+            "cor_inter_id": "P3",
+            "cor_inter_name": "其他来向",
+            "cor_f_dir8_no": 0,
+            "cor_turn_dir_no": 2,
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 35.6,
+        },
+    ]
+    raw["peer_link_geometry"] = [
+        {
+            "inter_id": "P1",
+            "inter_name": "主链一",
+            "lng": 117.09,
+            "lat": 36.65,
+            "link_id": "P1_L",
+            "link_role": "entrance",
+            "lane_num": Decimal("3"),
+            "geom_wkt": "LINESTRING(117.08 36.65, 117.09 36.65)",
+        },
+        {
+            "inter_id": "P2",
+            "inter_name": "主链二",
+            "lng": 117.08,
+            "lat": 36.65,
+            "link_id": "P2_L",
+            "link_role": "entrance",
+            "geom_wkt": "LINESTRING(117.07 36.65, 117.08 36.65)",
+        },
+        {
+            "inter_id": "P3",
+            "inter_name": "其他来向",
+            "lng": 117.08,
+            "lat": 36.66,
+            "link_id": "P3_L",
+            "link_role": "entrance",
+            "geom_wkt": "LINESTRING(117.08 36.66, 117.08 36.67)",
+        },
+    ]
+    topology = {
+        "target_inter_id": "TARGET",
+        "target_inter_name": "目标",
+        "target_lng": 117.10159,
+        "target_lat": 36.657529,
+        "dir8_code": 6,
+        "turn_dir_no": 2,
+        "upstream_nodes": [],
+        "downstream_nodes": [],
+    }
+
+    scene = build_flow_trace_links_sniff_map_scene(
+        pg_raw=raw,
+        topology=topology,
+        target_profile={"inter_id": "TARGET", "inter_name": "目标", "lng": 117.10159, "lat": 36.657529},
+        direction="西向东",
+        movement="直行",
+    )
+
+    assert scene["available"] is True
+    assert scene["stats"]["distinct_peers"] == 3
+    assert scene["stats"]["main_corridor"] == 2
+    assert [n["inter_id"] for n in scene["intersections"][1:3]] == ["P1", "P2"]
+    assert scene["intersections"][1]["path_coverage"] == 90.1
+    assert scene["intersections"][2]["path_coverage"] == 76.5
+    assert scene["intersections"][1]["links"][0]["link_id"] == "P1_L"
+    json.dumps(scene, ensure_ascii=False)
 
 
 def test_topology_no_synthesis_when_geometry_missing():

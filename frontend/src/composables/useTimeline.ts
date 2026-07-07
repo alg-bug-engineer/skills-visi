@@ -40,13 +40,15 @@ export interface ActDef {
 export const ACT_DEFS: ActDef[] = [
   { index: 0, id: 'act1_ticket', phase: 'intent', pipelineNode: '问题理解', processTitle: '理解问题', reveal: 'ticket', scene: { kind: 'city', pitch: 20, zoom: 11 } },
   { index: 1, id: 'act2_locate', phase: 'intent', pipelineNode: '拓扑定位', processTitle: '空间定位', reveal: null, scene: { kind: 'intersection', pitch: 15, zoom: 16 } },
-  { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '溢出验证', processTitle: '指标加载与溢出验证', reveal: 'metrics', scene: { kind: 'lane', pitch: 0, zoom: 17 } },
-  { index: 3, id: 'act4_bottleneck', phase: 'diagnosis', pipelineNode: '瓶颈判断', processTitle: '本路口放不出去 vs 下游接不住', reveal: 'bottleneck', scene: { kind: 'lane', pitch: 10, zoom: 16 } },
-  { index: 4, id: 'act5_corridor', phase: 'diagnosis', pipelineNode: '干线溯源', processTitle: '流量溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 15 } },
-  { index: 5, id: 'act6_cause', phase: 'cause', pipelineNode: '成因/案例', processTitle: '成因判断与相似检索', reveal: 'cause', scene: { kind: 'trace', pitch: 50, zoom: 15 } },
-  { index: 6, id: 'act7_strategy', phase: 'strategy', pipelineNode: '策略生成', processTitle: '策略推荐', reveal: 'strategy', scene: { kind: 'control', pitch: 45, zoom: 15 } },
-  { index: 7, id: 'act8_plan', phase: 'plan', pipelineNode: '方案生成', processTitle: '方案决策', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 16 } },
-  { index: 8, id: 'act9_feedback', phase: 'plan', pipelineNode: '反馈下发', processTitle: '等待方案下发确认', reveal: 'feedback', scene: { kind: 'corridor', pitch: 50, zoom: 14 } },
+  // 渠化详情：连贯下钻到 18（车道级）
+  { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '溢出验证', processTitle: '指标加载与溢出验证', reveal: 'metrics', scene: { kind: 'lane', pitch: 0, zoom: 18 } },
+  { index: 3, id: 'act4_bottleneck', phase: 'diagnosis', pipelineNode: '瓶颈判断', processTitle: '本路口放不出去 vs 下游接不住', reveal: 'bottleneck', scene: { kind: 'lane', pitch: 10, zoom: 18 } },
+  // 干线溯源：从 18 平滑抬升到 17（干线级）
+  { index: 4, id: 'act5_corridor', phase: 'diagnosis', pipelineNode: '干线溯源', processTitle: '流量溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 17 } },
+  { index: 5, id: 'act6_cause', phase: 'cause', pipelineNode: '成因/案例', processTitle: '成因判断与相似检索', reveal: 'cause', scene: { kind: 'trace', pitch: 50, zoom: 17 } },
+  { index: 6, id: 'act7_strategy', phase: 'strategy', pipelineNode: '策略生成', processTitle: '策略推荐', reveal: 'strategy', scene: { kind: 'control', pitch: 45, zoom: 17 } },
+  { index: 7, id: 'act8_plan', phase: 'plan', pipelineNode: '方案生成', processTitle: '方案决策', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 18 } },
+  { index: 8, id: 'act9_feedback', phase: 'plan', pipelineNode: '反馈下发', processTitle: '等待方案下发确认', reveal: 'feedback', scene: { kind: 'corridor', pitch: 50, zoom: 17 } },
 ]
 
 function lines(...xs: (string | null | undefined | false)[]): string[] {

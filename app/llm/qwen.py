@@ -40,6 +40,9 @@ class QwenClient:
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.2,
+            # DashScope 兼容模式：Qwen3 系混合推理模型在非流式调用时必须显式关闭思考，
+            # 否则返回 invalid_parameter_error。直连 REST 时该参数置于请求体顶层。
+            "enable_thinking": False,
         }
         if response_json:
             payload["response_format"] = {"type": "json_object"}
@@ -55,7 +58,7 @@ class QwenClient:
             self.settings.qwen_model,
             trace_id or "-",
         )
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=self.settings.qwen_timeout_s) as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()

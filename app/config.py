@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     qwen_api_key: str = ""
     qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     qwen_model: str = "qwen-plus"
+    qwen_timeout_s: float = 360.0
     llm_mock: bool = False
     log_level: str = "INFO"
     case_library_path: str = "data/knowledge_qa.jsonl"
