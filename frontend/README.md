@@ -79,6 +79,24 @@ npm run dev                # 打开 http://localhost:5173，点「开始推演�
 
 > 提示：`VITE_MOCK=1` 时前端完全离线**模拟流式**回放 `src/mock/`（按 phase 定时推送），**不访问后端**——用于无后端时演示；真实联调设为 `0`，走 `/agent/run/stream`。真实流程会调用 Qwen + PG，各 phase 依次数秒返回，属正常。
 
+## 刷新 mock 数据（沉淀一次真实请求）
+
+`src/mock/run_1_fixture.json` 是一次**真实完整请求**的公开响应（结构等同 `/agent/run`：`phases/plan/diagnosis_ticket/phase_results`）。想更新它用仓库根目录脚本 `scripts/capture_frontend_mock.py`：
+
+```bash
+cd ..   # 到项目根
+
+# 方式一（推荐·稳定）：从最新一条 completed 的运行日志提取，不再打模型
+PYTHONPATH=. .venv/bin/python scripts/capture_frontend_mock.py
+# 指定日志：… scripts/capture_frontend_mock.py --from-log logs/run_1/<trace>.json
+
+# 方式二：现场发起一次真实请求（需 .env LLM_MOCK=false 且 PG 可达，耗时数十秒）
+PYTHONPATH=. .venv/bin/python scripts/capture_frontend_mock.py --live "转山西路与经十路交叉口，六点十分到六点半，东向西排队溢出到上游"
+```
+
+产物直接覆盖 `frontend/src/mock/run_1_fixture.json`（单次回放与模拟流式共用）。改后跑 `npm test` 确认九幕旁白/门控仍成立。
+> 实时采集偶发模型超时（`httpx.ReadTimeout`，reasoning 模型时延）导致只跑通部分 phase；脚本对 `completed != true` 会拒绝覆盖并提示重试，优先用「从日志提取」。
+
 ## 流式渐进（路径 B）
 
 - 后端 `POST /agent/run/stream` 每完成一个 phase 推 SSE 事件：`phase_start` → `phase_done`（含**截至当前**的完整公开快照）→ … → `pipeline_complete`；单 phase 失败推 `error` 并停止。见 `needs/6` / `plans/6`。
