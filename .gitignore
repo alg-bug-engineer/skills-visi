@@ -6,6 +6,7 @@ docs/gd-js20.md
 /references/
 /analysis/
 data/user_experience.jsonl
+/assets/
 # Python
 .venv/
 __pycache__/
@@ -14,3 +15,6 @@ __pycache__/
 
 # Logs
 logs/
+
+# macOS
+.DS_Store
