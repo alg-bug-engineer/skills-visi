@@ -21,6 +21,7 @@ function sleep(ms: number): Promise<void> {
 export function useVoiceNarration() {
   const enabled = ref(loadVoiceEnabled())
   const playing = ref(false)
+  const error = ref<string | null>(null)
   const queue = shallowRef<VoiceCue[]>([])
   let fallbackAudio: HTMLAudioElement | null = null
   let abortController: AbortController | null = null
@@ -48,6 +49,7 @@ export function useVoiceNarration() {
   function setEnabled(value: boolean) {
     enabled.value = value
     localStorage.setItem(STORAGE_KEY, value ? '1' : '0')
+    if (value) error.value = null
     if (!value) interrupt()
   }
 
@@ -57,9 +59,16 @@ export function useVoiceNarration() {
 
   function enqueue(cue: VoiceCue | null | undefined) {
     if (!cue || !enabled.value) return
+    error.value = null
     const rest = queue.value.filter((item) => item.stepIndex !== cue.stepIndex || item.phase !== cue.phase)
     queue.value = [...rest, cue]
     void ensureDrain()
+  }
+
+  function errorText(err: unknown): string {
+    const raw = err instanceof Error ? err.message : String(err ?? '')
+    const detail = raw.replace(/^TTS\s+\d+:\s*/i, '').trim()
+    return detail ? `语音播报不可用：${detail}` : '语音播报不可用，请检查 TTS 配置。'
   }
 
   async function playCue(cue: VoiceCue, epoch: number) {
@@ -85,6 +94,7 @@ export function useVoiceNarration() {
       })
     } catch (err) {
       if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        error.value = errorText(err)
         console.warn('[voice] TTS 合成失败，本条语音已跳过：', err)
       }
     } finally {
@@ -135,6 +145,7 @@ export function useVoiceNarration() {
   return {
     enabled,
     playing,
+    error,
     setEnabled,
     toggleEnabled,
     enqueue,

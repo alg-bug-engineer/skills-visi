@@ -1,5 +1,6 @@
 import { validPath } from '@/utils/guards'
 import type { LngLat } from './traceParticles'
+import { MIN_PATH_COVERAGE } from './traceLabels'
 
 export type SniffTraceDirection = 'upstream' | 'downstream'
 export type SniffNodeRole = 'target' | 'upstream' | 'downstream'
@@ -79,6 +80,13 @@ export function sniffCoverage(node: TraceSniffIntersection): number | null {
   return Number.isFinite(value) ? value : null
 }
 
+export function shouldRenderSniffNode(node: TraceSniffIntersection): boolean {
+  if (node.role === 'target') return true
+  const coverage = sniffCoverage(node)
+  if (coverage == null) return Boolean(node.in_main_corridor || node.is_topo_anchor)
+  return coverage >= MIN_PATH_COVERAGE
+}
+
 export function sniffNodeId(node: TraceSniffIntersection, index: number): string {
   return String(node.inter_id || node.name || `sniff-${index}`)
 }
@@ -95,6 +103,7 @@ export function summarizeSniffScene(scene: TraceSniffScene | null | undefined): 
     visibleNodes: 0,
   }
   for (const node of scene?.intersections ?? []) {
+    if (!shouldRenderSniffNode(node)) continue
     const links = (node.links ?? []).filter((link) => sniffLinkPath(link).length >= 2)
     if (!links.length && !node.center) continue
     summary.visibleNodes += 1

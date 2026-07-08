@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from app.trace.geometry import orient_path, parse_linestring_wkt
+from app.trace.topology import exit_dir8_for_turn
+
+MIN_PATH_COVERAGE = 10.0
 
 # flow_correlate.period_type 采用大写代码；中文时段（ticket.period）映射到该代码，
 # 用于把溯源 peer 限定在与诊断一致的单一时段，避免跨时段聚合导致流量点虚增。
@@ -47,6 +50,72 @@ def _json_number(value: Any) -> int | float | None:
     except (TypeError, ValueError):
         return None
     return int(number) if number.is_integer() else number
+
+
+def _int_or_none(value: Any) -> int | None:
+    try:
+        if value is None or value == "":
+            return None
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _role_is(value: Any, expected: str) -> bool:
+    raw = str(value or "").lower()
+    if expected == "entrance":
+        return raw in {"entrance", "进口"}
+    if expected == "exit":
+        return raw in {"exit", "出口"}
+    return raw == expected
+
+
+def _link_matches(link: dict[str, Any], *, role: str, dir8: int | None) -> bool:
+    if dir8 is None:
+        return False
+    return _role_is(link.get("link_role"), role) and _int_or_none(link.get("dir8_code")) == int(dir8)
+
+
+def _filter_turn_links(
+    links: list[dict[str, Any]],
+    *,
+    entry_dir8: int | None,
+    exit_dir8: int | None,
+) -> list[dict[str, Any]]:
+    matched = [
+        link
+        for link in links
+        if _link_matches(link, role="entrance", dir8=entry_dir8)
+        or _link_matches(link, role="exit", dir8=exit_dir8)
+    ]
+    if matched:
+        return matched
+    if links and all(_int_or_none(link.get("dir8_code")) is None for link in links):
+        return links
+    return []
+
+
+def _peer_visible(node: dict[str, Any]) -> bool:
+    number = _json_number(node.get("path_coverage"))
+    if number is None:
+        return bool(node.get("in_main_corridor") or node.get("is_topo_anchor"))
+    return float(number) >= MIN_PATH_COVERAGE
+
+
+def _select_primary_upstream(peers: list[dict[str, Any]]) -> dict[str, Any]:
+    """选取唯一上游溯源节点（对齐 sniff 参考：topo_one_hop / 主走廊一跳）。
+
+    只对用户提到的进口+转向保留单一上游来源，排除其余关联路口的“来向 bleed”。
+    优先级：拓扑一跳锚点 > 主走廊直行一跳 > 途经占比最高者。
+    ``peers`` 已按 (主走廊, 走廊跳数, 占比降序) 排好序，故同级取首个即为占比最高。
+    """
+    for node in peers:
+        if node.get("is_topo_anchor"):
+            return node
+    for node in peers:
+        if node.get("in_main_corridor"):
+            return node
+    return peers[0]
 
 
 def _link_geometry_index(raw: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -347,15 +416,23 @@ def build_flow_trace_links_sniff_map_scene(
     shares = _best_share_by_inter(raw, dir8_code, turn_dir_no, trace_dir, period_type)
     channel_by_link = _channelization_by_link(raw)
 
-    target_links: list[dict[str, Any]] = []
+    raw_target_links: list[dict[str, Any]] = []
     for row in geom_rows:
         link_id = str(row.get("link_id") or "")
         path = parse_linestring_wkt(row.get("geom_wkt"))
         if len(path) < 2:
             continue
-        target_links.append(_link_payload(row, channel_by_link.get(link_id, {}), path))
+        raw_target_links.append(_link_payload(row, channel_by_link.get(link_id, {}), path))
 
-    if not target_links:
+    target_entry_dir8 = dir8_code if trace_dir == "upstream" else None
+    target_exit_dir8 = exit_dir8_for_turn(dir8_code, turn_dir_no) if trace_dir == "downstream" else None
+    target_links = _filter_turn_links(
+        raw_target_links,
+        entry_dir8=target_entry_dir8,
+        exit_dir8=target_exit_dir8,
+    )
+
+    if not raw_target_links:
         return {"action": "map_scene", "phase": "flow_trace_links_sniff_map", "available": False, "reason": "no_link_geometry"}
 
     peer_relation = "downstream" if trace_dir == "downstream" else "upstream"
@@ -405,6 +482,15 @@ def build_flow_trace_links_sniff_map_scene(
         geometry = peer_geometry.get(inter_id)
         if not geometry or not geometry.get("links"):
             continue
+        peer_entry_dir8 = peer.get("cor_f_dir8_no")
+        peer_exit_dir8 = exit_dir8_for_turn(peer_entry_dir8, peer.get("cor_turn_dir_no"))
+        turn_links = _filter_turn_links(
+            geometry.get("links") or [],
+            entry_dir8=peer_entry_dir8,
+            exit_dir8=peer_exit_dir8,
+        )
+        if not turn_links:
+            continue
         in_main = peer.get("cor_f_dir8_no") == dir8_code and peer.get("cor_turn_dir_no") == 2
         corridor_hop = idx if in_main else 0
         peers[inter_id] = {
@@ -419,7 +505,7 @@ def build_flow_trace_links_sniff_map_scene(
             "corridor_hop": corridor_hop,
             "exit_dir8": topo.get("exit_dir8") if trace_dir == "downstream" else None,
             "is_topo_anchor": main_order.get(inter_id) == 1,
-            "links": geometry.get("links") or [],
+            "links": turn_links,
         }
 
     if not peers:
@@ -462,7 +548,7 @@ def build_flow_trace_links_sniff_map_scene(
             peer["links"].append(_link_payload(row, channel_by_link.get(link_id, {}), oriented))
 
     all_peer_list = list(peers.values())
-    peer_list = [node for node in all_peer_list if node.get("in_main_corridor") or node.get("is_topo_anchor")]
+    peer_list = [node for node in all_peer_list if _peer_visible(node)]
     hidden_non_main = len(all_peer_list) - len(peer_list)
     peer_list.sort(
         key=lambda n: (
@@ -471,6 +557,14 @@ def build_flow_trace_links_sniff_map_scene(
             -(n.get("path_coverage") or 0),
         )
     )
+
+    # 来向溯源：只保留唯一上游（用户提到的进口+转向对应的一跳来源），
+    # 禁止把所有关联路口都作为上游溯源渲染（对齐 flow-trace-links-sniff 参考）。
+    suppressed_secondary_upstream = 0
+    if trace_dir == "upstream" and len(peer_list) > 1:
+        primary = _select_primary_upstream(peer_list)
+        suppressed_secondary_upstream = len(peer_list) - 1
+        peer_list = [primary]
 
     target_intersection = {
         "inter_id": target_profile.get("inter_id") or topo.get("target_inter_id"),
@@ -507,7 +601,12 @@ def build_flow_trace_links_sniff_map_scene(
         "business_direction": "outgoing" if trace_dir == "downstream" else "incoming",
         "target_inter_id": target_intersection["inter_id"],
         "title": f"{target_intersection['name'] or ''} · {direction}{movement} · {'去向' if trace_dir == 'downstream' else '来向'}溯源",
-        "logic": "real link geometry + flow_correlate share; target/main/other grouped like link sniff reference",
+        "logic": (
+            "real link geometry + flow_correlate share; upstream locked to single topo one-hop"
+            " (exclude secondary correlated upstreams)"
+            if trace_dir == "upstream"
+            else "real link geometry + flow_correlate share; target/main/other grouped like link sniff reference"
+        ),
         "stats": {
             "raw_rows": len(raw.get("flow_correlate") or []),
             "distinct_peers": len(all_peer_list),
@@ -515,6 +614,7 @@ def build_flow_trace_links_sniff_map_scene(
             "main_corridor": len(main_chain),
             "missing_center": sum(1 for n in peer_list if not n.get("center")),
             "hidden_non_main": hidden_non_main,
+            "suppressed_secondary_upstream": suppressed_secondary_upstream,
             "period_type": period_applied,
         },
         "main_corridor_chain": main_chain,

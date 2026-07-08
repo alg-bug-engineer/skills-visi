@@ -337,6 +337,8 @@ export const usePresentationStore = defineStore('presentation', {
       }
       // 下发成功：不 reset，保留 response 快照，进入技能固化确认弹窗
       this.pendingSolidifyPlanId = planId
+      this.dock = 'running'
+      this.planMinimized = false
       this.solidifyPhase = 'prompt'
     },
 

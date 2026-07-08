@@ -65,7 +65,11 @@ class Settings(BaseSettings):
 
     @property
     def tts_api_key(self) -> str:
-        return self.qwen_api_key or self.dashscope_api_key
+        if self.dashscope_api_key:
+            return self.dashscope_api_key
+        if "dashscope.aliyuncs.com" in self.qwen_base_url:
+            return self.qwen_api_key
+        return ""
 
     @property
     def tts_configured(self) -> bool:

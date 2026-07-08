@@ -4,7 +4,7 @@
  */
 
 /** 溯源地图：途经占比低于此值的上游路口不渲染（对齐参考 MIN_PATH_COVERAGE）。 */
-export const MIN_PATH_COVERAGE = 5
+export const MIN_PATH_COVERAGE = 10
 
 const DIR8_LABELS: Record<number, string> = {
   0: '北',

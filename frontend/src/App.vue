@@ -19,6 +19,7 @@ const { status, dock, fullscreen, planMinimized, rollbackBanner, toast, currentA
 const voice = useVoiceNarration()
 const voiceEnabled = voice.enabled
 const voicePlaying = voice.playing
+const voiceError = voice.error
 
 store.setVoiceBarrier(voice.whenIdle)
 store.setVoiceInterrupt(voice.interrupt)
@@ -86,6 +87,7 @@ onBeforeUnmount(() => {
             <span class="speaker-wave speaker-wave--two" />
           </span>
           <span class="voice-toggle__label">语音播报</span>
+          <span v-if="voiceError" class="voice-toggle__error">{{ voiceError }}</span>
         </button>
         <button class="ghost" @click="store.toggleFullscreen()">
           {{ fullscreen ? '退出专注' : '地图专注' }}
@@ -219,9 +221,25 @@ onBeforeUnmount(() => {
   border-color: var(--primary);
 }
 .voice-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+.voice-toggle__error {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  max-width: 260px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 88, 88, 0.45);
+  background: rgba(35, 10, 12, 0.92);
+  color: var(--alarm);
+  font-size: 11px;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: normal;
 }
 .speaker-shape {
   position: relative;

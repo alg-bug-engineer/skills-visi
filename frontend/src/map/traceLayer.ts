@@ -20,6 +20,7 @@ import {
   sniffCoverage,
   sniffLinkPath,
   sniffNodeId,
+  shouldRenderSniffNode,
   type SniffTraceDirection,
   type TraceSniffIntersection,
   type TraceSniffScene,
@@ -335,7 +336,8 @@ export class TraceLayer {
     const traceDirection = scene.trace_direction === 'downstream' ? 'downstream' : 'upstream'
     let topId = ''
     let topCoverage = -1
-    ;(scene.intersections ?? []).forEach((node, index) => {
+    const renderNodes = (scene.intersections ?? []).filter(shouldRenderSniffNode)
+    renderNodes.forEach((node, index) => {
       const cov = sniffCoverage(node)
       const id = sniffNodeId(node, index)
       if (node.role !== 'target' && cov != null && cov > topCoverage) {
@@ -344,7 +346,7 @@ export class TraceLayer {
       }
     })
 
-    ;(scene.intersections ?? []).forEach((node, index) => {
+    renderNodes.forEach((node, index) => {
       const nodeId = sniffNodeId(node, index)
       for (const [linkIndex, link] of (node.links ?? []).entries()) {
         const path = sniffLinkPath(link)

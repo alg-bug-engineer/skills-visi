@@ -12,7 +12,14 @@ export async function synthesizeVoiceWav(
     signal,
   })
   if (!res.ok) {
-    const detail = await res.text()
+    const raw = await res.text()
+    let detail = raw
+    try {
+      const parsed = JSON.parse(raw) as { detail?: unknown }
+      if (typeof parsed.detail === 'string') detail = parsed.detail
+    } catch {
+      /* keep raw text */
+    }
     throw new Error(`TTS ${res.status}: ${detail.slice(0, 200)}`)
   }
   return res.blob()

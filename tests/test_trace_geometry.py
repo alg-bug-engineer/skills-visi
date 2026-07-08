@@ -293,7 +293,7 @@ def test_flow_trace_links_sniff_map_scene_groups_real_links():
 
     target = scene["intersections"][0]
     assert target["role"] == "target"
-    assert len(target["links"]) == 3
+    assert len(target["links"]) == 1
     assert target["links"][0]["path"] == [[117.111, 36.659], [117.106, 36.658], [117.10159, 36.6575]]
 
     peer = scene["intersections"][1]
@@ -389,12 +389,14 @@ def test_flow_trace_links_sniff_map_scene_uses_correlate_peer_link_geometry():
     )
 
     assert scene["available"] is True
+    # 来向溯源只保留唯一上游（最高占比的主走廊一跳 P1），P2/P3 不作上游溯源渲染。
     assert scene["stats"]["distinct_peers"] == 3
-    assert scene["stats"]["main_corridor"] == 2
-    assert [n["inter_id"] for n in scene["intersections"][1:3]] == ["P1", "P2"]
-    assert scene["intersections"][1]["path_coverage"] == 90.1
-    assert scene["intersections"][2]["path_coverage"] == 76.5
-    assert scene["intersections"][1]["links"][0]["link_id"] == "P1_L"
+    assert scene["stats"]["main_corridor"] == 1
+    assert scene["stats"]["suppressed_secondary_upstream"] == 2
+    upstream = [n for n in scene["intersections"] if n["role"] == "upstream"]
+    assert [n["inter_id"] for n in upstream] == ["P1"]
+    assert upstream[0]["path_coverage"] == 90.1
+    assert upstream[0]["links"][0]["link_id"] == "P1_L"
     json.dumps(scene, ensure_ascii=False)
 
 
@@ -515,7 +517,8 @@ def test_flow_trace_links_sniff_map_scene_keeps_downstream_single_turn():
     assert scene["intersections"][1]["path_coverage"] == 42.1
 
 
-def test_flow_trace_links_sniff_map_scene_only_renders_main_corridor_by_default():
+def test_flow_trace_links_sniff_map_scene_suppresses_secondary_upstream():
+    """来向溯源只保留唯一上游：主走廊一跳 P1 渲染，非主走廊次要上游 P2 被抑制。"""
     raw = _demo_raw()
     raw["flow_correlate"] = [
         {
@@ -581,7 +584,7 @@ def test_flow_trace_links_sniff_map_scene_only_renders_main_corridor_by_default(
     assert scene["available"] is True
     assert scene["stats"]["distinct_peers"] == 2
     assert scene["stats"]["rendered"] == 2
-    assert scene["stats"]["hidden_non_main"] == 1
+    assert scene["stats"]["suppressed_secondary_upstream"] == 1
     assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1"]
 
 

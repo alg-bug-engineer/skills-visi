@@ -14,9 +14,10 @@ const DIR_CN_TO_DIR8: Record<string, number> = {
 }
 
 const DIR_CN_PREFIXES = ['东北', '东南', '西南', '西北', '北', '东', '南', '西']
-const TURN_DIR_TO_FLOWTYPE: Record<number, number> = { 0: 1, 1: 2, 2: 3, 3: 4, 5: 5 }
+// 后端优化引擎口径：0=掉头, 1=左转, 2=直行, 3=右转, 5=行人。
+const TURN_DIR_TO_FLOWTYPE: Record<number, number> = { 0: 4, 1: 2, 2: 1, 3: 3, 5: 5 }
 const TURN_LABEL_TO_FLOWTYPE: Array<[RegExp, number]> = [
-  [/行人|出行|入行/, 5],
+  [/人行道|人行横道|行人|出行|入行/, 5],
   [/掉头|掉/, 4],
   [/左转|左/, 2],
   [/右转|右/, 3],
@@ -82,6 +83,9 @@ export function flowKeysFromStageName(name: unknown): FlowKey[] {
 }
 
 export function flowKeysFromStage(stage: PhaseStageTiming): FlowKey[] {
+  const keysFromMovements = flowKeysFromStageMovements(stage.movements)
+  if (keysFromMovements.length) return keysFromMovements
+
   const fromAtoms = stage.sourceStageAtoms ?? stage.source_stage_atoms
   if (Array.isArray(fromAtoms)) {
     const keys = flowKeysFromStageAtoms(fromAtoms)
@@ -91,7 +95,7 @@ export function flowKeysFromStage(stage: PhaseStageTiming): FlowKey[] {
   const keysFromName = flowKeysFromStageName(stage.phase_stage_name)
   if (keysFromName.length) return keysFromName
 
-  return flowKeysFromStageMovements(stage.movements)
+  return []
 }
 
 export function formatFlowKeysText(keys: FlowKey[]): string {
@@ -115,9 +119,9 @@ export function isRightTurnIntensityItem(item: DirectionIntensity | null | undef
     if (/右转/.test(label)) return true
     return /^(东|西|南|北|东北|东南|西北|西南)右$/.test(label)
   }
-  if (Number(item.turnDirNo) === 2 || Number(item.turnDirNo) === 3) return true
+  if (Number(item.turnDirNo) === 3) return true
   const movementKey = String(item.movementKey ?? '')
-  if (/_t[23]$/.test(movementKey) || /_[23]$/.test(movementKey)) return true
+  if (/_t3$/.test(movementKey) || /_3$/.test(movementKey)) return true
   return false
 }
 

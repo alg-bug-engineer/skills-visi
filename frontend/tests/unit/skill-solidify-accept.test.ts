@@ -17,17 +17,19 @@ describe('presentation store · accept() 进入固化确认', () => {
   })
   afterEach(() => vi.clearAllMocks())
 
-  it('下发成功后进入 prompt，不 reset，保留 response 与 planId', async () => {
+  it('下发成功后隐藏方案抽屉并进入 prompt，不 reset，保留 response 与 planId', async () => {
     submitDecision.mockResolvedValue({ ok: true, recorded: true })
     const s = usePresentationStore()
     s.traceId = 't1'
     s.response = { trace_id: 't1' } as never
+    s.dock = 'plan'
 
     await s.accept('downstream_protection')
 
     expect(s.solidifyPhase).toBe('prompt')
     expect(s.pendingSolidifyPlanId).toBe('downstream_protection')
     expect(s.response).not.toBeNull()
+    expect(s.dock).toBe('running')
   })
 
   it('下发失败则提示并返回主页，不进入固化', async () => {

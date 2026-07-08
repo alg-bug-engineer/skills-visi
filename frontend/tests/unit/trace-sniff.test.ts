@@ -43,6 +43,32 @@ describe('summarizeSniffScene', () => {
       visibleNodes: 3,
     })
   })
+
+  it('hides finite flow coverage below 10 percent', () => {
+    const low: TraceSniffScene = {
+      available: true,
+      trace_direction: 'upstream',
+      intersections: [
+        scene.intersections![0],
+        {
+          inter_id: 'LOW',
+          name: '低占比',
+          center: [117.07, 36.6],
+          role: 'upstream',
+          path_coverage: 9.9,
+          in_main_corridor: true,
+          links: [{ link_id: 'L-low', path: [[117.07, 36.6], [117.1, 36.6]] }],
+        },
+      ],
+    }
+
+    expect(summarizeSniffScene(low)).toEqual({
+      targetLinks: 1,
+      mainLinks: 0,
+      otherLinks: 0,
+      visibleNodes: 1,
+    })
+  })
 })
 
 describe('buildLegacySniffScene', () => {

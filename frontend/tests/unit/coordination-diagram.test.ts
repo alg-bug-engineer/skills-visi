@@ -37,7 +37,7 @@ const available: Coordination = {
 }
 
 describe('CoordinationDiagram', () => {
-  it('renders real coordination fields when available', () => {
+  it('renders only compact upstream-target-downstream text rows when available', () => {
     const wrapper = mount(CoordinationDiagram, { props: { coordination: available } })
     const text = wrapper.get('[data-testid="coordination-diagram"]').text()
     expect(text).toContain('上游路口')
@@ -46,7 +46,10 @@ describe('CoordinationDiagram', () => {
     expect(text).toContain('行程 43.2s')
     expect(text).toContain('40km/h')
     expect(text).not.toContain('暂不绘制协调图')
-    expect(wrapper.find('svg').exists()).toBe(true)
+    expect(text).not.toContain('时距图')
+    expect(text).not.toContain('公共信号周期')
+    expect(wrapper.find('svg').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="coordination-node-row"]')).toHaveLength(2)
   })
 
   it('degrades with backend reason when unavailable', () => {
