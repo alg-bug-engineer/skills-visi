@@ -117,16 +117,19 @@ def build_strategy_profile(
     # 红线：LLM 定性项（或包定性项）在前，量化护栏在后；量化项恒补齐，
     # 避免「纯定性描述与红线关联不大」（需求 20·R5）。
     hard_constraints = (
-        llm_strategy.get("hard_constraints") or _hard_constraints(package, diagnosis)
+        _as_str_list(llm_strategy.get("hard_constraints"))
+        or _hard_constraints(package, diagnosis)
     ) + quantitative["constraints"]
     return {
         "strategy_package": package,
         "package_scores": package_scores,
         "strategy_instruction": instruction,
         "strategy": {
-            "principles": llm_strategy.get("principles") or instruction["principles"],
-            "not_recommended": llm_strategy.get("not_recommended") or instruction["not_recommended"],
-            "recommended": llm_strategy.get("recommended") or _recommended_for_package(package),
+            "principles": _as_str_list(llm_strategy.get("principles")) or instruction["principles"],
+            "not_recommended": _as_str_list(llm_strategy.get("not_recommended"))
+            or instruction["not_recommended"],
+            "recommended": _as_str_list(llm_strategy.get("recommended"))
+            or _recommended_for_package(package),
             "hard_constraints": hard_constraints,
             "quantitative_constraints": quantitative["detail"],
             "trigger_exit_rules": trigger_exit,
@@ -162,6 +165,22 @@ def _recommended_for_package(package: str) -> list[str]:
         "arterial_coordination": ["上游控流 + 目标小步释放 + 下游保护"],
     }
     return mapping.get(package, mapping["downstream_protection"])
+
+
+def _as_str_list(value: Any) -> list[str]:
+    """把 LLM 可能返回的字符串/None/列表统一归一为 list[str]。
+
+    LLM 偶发把本应为数组的字段（如 hard_constraints/principles）返回成单个
+    字符串，直接与内置列表相加会抛 TypeError（需求 20·R5 红线拼接）。
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    if isinstance(value, (list, tuple)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return []
 
 
 def _to_number(value: Any) -> float | None:

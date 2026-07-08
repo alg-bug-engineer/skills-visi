@@ -51,3 +51,33 @@ def test_hard_constraints_degrade_when_no_signal():
     assert detail["source"] == "unavailable"
     assert "all" in detail["missing"]
     assert any("最小绿" in c for c in profile["strategy"]["hard_constraints"])
+
+
+def test_llm_list_fields_returned_as_string_are_normalized():
+    """LLM 偶发把数组字段返回成字符串，不应抛 TypeError（回归：str + list）。"""
+    signal = {"phase_stage_timing_list": [{"min_green_time_s": 15, "max_green_time_s": 60}]}
+    llm_strategy = {
+        "hard_constraints": "下游排队比超阈值时禁止继续增大目标方向放行",
+        "principles": "防溢流优先",
+        "not_recommended": "单点激进加绿",
+        "recommended": "上游控流 + 目标小步释放",
+    }
+    profile = _PROFILE.build_strategy_profile(_CAUSE, _DIAG, llm_strategy, signal=signal)
+    strategy = profile["strategy"]
+    # 字符串被归一为单元素列表，且量化红线仍被拼接在后
+    assert isinstance(strategy["hard_constraints"], list)
+    assert "下游排队比超阈值时禁止继续增大目标方向放行" in strategy["hard_constraints"]
+    assert any("最小绿" in c for c in strategy["hard_constraints"])
+    assert strategy["principles"] == ["防溢流优先"]
+    assert strategy["not_recommended"] == ["单点激进加绿"]
+    assert strategy["recommended"] == ["上游控流 + 目标小步释放"]
+
+
+def test_llm_empty_list_fields_fall_back_to_defaults():
+    profile = _PROFILE.build_strategy_profile(
+        _CAUSE, _DIAG, {"hard_constraints": [], "principles": "", "recommended": None}
+    )
+    strategy = profile["strategy"]
+    assert any("最小绿" in c for c in strategy["hard_constraints"])
+    assert strategy["principles"]  # 回退到内置默认
+    assert strategy["recommended"]

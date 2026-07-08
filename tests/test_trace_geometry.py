@@ -293,7 +293,8 @@ def test_flow_trace_links_sniff_map_scene_groups_real_links():
 
     target = scene["intersections"][0]
     assert target["role"] == "target"
-    assert len(target["links"]) == 1
+    # 目标渲染完整 link「十字」：进/出口全集（L_UP/L_DOWN/L_OTHER），不再裁到单条。
+    assert len(target["links"]) == 3
     assert target["links"][0]["path"] == [[117.111, 36.659], [117.106, 36.658], [117.10159, 36.6575]]
 
     peer = scene["intersections"][1]
@@ -389,18 +390,22 @@ def test_flow_trace_links_sniff_map_scene_uses_correlate_peer_link_geometry():
     )
 
     assert scene["available"] is True
-    # 来向溯源只保留唯一上游（最高占比的主走廊一跳 P1），P2/P3 不作上游溯源渲染。
-    assert scene["stats"]["distinct_peers"] == 3
-    assert scene["stats"]["main_corridor"] == 1
-    assert scene["stats"]["suppressed_secondary_upstream"] == 2
+    # 复刻参考：同进口道直行走廊多跳全量保留（P1/P2 均在主走廊）；P3(cor_f_dir8=0) 非本进口道，
+    # 被进口道+转向约束排除，不再塌缩为单一上游。
+    assert scene["stats"]["distinct_peers"] == 2
+    assert scene["stats"]["main_corridor"] == 2
+    assert "suppressed_secondary_upstream" not in scene["stats"]
     upstream = [n for n in scene["intersections"] if n["role"] == "upstream"]
-    assert [n["inter_id"] for n in upstream] == ["P1"]
+    assert [n["inter_id"] for n in upstream] == ["P1", "P2"]
+    assert all(n["in_main_corridor"] for n in upstream)
     assert upstream[0]["path_coverage"] == 90.1
     assert upstream[0]["links"][0]["link_id"] == "P1_L"
+    assert upstream[1]["path_coverage"] == 76.5
     json.dumps(scene, ensure_ascii=False)
 
 
-def test_flow_trace_links_sniff_map_scene_combines_upstream_same_entry_turns():
+def test_flow_trace_links_sniff_map_scene_uses_best_share_not_cross_turn_sum():
+    """对齐参考：只取目标 movement(turn=2) 走廊行的占比，不跨目标转向求和。"""
     raw = _demo_raw()
     raw["flow_correlate"] = [
         {
@@ -414,6 +419,7 @@ def test_flow_trace_links_sniff_map_scene_combines_upstream_same_entry_turns():
             "flow_share_ratio": 79.31,
         },
         {
+            # 目标左转(turn=1) 行不并入直行(turn=2) 溯源占比
             "f_dir8_no": 6,
             "turn_dir_no": 1,
             "cor_inter_id": "P1",
@@ -455,7 +461,7 @@ def test_flow_trace_links_sniff_map_scene_combines_upstream_same_entry_turns():
     )
 
     assert scene["available"] is True
-    assert scene["intersections"][1]["path_coverage"] == 90.88
+    assert scene["intersections"][1]["path_coverage"] == 79.31
 
 
 def test_flow_trace_links_sniff_map_scene_keeps_downstream_single_turn():
@@ -517,8 +523,8 @@ def test_flow_trace_links_sniff_map_scene_keeps_downstream_single_turn():
     assert scene["intersections"][1]["path_coverage"] == 42.1
 
 
-def test_flow_trace_links_sniff_map_scene_suppresses_secondary_upstream():
-    """来向溯源只保留唯一上游：主走廊一跳 P1 渲染，非主走廊次要上游 P2 被抑制。"""
+def test_flow_trace_links_sniff_map_scene_excludes_off_approach_peer():
+    """进口道约束：非本进口道直行的关联路口(P2, cor_f_dir8=0) 不属走廊，被排除。"""
     raw = _demo_raw()
     raw["flow_correlate"] = [
         {
@@ -582,9 +588,9 @@ def test_flow_trace_links_sniff_map_scene_suppresses_secondary_upstream():
     )
 
     assert scene["available"] is True
-    assert scene["stats"]["distinct_peers"] == 2
+    assert scene["stats"]["distinct_peers"] == 1
     assert scene["stats"]["rendered"] == 2
-    assert scene["stats"]["suppressed_secondary_upstream"] == 1
+    assert "suppressed_secondary_upstream" not in scene["stats"]
     assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1"]
 
 
