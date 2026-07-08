@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import { t } from '@/labels/enums'
@@ -125,13 +125,39 @@ function toggleScene(sceneId: string) {
   expandedScenes.value = next
 }
 
-function openCases() {
-  activeTab.value = 'cases'
-  caseSubTab.value = 'industry'
+interface OpenCaseDetail {
+  tab?: 'industry' | 'intersection'
+  refId?: string | null
+  sceneId?: string | null
 }
 
-onMounted(() => window.addEventListener('open-case-library', openCases))
-onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases))
+/**
+ * 案例库导航：切 tab（默认行业，兼容 CauseCard 无 detail 调用）→ 必要时展开目标场景
+ * → nextTick 后滚动定位并短暂高亮。scrollIntoView 在 jsdom 缺失，做可选调用降级。
+ */
+async function openCases(e?: Event) {
+  const detail = (e as CustomEvent | undefined)?.detail as OpenCaseDetail | undefined
+  activeTab.value = 'cases'
+  caseSubTab.value = detail?.tab === 'intersection' ? 'intersection' : 'industry'
+
+  if (caseSubTab.value === 'industry' && detail?.sceneId) {
+    const next = new Set(expandedScenes.value)
+    next.add(detail.sceneId)
+    expandedScenes.value = next
+  }
+
+  await nextTick()
+  const refId = detail?.refId
+  if (!refId) return
+  const el = typeof document !== 'undefined' ? document.getElementById(refId) : null
+  if (!el) return
+  el.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+  el.classList.add('nav-flash')
+  window.setTimeout(() => el.classList.remove('nav-flash'), 1600)
+}
+
+onMounted(() => window.addEventListener('open-case-library', openCases as EventListener))
+onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases as EventListener))
 </script>
 
 <template>
@@ -679,5 +705,20 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases)
 }
 .rep-snippet {
   color: var(--text-mute);
+}
+
+/* 点击「参考依据」定位后的短暂高亮（subtle，2 次呼吸后自然褪去）。 */
+.nav-flash {
+  animation: nav-flash 1.6s ease-out;
+}
+@keyframes nav-flash {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  15% {
+    box-shadow: inset 0 0 0 1px var(--primary), var(--glow-primary);
+    background: var(--primary-dim);
+  }
 }
 </style>

@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest'
+import { nextTick } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import UnderstandingPanel from '@/panels/UnderstandingPanel.vue'
@@ -105,5 +106,48 @@ describe('UnderstandingPanel · 案例库（行业/路口）', () => {
 
     expect(wrapper.findAll('[data-testid="inter-case"]').length).toBe(0)
     expect(wrapper.text()).toContain('待检索')
+  })
+
+  it('监听 open-case-library 事件 → 切到路口案例并定位', async () => {
+    // jsdom 无 scrollIntoView 实现，桩掉避免抛错
+    ;(Element.prototype as unknown as { scrollIntoView?: () => void }).scrollIntoView = () => {}
+    const s = usePresentationStore()
+    s.applySnapshot(snapWithCases())
+
+    const wrapper = mount(UnderstandingPanel, { attachTo: document.body })
+    window.dispatchEvent(
+      new CustomEvent('open-case-library', {
+        detail: { tab: 'intersection', refId: 'inter-case-CASE_777' },
+      }),
+    )
+    await nextTick()
+    await nextTick()
+
+    // 已切到案例库 tab + 路口子标签
+    expect(wrapper.find('[data-testid="case-library-tab"]').classes()).toContain('active')
+    expect(wrapper.find('[data-testid="case-subtab-intersection"]').classes()).toContain('active')
+    expect(wrapper.find('#inter-case-CASE_777').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('监听 open-case-library 事件（行业场景）→ 展开对应场景并切标签', async () => {
+    ;(Element.prototype as unknown as { scrollIntoView?: () => void }).scrollIntoView = () => {}
+    const wrapper = mount(UnderstandingPanel, { attachTo: document.body })
+    window.dispatchEvent(
+      new CustomEvent('open-case-library', {
+        detail: {
+          tab: 'industry',
+          refId: 'industry-scene-general_intersection',
+          sceneId: 'general_intersection',
+        },
+      }),
+    )
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="case-subtab-industry"]').classes()).toContain('active')
+    // 目标场景已展开（scene-body 渲染）
+    expect(wrapper.find('#industry-scene-general_intersection .scene-body').exists()).toBe(true)
+    wrapper.unmount()
   })
 })

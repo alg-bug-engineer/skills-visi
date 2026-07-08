@@ -10,6 +10,8 @@ import BottleneckCard from '@/cards/BottleneckCard.vue'
 import CorridorScanCard from '@/cards/CorridorScanCard.vue'
 import CauseCard from '@/cards/CauseCard.vue'
 import StrategyBoundaryCard from '@/cards/StrategyBoundaryCard.vue'
+import ProblemVerificationCard from '@/cards/ProblemVerificationCard.vue'
+import GovernanceStrategyCard from '@/cards/GovernanceStrategyCard.vue'
 
 const store = usePresentationStore()
 const { acts, currentAct, revealedActs } = storeToRefs(store)
@@ -21,6 +23,8 @@ const INSIGHT_CARDS: Record<string, unknown> = {
   corridor: CorridorScanCard,
   cause: CauseCard,
   strategy: StrategyBoundaryCard,
+  verification: ProblemVerificationCard,
+  governance: GovernanceStrategyCard,
 }
 
 const panelExpanded = ref(true)
@@ -79,6 +83,14 @@ function cardKeyFor(index: number): CardKey | null {
   if (!act?.reveal || !(act.reveal in INSIGHT_CARDS)) return null
   if (!revealedActs.value.includes(index)) return null
   return act.reveal
+}
+
+/** 追加证据卡键：与主卡同门控（阶段已揭示才展示），组件缺失时过滤。 */
+function extraCardKeysFor(index: number): CardKey[] {
+  const act = acts.value[index]
+  if (!act?.extraCards?.length) return []
+  if (!revealedActs.value.includes(index)) return []
+  return act.extraCards.filter((k) => k in INSIGHT_CARDS)
 }
 
 watch(currentAct, (idx, prev) => {
@@ -141,8 +153,20 @@ watch(currentAct, (idx, prev) => {
             <!-- 已完成：汇总 + 可选证据卡 -->
             <template v-else>
               <p class="step-summary">{{ summaryFor(act, store.response) }}</p>
-              <div v-if="cardKeyFor(act.index)" class="evidence-slot">
-                <component :is="INSIGHT_CARDS[cardKeyFor(act.index)!]" data-testid="insight-card" />
+              <div
+                v-if="cardKeyFor(act.index) || extraCardKeysFor(act.index).length"
+                class="evidence-slot"
+              >
+                <component
+                  v-if="cardKeyFor(act.index)"
+                  :is="INSIGHT_CARDS[cardKeyFor(act.index)!]"
+                  data-testid="insight-card"
+                />
+                <component
+                  v-for="key in extraCardKeysFor(act.index)"
+                  :key="key"
+                  :is="INSIGHT_CARDS[key]"
+                />
               </div>
             </template>
           </div>
@@ -344,6 +368,9 @@ watch(currentAct, (idx, prev) => {
 }
 .evidence-slot {
   margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .evidence-slot :deep(.card) {
   margin: 0;
