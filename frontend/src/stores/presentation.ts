@@ -332,6 +332,8 @@ export const usePresentationStore = defineStore('presentation', {
         this.reset(true)
         return
       }
+      // 请求在途期间若被重置（重置/新一轮），丢弃过期结果，避免写入陈旧态。
+      if (this.solidifyPhase !== 'absorbing') return
       // 保留 absorbing 阶段：overlay 消费 skillResult 驱动可视化推进。
       this.skillResult = res
     },

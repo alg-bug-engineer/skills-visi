@@ -146,7 +146,7 @@ export function useSkillBuildProcess() {
   function fileForStage(build: Build, stageKey: SkillBuildStage): SkillFile | undefined {
     const path = STAGE_FILE_PATH[stageKey]
     if (!path) return undefined
-    return build.files.find((f) => f.path === path)
+    return (build.files ?? []).find((f) => f.path === path)
   }
 
   function start(build: Build, meta: SkillBuildMeta, opts: SkillBuildRunOptions = {}) {
