@@ -90,4 +90,22 @@ describe('PlanEvidencePanel', () => {
 
     expect(wrapper.find('[data-testid="intensity-row-risk"]').exists()).toBe(true)
   })
+
+  it('filters right-turn rows from direction intensity visualization', () => {
+    const candidate = candidateWithEvidence()
+    candidate.timing?.meta?.direction_intensity_list?.push({
+      movementKey: 'd6_t2',
+      label: '西右转',
+      dir8No: 6,
+      turnDirNo: 2,
+      intensity: 0.98,
+    })
+
+    const wrapper = mount(PlanEvidencePanel, {
+      props: { candidate },
+    })
+
+    expect(wrapper.text()).toContain('西直')
+    expect(wrapper.text()).not.toContain('西右转')
+  })
 })

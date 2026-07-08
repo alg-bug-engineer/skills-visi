@@ -21,6 +21,8 @@ export type SolidifyPhase = 'idle' | 'prompt' | 'absorbing' | 'building' | 'comp
 
 // 流控制器保存在模块作用域，避免进入响应式系统。
 let controller: StreamController | null = null
+let voiceBarrier: (() => Promise<void>) | null = null
+let voiceInterrupt: (() => void) | null = null
 
 const PHASE_LABEL: Record<PhaseKey, string> = {
   intent: '问题理解',
@@ -290,6 +292,18 @@ export const usePresentationStore = defineStore('presentation', {
     },
 
     revealCard(_key: CardKey) {},
+    setVoiceBarrier(fn: (() => Promise<void>) | null) {
+      voiceBarrier = fn
+    },
+    setVoiceInterrupt(fn: (() => void) | null) {
+      voiceInterrupt = fn
+    },
+    waitForVoiceBarrier(): Promise<void> {
+      return voiceBarrier ? voiceBarrier() : Promise.resolve()
+    },
+    interruptVoice() {
+      voiceInterrupt?.()
+    },
     toggleFullscreen() {
       this.fullscreen = !this.fullscreen
     },
@@ -396,6 +410,7 @@ export const usePresentationStore = defineStore('presentation', {
     reset(toInput = true) {
       controller?.close()
       controller = null
+      this.interruptVoice()
       this.mapResetSeq += 1
       this.status = 'idle'
       this.mode = 'stream'

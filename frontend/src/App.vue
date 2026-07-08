@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
+import { useVoiceNarration } from '@/composables/useVoiceNarration'
 import AMapProvider from '@/map/AMapProvider.vue'
 import UnderstandingPanel from '@/panels/UnderstandingPanel.vue'
 import RunningDataPanel from '@/panels/RunningDataPanel.vue'
@@ -11,9 +12,16 @@ import DownstreamTopologyInset from '@/panels/DownstreamTopologyInset.vue'
 import SkillSolidifyOverlay from '@/panels/SkillSolidifyOverlay.vue'
 import SkillBuildDrawer from '@/panels/SkillBuildDrawer.vue'
 import { sceneEvidencePolicy } from '@/map/sceneEvidencePolicy'
+import { resetActVoiceKeys, voiceCueForAct } from '@/services/voiceStepSync'
 
 const store = usePresentationStore()
-const { status, dock, fullscreen, planMinimized, rollbackBanner, toast } = storeToRefs(store)
+const { status, dock, fullscreen, planMinimized, rollbackBanner, toast, currentAct, mapResetSeq } = storeToRefs(store)
+const voice = useVoiceNarration()
+const voiceEnabled = voice.enabled
+const voicePlaying = voice.playing
+
+store.setVoiceBarrier(voice.whenIdle)
+store.setVoiceInterrupt(voice.interrupt)
 
 const running = computed(() => status.value !== 'idle')
 const showTopologyInset = computed(() => {
@@ -23,6 +31,32 @@ const showTopologyInset = computed(() => {
 
 watch(toast, (v) => {
   if (v) window.setTimeout(() => store.clearToast(), 4200)
+})
+
+watch(
+  () => [currentAct.value, mapResetSeq.value] as const,
+  ([idx, seq]) => {
+    if (idx < 0) return
+    voice.enqueue(voiceCueForAct(store.acts[idx] ?? null, String(seq)))
+  },
+  { immediate: true },
+)
+
+watch(mapResetSeq, () => {
+  resetActVoiceKeys()
+  voice.interrupt()
+})
+
+function toggleVoice() {
+  const next = !voiceEnabled.value
+  voice.setEnabled(next)
+  if (!next) store.interruptVoice()
+}
+
+onBeforeUnmount(() => {
+  store.setVoiceBarrier(null)
+  store.setVoiceInterrupt(null)
+  voice.interrupt()
 })
 </script>
 
@@ -37,6 +71,22 @@ watch(toast, (v) => {
         <span class="brand__sub">交通信控处置闭环</span>
       </div>
       <div class="topbar__right">
+        <button
+          class="ghost voice-toggle"
+          :class="{ 'voice-toggle--off': !voiceEnabled, 'voice-toggle--playing': voicePlaying }"
+          type="button"
+          data-testid="voice-toggle"
+          :aria-pressed="voiceEnabled ? 'true' : 'false'"
+          :title="voiceEnabled ? '关闭语音播报' : '打开语音播报'"
+          @click="toggleVoice"
+        >
+          <span class="speaker-shape" aria-hidden="true">
+            <span class="speaker-core" />
+            <span class="speaker-wave speaker-wave--one" />
+            <span class="speaker-wave speaker-wave--two" />
+          </span>
+          <span class="voice-toggle__label">语音播报</span>
+        </button>
         <button class="ghost" @click="store.toggleFullscreen()">
           {{ fullscreen ? '退出专注' : '地图专注' }}
         </button>
@@ -167,6 +217,73 @@ watch(toast, (v) => {
 .ghost:hover {
   color: var(--primary);
   border-color: var(--primary);
+}
+.voice-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.speaker-shape {
+  position: relative;
+  display: inline-block;
+  width: 15px;
+  height: 14px;
+}
+.speaker-core::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 5px;
+  height: 6px;
+  border-radius: 2px 0 0 2px;
+  background: currentColor;
+}
+.speaker-core::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 7px solid currentColor;
+}
+.speaker-wave {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  width: 7px;
+  height: 10px;
+  border: 1px solid currentColor;
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  opacity: 0.8;
+}
+.speaker-wave--one {
+  right: 2px;
+  transform: scale(0.68);
+}
+.speaker-wave--two {
+  right: -2px;
+}
+.voice-toggle--off .speaker-wave {
+  display: none;
+}
+.voice-toggle--off .speaker-shape::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 6px;
+  width: 15px;
+  height: 1px;
+  background: currentColor;
+  transform: rotate(-42deg);
+}
+.voice-toggle--playing {
+  color: var(--primary);
+  border-color: rgba(63, 211, 255, 0.58);
 }
 .rail {
   position: absolute;
