@@ -12,17 +12,22 @@ const tk = computed(() => store.ticket)
 
 <template>
   <BaseCard v-if="tk" title="诊断任务工单" :act="1">
-    <dl class="kv">
-      <div><dt>对象</dt><dd>{{ t('object_type', tk.object_type) }}</dd></div>
-      <div><dt>路口</dt><dd>{{ productCopy(tk.intersection_name) || '—' }}</dd></div>
-      <div><dt>时间</dt><dd>{{ tk.time_range ?? '—' }}（{{ t('period', tk.period) }}）</dd></div>
-      <div><dt>方向转向</dt><dd>{{ directionMovement(tk.direction, tk.movement) }}</dd></div>
-      <div>
-        <dt>问题</dt>
-        <dd><span class="tag tag--alarm">{{ t('problem_type', tk.problem_type) }}</span></dd>
-      </div>
-      <div><dt>治理目标</dt><dd>{{ t('governance_goal', tk.governance_goal) }}</dd></div>
-    </dl>
+    <ul class="nlu-list">
+      <li><span class="k">原始问题</span><span class="v raw">{{ store.userInput || '—' }}</span></li>
+      <li><span class="k">对象</span><span class="v">{{ t('object_type', tk.object_type) }}</span></li>
+      <li>
+        <span class="k">路口</span>
+        <span class="v">
+          {{ productCopy(tk.intersection_name) || '—' }}
+          <span v-if="tk.inter_id" class="id">{{ tk.inter_id }}</span>
+        </span>
+      </li>
+      <li><span class="k">时间</span><span class="v">{{ tk.time_range ?? '—' }}（{{ t('period', tk.period) }}）</span></li>
+      <li><span class="k">方向转向</span><span class="v">{{ directionMovement(tk.direction, tk.movement) }}</span></li>
+      <li><span class="k">问题</span><span class="v"><span class="tag tag--alarm">{{ t('problem_type', tk.problem_type) }}</span></span></li>
+      <li><span class="k">诊断范围</span><span class="v">{{ t('diagnosis_scope', tk.diagnosis_scope) }}</span></li>
+      <li><span class="k">治理目标</span><span class="v">{{ t('governance_goal', tk.governance_goal) }}</span></li>
+    </ul>
 
     <div v-if="tk.constraints?.length" class="constraints">
       <span class="lbl">约束</span>
@@ -37,25 +42,41 @@ const tk = computed(() => store.ticket)
 </template>
 
 <style scoped>
-.kv {
+.nlu-list {
+  list-style: none;
   margin: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;
+  padding: 0;
 }
-.kv > div {
+.nlu-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
   min-width: 0;
 }
-.kv dt {
+.nlu-list li + li {
+  border-top: 1px solid rgba(146, 161, 181, 0.12);
+}
+.nlu-list .k {
+  flex: 0 0 60px;
   font-size: 11px;
   color: var(--text-mute);
-  margin-bottom: 2px;
 }
-.kv dd {
-  margin: 0;
+.nlu-list .v {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--text);
   font-size: 13px;
   word-break: break-word;
+}
+.nlu-list .v.raw {
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.nlu-list .v .id {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--text-mute);
 }
 .tag {
   display: inline-block;
@@ -76,7 +97,7 @@ const tk = computed(() => store.ticket)
   margin: 2px 4px 2px 0;
 }
 .constraints {
-  margin-top: 12px;
+  margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -88,7 +109,7 @@ const tk = computed(() => store.ticket)
   margin-right: 4px;
 }
 .conf {
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 12px;
   color: var(--primary);
 }
