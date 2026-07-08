@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, AsyncIterator, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,9 +16,11 @@ from app.services.cases_catalog_service import CasesCatalogService
 from app.services.case_library import CaseLibraryService
 from app.services.feedback_service import PlanFeedbackService
 from app.services.intersection_load_service import IntersectionLoadService
+from app.services.qwen_tts_service import get_tts_service
 from app.services.skill_solidification_service import SkillSolidificationService
 
 router = APIRouter(prefix="/api/v1")
+logger = logging.getLogger(__name__)
 
 
 class AgentRunRequest(BaseModel):
@@ -94,6 +97,11 @@ class SkillSolidifyRequest(BaseModel):
     )
 
 
+class TtsSynthesizeRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=300)
+    cue_id: str | None = None
+
+
 class IntersectionLoadRequest(BaseModel):
     inter_id: str | None = Field(None, description="路口 ID")
     intersection_name: str | None = Field(None, description="路口名称")
@@ -148,6 +156,25 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, Any]:
         "model": settings.qwen_model,
         "pg_configured": bool(settings.pg_dsn),
     }
+
+
+@router.post("/tts/synthesize")
+async def synthesize_tts(body: TtsSynthesizeRequest, settings: Settings = Depends(get_settings)) -> Response:
+    if not settings.tts_enabled:
+        raise HTTPException(status_code=503, detail="TTS disabled")
+    service = get_tts_service()
+    if not service.available:
+        raise HTTPException(status_code=503, detail="TTS not configured")
+
+    try:
+        audio = await service.synthesize_wav(body.text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("tts.synthesize_failed cue_id=%s", body.cue_id)
+        raise HTTPException(status_code=502, detail=f"TTS failed: {type(exc).__name__}") from exc
+
+    return Response(content=audio, media_type="audio/wav")
 
 
 @router.get("/agent/skills")

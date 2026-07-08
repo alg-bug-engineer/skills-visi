@@ -14,9 +14,16 @@ class Settings(BaseSettings):
     )
 
     qwen_api_key: str = ""
+    dashscope_api_key: str = ""
     qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     qwen_model: str = "qwen-plus"
     qwen_timeout_s: float = 360.0
+    qwen_tts_model: str = "qwen3-tts-flash-realtime"
+    qwen_tts_voice: str = "Cherry"
+    qwen_tts_mode: str = "commit"
+    qwen_tts_sample_rate: int = 24000
+    qwen_tts_workspace_id: str = ""
+    tts_enabled: bool = True
     llm_mock: bool = False
     log_level: str = "INFO"
     case_library_path: str = "data/knowledge_qa.jsonl"
@@ -51,6 +58,22 @@ class Settings(BaseSettings):
     def skills_output_abs_path(self) -> Path:
         path = Path(self.skills_output_path)
         return path if path.is_absolute() else PROJECT_ROOT / path
+
+    @property
+    def qwen_tts_ws_url(self) -> str:
+        return "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
+
+    @property
+    def tts_api_key(self) -> str:
+        return self.qwen_api_key or self.dashscope_api_key
+
+    @property
+    def tts_configured(self) -> bool:
+        return bool(self.tts_api_key)
+
+    @property
+    def tts_workspace(self) -> str | None:
+        return self.qwen_tts_workspace_id or None
 
 
 @lru_cache

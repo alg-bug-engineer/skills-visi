@@ -92,7 +92,8 @@ const { shown, done } = useTyping(lines, {
     narrationCache.value = { ...narrationCache.value, [idx]: [...lines.value] }
     store.onActTyped(idx)
     if (store.autoPlay) {
-      window.setTimeout(() => {
+      window.setTimeout(async () => {
+        await store.waitForVoiceBarrier()
         if (store.currentAct === idx) store.tryAdvance()
       }, actDwellMs(idx, instant))
     }

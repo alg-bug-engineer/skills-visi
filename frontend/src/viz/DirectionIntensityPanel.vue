@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { OptimizationMeta } from '@/api/types'
+import { directionIntensityRows } from '@/viz/planVisualization'
 
 const props = defineProps<{ meta?: OptimizationMeta | null }>()
 
 const target = computed(() => props.meta?.target_saturation ?? 0.8)
-const rows = computed(() =>
-  [...(props.meta?.direction_intensity_list ?? [])]
-    .filter((item) => typeof item.intensity === 'number')
-    .sort((a, b) => (b.intensity ?? 0) - (a.intensity ?? 0)),
-)
+const rows = computed(() => directionIntensityRows(props.meta?.direction_intensity_list))
+const dataQuality = computed(() => props.meta?.data_quality ?? {})
 
 function pct(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '—'
@@ -18,6 +16,11 @@ function pct(value?: number | null) {
 function width(value?: number | null) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '0%'
   return `${Math.min(100, (value / target.value) * 100).toFixed(1)}%`
+}
+
+function targetLeft(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return '100%'
+  return value > target.value ? `${((target.value / value) * 100).toFixed(1)}%` : '100%'
 }
 </script>
 
@@ -46,14 +49,18 @@ function width(value?: number | null) {
           <td>
             <div class="track">
               <div class="bar" :class="{ risk: (row.intensity ?? 0) > target }" :style="{ width: width(row.intensity) }" />
-              <i class="target" />
+              <i class="target" :style="{ left: targetLeft(row.intensity) }" />
             </div>
           </td>
           <td class="value" :class="{ risk: (row.intensity ?? 0) > target }">{{ pct(row.intensity) }}</td>
         </tr>
       </tbody>
     </table>
-    <p class="foot">目标强度 I_obj = {{ pct(target) }}</p>
+    <p class="foot">
+      目标强度 I_obj = {{ pct(target) }}
+      <span v-if="dataQuality.movement_source">｜{{ dataQuality.movement_source }}</span>
+      <span v-if="dataQuality.has_virtual_flow">｜含虚拟流量兜底</span>
+    </p>
   </section>
 </template>
 
