@@ -2,12 +2,16 @@
 import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import { pct, ratio, meters, num, ratioTone } from '@/utils/format'
+import { productCopy } from '@/utils/productCopy'
 import { t } from '@/labels/enums'
 import BaseCard from './BaseCard.vue'
+import type { MovementMetric } from '@/api/types'
 
 const store = usePresentationStore()
 const m = computed(() => store.diagnosis?.metrics ?? null)
+const tk = computed(() => store.ticket ?? null)
 const ov = computed(() => store.diagnosis?.overflow_verification ?? null)
+
 const qrTone = computed(() => ratioTone(m.value?.queue_ratio))
 const guTone = computed(() => {
   const g = m.value?.green_utilization
@@ -17,25 +21,130 @@ const verdictTone = computed(() => {
   const r = ov.value?.risk_level
   return r === 'high' || r === 'critical' ? 'alarm' : r === 'medium' ? 'evidence' : 'primary'
 })
+
+const byApproach = computed(() => m.value?.by_approach ?? [])
+const byMovement = computed(() => m.value?.by_movement ?? [])
+const hasRich = computed(() => byApproach.value.length > 0 || byMovement.value.length > 0)
+
+const imbalance = computed(() => {
+  const v = m.value?.imbalance_index
+  return typeof v === 'number' ? v : null
+})
+const imbalanceHigh = computed(() => (imbalance.value ?? 0) >= 0.3)
+
+/** 服务水平：F 显式标注为「F-阻塞」，其余原样。 */
+function losLabel(los: string | null | undefined): string {
+  if (!los) return '—'
+  return los === 'F' ? 'F-阻塞' : los
+}
+
+/** 饱和度阈值 → 语义色（复用 ratioTone，>=1.0 告警）。 */
+function satTone(x: number | null | undefined) {
+  return ratioTone(x)
+}
+
+/** 转向拥挤等级 → 语义色。 */
+function movementTone(level: string | null | undefined): 'alarm' | 'evidence' | 'primary' {
+  if (level === '过饱和') return 'alarm'
+  if (level === '偏高') return 'evidence'
+  return 'primary'
+}
+
+/** 转向绿灯利用（可 >1，不用百分比避免显示 177%）。 */
+function guValue(mv: MovementMetric): string {
+  return num(mv.green_utilization, 2)
+}
+
+/** 关注/保护方向：从工单方向轴诚实派生；无法判定则不展示。 */
+const focusTags = computed(() => {
+  const dir = tk.value?.direction?.toLowerCase() ?? ''
+  if (!dir) return null
+  if (/east|west|东|西/.test(dir)) return { focus: '东西向', protect: '南北向' }
+  if (/north|south|南|北/.test(dir)) return { focus: '南北向', protect: '东西向' }
+  return null
+})
+
+const overallLos = computed(() => m.value?.los ?? null)
 </script>
 
 <template>
-  <BaseCard v-if="m" title="运行数据单" :act="3" :tone="qrTone === 'alarm' ? 'alarm' : 'primary'">
-    <div class="hero" :class="`tone-${qrTone}`">
-      <span class="hero__num us-mono">{{ ratio(m.queue_ratio) }}</span>
-      <span class="hero__lbl">排队比</span>
+  <BaseCard
+    v-if="m"
+    :title="hasRich ? '运行数据' : '运行数据单'"
+    :act="3"
+    :tone="qrTone === 'alarm' ? 'alarm' : 'primary'"
+  >
+    <!-- 头部：路口名 / inter_id / 进口·车道 / 关注·保护方向 -->
+    <div v-if="hasRich" class="head">
+      <div class="head__title">
+        <span class="head__name">{{ productCopy(tk?.intersection_name) || '路口' }}</span>
+        <span v-if="tk?.inter_id" class="head__id us-mono">{{ tk.inter_id }}</span>
+      </div>
+      <div v-if="m.approach_count || m.lane_count" class="head__sub">
+        进口车道
+        <template v-if="m.approach_count"> · {{ m.approach_count }} 进口</template>
+        <template v-if="m.lane_count"> · {{ m.lane_count }} 车道</template>
+      </div>
+      <div v-if="focusTags" class="tags">
+        <span class="tag tag--focus">关注 {{ focusTags.focus }}</span>
+        <span class="tag tag--protect">保护 {{ focusTags.protect }}</span>
+      </div>
     </div>
 
-    <div class="grid">
-      <div class="cell"><span class="v us-mono">{{ meters(m.queue_length_m) }}</span><span class="k">排队长度</span></div>
-      <div class="cell"><span class="v us-mono">{{ meters(m.storage_length_m) }}</span><span class="k">蓄车长度</span></div>
-      <div class="cell"><span class="v us-mono">{{ pct(m.saturation) }}</span><span class="k">饱和度</span></div>
-      <div class="cell" :class="`tone-${guTone}`">
-        <span class="v us-mono">{{ pct(m.green_utilization) }}</span><span class="k">绿灯利用率</span>
+    <!-- 详细运行数据列表（富指标） -->
+    <div v-if="hasRich" class="rows" data-testid="metrics-detail">
+      <div v-for="ap in byApproach" :key="ap.approach" class="row">
+        <span class="row__k">{{ ap.approach }}饱和度</span>
+        <span class="row__v us-mono" :class="`tone-${satTone(ap.saturation)}`">{{ num(ap.saturation, 2) }}</span>
+        <span v-if="ap.delay_index != null || ap.los" class="row__meta">
+          <template v-if="ap.delay_index != null">延误指数 {{ num(ap.delay_index, 2) }}</template>
+          <template v-if="ap.delay_index != null && ap.los"> · </template>
+          <template v-if="ap.los">服务水平 {{ losLabel(ap.los) }}</template>
+        </span>
       </div>
-      <div class="cell"><span class="v us-mono">{{ num(m.stop_count, 2) }}</span><span class="k">停车次数</span></div>
-      <div class="cell"><span class="v us-mono">{{ num(m.avg_delay_s, 1) }}s</span><span class="k">平均延误</span></div>
+
+      <div v-if="imbalance != null" class="row">
+        <span class="row__k">方向失衡</span>
+        <span class="row__v us-mono" :class="{ 'tone-evidence': imbalanceHigh }">{{ num(imbalance, 2) }}</span>
+        <span v-if="imbalanceHigh" class="row__meta">各进口差异大</span>
+      </div>
+
+      <div v-if="overallLos" class="row">
+        <span class="row__k">服务水平</span>
+        <span class="row__v us-mono" :class="{ 'tone-alarm': overallLos === 'F' }">{{ losLabel(overallLos) }}</span>
+      </div>
+
+      <template v-for="mv in byMovement" :key="mv.movement">
+        <div class="row">
+          <span class="row__k">{{ mv.movement }}饱和度</span>
+          <span class="row__v us-mono" :class="`tone-${movementTone(mv.level)}`">{{ num(mv.saturation, 2) }}</span>
+          <span v-if="mv.level" class="lvl" :class="`lvl-${movementTone(mv.level)}`">{{ mv.level }}</span>
+        </div>
+        <div v-if="mv.green_utilization != null" class="row row--sub">
+          <span class="row__k">{{ mv.movement }}绿灯利用</span>
+          <span class="row__v us-mono">{{ guValue(mv) }}</span>
+        </div>
+      </template>
     </div>
+
+    <!-- 降级兜底：hero 排队比 + 6 格网格 -->
+    <template v-if="!hasRich">
+      <div class="hero" :class="`tone-${qrTone}`">
+        <span class="hero__num us-mono">{{ ratio(m.queue_ratio) }}</span>
+        <span class="hero__lbl">排队比</span>
+      </div>
+
+      <div class="grid">
+        <div class="cell"><span class="v us-mono">{{ meters(m.queue_length_m) }}</span><span class="k">排队长度</span></div>
+        <div class="cell"><span class="v us-mono">{{ meters(m.storage_length_m) }}</span><span class="k">蓄车长度</span></div>
+        <div class="cell"><span class="v us-mono">{{ pct(m.saturation) }}</span><span class="k">饱和度</span></div>
+        <div class="cell" :class="`tone-${guTone}`">
+          <span class="v us-mono">{{ pct(m.green_utilization) }}</span><span class="k">绿灯利用率</span>
+        </div>
+        <div class="cell"><span class="v us-mono">{{ num(m.stop_count, 2) }}</span><span class="k">停车次数</span></div>
+        <div class="cell"><span class="v us-mono">{{ num(m.avg_delay_s, 1) }}s</span><span class="k">平均延误</span></div>
+      </div>
+    </template>
 
     <div v-if="ov" class="verdict" :class="`tone-${verdictTone}`" data-testid="overflow-verdict">
       <span class="verdict__badge">溢出判定 · {{ t('risk_level', ov.risk_level) }}</span>
@@ -47,6 +156,99 @@ const verdictTone = computed(() => {
 </template>
 
 <style scoped>
+.head {
+  margin-bottom: 12px;
+}
+.head__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.head__name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.head__id {
+  font-size: 11px;
+  color: var(--text-mute);
+}
+.head__sub {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-mute);
+}
+.tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+.tag--protect {
+  border-color: var(--text-mute);
+  color: var(--text-mute);
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.row--sub {
+  padding-top: 2px;
+  border-bottom: none;
+}
+.row__k {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.row--sub .row__k {
+  color: var(--text-mute);
+}
+.row__v {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.row__v.tone-alarm {
+  color: var(--alarm);
+}
+.row__v.tone-evidence {
+  color: var(--evidence);
+}
+.row__meta {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--text-mute);
+}
+.lvl {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--text-mute);
+  color: var(--text-mute);
+}
+.lvl-alarm {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+.lvl-evidence {
+  border-color: var(--evidence);
+  color: var(--evidence);
+}
 .hero {
   display: flex;
   align-items: baseline;
