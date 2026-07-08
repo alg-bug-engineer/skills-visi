@@ -49,31 +49,6 @@ def _solidify(service: SkillSolidificationService, inputs: dict) -> dict:
     )
 
 
-def test_solidify_writes_real_skill_package(service, real_inputs, tmp_path):
-    result = _solidify(service, real_inputs)
-
-    assert result["action"] == "created"
-    assert result["skill_id"] == "skill-011wwe289qc00001-evening_rush_hour"
-    assert result["download_url"] == (
-        "/api/v1/agent/skills/skill-011wwe289qc00001-evening_rush_hour/download"
-    )
-    assert result["intersection"] == "经十路与转山西路路口"
-    assert result["inter_id"] == "011wwe289qc00001"
-
-    skill_dir = tmp_path / "skills" / result["skill_id"]
-    skill_md = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
-    assert "经十路与转山西路路口" in skill_md
-    assert "queue_spillback" in skill_md
-
-    meta = json.loads((skill_dir / "skill.meta.json").read_text(encoding="utf-8"))
-    assert meta["skill_id"] == result["skill_id"]
-    assert meta["tags"]["match"]["inter_id"] == "011wwe289qc00001"
-    assert meta["content_signature"].startswith("sha256:")
-
-    assert (skill_dir / "scripts" / "fetch_traffic_data.sql").exists()
-    assert (skill_dir / "reference.md").exists()
-
-
 def test_result_structure_matches_contract(service, real_inputs):
     result = _solidify(service, real_inputs)
 

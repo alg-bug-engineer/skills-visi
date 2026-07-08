@@ -37,6 +37,7 @@ const problem_type: Dict = {
   spillback: '拥堵传导',
   queue_spillback: '排队倒灌',
   imbalance: '流量失衡',
+  routine_health_check: '例行健康核验',
 }
 
 const object_type: Dict = {

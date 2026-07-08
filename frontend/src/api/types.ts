@@ -275,6 +275,8 @@ export interface DiagnosisPhase {
     [k: string]: unknown
   }
   problem_confirmed?: boolean
+  /** 健康核验：路口无问题时为 true，闭环在诊断后正常收尾。 */
+  healthy?: boolean
   data_source?: string
   [k: string]: unknown
 }

@@ -61,6 +61,7 @@ class SkillExecutor:
         )
         results: list[SkillResult] = []
         total = len(pipeline)
+        healthy_stop = False
 
         logger.info("开始流式执行流水线 trace_id=%s pipeline=%s", trace_id, pipeline)
 
@@ -126,6 +127,18 @@ class SkillExecutor:
             if not result.success:
                 break
 
+            # 健康分支：诊断确认路口无问题时，正常提前收尾，不再执行成因/策略/方案。
+            # 仅在完整流水线（含诊断技能）时生效；regenerate 等子流水线不受影响。
+            if (
+                skill_id == "data_analysis_diagnosis"
+                and result.success
+                and isinstance(result.output, dict)
+                and result.output.get("healthy") is True
+            ):
+                healthy_stop = True
+                logger.info("诊断判定路口健康，提前收尾 trace_id=%s", trace_id)
+                break
+
         merged_artifacts = {**prefilled, **context.artifacts}
         task["artifacts"] = merged_artifacts
         yield {
@@ -135,7 +148,11 @@ class SkillExecutor:
             "artifacts": merged_artifacts,
             "results": _serialize_results(results),
             "completed": all(r.success for r in results),
-            "pipeline_complete": compute_pipeline_complete(task, context.artifacts),
+            # 健康提前收尾视为完成（无需成因/策略/方案）。
+            "pipeline_complete": True
+            if healthy_stop
+            else compute_pipeline_complete(task, context.artifacts),
+            "healthy": healthy_stop,
         }
 
     async def run_pipeline(

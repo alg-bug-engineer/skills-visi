@@ -450,6 +450,13 @@ def analyze_overflow(
         "bottleneck_analysis": bottleneck,
         "problem_confirmed": overflow.get("verified")
         and overflow.get("risk_level") in ("warning", "high"),
+        # 健康核验：已取到数据且溢出风险低、饱和度未过高，判为无问题（可提前正常收尾）。
+        # 注意：数据缺失（risk_level=unknown）不算健康，仍走完整链路核验。
+        "healthy": bool(
+            overflow.get("verified") is True
+            and overflow.get("risk_level") == "low"
+            and (saturation or 0) < THRESHOLDS["saturation_high"]
+        ),
         "target": {
             "intersection": ticket.get("intersection_name"),
             "direction": direction,

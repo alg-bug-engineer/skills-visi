@@ -11,6 +11,7 @@ import CorridorScanCard from '@/cards/CorridorScanCard.vue'
 import CauseCard from '@/cards/CauseCard.vue'
 import ProblemVerificationCard from '@/cards/ProblemVerificationCard.vue'
 import GovernanceStrategyCard from '@/cards/GovernanceStrategyCard.vue'
+import HealthyConclusionCard from '@/cards/HealthyConclusionCard.vue'
 import ExperienceAbsorptionPanel from '@/panels/ExperienceAbsorptionPanel.vue'
 import { useExperienceAbsorption } from '@/composables/useExperienceAbsorption'
 import { DEMO_TYPING_MS, actDwellMs } from '@/config/demoPacing'
@@ -26,6 +27,7 @@ const INSIGHT_CARDS: Record<string, unknown> = {
   cause: CauseCard,
   verification: ProblemVerificationCard,
   governance: GovernanceStrategyCard,
+  healthy: HealthyConclusionCard,
 }
 
 const panelExpanded = ref(true)
@@ -146,9 +148,11 @@ function cardKeyFor(index: number): CardKey | null {
 /** 追加证据卡键：与主卡同门控（阶段已揭示才展示），组件缺失时过滤。 */
 function extraCardKeysFor(index: number): CardKey[] {
   const act = acts.value[index]
-  if (!act?.extraCards?.length) return []
   if (!revealedActs.value.includes(index)) return []
-  return act.extraCards.filter((k) => k in INSIGHT_CARDS)
+  const keys = [...(act?.extraCards ?? [])]
+  // 健康核验：在「溢出证据核验」幕追加健康结论卡（诊断/策略/处置文案）。
+  if (store.isHealthy && act?.id === 'act3_overflow') keys.push('healthy')
+  return keys.filter((k) => k in INSIGHT_CARDS)
 }
 
 function cardPropsFor(key: CardKey | null): Record<string, unknown> {

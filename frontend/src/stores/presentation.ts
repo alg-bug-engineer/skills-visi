@@ -146,6 +146,8 @@ export const usePresentationStore = defineStore('presentation', {
     },
     experienceReady: (s) => phaseReady(s.response, 'intent'),
     casesReady: (s) => phaseReady(s.response, 'cause'),
+    /** 健康核验：诊断判定路口无问题，闭环在溢出核验幕后正常收尾。 */
+    isHealthy: (s) => s.response?.phases?.diagnosis?.healthy === true,
   },
 
   actions: {
@@ -259,6 +261,14 @@ export const usePresentationStore = defineStore('presentation', {
     /** 打字完成后请求推进：下一阶段 phase 未就绪则进入等待态。 */
     tryAdvance() {
       if (this.currentAct >= this.lastActIndex) {
+        this.status = 'done'
+        return
+      }
+      // 健康核验：路口无问题时，闭环在「溢出证据核验」幕后正常收尾，
+      // 不再进入下游承接/成因/策略/方案等治理幕。
+      if (this.isHealthy && this.acts[this.currentAct]?.id === 'act3_overflow') {
+        this.waiting = false
+        this.computingPhase = null
         this.status = 'done'
         return
       }

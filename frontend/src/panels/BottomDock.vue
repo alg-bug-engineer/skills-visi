@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
-import { DEMO_INPUT } from '@/api/endpoints'
+import { DEMO_INPUT, DEMO_INPUT_HEALTHY } from '@/api/endpoints'
 import PlanDrawer from './PlanDrawer.vue'
 
 const store = usePresentationStore()
@@ -10,12 +10,14 @@ const { dock, userInput, acts, currentAct, signal, status } = storeToRefs(store)
 
 const examples = [
   DEMO_INPUT,
+  DEMO_INPUT_HEALTHY,
   '经十路与舜耕路口，晚高峰南向北左转排队严重，能不能加绿？',
 ]
 
-const progress = computed(() =>
-  acts.value.length ? Math.round(((currentAct.value + 1) / acts.value.length) * 100) : 0,
-)
+const progress = computed(() => {
+  if (status.value === 'done') return 100
+  return acts.value.length ? Math.round(((currentAct.value + 1) / acts.value.length) * 100) : 0
+})
 const signalText = computed(
   () => ({ idle: '待命', connecting: '连接中', open: '实时', closed: '已断开', error: '异常' })[signal.value],
 )
@@ -50,6 +52,9 @@ const signalText = computed(
       <span class="signal" :class="`signal--${signal}`"><i />{{ signalText }}</span>
       <span v-if="store.waiting" class="computing" data-testid="computing">
         <span class="computing__spin" />正在{{ store.computingLabel }}推演…
+      </span>
+      <span v-else-if="status === 'done' && store.isHealthy" class="healthy-done" data-testid="healthy-done">
+        ✓ 核验完成 · 运行正常，无需干预
       </span>
       <ol class="nodes">
         <li
@@ -205,6 +210,15 @@ const signalText = computed(
   gap: 6px;
   font-size: 12px;
   color: var(--evidence);
+  flex: 0 0 auto;
+}
+.healthy-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--protected);
   flex: 0 0 auto;
 }
 .computing__spin {

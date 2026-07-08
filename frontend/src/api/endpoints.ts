@@ -2,6 +2,7 @@ import { getJSON, postJSON } from './client'
 import { streamPost, type StreamHandlers, type StreamController } from './sse'
 import type { ApiError, HealthResponse, RunResponse, SkillSolidificationResult } from './types'
 import fixture from '@/mock/run_1_fixture.json'
+import healthyFixture from '@/mock/run_healthy_fixture.json'
 import skillSolidifyFixture from '@/mock/skill_solidify_fixture.json'
 
 const MOCK = import.meta.env.VITE_MOCK === '1'
@@ -9,6 +10,18 @@ const MOCK = import.meta.env.VITE_MOCK === '1'
 /** 演示句默认输入（对齐 run_1）。 */
 export const DEMO_INPUT =
   '奥体西路与经十路交叉口，六点十分到六点半，西向东直行进口道，分析流量溯源和下游拓扑，优先避免下游继续外溢。'
+
+/** 健康核验演示句：无问题路口，闭环在诊断后正常收尾。 */
+export const DEMO_INPUT_HEALTHY =
+  '核验经十路与转山西路路口晚高峰运行是否正常，是否需要干预。'
+
+/** 依据输入选择 MOCK 场景：命中健康核验关键词走健康 fixture（仅 intent+诊断）。 */
+function pickScenario(userInput: string): { data: RunResponse; phaseCount: number } {
+  const healthy = /健康|体检|是否正常|运行正常|无问题|无需干预/.test(userInput)
+  return healthy
+    ? { data: healthyFixture as unknown as RunResponse, phaseCount: 2 }
+    : { data: fixture as unknown as RunResponse, phaseCount: 5 }
+}
 
 function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms))
@@ -31,7 +44,7 @@ export interface RunOptions {
 export async function runAgent(userInput: string, opts: RunOptions = {}): Promise<RunResponse | ApiError> {
   if (MOCK) {
     await delay(400)
-    return fixture as unknown as RunResponse
+    return pickScenario(userInput).data
   }
   return postJSON<RunResponse>(
     '/agent/run',
@@ -57,14 +70,13 @@ const PUBLIC_PHASES: Array<{ phase: string; skill_id: string }> = [
 
 const MOCK_PHASE_DELAY = 1400
 
-function mockSnapshotUpTo(i: number): RunResponse {
-  const f = fixture as unknown as RunResponse
+function mockSnapshotUpTo(f: RunResponse, phaseCount: number, i: number): RunResponse {
   const phases: Record<string, unknown> = {}
   for (let k = 0; k <= i; k++) {
     const key = PUBLIC_PHASES[k].phase as keyof RunResponse['phases']
     if (f.phases[key] !== undefined) phases[key] = f.phases[key]
   }
-  const last = i === PUBLIC_PHASES.length - 1
+  const last = i === phaseCount - 1
   return {
     trace_id: f.trace_id,
     completed: last ? f.completed : null,
@@ -77,23 +89,25 @@ function mockSnapshotUpTo(i: number): RunResponse {
 }
 
 /** 离线模拟流式：按 phase 依次 emit phase_start/phase_done，最后 pipeline_complete。 */
-function mockStream(handlers: StreamHandlers): StreamController {
+function mockStream(handlers: StreamHandlers, userInput: string): StreamController {
+  const { data: f, phaseCount } = pickScenario(userInput)
+  const phases = PUBLIC_PHASES.slice(0, phaseCount)
   const timers: number[] = []
   let stopped = false
   handlers.onStatus?.('open', 0)
-  PUBLIC_PHASES.forEach((p, i) => {
+  phases.forEach((p, i) => {
     const t0 = window.setTimeout(() => {
       if (stopped) return
-      handlers.onEvent?.({ event: 'phase_start', data: { ...p, index: i, total: PUBLIC_PHASES.length } })
+      handlers.onEvent?.({ event: 'phase_start', data: { ...p, index: i, total: phaseCount } })
     }, i * MOCK_PHASE_DELAY + 200)
     const t1 = window.setTimeout(() => {
       if (stopped) return
       handlers.onEvent?.({
         event: 'phase_done',
-        data: { ...p, index: i, total: PUBLIC_PHASES.length, success: true, duration_ms: 0, snapshot: mockSnapshotUpTo(i) },
+        data: { ...p, index: i, total: phaseCount, success: true, duration_ms: 0, snapshot: mockSnapshotUpTo(f, phaseCount, i) },
       })
-      if (i === PUBLIC_PHASES.length - 1) {
-        handlers.onEvent?.({ event: 'pipeline_complete', data: { snapshot: mockSnapshotUpTo(i) } })
+      if (i === phaseCount - 1) {
+        handlers.onEvent?.({ event: 'pipeline_complete', data: { snapshot: mockSnapshotUpTo(f, phaseCount, i) } })
         handlers.onDone?.()
       }
     }, i * MOCK_PHASE_DELAY + MOCK_PHASE_DELAY)
@@ -109,7 +123,7 @@ function mockStream(handlers: StreamHandlers): StreamController {
 
 /** 流式运行系统：真实走 /agent/run/stream；MOCK 走离线模拟。 */
 export function runAgentStream(userInput: string, handlers: StreamHandlers, opts: RunOptions = {}): StreamController {
-  if (MOCK) return mockStream(handlers)
+  if (MOCK) return mockStream(handlers, userInput)
   return streamPost(
     '/api/v1/agent/run/stream',
     {

@@ -31,6 +31,7 @@ export type CardKey =
   | 'feedback'
   | 'verification'
   | 'governance'
+  | 'healthy'
 
 /** 公开 phase 名（对齐后端快照 phases 键）。 */
 export type PhaseKey = 'intent' | 'diagnosis' | 'cause' | 'strategy' | 'plan'
@@ -99,7 +100,9 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
       return lines(
         '拉取关键指标，排队比 = 排队长度 ÷ 进口道可容纳长度…',
         `排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${pct(saturationOf(diag?.metrics))}｜绿灯利用率 ${pct(diag?.metrics?.green_utilization)}`,
-        diag?.overflow_verification?.message,
+        diag?.healthy
+          ? '结论：各项指标均在正常区间，路口运行平稳、无溢出风险，无需干预'
+          : diag?.overflow_verification?.message,
       )
     case 'act4_bottleneck': {
       const dd = diag?.downstream_diagnosis
@@ -168,6 +171,7 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
         ? productCopy(`已锁定 ${intent.spatial_scene.target.inter_name}`)
         : '空间定位完成'
     case 'act3_overflow':
+      if (diag?.healthy) return '运行平稳，无溢出风险，无需干预'
       return productCopy(diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${pct(saturationOf(diag?.metrics))}`)
     case 'act4_bottleneck':
       return productCopy(downstreamConclusion(diag?.downstream_diagnosis))
