@@ -195,6 +195,75 @@ def build_timing_profile(signal: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+_WEEKDAY_LABELS = {1: "周一", 2: "周二", 3: "周三", 4: "周四", 5: "周五", 6: "周六", 7: "周日"}
+
+
+def _extract_day_label(period: Any, day_of_week: Any) -> str | None:
+    text = str(period or "")
+    for label in _WEEKDAY_LABELS.values():
+        if label in text:
+            return label
+    if isinstance(day_of_week, int) and day_of_week in _WEEKDAY_LABELS:
+        return _WEEKDAY_LABELS[day_of_week]
+    return None
+
+
+def _extract_peak_label(period: Any) -> str | None:
+    text = str(period or "")
+    for label in ("早高峰", "晚高峰", "平峰"):
+        if label in text:
+            return label
+    if "高峰" in text:
+        return "高峰"
+    return None
+
+
+def derive_problem_regularity(
+    *,
+    saturation: float | None,
+    queue_ratio: float | None = None,
+    period: Any = None,
+    day_of_week: Any = None,
+    flow_correlate: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """派生「常发性/周期性」定性判断（派生，非实测）。
+
+    后端当前无常发性/周期性实测指标，此处基于同时段饱和度/排队比与周内规律做
+    轻量启发式派生，并在 ``basis`` 明确标注为「派生」。任一依据缺失即安全降级为
+    ``{recurring:null, periodic:null, basis:"数据不足"}``，绝不抛异常、绝不编造精确统计。
+    """
+    sat = _to_float_or_none(saturation)
+    queue = _to_float_or_none(queue_ratio)
+
+    peak_label = _extract_peak_label(period)
+    day_label = _extract_day_label(period, day_of_week)
+    high_pressure = (sat is not None and sat >= THRESHOLDS["saturation_high"]) or (
+        queue is not None and queue >= THRESHOLDS["queue_ratio_warning"]
+    )
+
+    recurring: str | None = None
+    if high_pressure and peak_label is not None:
+        if sat is not None:
+            metric_text = f"饱和度 {sat:.2f}"
+        else:
+            metric_text = f"排队比 {queue:.2f}"
+        recurring = f"同时段周内规律显示{peak_label}该方向{metric_text} 持续偏高"
+
+    periodic: str | None = None
+    if day_label is not None:
+        level = "高" if high_pressure else "中"
+        periodic = f"{day_label}同时段历史规律显示该时段运行压力偏{level}"
+
+    if recurring is None and periodic is None:
+        return {"recurring": None, "periodic": None, "basis": "数据不足"}
+
+    if flow_correlate:
+        basis = "基于同时段饱和度与月度同时段流量规律（flow_correlate）派生，非实测统计"
+    else:
+        basis = "基于同时段饱和度与周内规律派生，非实测统计"
+    return {"recurring": recurring, "periodic": periodic, "basis": basis}
+
+
 def analyze_overflow(
     metrics_input: dict[str, Any],
     ticket: dict[str, Any],
@@ -348,6 +417,13 @@ def analyze_overflow(
             "lane_count": lane_count,
         },
         "timing_profile": build_timing_profile(signal),
+        "problem_regularity": derive_problem_regularity(
+            saturation=saturation,
+            queue_ratio=queue_ratio,
+            period=ticket.get("period") or ticket.get("time_window"),
+            day_of_week=ticket.get("day_of_week"),
+            flow_correlate=(pg_raw or {}).get("flow_correlate"),
+        ),
         "downstream_metrics": {
             "queue_ratio": downstream_metrics_raw.get("queue_storage_ratio_max"),
             "saturation": downstream_metrics_raw.get("saturation_rate"),

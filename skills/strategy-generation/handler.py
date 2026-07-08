@@ -65,6 +65,9 @@ class StrategyGenerationSkill(BaseSkill):
             "package_scores": profile["package_scores"],
             "strategy_instruction": profile["strategy_instruction"],
             "case_references": package_module.extract_case_lessons(cause),
+            "reference_basis": package_module.build_reference_basis(
+                cause, ticket, strategy_package=profile["strategy_package"]
+            ),
             "control_scope_map": scope_module.build_control_scope_map(diagnosis, ticket),
         }
         logger.info(
