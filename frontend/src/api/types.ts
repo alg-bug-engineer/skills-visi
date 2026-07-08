@@ -87,6 +87,22 @@ export interface IntentPhase {
   user_experiences?: UserExperience[]
 }
 
+/** 逐进口富指标（analyze_overflow.build_by_approach）。源缺失即空列表。 */
+export interface ApproachMetric {
+  approach: string
+  saturation: number | null
+  delay_index: number | null
+  los: string | null
+}
+
+/** 逐转向富指标（analyze_overflow.build_by_movement）。level ∈ 过饱和/偏高/正常/null。 */
+export interface MovementMetric {
+  movement: string
+  saturation: number | null
+  green_utilization: number | null
+  level: string | null
+}
+
 export interface Metrics {
   queue_length_m: number | null
   storage_length_m: number | null
@@ -97,6 +113,12 @@ export interface Metrics {
   stop_count: number | null
   avg_delay_s: number | null
   time_series_trend: string | null
+  // 需求13：运行数据卡富指标（可选，源缺失即缺省/空列表，前端守卫降级）
+  by_approach?: ApproachMetric[]
+  by_movement?: MovementMetric[]
+  imbalance_index?: number | null
+  approach_count?: number | null
+  lane_count?: number | null
   [k: string]: unknown
 }
 
@@ -184,8 +206,25 @@ export interface MapScene {
   [k: string]: unknown
 }
 
+/** 配时概览（analyze_overflow.build_timing_profile）。字段可能缺失为 null。 */
+export interface TimingProfile {
+  cycle_s: number | null
+  time_plan_count: number | null
+  plan_name: string | null
+}
+
+/** 问题规律（analyze_overflow.derive_problem_regularity，派生非实测）。basis 恒有值。 */
+export interface ProblemRegularity {
+  recurring: string | null
+  periodic: string | null
+  basis: string
+}
+
 export interface DiagnosisPhase {
   metrics?: Metrics
+  // 需求13：配时概览 + 问题规律（可选，缺失即降级不展示）
+  timing_profile?: TimingProfile | null
+  problem_regularity?: ProblemRegularity | null
   downstream_metrics?: Record<string, unknown>
   overflow_verification?: OverflowVerification
   downstream_diagnosis?: DownstreamDiagnosis
@@ -235,6 +274,12 @@ export interface CausePhase {
   [k: string]: unknown
 }
 
+/** 治理策略「参考依据」（select_package.build_reference_basis）。industry_scene 缺依据即 null。 */
+export interface ReferenceBasis {
+  industry_scene: string | null
+  intersection_case_ids: string[]
+}
+
 export interface StrategyPhase {
   strategy?: {
     principles?: string[]
@@ -244,6 +289,8 @@ export interface StrategyPhase {
     trigger_exit_rules?: Record<string, unknown>
   }
   strategy_package?: string
+  // 需求13：治理策略卡「参考依据」（可选，缺失即降级不展示）
+  reference_basis?: ReferenceBasis | null
   control_scope_map?: MapScene & {
     target_intersection?: { inter_id?: string; inter_name?: string; lng?: number; lat?: number }
     upstream_metering_points?: Array<Record<string, unknown>>

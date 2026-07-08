@@ -225,11 +225,70 @@
         "storage_length_m": 883.94,
         "queue_ratio": 0.1787,
         "saturation": 0.0305,
-        "los": "A",
+        "los": "F",
         "green_utilization": 0.5741,
         "stop_count": 0.59,
         "avg_delay_s": 41.04,
-        "time_series_trend": "pg_loaded"
+        "time_series_trend": "pg_loaded",
+        "by_approach": [
+          {
+            "approach": "东进口",
+            "saturation": 3.49,
+            "delay_index": 1.8,
+            "los": "F"
+          },
+          {
+            "approach": "西进口",
+            "saturation": 1.78,
+            "delay_index": 1.42,
+            "los": "F"
+          },
+          {
+            "approach": "北进口",
+            "saturation": 1.51,
+            "delay_index": 1.31,
+            "los": "E"
+          }
+        ],
+        "by_movement": [
+          {
+            "movement": "东左转",
+            "saturation": 1.77,
+            "green_utilization": 1.77,
+            "level": "过饱和"
+          },
+          {
+            "movement": "西左转",
+            "saturation": 1.12,
+            "green_utilization": 1.12,
+            "level": "过饱和"
+          },
+          {
+            "movement": "北直行",
+            "saturation": 0.97,
+            "green_utilization": 0.97,
+            "level": "过饱和"
+          },
+          {
+            "movement": "东直行",
+            "saturation": 0.93,
+            "green_utilization": 0.93,
+            "level": "偏高"
+          }
+        ],
+        "imbalance_index": 0.46,
+        "approach_count": 4,
+        "lane_count": 26
+      },
+      "timing_profile": {
+        "cycle_s": 206,
+        "time_plan_count": 33,
+        "plan_name": null
+      },
+      "problem_regularity": {
+        "recurring": "同时段周内规律显示晚高峰该方向饱和度 1.80 持续偏高",
+        "periodic": "周三同时段历史规律显示该时段运行压力偏高",
+        "basis": "基于同时段饱和度与周内规律派生，非实测统计"
       },
       "downstream_metrics": {
         "queue_ratio": null,
@@ -8904,6 +8963,12 @@
         "failure_lesson": "单点加绿后下游排队继续增长",
         "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
         "matched_count": 3
+      },
+      "reference_basis": {
+        "industry_scene": "一般路口优化",
+        "intersection_case_ids": [
+          "011wwe28ctu00001"
+        ]
       },
       "control_scope_map": {
         "action": "map_scene",
