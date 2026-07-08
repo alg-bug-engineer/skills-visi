@@ -7,9 +7,13 @@ import skillSolidifyFixture from '@/mock/skill_solidify_fixture.json'
 
 const MOCK = import.meta.env.VITE_MOCK === '1'
 
-/** 演示句默认输入（对齐 run_1）。 */
+/** 演示句默认输入（数据齐全 Case 1：解放东路-奥体中路，目标口与下游口 12 维度全通）。 */
 export const DEMO_INPUT =
-  '奥体西路与经十路交叉口，六点十分到六点半，西向东直行进口道，分析流量溯源和下游拓扑，优先避免下游继续外溢。'
+  '解放东路与奥体中路路口，早上七点半到七点五十，由南向北直行排队溢出到上游，下游坤顺路路口还有空间，优先避免下游继续外溢。'
+
+/** 数据齐全 Case 2：经十路辅路-洪山路，目标口与下游口 12 维度全通。 */
+export const DEMO_INPUT_CASE2 =
+  '经十路辅路与洪山路路口，早上八点二十五到八点四十五，西向东直行排队严重出现溢出，协调下游经十路与转山西路路口快速疏导消排。'
 
 /** 健康核验演示句：无问题路口，闭环在诊断后正常收尾。 */
 export const DEMO_INPUT_HEALTHY =

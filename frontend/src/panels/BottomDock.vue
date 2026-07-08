@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
-import { DEMO_INPUT, DEMO_INPUT_HEALTHY } from '@/api/endpoints'
+import { DEMO_INPUT, DEMO_INPUT_CASE2, DEMO_INPUT_HEALTHY } from '@/api/endpoints'
 import PlanDrawer from './PlanDrawer.vue'
 
 const store = usePresentationStore()
@@ -10,8 +10,8 @@ const { dock, userInput, acts, currentAct, signal, status } = storeToRefs(store)
 
 const examples = [
   DEMO_INPUT,
+  DEMO_INPUT_CASE2,
   DEMO_INPUT_HEALTHY,
-  '经十路与舜耕路口，晚高峰南向北左转排队严重，能不能加绿？',
 ]
 
 const progress = computed(() => {
@@ -35,7 +35,7 @@ const signalText = computed(
         <textarea
           v-model="userInput"
           rows="2"
-          placeholder="例如：转山西路与经十路交叉口，六点十分到六点半，东向西排队溢出到上游…"
+          placeholder="例如：解放东路与奥体中路路口，早上七点半到七点五十，由南向北直行排队溢出到上游…"
           @keydown.enter.exact.prevent="store.startRun()"
         />
         <button class="run" :disabled="status === 'submitting' || !userInput.trim()" @click="store.startRun()">
