@@ -53,6 +53,57 @@ def _write(public: dict, out_path: Path) -> None:
     )
 
 
+def _write_if_valid(public: dict, out_path: Path) -> int:
+    errors = _validate_public_evidence(public)
+    if errors:
+        print("✗ 方案证据字段不完整，拒绝写入前端回放 fixture：")
+        for error in errors:
+            print(f"  - {error}")
+        return 3
+    _write(public, out_path)
+    return 0
+
+
+def _validate_public_evidence(public: dict) -> list[str]:
+    timing = _first_candidate_timing(public)
+    if not timing:
+        return ["plan.candidates[0].timing"]
+
+    errors: list[str] = []
+    if timing.get("current_cycle_s") is None:
+        errors.append("plan.candidates[0].timing.current_cycle_s")
+
+    stages = timing.get("phase_stage_timing_list")
+    if not isinstance(stages, list) or not stages:
+        errors.append("plan.candidates[0].timing.phase_stage_timing_list")
+    else:
+        stage0 = stages[0] if isinstance(stages[0], dict) else {}
+        if not stage0.get("current_timing"):
+            errors.append("plan.candidates[0].timing.phase_stage_timing_list[0].current_timing")
+        movements = stage0.get("movements")
+        if not isinstance(movements, list) or not movements:
+            errors.append("plan.candidates[0].timing.phase_stage_timing_list[0].movements")
+
+    meta = timing.get("meta") if isinstance(timing.get("meta"), dict) else {}
+    intensity = meta.get("direction_intensity_list")
+    if not isinstance(intensity, list) or not intensity:
+        errors.append("plan.candidates[0].timing.meta.direction_intensity_list")
+    return errors
+
+
+def _first_candidate_timing(public: dict) -> dict | None:
+    plan = public.get("plan") if isinstance(public.get("plan"), dict) else {}
+    candidates = plan.get("candidates")
+    if isinstance(candidates, list) and candidates:
+        first = candidates[0]
+        if isinstance(first, dict) and isinstance(first.get("timing"), dict):
+            return first["timing"]
+    recommended = plan.get("recommended")
+    if isinstance(recommended, dict) and isinstance(recommended.get("timing"), dict):
+        return recommended["timing"]
+    return None
+
+
 def _public_from_log(log: dict) -> dict:
     """优先复用日志内已存的 public_response；否则用 artifacts 重建。"""
     public = log.get("public_response")
@@ -84,7 +135,9 @@ def capture_from_log(log_path: Path, out_path: Path) -> int:
         print(f"⚠️  该运行 completed != true（可能有 phase 失败），不建议作为 mock：{log_path}")
     public = _public_from_log(log)
     print(f"▶ 从运行日志提取：{log_path}")
-    _write(public, out_path)
+    rc = _write_if_valid(public, out_path)
+    if rc != 0:
+        return rc
     return 0 if public.get("completed") else 2
 
 
@@ -94,7 +147,8 @@ async def capture_live(user_input: str, out_path: Path) -> int:
 
     settings = get_settings()
     if getattr(settings, "llm_mock", False):
-        print("⚠️  LLM_MOCK=true：采集到的是 mock 数据而非真实请求（.env 设 false 后重跑）。")
+        print("✗ LLM_MOCK=true：禁止用 mock 数据生成前端回放 fixture（.env 设 false 后重跑）。")
+        return 3
 
     print(f"▶ 正在发起真实请求（可能数十秒）…\n  输入：{user_input}")
     agent = AgentService(settings)
@@ -103,8 +157,7 @@ async def capture_live(user_input: str, out_path: Path) -> int:
     if not public.get("completed"):
         print("⚠️  流水线未完整完成（个别 phase 失败/超时）；不覆盖建议重试。")
         return 2
-    _write(public, out_path)
-    return 0
+    return _write_if_valid(public, out_path)
 
 
 def main() -> int:

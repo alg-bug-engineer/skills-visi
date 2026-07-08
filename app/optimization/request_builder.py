@@ -96,6 +96,7 @@ def _build_phase_plan(signal: dict[str, Any], inter_id: str) -> dict[str, Any]:
                 "greenSec": green,
                 "yellowSec": yellow,
                 "allRedSec": all_red,
+                "stageTotalSec": (green + yellow + all_red) if green is not None else None,
             },
         }
         green_bounds: dict[str, Any] = {}
@@ -141,8 +142,19 @@ def _resolve_stage_dir_infos(stage: dict[str, Any]) -> list[dict[str, Any]]:
                 "turnDirNo": int(turn),
                 "turnFlowTotal": float(vph) if vph is not None else 0.0,
             }
+            for key in (
+                "movementKey",
+                "movement_key",
+                "label",
+                "saturation",
+                "flow_available",
+                "source",
+                "historyVirtualFlowVph",
+            ):
+                if key in item:
+                    entry[key] = item[key]
             lane = item.get("laneCount")
-            if lane:
+            if lane is not None:
                 entry["laneCount"] = int(lane)
             infos.append(entry)
         if infos:

@@ -109,4 +109,34 @@ describe('DataMetricsCard', () => {
     // no per-approach rows
     expect(text).not.toContain('东进口')
   })
+
+  it('renders saturation_rate when saturation alias is absent', () => {
+    const store = usePresentationStore()
+    store.response = {
+      trace_id: 't',
+      completed: true,
+      pipeline_complete: true,
+      diagnosis_ticket: null,
+      phases: {
+        diagnosis: {
+          metrics: {
+            queue_ratio: 0.2,
+            queue_length_m: 40,
+            storage_length_m: 200,
+            saturation_rate: 0.88,
+            green_utilization: 0.57,
+            stop_count: 1.2,
+            avg_delay_s: 35,
+            time_series_trend: 'pg_loaded',
+          },
+        },
+      },
+      plan: null,
+      phase_results: [],
+    } as unknown as RunResponse
+
+    const wrapper = mount(DataMetricsCard)
+
+    expect(wrapper.text()).toContain('88.0%')
+  })
 })

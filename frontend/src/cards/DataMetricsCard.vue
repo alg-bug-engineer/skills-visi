@@ -10,6 +10,7 @@ import type { MovementMetric } from '@/api/types'
 const store = usePresentationStore()
 const m = computed(() => store.diagnosis?.metrics ?? null)
 const tk = computed(() => store.ticket ?? null)
+const saturation = computed(() => m.value?.saturation ?? m.value?.saturation_rate ?? null)
 const ov = computed(() => store.diagnosis?.overflow_verification ?? null)
 
 const qrTone = computed(() => ratioTone(m.value?.queue_ratio))
@@ -137,7 +138,7 @@ const overallLos = computed(() => m.value?.los ?? null)
       <div class="grid">
         <div class="cell"><span class="v us-mono">{{ meters(m.queue_length_m) }}</span><span class="k">排队长度</span></div>
         <div class="cell"><span class="v us-mono">{{ meters(m.storage_length_m) }}</span><span class="k">蓄车长度</span></div>
-        <div class="cell"><span class="v us-mono">{{ pct(m.saturation) }}</span><span class="k">饱和度</span></div>
+        <div class="cell"><span class="v us-mono">{{ pct(saturation) }}</span><span class="k">饱和度</span></div>
         <div class="cell" :class="`tone-${guTone}`">
           <span class="v us-mono">{{ pct(m.green_utilization) }}</span><span class="k">绿灯利用率</span>
         </div>

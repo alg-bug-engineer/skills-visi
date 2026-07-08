@@ -167,7 +167,7 @@ watch(toast, (v) => {
   transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .rail--up {
-  bottom: calc(46vh + 28px);
+  bottom: calc(56vh + 28px);
 }
 .rail--left {
   left: 16px;

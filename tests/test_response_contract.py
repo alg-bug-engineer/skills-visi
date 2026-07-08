@@ -33,6 +33,70 @@ def test_public_plan_recommendation_exposed():
     assert payload["pipeline_complete"] is True
 
 
+def test_public_plan_preserves_timing_evidence_fields():
+    payload = build_public_run_response(
+        {
+            "trace_id": "t2",
+            "completed": True,
+            "pipeline_complete": True,
+            "diagnosis_ticket": {"intersection_name": "文化西路"},
+            "artifacts": {
+                "plan_generation": {
+                    "candidates": [
+                        {
+                            "plan_id": "downstream_protection",
+                            "timing": {
+                                "available": True,
+                                "current_cycle_s": 130,
+                                "cycle_s": 98,
+                                "cycle_delta_s": -32,
+                                "phase_stage_timing_list": [
+                                    {
+                                        "phase_stage_id": "1",
+                                        "current_timing": {"green_time_s": 60, "stage_total_s": 65},
+                                        "optimized_timing": {"green_time_s": 36, "stage_total_s": 41},
+                                        "movements": [{"movement_key": "d6_t2", "label": "西直"}],
+                                    }
+                                ],
+                                "meta": {
+                                    "direction_intensity_list": [{"movementKey": "d6_t2", "intensity": 0.75}],
+                                    "data_quality": {"current_timing_source": "pg_signal_plan"},
+                                },
+                            },
+                        }
+                    ],
+                    "recommended": {
+                        "plan_id": "downstream_protection",
+                        "timing": {
+                            "current_cycle_s": 130,
+                            "phase_stage_timing_list": [
+                                {
+                                    "current_timing": {"green_time_s": 60},
+                                    "movements": [{"movement_key": "d6_t2"}],
+                                }
+                            ],
+                            "meta": {
+                                "direction_intensity_list": [{"movementKey": "d6_t2", "intensity": 0.75}],
+                                "data_quality": {"movement_source": "pg_turn_flow+pg_turn_saturation"},
+                            },
+                        },
+                    },
+                },
+            },
+            "results": [],
+        }
+    )
+
+    candidate = payload["plan"]["candidates"][0]
+    assert candidate["timing"]["current_cycle_s"] == 130
+    assert candidate["timing"]["cycle_delta_s"] == -32
+    assert "current_timing" in candidate["timing"]["phase_stage_timing_list"][0]
+    assert "optimized_timing" in candidate["timing"]["phase_stage_timing_list"][0]
+    assert "movements" in candidate["timing"]["phase_stage_timing_list"][0]
+    assert "direction_intensity_list" in candidate["timing"]["meta"]
+    assert "data_quality" in candidate["timing"]["meta"]
+
+
 def test_strategy_fields_from_profile():
     import importlib.util
     from pathlib import Path

@@ -1,4 +1,4 @@
-import type { RunResponse } from '@/api/types'
+import type { Metrics, RunResponse } from '@/api/types'
 import { pct, ratio } from '@/utils/format'
 
 export type HudMetric = { label: string; value: string; severity: 'high' | 'medium' | 'low' }
@@ -26,15 +26,20 @@ function sevFromQueueRatio(q: number | null | undefined): 'high' | 'medium' | 'l
   return 'low'
 }
 
+function saturationOf(m: Metrics): number | null | undefined {
+  return m.saturation ?? m.saturation_rate
+}
+
 export function buildHudMetrics(resp: RunResponse | null): HudMetric[] {
   const m = resp?.phases?.diagnosis?.metrics
   if (!m) return []
   const items: HudMetric[] = []
+  const saturation = saturationOf(m)
   if (m.queue_ratio != null) {
     items.push({ label: '排队比', value: ratio(m.queue_ratio), severity: sevFromQueueRatio(m.queue_ratio) })
   }
-  if (m.saturation != null) {
-    items.push({ label: '饱和度', value: pct(m.saturation), severity: sevFromSaturation(m.saturation) })
+  if (saturation != null) {
+    items.push({ label: '饱和度', value: pct(saturation), severity: sevFromSaturation(saturation) })
   }
   if (m.green_utilization != null) {
     items.push({
@@ -68,15 +73,16 @@ export function buildMetricMarkers(
   const ticket = resp.diagnosis_ticket
   const dir = ticket?.direction ?? '东'
   const markers: MapMarkerSpec[] = []
+  const saturation = saturationOf(m)
 
-  if (m.saturation != null) {
+  if (saturation != null) {
     const offset = dirOffset(center, dir, 0.0012)
     markers.push({
       position: offset,
       kind: 'metric',
       title: `${dir}向饱和`,
-      value: pct(m.saturation),
-      severity: sevFromSaturation(m.saturation),
+      value: pct(saturation),
+      severity: sevFromSaturation(saturation),
     })
   }
   if (m.queue_ratio != null) {

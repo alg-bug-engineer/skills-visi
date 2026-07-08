@@ -23,7 +23,17 @@ def _signal_with_binding() -> dict:
                 "maxGreenTime": 90,
                 "phaseDirInfoDTOList": [
                     {"dir8No": 6, "turnDirNo": 2, "turnFlowTotal": 850, "laneCount": 3, "flow_available": True},
-                    {"dir8No": 2, "turnDirNo": 2, "turnFlowTotal": 700, "laneCount": 3, "flow_available": True},
+                    {
+                        "movementKey": "d2_t2",
+                        "label": "东直",
+                        "dir8No": 2,
+                        "turnDirNo": 2,
+                        "turnFlowTotal": 700,
+                        "laneCount": 3,
+                        "saturation": 0.82,
+                        "flow_available": True,
+                        "source": "pg_turn_flow",
+                    },
                 ],
             },
             {
@@ -57,6 +67,7 @@ def test_request_passes_current_timing_and_green_bounds():
     s1 = stages[0]
     # 现状绿 + 真实最小绿透传（引擎据此避免回落默认 14s）
     assert s1["currentTiming"]["greenSec"] == 60
+    assert s1["currentTiming"]["stageTotalSec"] == 65
     assert s1["greenBounds"]["minGreenS"] == 35
     assert s1["greenBounds"]["maxGreenS"] == 90
     assert s1["min_green_s"] == 35
@@ -74,6 +85,12 @@ def test_request_expands_multi_movement_and_uses_real_flow():
     assert all(d["turnFlowTotal"] != 500 for d in dir_infos)
     assert {d["laneCount"] for d in dir_infos} == {3}
     assert {d["dir8No"] for d in dir_infos} == {6, 2}
+    east = next(d for d in dir_infos if d["dir8No"] == 2)
+    assert east["movementKey"] == "d2_t2"
+    assert east["label"] == "东直"
+    assert east["saturation"] == 0.82
+    assert east["flow_available"] is True
+    assert east["source"] == "pg_turn_flow"
 
 
 def test_request_skips_unlocatable_movement():

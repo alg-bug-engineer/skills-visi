@@ -110,7 +110,8 @@ export interface Metrics {
   queue_length_m: number | null
   storage_length_m: number | null
   queue_ratio: number | null
-  saturation: number | null
+  saturation?: number | null
+  saturation_rate?: number | null
   los?: string | null
   green_utilization: number | null
   stop_count: number | null
@@ -312,7 +313,65 @@ export interface PhaseStageTiming {
   min_green_time_s?: number
   max_green_time_s?: number
   split_ratio?: number
+  phase_saturation?: number | null
+  current_timing?: StageTimingPart | null
+  optimized_timing?: StageTimingPart | null
+  green_delta_s?: number | null
+  stage_delta_s?: number | null
+  movements?: StageMovement[]
   [k: string]: unknown
+}
+
+export interface StageMovement {
+  movement_key?: string | null
+  movementKey?: string | null
+  label?: string | null
+  dir8No?: number | null
+  turnDirNo?: number | null
+  turnFlowTotal?: number | null
+  laneCount?: number | null
+  saturation?: number | null
+  flow_available?: boolean | null
+  source?: string | null
+  historyVirtualFlowVph?: number | null
+}
+
+export interface StageTimingPart {
+  green_time_s?: number | null
+  yellow_time_s?: number | null
+  all_red_time_s?: number | null
+  stage_total_s?: number | null
+}
+
+export interface DirectionIntensity {
+  movementKey?: string | null
+  label?: string | null
+  dir8No?: number | null
+  turnDirNo?: number | null
+  intensity?: number | null
+  flow_source?: string | null
+  historyVirtualFlowVph?: number | null
+}
+
+export interface OptimizationMeta {
+  solver?: string | null
+  target_saturation?: number | null
+  max_phase_saturation?: number | null
+  total_turn_flow_vph?: number | null
+  direction_intensity_list?: DirectionIntensity[]
+  notes?: string[]
+  data_quality?: Record<string, unknown>
+}
+
+export interface PlanTimingEvidence {
+  available?: boolean | null
+  reason?: string | null
+  missing_fields?: string[]
+  current_cycle_s?: number | null
+  cycle_s?: number | null
+  cycle_delta_s?: number | null
+  phase_stage_timing_list?: PhaseStageTiming[]
+  meta?: OptimizationMeta | null
 }
 
 export interface PlanCandidate {
@@ -321,7 +380,7 @@ export interface PlanCandidate {
   status: string
   scenario?: string
   case_basis?: { matched_cases?: number; lesson?: string }
-  timing?: { cycle_s?: number; phase_stage_timing_list?: PhaseStageTiming[] }
+  timing?: PlanTimingEvidence
   upstream_control?: { enabled?: boolean; control_points?: unknown[] }
   phase_offset_sec?: number
   pedestrian_constraints?: { satisfied?: boolean; violations?: string[] }

@@ -41,7 +41,7 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     }
   })
 
-  test('演进到方案抽屉：相位图/比选可见并截图', async ({ page }) => {
+  test('演进到方案抽屉：方案证据面板/协调图可见并截图', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('button', { name: '开始推演' }).click()
     await expect(page.getByTestId('process-panel')).toBeVisible({ timeout: 15_000 })
@@ -49,7 +49,10 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     // 流式门控：随各 phase 到达自动推进到幕八，方案抽屉出现
     const drawer = page.getByTestId('plan-drawer')
     await expect(drawer).toBeVisible({ timeout: 40_000 })
-    await expect(page.getByTestId('phase-diagram')).toBeVisible()
+    await expect(page.getByTestId('plan-evidence-panel')).toBeVisible()
+    await expect(drawer.getByText('干线协调关系')).toBeVisible()
+    await expect(drawer.getByText('推荐理由')).toHaveCount(0)
+    await expect(drawer.getByText(/暂不绘制协调图/)).toHaveCount(0)
     await page.waitForTimeout(500)
     await page.screenshot({ path: `${SHOTS}/02-plan-stage.png` })
 
@@ -60,13 +63,8 @@ test.describe('九幕演示 · 布局与遮挡', () => {
       expect(railL.y + railL.height).toBeLessThanOrEqual(dockBox.y + 2)
     }
 
-    // 切换多方案比选
-    await page.getByRole('button', { name: '多方案比选' }).click()
-    await expect(page.getByTestId('plan-compare')).toBeVisible()
-    await page.screenshot({ path: `${SHOTS}/03-plan-compare.png` })
-
-    // 决策：拒绝 → 展开修改意见输入
-    await page.getByRole('button', { name: '拒绝 / 修改' }).click()
+    // 决策：退回 → 展开修改意见输入
+    await page.getByRole('button', { name: '退回修改' }).click()
     await expect(page.getByPlaceholder(/修改意见/)).toBeVisible()
     await page.screenshot({ path: `${SHOTS}/04-reject.png` })
   })

@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from app.trace.geometry import orient_path, parse_linestring_wkt, parse_point_wkt
-from app.trace.topology import exit_dir8_for_turn, movement_label, resolve_dir8_turn
+from app.trace.topology import TURN_LABEL, exit_dir8_for_turn, movement_label, resolve_dir8_turn
 
 
 def parse_day_of_week(ticket: dict[str, Any]) -> int:
@@ -49,19 +49,38 @@ def metrics_for_diagnosis(pg_metrics: dict[str, Any], ticket: dict[str, Any]) ->
     movement = ticket.get("movement", "直行")
     dir8, turn = resolve_dir8_turn(direction, movement)
 
-    target_sat = _pick_movement_metric(pg_metrics.get("movement_saturation") or {}, dir8, turn)
-    target_flow = _pick_movement_metric(pg_metrics.get("movement_volume") or {}, dir8, turn)
+    target_sat = _pick_row_metric(
+        pg_metrics.get("turn_saturation_detail") or [],
+        dir8,
+        turn,
+        ("turn_saturation", "saturation", "saturation_rate"),
+    )
+    if target_sat is None:
+        target_sat = _pick_movement_metric(pg_metrics.get("movement_saturation") or {}, dir8, turn)
+    saturation = float(target_sat if target_sat is not None else pg_metrics.get("saturation") or 0)
+
+    target_flow = _pick_row_metric(
+        pg_metrics.get("turn_flow_detail") or [],
+        dir8,
+        turn,
+        ("turn_flow_total", "flow_vph", "volume_vph", "volume"),
+    )
+    if target_flow is None:
+        target_flow = _pick_movement_metric(pg_metrics.get("movement_volume") or {}, dir8, turn)
+    volume = float(target_flow if target_flow is not None else pg_metrics.get("volume") or 0)
 
     return {
         "queue_length_m": float(pg_metrics.get("queue_m") or 0),
         "storage_length_m": float(pg_metrics.get("storage_m") or 200),
-        "volume_vph": float(target_flow or pg_metrics.get("volume") or 0),
-        "capacity_vph": float(pg_metrics.get("capacity") or 0) or max(float(target_flow or 0) / max(target_sat or 0.8, 0.1), 1),
+        "volume_vph": volume,
+        "capacity_vph": float(pg_metrics.get("capacity") or 0) or max(volume / max(saturation or 0.8, 0.1), 1),
+        "saturation": saturation,
+        "saturation_rate": saturation,
         "green_utilization": float(pg_metrics.get("green_utilization") or 0),
         "stop_count": float(pg_metrics.get("stop_count") or 0),
         "avg_delay_s": float(pg_metrics.get("avg_delay_s") or 0),
         "time_series_trend": "pg_loaded",
-        "upstream_arrival_intensity": "high" if float(pg_metrics.get("saturation") or 0) >= 0.8 else "medium",
+        "upstream_arrival_intensity": "high" if saturation >= 0.8 else "medium",
     }
 
 
@@ -76,25 +95,40 @@ def _target_center(inter: dict[str, Any]) -> tuple[float | None, float | None]:
 def _coverage_index(
     correlate_rows: list[dict[str, Any]], dir8_code: int, turn_dir_no: int
 ) -> dict[tuple[str, str], float]:
-    """构建 (trace_type, cor_inter_id) → 最大占比 的覆盖索引（限定基准进口方向）。
+    """构建 (trace_type, cor_inter_id) → 覆盖率索引（限定基准进口方向）。
 
-    覆盖率（flow_share_ratio）为真实统计值；优先匹配问题转向，其次同进口任意转向。
+    上游来向（PG trace_type=DOWNSTREAM）采用同进口物理合流口径；下游去向
+    （PG trace_type=UPSTREAM）保持目标转向的一跳严格口径。
     """
     best: dict[tuple[str, str], float] = {}
+    combined_upstream: dict[tuple[str, str], float] = {}
     for row in correlate_rows or []:
-        if int(row.get("f_dir8_no") or -1) != int(dir8_code):
+        try:
+            row_dir8 = int(row.get("f_dir8_no"))
+        except (TypeError, ValueError):
+            continue
+        if row_dir8 != int(dir8_code):
             continue
         cor_id = str(row.get("cor_inter_id") or "")
         if not cor_id:
             continue
         trace_type = str(row.get("trace_type") or "").upper()
-        share = float(row.get("flow_share_ratio") or row.get("share_pct") or 0)
-        # 问题转向权重更高：非目标转向打 0.6 折扣用于择优（不改变展示值）
-        weight = share if int(row.get("turn_dir_no") or 0) == int(turn_dir_no) else share * 0.6
+        try:
+            row_turn = int(row.get("turn_dir_no"))
+            share = float(row.get("flow_share_ratio") or row.get("share_pct") or 0)
+        except (TypeError, ValueError):
+            continue
         key = (trace_type, cor_id)
+        if trace_type == "DOWNSTREAM":
+            combined_upstream[key] = combined_upstream.get(key, 0.0) + share
+            continue
+        if row_turn != int(turn_dir_no):
+            continue
         prev = best.get(key)
-        if prev is None or weight > prev:
+        if prev is None or share > prev:
             best[key] = share
+    for key, share in combined_upstream.items():
+        best[key] = round(share, 2)
     return best
 
 
@@ -235,11 +269,78 @@ def merge_pg_task_into_context(task: dict[str, Any], pg_task: dict[str, Any]) ->
             task[key] = {**(task.get(key) or {}), **pg_task[key]}
 
 
+def _as_float_or_none(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _row_dir8(row: dict[str, Any]) -> int | None:
+    for key in ("dir8No", "dir8_no", "f_dir_8", "f_dir8_no", "dir8"):
+        value = _as_float_or_none(row.get(key))
+        if value is not None:
+            return int(value)
+    return None
+
+
+def _row_turn(row: dict[str, Any]) -> int | None:
+    for key in ("turnDirNo", "turn_dir_no", "turn"):
+        value = _as_float_or_none(row.get(key))
+        if value is not None:
+            return int(value)
+    return None
+
+
+def _pick_row_metric(
+    rows: list[dict[str, Any]],
+    dir8: int,
+    turn: int,
+    fields: tuple[str, ...],
+) -> float | None:
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if _row_dir8(row) != int(dir8) or _row_turn(row) != int(turn):
+            continue
+        for field in fields:
+            value = _as_float_or_none(row.get(field))
+            if value is not None:
+                return value
+    return None
+
+
+def _metric_value(value: Any) -> float | None:
+    if isinstance(value, dict):
+        for key in ("value", "saturation", "saturation_rate", "volume", "flow_vph", "turn_flow_total"):
+            parsed = _as_float_or_none(value.get(key))
+            if parsed is not None:
+                return parsed
+        return None
+    return _as_float_or_none(value)
+
+
+def _movement_key_matches(text: str, dir8: int, turn: int) -> bool:
+    normalized = text.strip()
+    candidates = {
+        f"d{dir8}_t{turn}",
+        f"dir{dir8}_turn{turn}",
+        movement_label(dir8, turn),
+    }
+    turn_label = TURN_LABEL.get(int(turn))
+    if turn_label:
+        candidates.add(f"{dir8}_{turn_label}")
+    return any(candidate and candidate in normalized for candidate in candidates)
+
+
 def _pick_movement_metric(mapping: dict[str, Any], dir8: int, turn: int) -> float | None:
     for key, value in mapping.items():
-        text = str(key)
-        if str(dir8) in text and str(turn) in text:
-            return float(value)
-    if mapping:
-        return float(next(iter(mapping.values())))
+        if isinstance(value, dict) and _row_dir8(value) == int(dir8) and _row_turn(value) == int(turn):
+            return _metric_value(value)
+        if _movement_key_matches(str(key), dir8, turn):
+            return _metric_value(value)
+    if len(mapping) == 1:
+        return _metric_value(next(iter(mapping.values())))
     return None

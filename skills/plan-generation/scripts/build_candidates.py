@@ -99,6 +99,11 @@ def build_plan_candidates(
                 # 优化输入缺失/结果塌缩：回退真实现状配时调整（adjust_phase_timing），
                 # 不以退化占位配时冒充优化结果，并透传降级原因供审计。
                 optimizer_degraded_reason = optimized.get("reason")
+                adjusted["timing"] = _mark_timing_unavailable(
+                    adjusted.get("timing") or {},
+                    reason=optimizer_degraded_reason or "优化器结果退化，无法生产级展示",
+                    missing_fields=optimized.get("missing_fields"),
+                )
 
         plan_body = {
             **draft,
@@ -145,6 +150,23 @@ def build_plan_candidates(
             }
         )
     return candidates, optimizer_engine
+
+
+def _mark_timing_unavailable(
+    timing: dict[str, Any],
+    *,
+    reason: str,
+    missing_fields: list[str] | None = None,
+) -> dict[str, Any]:
+    fields = list(missing_fields or [])
+    if "timing.meta.direction_intensity_list" not in fields:
+        fields.append("timing.meta.direction_intensity_list")
+    return {
+        **timing,
+        "available": False,
+        "reason": reason,
+        "missing_fields": fields,
+    }
 
 
 def _rejected_candidate(

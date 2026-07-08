@@ -123,6 +123,49 @@ def test_topology_builds_real_geometry_nodes():
     assert down["share_pct"] == 42.1
 
 
+def test_topology_combines_upstream_same_entry_turns_but_keeps_downstream_strict():
+    raw = _demo_raw()
+    raw["flow_correlate"] = [
+        {
+            "f_dir8_no": 2,
+            "turn_dir_no": 2,
+            "cor_inter_id": "UP1",
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 79.31,
+        },
+        {
+            "f_dir8_no": 2,
+            "turn_dir_no": 1,
+            "cor_inter_id": "UP1",
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 11.57,
+        },
+        {
+            "f_dir8_no": 2,
+            "turn_dir_no": 2,
+            "cor_inter_id": "DOWN1",
+            "trace_type": "UPSTREAM",
+            "flow_share_ratio": 42.1,
+        },
+        {
+            "f_dir8_no": 2,
+            "turn_dir_no": 1,
+            "cor_inter_id": "DOWN1",
+            "trace_type": "UPSTREAM",
+            "flow_share_ratio": 20.0,
+        },
+    ]
+
+    topo = topology_from_pg_raw(
+        raw,
+        {"direction": "东向西", "movement": "直行", "intersection_name": "经十路与转山西路路口"},
+        raw["inter"],
+    )
+
+    assert topo["upstream_nodes"][0]["upstream_movements"][0]["share_pct"] == 90.88
+    assert topo["downstream_nodes"][0]["share_pct"] == 42.1
+
+
 def test_channelization_map_scene_joins_real_link_geometry():
     raw = {
         "channelization": [
@@ -353,6 +396,123 @@ def test_flow_trace_links_sniff_map_scene_uses_correlate_peer_link_geometry():
     assert scene["intersections"][2]["path_coverage"] == 76.5
     assert scene["intersections"][1]["links"][0]["link_id"] == "P1_L"
     json.dumps(scene, ensure_ascii=False)
+
+
+def test_flow_trace_links_sniff_map_scene_combines_upstream_same_entry_turns():
+    raw = _demo_raw()
+    raw["flow_correlate"] = [
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 2,
+            "cor_inter_id": "P1",
+            "cor_inter_name": "主链一",
+            "cor_f_dir8_no": 6,
+            "cor_turn_dir_no": 2,
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 79.31,
+        },
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 1,
+            "cor_inter_id": "P1",
+            "cor_inter_name": "主链一",
+            "cor_f_dir8_no": 6,
+            "cor_turn_dir_no": 2,
+            "trace_type": "DOWNSTREAM",
+            "flow_share_ratio": 11.57,
+        },
+    ]
+    raw["peer_link_geometry"] = [
+        {
+            "inter_id": "P1",
+            "inter_name": "主链一",
+            "lng": 117.09,
+            "lat": 36.65,
+            "link_id": "P1_L",
+            "link_role": "entrance",
+            "geom_wkt": "LINESTRING(117.08 36.65, 117.09 36.65)",
+        }
+    ]
+    topology = {
+        "target_inter_id": "TARGET",
+        "target_inter_name": "目标",
+        "target_lng": 117.10159,
+        "target_lat": 36.657529,
+        "dir8_code": 6,
+        "turn_dir_no": 2,
+        "upstream_nodes": [],
+        "downstream_nodes": [],
+    }
+
+    scene = build_flow_trace_links_sniff_map_scene(
+        pg_raw=raw,
+        topology=topology,
+        target_profile={"inter_id": "TARGET", "inter_name": "目标", "lng": 117.10159, "lat": 36.657529},
+        direction="西向东",
+        movement="直行",
+    )
+
+    assert scene["available"] is True
+    assert scene["intersections"][1]["path_coverage"] == 90.88
+
+
+def test_flow_trace_links_sniff_map_scene_keeps_downstream_single_turn():
+    raw = _demo_raw()
+    raw["flow_correlate"] = [
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 2,
+            "cor_inter_id": "D1",
+            "cor_inter_name": "下游一跳",
+            "cor_f_dir8_no": 6,
+            "cor_turn_dir_no": 2,
+            "trace_type": "UPSTREAM",
+            "flow_share_ratio": 42.1,
+        },
+        {
+            "f_dir8_no": 6,
+            "turn_dir_no": 1,
+            "cor_inter_id": "D1",
+            "cor_inter_name": "下游一跳",
+            "cor_f_dir8_no": 6,
+            "cor_turn_dir_no": 2,
+            "trace_type": "UPSTREAM",
+            "flow_share_ratio": 20.0,
+        },
+    ]
+    raw["peer_link_geometry"] = [
+        {
+            "inter_id": "D1",
+            "inter_name": "下游一跳",
+            "lng": 117.09,
+            "lat": 36.65,
+            "link_id": "D1_L",
+            "link_role": "exit",
+            "geom_wkt": "LINESTRING(117.10 36.65, 117.09 36.65)",
+        }
+    ]
+    topology = {
+        "target_inter_id": "TARGET",
+        "target_inter_name": "目标",
+        "target_lng": 117.10159,
+        "target_lat": 36.657529,
+        "dir8_code": 6,
+        "turn_dir_no": 2,
+        "upstream_nodes": [],
+        "downstream_nodes": [],
+    }
+
+    scene = build_flow_trace_links_sniff_map_scene(
+        pg_raw=raw,
+        topology=topology,
+        target_profile={"inter_id": "TARGET", "inter_name": "目标", "lng": 117.10159, "lat": 36.657529},
+        direction="西向东",
+        movement="直行",
+        trace_direction="downstream",
+    )
+
+    assert scene["available"] is True
+    assert scene["intersections"][1]["path_coverage"] == 42.1
 
 
 def test_flow_trace_links_sniff_map_scene_only_renders_main_corridor_by_default():

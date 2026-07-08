@@ -32,6 +32,7 @@ def build_intersection_profile(node: dict[str, Any]) -> dict[str, Any]:
         "receiving_label": node.get("receiving_label"),
         "metrics": {
             "avg_delay_s": node.get("avg_delay_s"),
+            "saturation": saturation,
             "saturation_rate": saturation,
             "avg_queue_m": node.get("queue_length_m"),
             "max_queue_m": node.get("queue_length_m"),

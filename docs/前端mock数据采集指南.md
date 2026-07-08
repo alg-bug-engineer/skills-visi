@@ -1,6 +1,8 @@
 # 前端 Mock 数据采集指南
 
-`scripts/capture_frontend_mock.py` 用于把后端真实跑出的一次「完整九幕」数据，固化成前端离线回放用的 mock fixture，方便反复调试页面 UI/布局，而不必每次都发起真实请求（真实请求要连 Qwen + PostgreSQL，耗时数十秒且受模型时延影响）。
+`scripts/capture_frontend_mock.py` 用于把后端真实跑出的一次「完整九幕」数据，固化成前端离线回放用的 fixture，方便反复调试页面 UI/布局，而不必每次都发起真实请求（真实请求要连 Qwen + PostgreSQL，耗时数十秒且受模型时延影响）。
+
+> 约束：`VITE_MOCK=1` 只是回放真实 fixture，不是造数模式。方案生成所需的现状周期、阶段现状/优化对比、释放方向、供需强度和审计信息必须来自后端真实运行结果；禁止手工编辑 `frontend/src/mock/run_1_fixture.json` 补字段。
 
 ## 产物
 
@@ -68,10 +70,17 @@
 
 前置条件：
 
-- `.env` 中 `LLM_MOCK=false`（否则采集到的是规则化 mock 数据，脚本会告警）
+- `.env` 中 `LLM_MOCK=false`（否则脚本拒绝写入）
 - PostgreSQL 可达、`QWEN_API_KEY` 已配置
 
 若流水线未完整完成（个别 phase 失败/超时），脚本不会覆盖已有 fixture，返回码 `2`，建议重试。
+
+方案证据字段不完整时，脚本也不会覆盖已有 fixture，返回码 `3`。当前校验至少要求：
+
+- `plan.candidates[0].timing.current_cycle_s`
+- `plan.candidates[0].timing.phase_stage_timing_list[0].current_timing`
+- `plan.candidates[0].timing.phase_stage_timing_list[0].movements`
+- `plan.candidates[0].timing.meta.direction_intensity_list`
 
 ## 参数与退出码
 
@@ -81,7 +90,7 @@
 | `capture_frontend_mock.py --from-log <日志路径> [输出路径]` | 日志路径必填 |
 | `capture_frontend_mock.py --live ["问题"] [输出路径]` | 均可选 |
 
-退出码：`0` 成功；`1` 未找到日志/日志不存在；`2` 数据未完整完成（未覆盖）。
+退出码：`0` 成功；`1` 未找到日志/日志不存在；`2` 数据未完整完成（未覆盖）；`3` 禁止写入（mock live 或方案证据字段不完整）。
 
 ## 让前端用上新 fixture
 

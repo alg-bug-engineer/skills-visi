@@ -106,23 +106,29 @@ def _best_share_by_inter(
     raw: dict[str, Any],
     dir8_code: int,
     turn_dir_no: int,
+    trace_direction: str,
     period_type: str | None = None,
 ) -> dict[str, float]:
     """Return real flow-correlate share by correlated intersection id.
 
-    Preferred rows match the problem movement; same-entry fallback is retained because the
-    reference sniff view shows all real peers rather than fabricating missing percentages.
+    Upstream incoming trace uses same-entry combined share; downstream outgoing trace keeps
+    the target-turn share so direct downstream capacity is not diluted by unrelated turns.
     ``period_type`` limits rows to a single diagnosis period (真实单时段口径)。
     """
-    best: dict[str, tuple[float, float]] = {}
+    trace_type = "UPSTREAM" if trace_direction == "downstream" else "DOWNSTREAM"
+    combined: dict[str, float] = {}
+    best: dict[str, float] = {}
     for row in raw.get("flow_correlate") or []:
         if not _period_match(row, period_type):
             continue
         try:
             row_dir8 = int(row.get("f_dir8_no"))
+            row_turn = int(row.get("turn_dir_no"))
         except (TypeError, ValueError):
             continue
         if row_dir8 != int(dir8_code):
+            continue
+        if str(row.get("trace_type") or "").upper() != trace_type:
             continue
         cor_id = str(row.get("cor_inter_id") or "")
         if not cor_id:
@@ -131,12 +137,17 @@ def _best_share_by_inter(
             share = float(row.get("flow_share_ratio") or row.get("share_pct") or 0)
         except (TypeError, ValueError):
             continue
-        movement_bonus = 1000.0 if int(row.get("turn_dir_no") or 0) == int(turn_dir_no) else 0.0
-        score = movement_bonus + share
+        if trace_direction == "upstream":
+            combined[cor_id] = combined.get(cor_id, 0.0) + share
+            continue
+        if row_turn != int(turn_dir_no):
+            continue
         prev = best.get(cor_id)
-        if prev is None or score > prev[0]:
-            best[cor_id] = (score, share)
-    return {inter_id: share for inter_id, (_, share) in best.items()}
+        if prev is None or share > prev:
+            best[cor_id] = share
+    if trace_direction == "upstream":
+        return {inter_id: round(share, 2) for inter_id, share in combined.items()}
+    return best
 
 
 def _correlate_peers(
@@ -162,7 +173,7 @@ def _correlate_peers(
             row_turn = int(row.get("turn_dir_no"))
         except (TypeError, ValueError):
             continue
-        if row_dir8 != int(dir8_code) or row_turn != int(turn_dir_no):
+        if row_dir8 != int(dir8_code):
             continue
         if str(row.get("trace_type") or "").upper() != trace_type:
             continue
@@ -182,6 +193,25 @@ def _correlate_peers(
         except (TypeError, ValueError):
             cor_turn = None
         prev = peers.get(cor_id)
+        if trace_direction == "upstream":
+            if prev is None:
+                peers[cor_id] = {
+                    "cor_inter_id": cor_id,
+                    "cor_inter_name": row.get("cor_inter_name") or cor_id,
+                    "cor_f_dir8_no": cor_d8,
+                    "cor_turn_dir_no": cor_turn,
+                    "path_coverage": round(share, 2),
+                    "_target_turn_match": row_turn == int(turn_dir_no),
+                }
+            else:
+                prev["path_coverage"] = round(float(prev.get("path_coverage") or 0) + share, 2)
+                if row_turn == int(turn_dir_no) and not prev.get("_target_turn_match"):
+                    prev["cor_f_dir8_no"] = cor_d8
+                    prev["cor_turn_dir_no"] = cor_turn
+                    prev["_target_turn_match"] = True
+            continue
+        if row_turn != int(turn_dir_no):
+            continue
         if prev is None or share > float(prev.get("path_coverage") or -1):
             peers[cor_id] = {
                 "cor_inter_id": cor_id,
@@ -190,6 +220,8 @@ def _correlate_peers(
                 "cor_turn_dir_no": cor_turn,
                 "path_coverage": share,
             }
+    for peer in peers.values():
+        peer.pop("_target_turn_match", None)
     return sorted(peers.values(), key=lambda p: float(p.get("path_coverage") or 0), reverse=True)
 
 
@@ -311,7 +343,8 @@ def build_flow_trace_links_sniff_map_scene(
     dir8_code = int(topo.get("dir8_code") or 0)
     turn_dir_no = int(topo.get("turn_dir_no") or 2)
     period_type = resolve_correlate_period(topo.get("period_type"))
-    shares = _best_share_by_inter(raw, dir8_code, turn_dir_no, period_type)
+    trace_dir = "downstream" if trace_direction == "downstream" else "upstream"
+    shares = _best_share_by_inter(raw, dir8_code, turn_dir_no, trace_dir, period_type)
     channel_by_link = _channelization_by_link(raw)
 
     target_links: list[dict[str, Any]] = []
@@ -325,7 +358,6 @@ def build_flow_trace_links_sniff_map_scene(
     if not target_links:
         return {"action": "map_scene", "phase": "flow_trace_links_sniff_map", "available": False, "reason": "no_link_geometry"}
 
-    trace_dir = "downstream" if trace_direction == "downstream" else "upstream"
     peer_relation = "downstream" if trace_dir == "downstream" else "upstream"
     topo_nodes = topo.get("downstream_nodes") if trace_dir == "downstream" else topo.get("upstream_nodes")
     main_order: dict[str, int] = {}

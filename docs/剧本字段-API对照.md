@@ -255,11 +255,28 @@ POST /api/v1/agent/plan/decision
 | 状态 | `status` | string | valid / rejected / needs_review |
 | 适用场景 | `scenario` | string | |
 | 周期 | `timing.cycle_s` | number | |
+| 现状周期 | `timing.current_cycle_s` | number | 生产证据面板必需 |
+| 周期差值 | `timing.cycle_delta_s` | number | 优化周期 - 现状周期 |
+| 证据可用 | `timing.available` | boolean | false 时前端展示降级原因，不补假数据 |
+| 证据缺失原因 | `timing.reason` | string | 可选 |
+| 缺失字段 | `timing.missing_fields[]` | string[] | 可选 |
 | 相位配时 | `timing.phase_stage_timing_list[]` | array | 见下行 |
+| 阶段现状配时 | `phase_stage_timing_list[].current_timing` | object | `green_time_s/yellow_time_s/all_red_time_s/stage_total_s` |
+| 阶段优化配时 | `phase_stage_timing_list[].optimized_timing` | object | 同上 |
+| 阶段绿灯差值 | `phase_stage_timing_list[].green_delta_s` | number | 优化绿 - 现状绿 |
+| 阶段时长差值 | `phase_stage_timing_list[].stage_delta_s` | number | 优化阶段 - 现状阶段 |
+| 阶段释放方向 | `phase_stage_timing_list[].movements[]` | array | 后端结构化输出，前端不得从阶段名反推 |
 | 单相位绿灯 | `phase_stage_timing_list[].green_time_s` | number | |
 | 黄灯 | `phase_stage_timing_list[].yellow_time_s` | number | |
 | 全红 | `phase_stage_timing_list[].all_red_time_s` | number | |
 | 最小/最大绿 | `min_green_time_s` / `max_green_time_s` | number | |
+| 相位饱和度 | `phase_stage_timing_list[].phase_saturation` | number | 优化器输出 |
+| 求解器 | `timing.meta.solver` | string | 如 `scipy_slsqp_document_model` |
+| 目标强度 | `timing.meta.target_saturation` | number | `I_obj` |
+| 最大相位饱和度 | `timing.meta.max_phase_saturation` | number | |
+| 方向供需强度 | `timing.meta.direction_intensity_list[]` | array | `movementKey/label/dir8No/turnDirNo/intensity` |
+| 数据质量 | `timing.meta.data_quality` | object | 数据源、虚拟流量方向等 |
+| 求解备注 | `timing.meta.notes[]` | string[] | 审计说明 |
 | 上游控流 | `upstream_control` | object | `enabled`, `control_points[]` |
 | 相位差 | `phase_offset_sec` | number | |
 | 行人约束 | `pedestrian_constraints` | object | `satisfied`, `violations` |

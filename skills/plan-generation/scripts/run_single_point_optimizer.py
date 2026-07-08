@@ -66,18 +66,13 @@ def run_single_point_optimizer(
         "engine": "signal_optimization_engine",
         "request": request,
         "plan": plan,
-        "timing": {
-            "cycle_s": cycle_s,
-            "phase_stage_timing_list": timing_list,
-            "meta": {
-                "solver": meta.get("solver"),
-                "target_saturation": meta.get("target_saturation"),
-                "max_phase_saturation": meta.get("max_phase_saturation"),
-                "total_turn_flow_vph": meta.get("total_turn_flow_vph"),
-                "direction_intensity_list": meta.get("direction_intensity_list"),
-                "notes": meta.get("notes"),
-            },
-        },
+        "timing": _build_timing_evidence(
+            signal=signal,
+            request=request,
+            cycle_s=cycle_s,
+            timing_list=timing_list,
+            meta=meta,
+        ),
         "cycle_s": cycle_s,
     }
 
@@ -142,3 +137,148 @@ def _normalize_optimizer_stages(plan: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return normalized
+
+
+def _build_timing_evidence(
+    *,
+    signal: dict[str, Any],
+    request: dict[str, Any],
+    cycle_s: int,
+    timing_list: list[dict[str, Any]],
+    meta: dict[str, Any],
+) -> dict[str, Any]:
+    current_cycle = _number_or_none(signal.get("current_cycle_s"))
+    request_stages = ((request.get("phasePlanOfTimeList") or [{}])[0].get("phaseStageInfoList") or [])
+    request_by_id = {
+        str(s.get("phaseStageId") or s.get("phase_stage_id")): s
+        for s in request_stages
+        if isinstance(s, dict)
+    }
+    request_by_index = [s for s in request_stages if isinstance(s, dict)]
+
+    missing_fields: list[str] = []
+    stages: list[dict[str, Any]] = []
+    for idx, optimized in enumerate(timing_list):
+        stage_id = str(optimized.get("phase_stage_id") or "")
+        source = request_by_id.get(stage_id) or (request_by_index[idx] if idx < len(request_by_index) else {})
+        current = source.get("currentTiming") if isinstance(source.get("currentTiming"), dict) else {}
+        movements = source.get("phaseDirInfoDTOList") if isinstance(source.get("phaseDirInfoDTOList"), list) else []
+        if not current:
+            missing_fields.append(f"phase_stage_timing_list[{stage_id or idx + 1}].current_timing")
+        if not movements:
+            missing_fields.append(f"phase_stage_timing_list[{stage_id or idx + 1}].movements")
+
+        current_green = _number_or_none(current.get("greenSec"))
+        current_yellow = _number_or_none(current.get("yellowSec"))
+        current_all_red = _number_or_none(current.get("allRedSec"))
+        current_total = _number_or_none(current.get("stageTotalSec"))
+        if current_total is None:
+            current_total = _sum_if_numbers(current_green, current_yellow, current_all_red)
+
+        optimized_green = _number_or_none(optimized.get("green_time_s"))
+        optimized_yellow = _number_or_none(optimized.get("yellow_time_s"))
+        optimized_all_red = _number_or_none(optimized.get("all_red_time_s"))
+        optimized_total = _sum_if_numbers(optimized_green, optimized_yellow, optimized_all_red)
+
+        stages.append(
+            {
+                **optimized,
+                "current_timing": {
+                    "green_time_s": current_green,
+                    "yellow_time_s": current_yellow,
+                    "all_red_time_s": current_all_red,
+                    "stage_total_s": current_total,
+                },
+                "optimized_timing": {
+                    "green_time_s": optimized_green,
+                    "yellow_time_s": optimized_yellow,
+                    "all_red_time_s": optimized_all_red,
+                    "stage_total_s": optimized_total,
+                },
+                "green_delta_s": _diff_if_numbers(optimized_green, current_green),
+                "stage_delta_s": _diff_if_numbers(optimized_total, current_total),
+                "movements": [_normalize_movement_evidence(item) for item in movements if isinstance(item, dict)],
+            }
+        )
+
+    if current_cycle is None:
+        missing_fields.append("timing.current_cycle_s")
+    if not meta.get("direction_intensity_list"):
+        missing_fields.append("timing.meta.direction_intensity_list")
+
+    return {
+        "available": not missing_fields,
+        "reason": None if not missing_fields else "方案证据字段不完整，无法生产级展示",
+        "missing_fields": missing_fields,
+        "current_cycle_s": current_cycle,
+        "cycle_s": cycle_s,
+        "cycle_delta_s": _diff_if_numbers(cycle_s, current_cycle),
+        "phase_stage_timing_list": stages,
+        "meta": _build_optimization_meta(meta),
+    }
+
+
+def _build_optimization_meta(meta: dict[str, Any]) -> dict[str, Any]:
+    direction_list = meta.get("direction_intensity_list")
+    if not isinstance(direction_list, list):
+        direction_list = []
+    virtual_movements = [
+        item.get("label") or item.get("movementKey")
+        for item in direction_list
+        if isinstance(item, dict) and item.get("historyVirtualFlowVph") is not None
+    ]
+    return {
+        "solver": meta.get("solver"),
+        "target_saturation": meta.get("target_saturation"),
+        "max_phase_saturation": meta.get("max_phase_saturation"),
+        "total_turn_flow_vph": meta.get("total_turn_flow_vph"),
+        "direction_intensity_list": direction_list,
+        "notes": meta.get("notes") if isinstance(meta.get("notes"), list) else [],
+        "data_quality": {
+            "current_timing_source": "pg_signal_plan",
+            "movement_source": "pg_turn_flow+pg_turn_saturation",
+            "has_virtual_flow": bool(virtual_movements),
+            "virtual_flow_movements": virtual_movements,
+        },
+    }
+
+
+def _normalize_movement_evidence(item: dict[str, Any]) -> dict[str, Any]:
+    movement_key = item.get("movement_key") or item.get("movementKey")
+    if not movement_key and item.get("dir8No") is not None and item.get("turnDirNo") is not None:
+        movement_key = f"d{item.get('dir8No')}_t{item.get('turnDirNo')}"
+    return {
+        "movement_key": movement_key,
+        "movementKey": movement_key,
+        "label": item.get("label"),
+        "dir8No": item.get("dir8No"),
+        "turnDirNo": item.get("turnDirNo"),
+        "turnFlowTotal": item.get("turnFlowTotal"),
+        "laneCount": item.get("laneCount"),
+        "saturation": item.get("saturation"),
+        "flow_available": item.get("flow_available"),
+        "source": item.get("source"),
+        "historyVirtualFlowVph": item.get("historyVirtualFlowVph"),
+    }
+
+
+def _number_or_none(value: Any) -> int | float | None:
+    if value is None or value == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return int(number) if number.is_integer() else number
+
+
+def _sum_if_numbers(*values: int | float | None) -> int | float | None:
+    if any(value is None for value in values):
+        return None
+    return sum(values)  # type: ignore[arg-type]
+
+
+def _diff_if_numbers(left: int | float | None, right: int | float | None) -> int | float | None:
+    if left is None or right is None:
+        return None
+    return left - right

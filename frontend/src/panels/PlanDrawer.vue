@@ -3,9 +3,9 @@ import { computed, ref } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import type { PlanCandidate } from '@/api/types'
 import { t } from '@/labels/enums'
-import PhaseDiagram from '@/viz/PhaseDiagram.vue'
 import CoordinationDiagram from '@/panels/CoordinationDiagram.vue'
 import { productCopy } from '@/utils/productCopy'
+import PlanEvidencePanel from '@/panels/PlanEvidencePanel.vue'
 
 const store = usePresentationStore()
 
@@ -17,8 +17,7 @@ const selected = computed<PlanCandidate | null>(() => {
   const id = recommendedId.value
   return candidates.value.find((c) => c.plan_id === id) ?? (store.plan?.recommended as PlanCandidate) ?? candidates.value[0] ?? null
 })
-const stageTimings = computed(() => selected.value?.timing?.phase_stage_timing_list ?? [])
-const hasTiming = computed(() => Boolean(selected.value?.timing?.cycle_s && stageTimings.value.length))
+const hasTiming = computed(() => Boolean(selected.value?.timing?.cycle_s && selected.value?.timing?.phase_stage_timing_list?.length))
 const strategyItems = computed(() => {
   const fromStrategy = store.strategy?.strategy?.recommended ?? []
   const fromPlan = selected.value?.execution_order ?? []
@@ -68,10 +67,7 @@ async function onReject() {
         <div class="stage__left">
           <h4>{{ productCopy(selected.name) }} · 相位配时</h4>
           <template v-if="hasTiming">
-            <PhaseDiagram
-              :stages="stageTimings"
-              :cycle="selected.timing?.cycle_s"
-            />
+            <PlanEvidencePanel :candidate="selected" />
             <h4 class="mt">干线协调关系</h4>
             <CoordinationDiagram :coordination="coordination" />
           </template>
@@ -93,11 +89,6 @@ async function onReject() {
             <span class="kpi__k">回滚条件</span>
             <span class="kpi__v">{{ productCopy(selected.rollback_condition ?? store.plan?.rollback_conditions?.[0]) || '—' }}</span>
           </div>
-          <div class="exec" v-if="store.plan?.recommendation?.rationale">
-            <span class="kpi__k">推荐理由</span>
-            <p>{{ productCopy(store.plan.recommendation.rationale) }}</p>
-          </div>
-
           <div v-if="strategyItems.length" class="list-box">
             <span class="kpi__k">执行策略</span>
             <ul>
@@ -204,12 +195,6 @@ async function onReject() {
 }
 .kpi__v.warn {
   color: var(--evidence);
-}
-.exec p {
-  margin: 4px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-dim);
 }
 .ok {
   color: var(--protected);

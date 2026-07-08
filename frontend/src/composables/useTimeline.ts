@@ -1,8 +1,12 @@
-import type { RunResponse } from '@/api/types'
+import type { Metrics, RunResponse } from '@/api/types'
 import { directionMovement, t } from '@/labels/enums'
 import { pct, ratio, meters } from '@/utils/format'
 import { productCopy } from '@/utils/productCopy'
 import type { EvidenceStage } from '@/map/sceneEvidencePolicy'
+
+function saturationOf(metrics: Metrics | undefined): number | null | undefined {
+  return metrics?.saturation ?? metrics?.saturation_rate
+}
 
 /** 地图场景类型（MapController 消费）。 */
 export type MapSceneKind = 'city' | 'intersection' | 'lane' | 'trace' | 'control' | 'corridor'
@@ -93,7 +97,7 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
     case 'act3_overflow':
       return lines(
         '拉取关键指标，排队比 = 排队长度 ÷ 进口道可容纳长度…',
-        `排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${pct(diag?.metrics?.saturation)}｜绿灯利用率 ${pct(diag?.metrics?.green_utilization)}`,
+        `排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${pct(saturationOf(diag?.metrics))}｜绿灯利用率 ${pct(diag?.metrics?.green_utilization)}`,
         diag?.overflow_verification?.message,
       )
     case 'act4_bottleneck':
@@ -152,7 +156,7 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
         ? productCopy(`已锁定 ${intent.spatial_scene.target.inter_name}`)
         : '空间定位完成'
     case 'act3_overflow':
-      return productCopy(diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${pct(diag?.metrics?.saturation)}`)
+      return productCopy(diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${pct(saturationOf(diag?.metrics))}`)
     case 'act4_bottleneck':
       return productCopy(diag?.downstream_diagnosis?.release_answer ?? diag?.downstream_diagnosis?.narrative ?? '瓶颈判断完成')
     case 'act5_corridor':

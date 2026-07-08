@@ -281,7 +281,7 @@ def _dt_for_dow(day_of_week: int) -> str:
     return start.strftime("%Y%m%d")
 
 
-def _safe_query(fn, *args, **kwargs) -> tuple[list[dict[str, Any]], str | None]:
+def _safe_query(fn, *args, **kwargs) -> tuple[Any, str | None]:
     """Run a query function; return rows and optional error message."""
     try:
         return fn(*args, **kwargs), None
@@ -400,6 +400,63 @@ def _query_adjacent_spacing(
         ORDER BY relation_direction, line_seq_no NULLS LAST, link_role
     """
     return _read_pg(sql, {"inter_id": inter_id}, limit=40)
+
+
+def _adjacent_inter_ids(adjacent_rows: list[dict[str, Any]] | None) -> list[str]:
+    """Collect adjacent intersection ids from topology rows without inventing nodes."""
+    ids: list[str] = []
+    seen: set[str] = set()
+    for row in adjacent_rows or []:
+        raw_id = row.get("adjacent_inter_id") or row.get("upstream_inter_id")
+        inter_id = str(raw_id or "").strip()
+        if not inter_id or inter_id in seen:
+            continue
+        seen.add(inter_id)
+        ids.append(inter_id)
+    return ids
+
+
+def _optional_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _adjacent_offsets_from_plan_rows(rows: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    """Index real adjacent signal offsets from plan configuration rows."""
+    offsets: dict[str, dict[str, Any]] = {}
+    for row in rows or []:
+        inter_id = str(row.get("inter_id") or "").strip()
+        raw_offset = row.get("offset_sec")
+        if raw_offset in (None, ""):
+            raw_offset = row.get("offset_s")
+        offset = _optional_float(raw_offset)
+        if not inter_id or offset is None or inter_id in offsets:
+            continue
+        cycle = _optional_float(row.get("cycle_len_sec") if row.get("cycle_len_sec") is not None else row.get("cycle_s"))
+        offsets[inter_id] = {
+            "offset_s": round(offset, 2),
+            "cycle_s": round(cycle, 2) if cycle is not None else None,
+            "plan_no": row.get("plan_no"),
+            "plan_name": row.get("plan_name"),
+            "source": "dwd_ctl_inter_plan_cfg.offset_sec",
+        }
+    return offsets
+
+
+def _query_adjacent_offsets(
+    schema: str,
+    adjacent_rows: list[dict[str, Any]] | None,
+) -> dict[str, dict[str, Any]]:
+    """Load real absolute offsets for adjacent intersections using their active plan rows."""
+    result: dict[str, dict[str, Any]] = {}
+    for inter_id in _adjacent_inter_ids(adjacent_rows):
+        rows = _query_active_plan(schema, inter_id)
+        result.update(_adjacent_offsets_from_plan_rows(rows))
+    return result
 
 
 def _query_trace_geometry(
@@ -1159,6 +1216,12 @@ def iter_checklist_load(
             "total": total,
             "item": item,
         }
+
+    adjacent_offsets, adjacent_offsets_err = _safe_query(
+        _query_adjacent_offsets, flow, raw.get("adjacent_spacing") or []
+    )
+    raw["adjacent_offsets"] = adjacent_offsets
+    query_errors["adjacent_offsets"] = adjacent_offsets_err
 
     trace_geom_rows, trace_geom_err = _safe_query(
         _query_trace_geometry, road, channel_table, version_sql, resolved_id
@@ -2002,6 +2065,7 @@ def _aggregate_metrics(
         "lane_volume_daily_total": lane_volume_daily_total if lane_flow_rows else 0.0,
         "lane_volume_unit": "pcu/5min_avg" if lane_volume else None,
         "los": evaluation.get("level_of_service"),
+        "turn_flow_detail": prepared_flow_rows[:20],
         "turn_perf_detail": perf_rows[:20],
         "turn_saturation_detail": sat_rows[:20],
     }

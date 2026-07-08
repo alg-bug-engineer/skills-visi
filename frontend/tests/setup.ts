@@ -9,3 +9,24 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
     removeListener() {},
   })
 }
+
+if (typeof HTMLCanvasElement !== 'undefined') {
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value() {
+    return {
+      clearRect() {},
+      fillRect() {},
+      beginPath() {},
+      moveTo() {},
+      lineTo() {},
+      stroke() {},
+      arc() {},
+      fill() {},
+      set fillStyle(_value: string) {},
+      set strokeStyle(_value: string) {},
+      set lineWidth(_value: number) {},
+    }
+    },
+  })
+}

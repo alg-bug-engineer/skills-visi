@@ -95,5 +95,8 @@ def test_build_candidates_falls_back_to_real_current_timing_when_degraded():
         assert cand["timing_source"] == "adjust_phase_timing"
         assert cand["optimizer_degraded"] is True
         assert cand["optimizer_degraded_reason"] == "优化输入无真实转向流量"
+        assert cand["timing"]["available"] is False
+        assert cand["timing"]["reason"] == "优化输入无真实转向流量"
+        assert "timing.meta.direction_intensity_list" in cand["timing"]["missing_fields"]
         # 基于现状 130s 周期，不会塌缩到 42s
         assert cand["timing"]["cycle_s"] > 60

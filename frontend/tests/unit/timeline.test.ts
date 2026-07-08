@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ACT_DEFS, narrationFor, phaseReady } from '@/composables/useTimeline'
+import { ACT_DEFS, narrationFor, phaseReady, summaryFor } from '@/composables/useTimeline'
 import type { RunResponse } from '@/api/types'
 import fixture from '@/mock/run_1_fixture.json'
 
@@ -27,6 +27,26 @@ describe('narrationFor', () => {
     for (const act of ACT_DEFS) {
       expect(() => narrationFor(act, null)).not.toThrow()
     }
+  })
+
+  it('uses saturation_rate when saturation is absent', () => {
+    const response = {
+      phases: {
+        diagnosis: {
+          metrics: {
+            queue_ratio: 0.2,
+            saturation_rate: 0.88,
+            green_utilization: 0.57,
+          },
+        },
+      },
+      plan: null,
+    } as unknown as RunResponse
+    const act = ACT_DEFS.find((item) => item.id === 'act3_overflow')
+    expect(act).toBeTruthy()
+
+    expect(narrationFor(act!, response).join('')).toContain('88.0%')
+    expect(summaryFor(act!, response)).toContain('88.0%')
   })
 })
 
