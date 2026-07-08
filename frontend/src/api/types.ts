@@ -132,12 +132,44 @@ export interface OverflowVerification {
   message: string | null
 }
 
+export interface DownstreamNodeMetrics {
+  saturation?: number | null
+  saturation_rate?: number | null
+  level_of_service?: string | null
+  queue_storage_ratio_max?: number | null
+  green_utilization?: number | null
+  [k: string]: unknown
+}
+
+export interface DownstreamTurnMetric {
+  label?: string | null
+  turn_saturation?: number | null
+  green_utilization?: number | null
+  queue_ratio?: number | null
+  flow_vph?: number | null
+}
+
+export interface PrimaryDownstream {
+  inter_id?: string | null
+  inter_name?: string | null
+  metrics?: DownstreamNodeMetrics
+  by_turn?: DownstreamTurnMetric[]
+  remaining_storage_m?: number | null
+  capacity?: {
+    can_release?: boolean
+    blocked?: boolean
+    reasons?: string[]
+    release_guard?: string
+  }
+}
+
 export interface DownstreamDiagnosis {
   available?: boolean
   scenario: string | null
   release_answer: string | null
   narrative?: string | null
-  judgment_criteria?: string[]
+  judgment_criteria?: Record<string, boolean>
+  primary_downstream?: PrimaryDownstream
   can_simple_add_green: boolean | null
   expert_question?: string | null
   [k: string]: unknown

@@ -44,6 +44,7 @@ interface State {
   currentAct: number
   revealedActs: number[]
   fullscreen: boolean
+  planMinimized: boolean
   rollbackBanner: string | null
   toast: string | null
   errorMsg: string | null
@@ -69,6 +70,7 @@ export const usePresentationStore = defineStore('presentation', {
     currentAct: -1,
     revealedActs: [],
     fullscreen: false,
+    planMinimized: false,
     rollbackBanner: null,
     toast: null,
     errorMsg: null,
@@ -244,7 +246,14 @@ export const usePresentationStore = defineStore('presentation', {
       const act = this.acts[index]
       if (!act) return
       if (act.reveal && !this.revealedActs.includes(index)) this.revealedActs.push(index)
-      if (act.id === 'act8_plan') this.dock = 'plan'
+      if (act.id === 'act8_plan') {
+        this.dock = 'plan'
+        this.planMinimized = false
+      }
+    },
+
+    togglePlanMinimized() {
+      this.planMinimized = !this.planMinimized
     },
 
     /** 打字完成后请求推进：下一阶段 phase 未就绪则进入等待态。 */
@@ -391,6 +400,7 @@ export const usePresentationStore = defineStore('presentation', {
       this.solidifyPhase = 'idle'
       this.skillResult = null
       this.pendingSolidifyPlanId = null
+      this.planMinimized = false
       if (toInput) this.dock = 'input'
     },
   },

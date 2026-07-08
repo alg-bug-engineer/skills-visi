@@ -79,10 +79,14 @@ describe('DataMetricsCard', () => {
         lane_count: 26,
       }),
     )
-    const text = mount(DataMetricsCard).text()
-    expect(text).toContain('运行数据')
-    // per-approach
+    const wrapper = mount(DataMetricsCard)
+    const text = wrapper.text()
+    // 卡片内不再重复标题「运行数据」（面板头已提供），仅渲染明细
+    expect(wrapper.find('[data-testid="metrics-detail"]').exists()).toBe(true)
+    // per-approach 三行无序列表：饱和度 / 延误指数 / 服务水平
     expect(text).toContain('东进口')
+    expect(text).toContain('饱和度')
+    expect(text).toContain('延误指数')
     expect(text).toContain('3.49')
     // per-movement + level tag
     expect(text).toContain('东左转')
@@ -137,7 +141,9 @@ describe('DataMetricsCard', () => {
 
     const wrapper = mount(DataMetricsCard)
 
-    expect(wrapper.text()).toContain('88.0%')
+    // 饱和度统一以小数呈现，不再使用百分比
+    expect(wrapper.text()).toContain('0.88')
+    expect(wrapper.text()).not.toContain('88.0%')
   })
 
   it('renders summary mode without per-approach detail rows', () => {

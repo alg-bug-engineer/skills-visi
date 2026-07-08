@@ -75,12 +75,27 @@ const focusTags = computed(() => {
 })
 
 const overallLos = computed(() => m.value?.los ?? null)
+
+/**
+ * 维度说明：溢出判定看「进口道空间」（排队比），饱和度/服务水平看「需求」。
+ * 当空间未溢出但需求过饱和时，两者可同时成立，避免被误读为矛盾。
+ */
+const dimensionNote = computed(() => {
+  const risk = ov.value?.risk_level
+  const spaceOk = risk === 'low' || risk === 'warning'
+  const sat = saturation.value
+  const demandHigh = (typeof sat === 'number' && sat >= 1) || overallLos.value === 'F'
+  if (spaceOk && demandHigh) {
+    return '溢出判定看进口道空间（排队比），饱和度/服务水平看需求；空间未溢出与需求过饱和可同时成立，并不矛盾。'
+  }
+  return null
+})
 </script>
 
 <template>
   <BaseCard
     v-if="m"
-    :title="isSummary ? '运行数据摘要' : hasRich ? '运行数据' : '运行数据单'"
+    :title="isSummary ? '运行数据摘要' : ''"
     :act="3"
     :tone="qrTone === 'alarm' ? 'alarm' : 'primary'"
   >
@@ -109,7 +124,7 @@ const overallLos = computed(() => m.value?.los ?? null)
       </div>
       <div class="summary__row">
         <span class="summary__k">饱和度</span>
-        <span class="summary__v us-mono">{{ pct(saturation) }}</span>
+        <span class="summary__v us-mono" :class="`tone-${satTone(saturation)}`">{{ ratio(saturation) }}</span>
       </div>
       <div v-if="overallLos" class="summary__row">
         <span class="summary__k">服务水平</span>
@@ -124,14 +139,22 @@ const overallLos = computed(() => m.value?.los ?? null)
 
     <!-- 详细运行数据列表（富指标） -->
     <div v-else-if="hasRich" class="rows" data-testid="metrics-detail">
-      <div v-for="ap in byApproach" :key="ap.approach" class="row">
-        <span class="row__k">{{ ap.approach }}饱和度</span>
-        <span class="row__v us-mono" :class="`tone-${satTone(ap.saturation)}`">{{ num(ap.saturation, 2) }}</span>
-        <span v-if="ap.delay_index != null || ap.los" class="row__meta">
-          <template v-if="ap.delay_index != null">延误指数 {{ num(ap.delay_index, 2) }}</template>
-          <template v-if="ap.delay_index != null && ap.los"> · </template>
-          <template v-if="ap.los">服务水平 {{ losLabel(ap.los) }}</template>
-        </span>
+      <div v-for="ap in byApproach" :key="ap.approach" class="approach">
+        <div class="approach__hd">{{ ap.approach }}</div>
+        <ul class="approach__list">
+          <li>
+            <span class="approach__k">饱和度</span>
+            <span class="approach__v us-mono" :class="`tone-${satTone(ap.saturation)}`">{{ num(ap.saturation, 2) }}</span>
+          </li>
+          <li v-if="ap.delay_index != null">
+            <span class="approach__k">延误指数</span>
+            <span class="approach__v us-mono">{{ num(ap.delay_index, 2) }}</span>
+          </li>
+          <li v-if="ap.los">
+            <span class="approach__k">服务水平</span>
+            <span class="approach__v us-mono" :class="{ 'tone-alarm': ap.los === 'F' }">{{ losLabel(ap.los) }}</span>
+          </li>
+        </ul>
       </div>
 
       <div v-if="imbalance != null" class="row">
@@ -168,7 +191,7 @@ const overallLos = computed(() => m.value?.los ?? null)
       <div class="grid">
         <div class="cell"><span class="v us-mono">{{ meters(m.queue_length_m) }}</span><span class="k">排队长度</span></div>
         <div class="cell"><span class="v us-mono">{{ meters(m.storage_length_m) }}</span><span class="k">蓄车长度</span></div>
-        <div class="cell"><span class="v us-mono">{{ pct(saturation) }}</span><span class="k">饱和度</span></div>
+        <div class="cell"><span class="v us-mono">{{ ratio(saturation) }}</span><span class="k">饱和度</span></div>
         <div class="cell" :class="`tone-${guTone}`">
           <span class="v us-mono">{{ pct(m.green_utilization) }}</span><span class="k">绿灯利用率</span>
         </div>
@@ -178,8 +201,9 @@ const overallLos = computed(() => m.value?.los ?? null)
     </template>
 
     <div v-if="ov" class="verdict" :class="`tone-${verdictTone}`" data-testid="overflow-verdict">
-      <span class="verdict__badge">溢出判定 · {{ t('risk_level', ov.risk_level) }}</span>
+      <span class="verdict__badge">溢出判定（进口道空间）· {{ t('risk_level', ov.risk_level) }}</span>
       <p>{{ ov.message ?? '—' }}</p>
+      <p v-if="dimensionNote" class="verdict__note">{{ dimensionNote }}</p>
     </div>
 
     <p class="src">数据来源：{{ t('data_source', store.diagnosis?.data_source) }}</p>
@@ -229,6 +253,43 @@ const overallLos = computed(() => m.value?.los ?? null)
 .rows {
   display: flex;
   flex-direction: column;
+}
+.approach {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.approach__hd {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.approach__list {
+  list-style: disc;
+  margin: 0;
+  padding-left: 18px;
+}
+.approach__list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+}
+.approach__k {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.approach__v {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.approach__v.tone-alarm {
+  color: var(--alarm);
+}
+.approach__v.tone-evidence {
+  color: var(--evidence);
 }
 .row {
   display: flex;
@@ -352,6 +413,12 @@ const overallLos = computed(() => m.value?.los ?? null)
   font-size: 13px;
   color: var(--text);
   line-height: 1.5;
+}
+.verdict__note {
+  font-size: 11.5px !important;
+  color: var(--text-mute) !important;
+  border-top: 1px dashed rgba(146, 161, 181, 0.3);
+  padding-top: 6px;
 }
 .src {
   margin: 10px 0 0;

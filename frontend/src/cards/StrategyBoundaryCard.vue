@@ -7,10 +7,6 @@ import { productCopy } from '@/utils/productCopy'
 const store = usePresentationStore()
 const s = computed(() => store.strategy?.strategy ?? null)
 const pkg = computed(() => store.strategy?.strategy_package ?? null)
-const rollback = computed(() => {
-  const rr = s.value?.trigger_exit_rules as { rollback_condition?: string } | undefined
-  return rr?.rollback_condition ?? null
-})
 </script>
 
 <template>
@@ -27,8 +23,6 @@ const rollback = computed(() => {
         <span v-for="(c, i) in s.hard_constraints" :key="i" class="tag">{{ productCopy(c) }}</span>
       </div>
     </div>
-
-    <p v-if="rollback" class="rollback">回滚触发：{{ productCopy(rollback) }}</p>
   </BaseCard>
 </template>
 
@@ -70,14 +64,5 @@ const rollback = computed(() => {
   color: var(--alarm);
   background: var(--alarm-dim);
   border: 1px solid rgba(255, 80, 80, 0.4);
-}
-.rollback {
-  margin: 10px 0 0;
-  font-size: 11.5px;
-  color: var(--evidence);
-  padding: 6px 8px;
-  border-left: 2px solid var(--evidence);
-  background: var(--evidence-dim);
-  border-radius: 0;
 }
 </style>

@@ -16,6 +16,7 @@ vi.mock('@/api/endpoints', async (importOriginal) => {
 
 import SkillSolidifyOverlay from '@/panels/SkillSolidifyOverlay.vue'
 import ProcessPanel from '@/panels/ProcessPanel.vue'
+import SkillBuildDrawer from '@/panels/SkillBuildDrawer.vue'
 import { usePresentationStore } from '@/stores/presentation'
 
 let originalWebdriver: PropertyDescriptor | undefined
@@ -57,6 +58,7 @@ describe('Skill solidify flow', () => {
 
     const overlay = mount(SkillSolidifyOverlay, { global: { stubs: { teleport: true } } })
     const panel = mount(ProcessPanel)
+    const drawer = mount(SkillBuildDrawer)
     await flushPromises()
 
     await overlay.find('[data-testid="solidify-confirm"]').trigger('click')
@@ -64,9 +66,12 @@ describe('Skill solidify flow', () => {
     await flushPromises()
 
     expect(store.solidifyPhase).toBe('completed')
+    // 经验吸收保留在右侧「经验固化」页签
     expect(panel.find('[data-testid="process-solidify-tab"]').exists()).toBe(true)
+    // 技能固化以左侧抽屉呈现
+    expect(drawer.find('[data-testid="skill-build-drawer"]').exists()).toBe(true)
 
-    const finish = panel.find('[data-testid="solidify-finish"]')
+    const finish = drawer.find('[data-testid="solidify-finish"]')
     expect(finish.exists()).toBe(true)
 
     await finish.trigger('click')

@@ -10,10 +10,11 @@ import BottomDock from '@/panels/BottomDock.vue'
 import ChannelizationInset from '@/panels/ChannelizationInset.vue'
 import DownstreamTopologyInset from '@/panels/DownstreamTopologyInset.vue'
 import SkillSolidifyOverlay from '@/panels/SkillSolidifyOverlay.vue'
+import SkillBuildDrawer from '@/panels/SkillBuildDrawer.vue'
 import { sceneEvidencePolicy } from '@/map/sceneEvidencePolicy'
 
 const store = usePresentationStore()
-const { status, dock, fullscreen, rollbackBanner, toast } = storeToRefs(store)
+const { status, dock, fullscreen, planMinimized, rollbackBanner, toast } = storeToRefs(store)
 
 const running = computed(() => status.value !== 'idle')
 const showInset = computed(() => {
@@ -57,6 +58,19 @@ watch(toast, (v) => {
       </aside>
     </Transition>
 
+    <div
+      v-if="!running && !fullscreen"
+      class="home-drawer"
+      data-testid="home-exp-drawer"
+    >
+      <div class="home-drawer__panel">
+        <UnderstandingPanel />
+      </div>
+      <div class="home-drawer__tab" aria-hidden="true">
+        <span class="home-drawer__tab-text">经验库 · 案例库</span>
+      </div>
+    </div>
+
     <Transition name="fade">
       <aside v-show="running && !fullscreen" class="rail rail--right">
         <ProcessPanel />
@@ -92,10 +106,13 @@ watch(toast, (v) => {
         'dock-slot--input': dock === 'input',
         'dock-slot--running': dock === 'running',
         'dock-slot--plan': dock === 'plan',
+        'dock-slot--plan-min': dock === 'plan' && planMinimized,
       }"
     >
       <BottomDock />
     </footer>
+
+    <SkillBuildDrawer v-if="!fullscreen" />
 
     <SkillSolidifyOverlay />
   </div>
@@ -171,6 +188,52 @@ watch(toast, (v) => {
 }
 .rail--left {
   left: 16px;
+}
+.home-drawer {
+  position: absolute;
+  top: 64px;
+  bottom: 16px;
+  left: 0;
+  z-index: 25;
+  display: flex;
+  align-items: stretch;
+  transform: translateX(calc(-1 * var(--insight-w)));
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.home-drawer:hover {
+  transform: translateX(16px);
+}
+.home-drawer__panel {
+  width: var(--insight-w);
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.home-drawer__panel > * {
+  flex: 1;
+  min-height: 0;
+}
+.home-drawer__tab {
+  width: 30px;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(180deg, rgba(10, 22, 40, 0.95), rgba(6, 14, 26, 0.95));
+  border: 1px solid var(--panel-border);
+  border-left: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 2px 0 18px rgba(0, 0, 0, 0.35);
+}
+.home-drawer__tab-text {
+  writing-mode: vertical-rl;
+  letter-spacing: 3px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.home-drawer:hover .home-drawer__tab-text {
+  color: var(--primary);
 }
 .rail--right {
   right: 16px;
@@ -263,6 +326,13 @@ watch(toast, (v) => {
     0 -18px 70px rgba(0, 0, 0, 0.58),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   animation: plan-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.dock-slot--plan-min {
+  top: auto;
+  height: 60px;
+  overflow: hidden;
+  padding: 0;
+  animation: none;
 }
 @keyframes plan-rise {
   from {

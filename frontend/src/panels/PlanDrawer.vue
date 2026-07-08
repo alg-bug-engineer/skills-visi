@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import type { PlanCandidate } from '@/api/types'
 import { t } from '@/labels/enums'
@@ -8,6 +9,7 @@ import { productCopy } from '@/utils/productCopy'
 import PlanEvidencePanel from '@/panels/PlanEvidencePanel.vue'
 
 const store = usePresentationStore()
+const { planMinimized } = storeToRefs(store)
 
 const coordination = computed(() => store.diagnosis?.coordination ?? null)
 
@@ -52,13 +54,24 @@ async function onReject() {
 </script>
 
 <template>
-  <section class="drawer us-panel" data-testid="plan-drawer">
-    <header class="drawer__hd">
+  <section class="drawer us-panel" :class="{ 'drawer--min': planMinimized }" data-testid="plan-drawer">
+    <header class="drawer__hd" @click="planMinimized && store.togglePlanMinimized()">
       <div>
         <h3>治理建议</h3>
         <p>{{ hasTiming ? '配时明细来自后端真实方案数据' : '后端未返回可绘制配时明细' }}</p>
       </div>
-      <span v-if="recommendedId" class="rec">建议 {{ t('plan_id', recommendedId.split('_').slice(0, 2).join('_')) }}</span>
+      <div class="drawer__hd-right">
+        <span v-if="recommendedId" class="rec">建议 {{ t('plan_id', recommendedId.split('_').slice(0, 2).join('_')) }}</span>
+        <button
+          type="button"
+          class="min-btn"
+          data-testid="plan-min-toggle"
+          :title="planMinimized ? '最大化' : '最小化'"
+          @click.stop="store.togglePlanMinimized()"
+        >
+          {{ planMinimized ? '⤢ 最大化' : '⤡ 最小化' }}
+        </button>
+      </div>
     </header>
 
     <!-- 治理建议 -->
@@ -84,10 +97,6 @@ async function onReject() {
           <div class="kpi">
             <span class="kpi__k">风险</span>
             <span class="kpi__v warn">{{ productCopy(selected.risk) || '—' }}</span>
-          </div>
-          <div class="kpi">
-            <span class="kpi__k">回滚条件</span>
-            <span class="kpi__v">{{ productCopy(selected.rollback_condition ?? store.plan?.rollback_conditions?.[0]) || '—' }}</span>
           </div>
           <div v-if="strategyItems.length" class="list-box">
             <span class="kpi__k">执行策略</span>
@@ -141,6 +150,33 @@ async function onReject() {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+}
+.drawer--min .pane,
+.drawer--min .drawer__ft {
+  display: none;
+}
+.drawer--min .drawer__hd {
+  margin-bottom: 0;
+  cursor: pointer;
+}
+.drawer__hd-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.min-btn {
+  padding: 4px 10px;
+  border-radius: 0;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.min-btn:hover {
+  color: var(--text);
+  border-color: var(--primary);
 }
 .drawer__hd h3 {
   margin: 0;

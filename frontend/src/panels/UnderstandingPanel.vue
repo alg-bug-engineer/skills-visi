@@ -85,12 +85,6 @@ const caseSubTabs: Array<{ key: CaseSubTab; label: string; hint: string }> = [
 ]
 
 const activeExpList = computed(() => experiencesByType.value[expSubTab.value])
-const expCount = computed(
-  () =>
-    experiencesByType.value.cognitive.length +
-    experiencesByType.value.diagnostic.length +
-    experiencesByType.value.solution.length,
-)
 
 // —— 行业案例：搜索 + 折叠 ——
 const industryQuery = ref('')
@@ -177,7 +171,6 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
         @click="activeTab = 'experience'"
       >
         经验库
-        <span v-if="expCount" class="tab-count">{{ expCount }}</span>
       </button>
       <button
         type="button"
@@ -188,7 +181,6 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
         @click="activeTab = 'cases'"
       >
         案例库
-        <span v-if="existingCases.length" class="tab-count">{{ existingCases.length }}</span>
       </button>
     </div>
 

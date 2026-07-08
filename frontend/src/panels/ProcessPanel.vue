@@ -9,13 +9,10 @@ import DataMetricsCard from '@/cards/DataMetricsCard.vue'
 import BottleneckCard from '@/cards/BottleneckCard.vue'
 import CorridorScanCard from '@/cards/CorridorScanCard.vue'
 import CauseCard from '@/cards/CauseCard.vue'
-import StrategyBoundaryCard from '@/cards/StrategyBoundaryCard.vue'
 import ProblemVerificationCard from '@/cards/ProblemVerificationCard.vue'
 import GovernanceStrategyCard from '@/cards/GovernanceStrategyCard.vue'
 import ExperienceAbsorptionPanel from '@/panels/ExperienceAbsorptionPanel.vue'
-import SkillBuildPanel from '@/panels/SkillBuildPanel.vue'
 import { useExperienceAbsorption } from '@/composables/useExperienceAbsorption'
-import { useSkillBuildProcess } from '@/composables/useSkillBuildProcess'
 import { DEMO_TYPING_MS, actDwellMs } from '@/config/demoPacing'
 
 const store = usePresentationStore()
@@ -27,7 +24,6 @@ const INSIGHT_CARDS: Record<string, unknown> = {
   bottleneck: BottleneckCard,
   corridor: CorridorScanCard,
   cause: CauseCard,
-  strategy: StrategyBoundaryCard,
   verification: ProblemVerificationCard,
   governance: GovernanceStrategyCard,
 }
@@ -39,7 +35,6 @@ const activeTab = ref<ProcessTab>('closure')
 
 const showSolidifyTab = computed(() => solidifyPhase.value !== 'idle')
 const absorption = useExperienceAbsorption()
-const build = useSkillBuildProcess()
 
 const instant = (() => {
   const reduced =
@@ -51,7 +46,6 @@ const instant = (() => {
 })()
 
 const absorptionStarted = ref(false)
-const buildStarted = ref(false)
 
 watch(
   () => solidifyPhase.value,
@@ -60,9 +54,7 @@ watch(
     if (phase === 'idle') {
       activeTab.value = 'closure'
       absorptionStarted.value = false
-      buildStarted.value = false
       absorption.reset()
-      build.reset()
     }
   },
 )
@@ -78,23 +70,6 @@ watch(
         intersection: result.intersection ?? '',
         onDone: () => store.setSolidifyPhase('building'),
       })
-    } else if (phase === 'building' && result && !buildStarted.value) {
-      buildStarted.value = true
-      build.start(
-        result.build,
-        {
-          skillId: result.skill_id,
-          skillDir: result.skill_dir,
-          downloadUrl: result.download_url,
-          intersection: result.intersection ?? '',
-          timePeriodLabel: result.time_period_label ?? '',
-          action: result.action,
-        },
-        {
-          instant,
-          onDone: () => store.setSolidifyPhase('completed'),
-        },
-      )
     }
   },
   { immediate: true },
@@ -228,21 +203,7 @@ watch(currentAct, (idx, prev) => {
     </header>
 
     <div v-if="activeTab === 'solidify'" class="solidify-body" data-testid="process-solidify-tab">
-      <div v-if="solidifyPhase === 'absorbing'" class="solidify-pane">
-        <ExperienceAbsorptionPanel :state="absorption.state" />
-      </div>
-      <div v-else class="solidify-split">
-        <div class="solidify-pane solidify-pane--aside">
-          <ExperienceAbsorptionPanel :state="absorption.state" />
-        </div>
-        <div class="solidify-pane solidify-pane--main">
-          <SkillBuildPanel
-            :state="build.state"
-            @select="build.selectFile($event)"
-            @finish="store.finishSolidify()"
-          />
-        </div>
-      </div>
+      <ExperienceAbsorptionPanel :state="absorption.state" />
     </div>
 
     <ol v-else-if="panelExpanded" class="timeline" data-testid="reasoning-timeline">
@@ -399,22 +360,9 @@ watch(currentAct, (idx, prev) => {
   display: flex;
   flex-direction: column;
 }
-.solidify-split {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.4fr);
-  gap: 10px;
+.solidify-body > :deep(*) {
   flex: 1;
   min-height: 0;
-}
-.solidify-pane {
-  min-height: 0;
-  min-width: 0;
-  overflow: hidden;
-}
-.solidify-pane--aside,
-.solidify-pane--main {
-  display: flex;
-  flex-direction: column;
 }
 .timeline {
   list-style: none;

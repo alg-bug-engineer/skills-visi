@@ -4,7 +4,7 @@ defineProps<{ title: string; tone?: 'primary' | 'alarm' | 'evidence' | 'protecte
 
 <template>
   <section class="card us-panel" :class="`t-${tone ?? 'primary'}`" data-testid="insight-card">
-    <header class="card__hd">
+    <header v-if="title" class="card__hd">
       <h3>{{ title }}</h3>
     </header>
     <div class="card__body">

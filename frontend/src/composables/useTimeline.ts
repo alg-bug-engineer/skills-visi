@@ -2,6 +2,7 @@ import type { Metrics, RunResponse } from '@/api/types'
 import { directionMovement, t } from '@/labels/enums'
 import { pct, ratio, meters } from '@/utils/format'
 import { productCopy } from '@/utils/productCopy'
+import { downstreamConclusion } from '@/utils/downstream'
 import type { EvidenceStage } from '@/map/sceneEvidencePolicy'
 
 function saturationOf(metrics: Metrics | undefined): number | null | undefined {
@@ -52,12 +53,12 @@ export const ACT_DEFS: ActDef[] = [
   { index: 0, id: 'act1_ticket', phase: 'intent', pipelineNode: '对象识别', processTitle: '诊断对象识别', reveal: 'ticket', scene: { kind: 'city', pitch: 20, zoom: 11, evidence: 'overview' } },
   { index: 1, id: 'act2_locate', phase: 'intent', pipelineNode: '空间定位', processTitle: '路网对象定位', reveal: null, scene: { kind: 'intersection', pitch: 15, zoom: 16, evidence: 'recognition' } },
   // 渠化详情：连贯下钻到 18（车道级）
-  { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '溢出验证', processTitle: '溢出证据核验', reveal: 'metrics', extraCards: ['verification'], scene: { kind: 'lane', pitch: 0, zoom: 18, evidence: 'overflow_validation' } },
+  { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '溢出验证', processTitle: '溢出证据核验', reveal: 'metrics', scene: { kind: 'lane', pitch: 0, zoom: 18, evidence: 'overflow_validation' } },
   { index: 3, id: 'act4_bottleneck', phase: 'diagnosis', pipelineNode: '下游承接', processTitle: '下游承接能力判别', reveal: 'bottleneck', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'downstream_topology' } },
   // 干线溯源：从 18 平滑抬升到 17（干线级）
   { index: 4, id: 'act5_corridor', phase: 'diagnosis', pipelineNode: '流向溯源', processTitle: '上下游流向溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 17, evidence: 'flow_trace' } },
   { index: 5, id: 'act6_cause', phase: 'cause', pipelineNode: '成因归因', processTitle: '成因归因与案例校验', reveal: 'cause', scene: { kind: 'trace', pitch: 50, zoom: 17, evidence: 'flow_trace' } },
-  { index: 6, id: 'act7_strategy', phase: 'strategy', pipelineNode: '策略约束', processTitle: '治理策略与边界约束', reveal: 'strategy', extraCards: ['governance'], scene: { kind: 'control', pitch: 45, zoom: 17, evidence: 'control_scope' } },
+  { index: 6, id: 'act7_strategy', phase: 'strategy', pipelineNode: '策略约束', processTitle: '治理策略与边界约束', reveal: 'governance', scene: { kind: 'control', pitch: 45, zoom: 17, evidence: 'control_scope' } },
   { index: 7, id: 'act8_plan', phase: 'plan', pipelineNode: '方案交付', processTitle: '配时方案生成', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 18, evidence: 'plan_output' } },
   { index: 8, id: 'act9_feedback', phase: 'plan', pipelineNode: '反馈沉淀', processTitle: '方案确认与经验沉淀', reveal: 'feedback', scene: { kind: 'corridor', pitch: 50, zoom: 17, evidence: 'feedback' } },
 ]
@@ -100,12 +101,23 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         `排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${pct(saturationOf(diag?.metrics))}｜绿灯利用率 ${pct(diag?.metrics?.green_utilization)}`,
         diag?.overflow_verification?.message,
       )
-    case 'act4_bottleneck':
+    case 'act4_bottleneck': {
+      const dd = diag?.downstream_diagnosis
+      const pd = dd?.primary_downstream
+      const dm = pd?.metrics
+      const tm = diag?.metrics
+      const storage = typeof pd?.remaining_storage_m === 'number' && pd.remaining_storage_m > 0
+        ? `｜剩余蓄车 ${meters(pd.remaining_storage_m)}`
+        : ''
       return lines(
-        '核验下游剩余接纳空间与相邻路口状态…',
-        diag?.downstream_diagnosis?.narrative,
-        diag?.downstream_diagnosis?.release_answer && `核心判断：${diag.downstream_diagnosis.release_answer}`,
+        '核验下游承接能力：对比本路口与相邻下游信控节点指标…',
+        tm &&
+          `本路口：饱和度 ${ratio(tm.saturation)}｜绿灯利用率 ${ratio(tm.green_utilization)}｜服务水平 ${tm.los ?? '—'}`,
+        pd?.inter_name &&
+          `下游 ${pd.inter_name}：饱和度 ${ratio(dm?.saturation_rate ?? dm?.saturation)}｜服务水平 ${dm?.level_of_service ?? '—'}${storage}`,
+        `结论：${downstreamConclusion(dd)}`,
       )
+    }
     case 'act5_corridor':
       return lines(
         '把诊断范围从单路口扩大到干线…',
@@ -158,7 +170,7 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
     case 'act3_overflow':
       return productCopy(diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${pct(saturationOf(diag?.metrics))}`)
     case 'act4_bottleneck':
-      return productCopy(diag?.downstream_diagnosis?.release_answer ?? diag?.downstream_diagnosis?.narrative ?? '瓶颈判断完成')
+      return productCopy(downstreamConclusion(diag?.downstream_diagnosis))
     case 'act5_corridor':
       return productCopy(diag?.arterial_analysis?.summary ?? '干线溯源完成')
     case 'act6_cause':

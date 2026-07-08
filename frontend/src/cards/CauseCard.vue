@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
-import { pct } from '@/utils/format'
 import BaseCard from './BaseCard.vue'
 import { productCopy } from '@/utils/productCopy'
 
@@ -14,7 +13,9 @@ const cards = computed(() => cause.value?.case_cards?.cards ?? [])
 const matched = computed(() => cause.value?.case_cards?.matched_count ?? 0)
 const highSim = computed(() => cause.value?.case_cards?.high_similarity_count ?? 0)
 const narrative = computed(() => productCopy(cause.value?.cause_analysis?.narrative ?? cause.value?.cause_analysis?.primary_cause ?? ''))
-const casePreview = computed(() => cards.value.slice(0, 2))
+const caseIds = computed<string[]>(() =>
+  cards.value.map((c) => c.case_id).filter((id): id is string => !!id),
+)
 
 function roleTone(role?: string) {
   if (role?.includes('主')) return 'alarm'
@@ -22,8 +23,12 @@ function roleTone(role?: string) {
   return 'primary'
 }
 
-function openCaseLibrary() {
-  window.dispatchEvent(new CustomEvent('open-case-library'))
+function openCase(caseId: string) {
+  window.dispatchEvent(
+    new CustomEvent('open-case-library', {
+      detail: { tab: 'intersection', refId: `inter-case-${caseId}` },
+    }),
+  )
 }
 </script>
 
@@ -43,21 +48,24 @@ function openCaseLibrary() {
 
     <p v-if="narrative" class="narrative">{{ narrative }}</p>
 
-    <div class="cases" v-if="cards.length">
+    <div class="cases" v-if="caseIds.length">
       <div class="cases__hd">
-        <span>检测到相似案例</span>
-        <span class="mute">匹配 {{ matched }} · 高相似 {{ highSim }}</span>
+        <span>相似案例检索</span>
+        <span class="mute">命中 {{ matched }} · 高相似 {{ highSim }}</span>
       </div>
-      <div class="case-summary" data-testid="case-carousel">
-        <article v-for="(c, i) in casePreview" :key="c.case_id ?? i" class="case">
-          <header>
-            <span class="case__title">{{ productCopy(c.title ?? '案例') }}</span>
-            <span v-if="c.similarity != null" class="case__sim">{{ pct(c.similarity, 0) }}</span>
-          </header>
-          <p v-if="c.lesson" class="case__lesson">{{ productCopy(c.lesson) }}</p>
-        </article>
+      <p class="cases__sub">从高相似案例中选取 {{ caseIds.length }} 例代表案例，点击编号查看详情</p>
+      <div class="case-ids" data-testid="case-carousel">
+        <button
+          v-for="id in caseIds"
+          :key="id"
+          type="button"
+          class="case-id-chip us-mono"
+          data-testid="case-id-chip"
+          @click="openCase(id)"
+        >
+          {{ id }}
+        </button>
       </div>
-      <button type="button" class="case-link" @click="openCaseLibrary">查看案例库</button>
     </div>
     <p v-else class="empty">暂无高相似历史案例（数据暂缺）</p>
   </BaseCard>
@@ -128,51 +136,30 @@ function openCaseLibrary() {
   color: var(--text-mute);
   font-size: 11px;
 }
-.case-summary {
+.cases__sub {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--text-mute);
+  line-height: 1.45;
+}
+.case-ids {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 6px;
 }
-.case {
-  padding: 8px 10px;
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(146, 161, 181, 0.35);
-}
-.case header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 4px;
-}
-.case__title {
-  font-size: 12.5px;
-  color: var(--text);
-  font-weight: 600;
-}
-.case__sim {
-  font-size: 11px;
+.case-id-chip {
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--primary);
+  background: var(--primary-dim);
   color: var(--primary);
-}
-.case p {
-  margin: 3px 0;
   font-size: 11.5px;
-  line-height: 1.45;
-  color: var(--text-dim);
-}
-.case__lesson {
-  color: var(--evidence-2) !important;
-}
-.case-link {
-  margin-top: 8px;
-  padding: 6px 0;
-  border: 0;
-  border-top: 1px solid rgba(146, 161, 181, 0.35);
-  background: transparent;
-  color: var(--primary);
   cursor: pointer;
-  font-size: 12px;
-  text-align: left;
+  transition: all 0.16s ease;
+}
+.case-id-chip:hover {
+  background: var(--primary);
+  color: var(--bg, #04101c);
 }
 .empty {
   margin: 0;
