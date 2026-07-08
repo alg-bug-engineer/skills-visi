@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.data.traffic_metrics_logic import DIRECTION_ORDER, TURN_DIR_LABELS
 from app.metrics.traffic import (
+    THRESHOLDS,
     assess_overflow_risk,
     calculate_queue_ratio,
     calculate_saturation,
@@ -23,6 +25,176 @@ from app.trace.map_scene import (
 from app.trace.topology import resolve_dir8_turn
 
 
+# 逐转向饱和度分级阈值：>=1.0 视为过饱和（需求超能力，LOS F 边界），
+# >=0.8（THRESHOLDS.saturation_high）视为偏高，其余为正常。
+_OVERSATURATION_LEVEL = 1.0
+
+
+def _to_float_or_none(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return round(float(value), 4)
+    except (TypeError, ValueError):
+        return None
+
+
+def _strip_approach(dir8_label: Any) -> str:
+    text = str(dir8_label or "").strip()
+    for suffix in ("进口", "出口"):
+        if text.endswith(suffix):
+            return text[: -len(suffix)]
+    return text
+
+
+def _movement_level(saturation: float | None) -> str | None:
+    if saturation is None:
+        return None
+    if saturation >= _OVERSATURATION_LEVEL:
+        return "过饱和"
+    if saturation >= THRESHOLDS["saturation_high"]:
+        return "偏高"
+    return "正常"
+
+
+def _approach_sort_key(approach_label: str) -> int:
+    return DIRECTION_ORDER.get(_strip_approach(approach_label), len(DIRECTION_ORDER))
+
+
+def build_by_movement(pg_raw: dict[str, Any]) -> list[dict[str, Any]]:
+    """逐转向富指标：饱和度（max）+ 绿灯利用率（join）+ 分级。源缺失即空列表。"""
+    sat_rows = (pg_raw or {}).get("turn_saturation") or []
+    util_rows = (pg_raw or {}).get("green_utilization") or []
+    if not sat_rows:
+        return []
+
+    util_by_movement: dict[tuple[str, int], float] = {}
+    for row in util_rows:
+        value = _to_float_or_none(row.get("green_utilization"))
+        if value is None:
+            continue
+        key = (str(row.get("link_id") or ""), int(_to_float_or_none(row.get("turn_dir_no")) or 0))
+        util_by_movement[key] = max(util_by_movement.get(key, value), value)
+
+    aggregated: dict[tuple[str, int], dict[str, Any]] = {}
+    for row in sat_rows:
+        turn_dir_no = int(_to_float_or_none(row.get("turn_dir_no")) or 0)
+        link_id = str(row.get("link_id") or "")
+        key = (link_id, turn_dir_no)
+        saturation = _to_float_or_none(row.get("turn_saturation"))
+        entry = aggregated.get(key)
+        if entry is None:
+            entry = {
+                "approach": _strip_approach(row.get("dir8_label")),
+                "turn_dir_no": turn_dir_no,
+                "saturation": saturation,
+            }
+            aggregated[key] = entry
+        elif saturation is not None and (entry["saturation"] is None or saturation > entry["saturation"]):
+            entry["saturation"] = saturation
+
+    movements: list[dict[str, Any]] = []
+    for (link_id, turn_dir_no), entry in aggregated.items():
+        turn_label = TURN_DIR_LABELS.get(turn_dir_no, "")
+        movements.append(
+            {
+                "movement": f"{entry['approach']}{turn_label}".strip() or f"转向{turn_dir_no}",
+                "saturation": entry["saturation"],
+                "green_utilization": util_by_movement.get((link_id, turn_dir_no)),
+                "level": _movement_level(entry["saturation"]),
+            }
+        )
+    movements.sort(
+        key=lambda m: (m["saturation"] if m["saturation"] is not None else -1),
+        reverse=True,
+    )
+    return movements
+
+
+def build_by_approach(pg_raw: dict[str, Any]) -> list[dict[str, Any]]:
+    """逐进口富指标：进口饱和度（该进口最大转向饱和度）+ 时延/服务水平（turn_perf）。"""
+    sat_rows = (pg_raw or {}).get("turn_saturation") or []
+    perf_rows = (pg_raw or {}).get("turn_perf") or []
+    if not sat_rows:
+        return []
+
+    sat_by_approach: dict[str, float] = {}
+    for row in sat_rows:
+        approach = _strip_approach(row.get("dir8_label"))
+        if not approach:
+            continue
+        saturation = _to_float_or_none(row.get("turn_saturation"))
+        if saturation is None:
+            continue
+        sat_by_approach[approach] = max(sat_by_approach.get(approach, saturation), saturation)
+
+    perf_by_approach: dict[str, dict[str, Any]] = {}
+    for row in perf_rows:
+        approach = _strip_approach(row.get("f_dir_8_label") or row.get("dir8_label"))
+        if not approach:
+            continue
+        delay = _to_float_or_none(row.get("delay_index"))
+        entry = perf_by_approach.setdefault(approach, {"delay_index": None, "los": None})
+        if delay is not None and (entry["delay_index"] is None or delay > entry["delay_index"]):
+            entry["delay_index"] = delay
+            entry["los"] = row.get("los") or entry["los"]
+        elif entry["los"] is None and row.get("los"):
+            entry["los"] = row.get("los")
+
+    approaches = set(sat_by_approach) | set(perf_by_approach)
+    result: list[dict[str, Any]] = []
+    for approach in sorted(approaches, key=_approach_sort_key):
+        perf = perf_by_approach.get(approach, {})
+        result.append(
+            {
+                "approach": f"{approach}进口" if approach else approach,
+                "saturation": sat_by_approach.get(approach),
+                "delay_index": perf.get("delay_index"),
+                "los": perf.get("los"),
+            }
+        )
+    return result
+
+
+def _distinct_lane_count(pg_raw: dict[str, Any], scope: dict[str, Any]) -> int | None:
+    lane_ids: set[str] = set()
+    for row in (pg_raw or {}).get("turn_saturation") or []:
+        for lane in row.get("lane_saturation_detail") or []:
+            lane_id = lane.get("lane_id")
+            if lane_id:
+                lane_ids.add(str(lane_id))
+    if lane_ids:
+        return len(lane_ids)
+    lanes = (scope or {}).get("lanes")
+    if lanes:
+        return len(lanes)
+    return None
+
+
+def _resolve_imbalance_index(
+    task_metrics: dict[str, Any], pg_raw: dict[str, Any]
+) -> float | None:
+    value = _to_float_or_none((task_metrics or {}).get("imbalance_index"))
+    if value is not None:
+        return value
+    eval_rows = (pg_raw or {}).get("evaluation") or []
+    candidates = [
+        _to_float_or_none(row.get("unbalance_index"))
+        for row in eval_rows
+        if _to_float_or_none(row.get("unbalance_index")) is not None
+    ]
+    return max(candidates) if candidates else None
+
+
+def build_timing_profile(signal: dict[str, Any] | None) -> dict[str, Any]:
+    signal = signal or {}
+    return {
+        "cycle_s": _to_float_or_none(signal.get("current_cycle_s")),
+        "time_plan_count": signal.get("time_plan_count"),
+        "plan_name": signal.get("plan_name"),
+    }
+
+
 def analyze_overflow(
     metrics_input: dict[str, Any],
     ticket: dict[str, Any],
@@ -32,6 +204,7 @@ def analyze_overflow(
     pg_raw: dict[str, Any] | None = None,
     signal: dict[str, Any] | None = None,
     scope: dict[str, Any] | None = None,
+    task_metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     direction = ticket.get("direction", "东向西")
     movement = ticket.get("movement", "直行")
@@ -151,6 +324,12 @@ def analyze_overflow(
             ),
         }
 
+    by_approach = build_by_approach(pg_raw or {})
+    by_movement = build_by_movement(pg_raw or {})
+    imbalance_index = _resolve_imbalance_index(task_metrics or {}, pg_raw or {})
+    approach_count = len(by_approach) or (scope or {}).get("leg_count") or None
+    lane_count = _distinct_lane_count(pg_raw or {}, scope or {})
+
     return {
         "metrics": {
             "queue_length_m": metrics_input["queue_length_m"],
@@ -162,7 +341,13 @@ def analyze_overflow(
             "stop_count": metrics_input.get("stop_count"),
             "avg_delay_s": metrics_input.get("avg_delay_s"),
             "time_series_trend": metrics_input.get("time_series_trend"),
+            "by_approach": by_approach,
+            "by_movement": by_movement,
+            "imbalance_index": imbalance_index,
+            "approach_count": approach_count,
+            "lane_count": lane_count,
         },
+        "timing_profile": build_timing_profile(signal),
         "downstream_metrics": {
             "queue_ratio": downstream_metrics_raw.get("queue_storage_ratio_max"),
             "saturation": downstream_metrics_raw.get("saturation_rate"),

@@ -63,6 +63,7 @@ class DataAnalysisDiagnosisSkill(BaseSkill):
             pg_raw=context.task.get("pg_raw") or {},
             signal=context.task.get("signal") or {},
             scope=context.task.get("scope") or {},
+            task_metrics=context.task.get("metrics") or {},
         )
         output["scenario_report"] = build_scenario_report(
             context.task.get("checklist_queries"),
