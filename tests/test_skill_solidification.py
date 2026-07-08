@@ -185,3 +185,74 @@ def test_degradation_missing_strategy_and_plan(service, real_inputs):
 def test_derive_context_slug_fallback_to_inter_id():
     ctx = derive_context(diagnosis_ticket={"intersection_name": "经十路口", "inter_id": "abc123"})
     assert compute_skill_id(ctx) == "skill-abc123-all"
+
+
+# --- API layer (TestClient) ---
+
+
+@pytest.fixture
+def client(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from app.api.routes import get_skill_solidification_service
+    from app.main import app
+
+    service = SkillSolidificationService(tmp_path / "skills")
+    app.dependency_overrides[get_skill_solidification_service] = lambda: service
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.pop(get_skill_solidification_service, None)
+
+
+def _post_solidify(client, real_inputs):
+    return client.post(
+        "/api/v1/agent/skill/solidify",
+        json={
+            "trace_id": "trace-1",
+            "plan_id": "plan-1",
+            "diagnosis_ticket": real_inputs["diagnosis_ticket"],
+            "strategy": real_inputs["strategy"],
+            "plan_snapshot": real_inputs["plan_snapshot"],
+        },
+    )
+
+
+def test_api_solidify_returns_structure(client, real_inputs):
+    response = _post_solidify(client, real_inputs)
+    assert response.status_code == 200
+    data = response.json()
+    for key in ("action", "skill_id", "skill_dir", "download_url", "tags", "absorption", "build"):
+        assert key in data
+    assert data["action"] == "created"
+
+
+def test_api_list_includes_new_skill(client, real_inputs):
+    _post_solidify(client, real_inputs)
+    response = client.get("/api/v1/agent/skills/solidified")
+    assert response.status_code == 200
+    skills = response.json()["skills"]
+    assert any(s["skill_id"] == "skill-011wwe289qc00001-evening_rush_hour" for s in skills)
+
+
+def test_api_download_returns_zip(client, real_inputs):
+    result = _post_solidify(client, real_inputs).json()
+    response = client.get(f"/api/v1/agent/skills/{result['skill_id']}/download")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.content[:2] == b"PK"
+
+
+def test_api_download_rejects_traversal(client):
+    response = client.get("/api/v1/agent/skills/..%2Fetc/download")
+    assert response.status_code in (404, 422)
+
+
+def test_api_download_missing_skill_404(client):
+    response = client.get("/api/v1/agent/skills/skill-nope-all/download")
+    assert response.status_code == 404
+
+
+def test_existing_pipeline_skills_endpoint_not_regressed(client):
+    response = client.get("/api/v1/agent/skills")
+    assert response.status_code == 200
+    assert len(response.json()["skills"]) == 5

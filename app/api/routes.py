@@ -4,7 +4,7 @@ import json
 from typing import Any, AsyncIterator, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
 from app.api.response_builder import build_public_run_response, build_public_skill_catalog
@@ -15,6 +15,7 @@ from app.services.cases_catalog_service import CasesCatalogService
 from app.services.case_library import CaseLibraryService
 from app.services.feedback_service import PlanFeedbackService
 from app.services.intersection_load_service import IntersectionLoadService
+from app.services.skill_solidification_service import SkillSolidificationService
 
 router = APIRouter(prefix="/api/v1")
 
@@ -72,6 +73,27 @@ class PlanRegenerateRequest(BaseModel):
     )
 
 
+class SkillSolidifyRequest(BaseModel):
+    trace_id: str = Field(..., min_length=1)
+    plan_id: str = Field(..., min_length=1)
+    diagnosis_ticket: dict[str, Any] | None = Field(
+        None,
+        description="本轮已采纳的诊断工单快照",
+    )
+    plan_snapshot: Any | None = Field(
+        None,
+        description="本轮推荐方案快照（plan 或 plan.recommended）",
+    )
+    strategy: dict[str, Any] | None = Field(
+        None,
+        description="本轮策略生成结果（strategy 或 strategy.strategy）",
+    )
+    artifacts_summary: Any | None = Field(
+        None,
+        description="可选：流水线 artifacts 摘要，用于补充规则/问题编码标签",
+    )
+
+
 class IntersectionLoadRequest(BaseModel):
     inter_id: str | None = Field(None, description="路口 ID")
     intersection_name: str | None = Field(None, description="路口名称")
@@ -104,6 +126,17 @@ def get_cases_catalog_service(settings: Settings = Depends(get_settings)) -> Cas
     return CasesCatalogService(
         CaseLibraryService(settings.case_library_abs_path),
         PlanFeedbackService(settings.feedback_log_abs_path),
+    )
+
+
+def get_skill_solidification_service(
+    settings: Settings = Depends(get_settings),
+) -> SkillSolidificationService:
+    return SkillSolidificationService(
+        settings.skills_output_abs_path,
+        pg_schema=settings.pg_schema,
+        pg_channel_table=settings.pg_channel_table,
+        pg_dim_inter_table=settings.pg_dim_inter_table,
     )
 
 
@@ -250,6 +283,48 @@ async def load_intersection_stream(
         movement=request.movement,
     )
     return StreamingResponse(generator, media_type="text/event-stream")
+
+
+@router.post("/agent/skill/solidify")
+async def solidify_skill(
+    request: SkillSolidifyRequest,
+    service: SkillSolidificationService = Depends(get_skill_solidification_service),
+) -> dict[str, Any]:
+    return service.solidify(
+        trace_id=request.trace_id,
+        plan_id=request.plan_id,
+        diagnosis_ticket=request.diagnosis_ticket,
+        plan_snapshot=request.plan_snapshot,
+        strategy=request.strategy,
+        artifacts_summary=request.artifacts_summary,
+    )
+
+
+@router.get("/agent/skills/solidified")
+async def list_solidified_skills(
+    service: SkillSolidificationService = Depends(get_skill_solidification_service),
+) -> dict[str, Any]:
+    """列出已固化的技能包（读取 data/skills/*/skill.meta.json）。
+
+    注意：`GET /agent/skills` 已用于列出流水线技能，故固化技能列表使用
+    `/agent/skills/solidified` 路径以避免冲突。
+    """
+    return {"skills": service.list_skills()}
+
+
+@router.get("/agent/skills/{skill_id}/download")
+async def download_skill(
+    skill_id: str,
+    service: SkillSolidificationService = Depends(get_skill_solidification_service),
+) -> Response:
+    payload = service.zip_skill(skill_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="技能包不存在")
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{skill_id}.zip"'},
+    )
 
 
 @router.post("/agent/plan/decision")
