@@ -4,17 +4,47 @@ import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import { t } from '@/labels/enums'
 import { pct } from '@/utils/format'
+import expertKnowledge from '@/data/expertKnowledge.json'
 
 type PanelTab = 'experience' | 'cases'
 type ExpSubTab = 'cognitive' | 'diagnostic' | 'solution'
-type CaseSubTab = 'existing' | 'deposited'
+type CaseSubTab = 'industry' | 'intersection'
+
+interface IndustryCase {
+  id: string
+  title: string
+  snippet: string
+}
+interface IndustryScheme {
+  name: string
+  freq: number
+  measures: string[]
+  applicable: string
+  caution: string
+  cases: IndustryCase[]
+}
+interface IndustryProblem {
+  name: string
+  freq: number
+  symptoms: string[]
+  schemes: IndustryScheme[]
+}
+interface IndustryScene {
+  scene: string
+  sceneId: string
+  caseCount: number
+  desc: string
+  problems: IndustryProblem[]
+}
+
+const scenes = expertKnowledge as IndustryScene[]
 
 const store = usePresentationStore()
 const { experiencesByType, existingCases, experienceReady, casesReady } = storeToRefs(store)
 
 const activeTab = ref<PanelTab>('experience')
 const expSubTab = ref<ExpSubTab>('cognitive')
-const caseSubTab = ref<CaseSubTab>('existing')
+const caseSubTab = ref<CaseSubTab>('industry')
 
 const expSubTabs: Array<{ key: ExpSubTab; label: string; hint: string }> = [
   { key: 'cognitive', label: '认知经验', hint: '问题记录' },
@@ -23,8 +53,8 @@ const expSubTabs: Array<{ key: ExpSubTab; label: string; hint: string }> = [
 ]
 
 const caseSubTabs: Array<{ key: CaseSubTab; label: string; hint: string }> = [
-  { key: 'existing', label: '已有案例', hint: '相似检索' },
-  { key: 'deposited', label: '沉淀案例', hint: '本次固化' },
+  { key: 'industry', label: '行业案例', hint: '专家经验库' },
+  { key: 'intersection', label: '路口案例', hint: '相似检索' },
 ]
 
 const activeExpList = computed(() => experiencesByType.value[expSubTab.value])
@@ -35,9 +65,42 @@ const expCount = computed(
     experiencesByType.value.solution.length,
 )
 
+// —— 行业案例：搜索 + 折叠 ——
+const industryQuery = ref('')
+const expandedScenes = ref<Set<string>>(new Set())
+
+const searching = computed(() => industryQuery.value.trim().length > 0)
+
+const filteredScenes = computed(() => {
+  const q = industryQuery.value.trim().toLowerCase()
+  if (!q) return scenes
+  return scenes.filter((s) => {
+    if (s.scene.toLowerCase().includes(q)) return true
+    return s.problems.some(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.schemes.some(
+          (sc) =>
+            sc.name.toLowerCase().includes(q) ||
+            sc.measures.some((m) => m.toLowerCase().includes(q)),
+        ),
+    )
+  })
+})
+
+// 搜索时命中场景自动展开；否则按用户点开的集合。
+function isSceneOpen(sceneId: string): boolean {
+  return searching.value || expandedScenes.value.has(sceneId)
+}
+function toggleScene(sceneId: string) {
+  const next = new Set(expandedScenes.value)
+  next.has(sceneId) ? next.delete(sceneId) : next.add(sceneId)
+  expandedScenes.value = next
+}
+
 function openCases() {
   activeTab.value = 'cases'
-  caseSubTab.value = 'existing'
+  caseSubTab.value = 'industry'
 }
 
 onMounted(() => window.addEventListener('open-case-library', openCases))
@@ -127,15 +190,95 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases)
         </button>
       </div>
 
-      <template v-if="caseSubTab === 'existing'">
+      <!-- 行业案例：专家经验库全量结构化展示 + 搜索 -->
+      <template v-if="caseSubTab === 'industry'">
+        <div class="industry-search">
+          <input
+            v-model="industryQuery"
+            type="search"
+            class="industry-search-input"
+            data-testid="industry-search"
+            placeholder="搜索场景 / 典型问题"
+          />
+        </div>
+        <div v-if="!filteredScenes.length" class="hint-row">未匹配到场景，试试其他关键词</div>
+        <ul v-else class="industry-list">
+          <li
+            v-for="s in filteredScenes"
+            :key="s.sceneId"
+            :id="'industry-scene-' + s.sceneId"
+            class="industry-scene"
+            data-testid="industry-scene"
+          >
+            <button
+              type="button"
+              class="scene-head"
+              :class="{ open: isSceneOpen(s.sceneId) }"
+              @click="toggleScene(s.sceneId)"
+            >
+              <span class="scene-caret">{{ isSceneOpen(s.sceneId) ? '▾' : '▸' }}</span>
+              <span class="scene-name">{{ s.scene }}</span>
+              <span class="scene-count">{{ s.caseCount }} 例</span>
+            </button>
+
+            <div v-if="isSceneOpen(s.sceneId)" class="scene-body">
+              <p class="scene-desc">{{ s.desc }}</p>
+
+              <div v-for="(p, pi) in s.problems" :key="pi" class="problem-block">
+                <div class="problem-head">
+                  <span class="problem-name">典型问题 · {{ p.name }}</span>
+                  <span class="freq-badge">{{ p.freq }} 次</span>
+                </div>
+                <p v-if="p.symptoms.length" class="problem-symptoms">
+                  典型表现：{{ p.symptoms.join('、') }}
+                </p>
+
+                <div v-for="(sc, si) in p.schemes" :key="si" class="scheme-block">
+                  <div class="scheme-head">
+                    <span class="scheme-name">治理方案 · {{ sc.name }}</span>
+                    <span class="freq-badge alt">{{ sc.freq }}</span>
+                  </div>
+                  <p v-if="sc.measures.length" class="scheme-line">
+                    关键措施：{{ sc.measures.join('、') }}
+                  </p>
+                  <p v-if="sc.applicable" class="scheme-line">适用条件：{{ sc.applicable }}</p>
+                  <p v-if="sc.caution" class="scheme-caution">注意事项：{{ sc.caution }}</p>
+                  <ul v-if="sc.cases.length" class="rep-cases">
+                    <li
+                      v-for="c in sc.cases"
+                      :key="c.id"
+                      :id="'industry-case-' + c.id"
+                      class="rep-case"
+                    >
+                      <span class="rep-id">[#{{ c.id }}]</span>
+                      <span class="rep-title">{{ c.title }}</span>
+                      <span class="rep-snippet">：{{ c.snippet }}…</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </template>
+
+      <!-- 路口案例：本次相似检索结果 -->
+      <template v-else>
         <div v-if="!casesReady" class="hint-row">待检索…成因分析完成后展示相似案例</div>
         <div v-else-if="!existingCases.length" class="hint-row">暂无高相似历史案例</div>
         <ul v-else class="case-list">
-          <li v-for="(c, i) in existingCases" :key="c.case_id ?? i" class="case-item">
+          <li
+            v-for="(c, i) in existingCases"
+            :key="c.case_id ?? i"
+            :id="'inter-case-' + (c.case_id ?? i)"
+            class="case-item"
+            data-testid="inter-case"
+          >
             <header>
               <span class="case-title">{{ c.title ?? '案例' }}</span>
               <span v-if="c.similarity != null" class="case-sim">{{ pct(c.similarity, 0) }}</span>
             </header>
+            <p v-if="c.case_id" class="case-id">案例编号：{{ c.case_id }}</p>
             <p v-if="c.action || c.historical_action" class="case-line">
               措施：{{ c.action ?? c.historical_action }}
             </p>
@@ -143,12 +286,6 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases)
             <p v-if="c.lesson" class="case-lesson">经验：{{ c.lesson }}</p>
           </li>
         </ul>
-      </template>
-
-      <template v-else>
-        <div class="hint-row deposited">
-          本次处置完成后，诊断结论与治理方案将沉淀为新案例，供后续相似场景检索复用。
-        </div>
       </template>
     </div>
   </aside>
@@ -332,5 +469,188 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases)
   margin: 3px 0 0;
   font-size: 11.5px;
   color: var(--evidence-2);
+}
+.case-id {
+  margin: 0 0 4px;
+  font-size: 10.5px;
+  color: var(--text-mute);
+  letter-spacing: 0.5px;
+}
+
+/* —— 行业案例 —— */
+.industry-search {
+  padding: 0 10px 8px;
+  flex: 0 0 auto;
+}
+.industry-search-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.16s ease;
+}
+.industry-search-input::placeholder {
+  color: var(--text-mute);
+}
+.industry-search-input:focus {
+  border-color: var(--primary);
+}
+.industry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.industry-scene {
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+.scene-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.16s ease;
+}
+.scene-head:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.scene-head.open {
+  background: var(--primary-dim);
+}
+.scene-caret {
+  font-size: 10px;
+  color: var(--primary);
+  flex: 0 0 auto;
+}
+.scene-name {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.scene-count {
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(0, 229, 255, 0.18);
+  color: var(--primary);
+  font-weight: 600;
+}
+.scene-body {
+  padding: 4px 11px 11px;
+  border-top: 1px solid var(--panel-border);
+}
+.scene-desc {
+  margin: 8px 0 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-mute);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.problem-block {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--panel-border);
+}
+.problem-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.problem-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.freq-badge {
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--primary-dim);
+  color: var(--primary);
+  font-weight: 600;
+}
+.freq-badge.alt {
+  background: var(--evidence-dim);
+  color: var(--evidence-2);
+}
+.problem-symptoms {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-mute);
+}
+.scheme-block {
+  margin: 8px 0 0;
+  padding-left: 9px;
+  border-left: 2px solid var(--panel-border);
+}
+.scheme-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.scheme-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.scheme-line {
+  margin: 2px 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.scheme-caution {
+  margin: 2px 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--evidence-2);
+}
+.rep-cases {
+  list-style: none;
+  margin: 5px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rep-case {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-mute);
+}
+.rep-id {
+  color: var(--primary);
+  font-weight: 600;
+  margin-right: 3px;
+}
+.rep-title {
+  color: var(--text-dim);
 }
 </style>
