@@ -26,9 +26,9 @@ frontend/
 │  ├─ composables/    # useTimeline（九幕定义）、useTyping（打字机）
 │  ├─ stores/         # presentation：运行生命周期 + 演出状态
 │  ├─ map/            # AMapProvider + MapController（逐幕 2D/3D 场景）
-│  ├─ viz/            # PhaseDiagram（相位配时）；协调时距见 panels/CoordinationDiagram
+│  ├─ viz/            # 方案证据可视化（StageCards / StageMovementCanvas / 方向强度 …）；协调时距见 panels/CoordinationDiagram
 │  ├─ cards/          # 左侧证据卡（工单/数据/瓶颈/干线/成因/策略）
-│  ├─ panels/         # InsightPanel / ProcessPanel / BottomDock / PlanDrawer …
+│  ├─ panels/         # ProcessPanel / BottomDock / PlanDrawer / UnderstandingPanel …
 │  ├─ theme/tokens.css# 设计令牌（深色信控主题）
 │  ├─ mock/           # run_1_fixture.json（真实响应回放，非编造）
 │  └─ App.vue / main.ts
