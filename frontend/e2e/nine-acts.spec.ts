@@ -10,7 +10,7 @@ test.describe('九幕演示 · 布局与遮挡', () => {
   test('输入态：标题与输入框不被遮挡', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByTestId('bottom-dock')).toBeVisible()
-    await expect(page.getByText('排队溢出 · 智能决策控制台')).toBeVisible()
+    await expect(page.getByText('交通信控 · 智能决策控制台')).toBeVisible()
     await page.screenshot({ path: `${SHOTS}/00-input.png`, fullPage: false })
   })
 

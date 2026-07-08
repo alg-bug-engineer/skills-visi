@@ -38,7 +38,7 @@ watch(toast, (v) => {
       <div class="brand">
         <span class="brand__logo">◈</span>
         <span class="brand__name">济南交通决策控制台</span>
-        <span class="brand__sub">排队溢出处置闭环</span>
+        <span class="brand__sub">交通信控处置闭环</span>
       </div>
       <div class="topbar__right">
         <button class="ghost" @click="store.toggleFullscreen()">

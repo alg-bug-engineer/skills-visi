@@ -16,6 +16,7 @@ import ExperienceAbsorptionPanel from '@/panels/ExperienceAbsorptionPanel.vue'
 import SkillBuildPanel from '@/panels/SkillBuildPanel.vue'
 import { useExperienceAbsorption } from '@/composables/useExperienceAbsorption'
 import { useSkillBuildProcess } from '@/composables/useSkillBuildProcess'
+import { DEMO_TYPING_MS, actDwellMs } from '@/config/demoPacing'
 
 const store = usePresentationStore()
 const { acts, currentAct, revealedActs, solidifyPhase } = storeToRefs(store)
@@ -101,19 +102,37 @@ watch(
 
 const lines = computed(() => store.activeNarration)
 
+// 旁白缓存（需求17-R2）：某幕打字完成时冻结其已输出的多行旁白，
+// 折叠后再展开仍显示同一套过程旁白，消除“打字内容与展开结果不一致”的错觉。
+const narrationCache = ref<Record<number, string[]>>({})
+
 const { shown, done } = useTyping(lines, {
   instant,
+  speed: DEMO_TYPING_MS,
   onDone: () => {
     const idx = store.currentAct
     if (idx < 0) return
+    narrationCache.value = { ...narrationCache.value, [idx]: [...lines.value] }
     store.onActTyped(idx)
     if (store.autoPlay) {
       window.setTimeout(() => {
         if (store.currentAct === idx) store.tryAdvance()
-      }, 750)
+      }, actDwellMs(idx, instant))
     }
   },
 })
+
+function narrationOf(index: number): string[] {
+  return narrationCache.value[index] ?? []
+}
+
+// 会话重置时清空缓存，避免上一轮旁白串到新一轮。
+watch(
+  () => store.mapResetSeq,
+  () => {
+    narrationCache.value = {}
+  },
+)
 
 /** 可见阶段：当前及之前所有已开始的阶段 */
 const visibleActs = computed(() => {
@@ -264,9 +283,18 @@ watch(currentAct, (idx, prev) => {
               </p>
             </div>
 
-            <!-- 已完成：汇总 + 可选证据卡 -->
+            <!-- 已完成：冻结旁白全文（与打字一致）+ 可选证据卡 -->
             <template v-else>
-              <p class="step-summary">{{ summaryFor(act, store.response) }}</p>
+              <div
+                v-if="narrationOf(act.index).length"
+                class="detail-lines detail-lines--frozen"
+                data-testid="process-narration-frozen"
+              >
+                <p v-for="(l, li) in narrationOf(act.index)" :key="li" class="detail-line">
+                  <span class="check">✓</span>{{ l }}
+                </p>
+              </div>
+              <p v-else class="step-summary">{{ summaryFor(act, store.response) }}</p>
               <div
                 v-if="cardKeyFor(act.index) || extraCardKeysFor(act.index).length"
                 class="evidence-slot"
@@ -491,6 +519,9 @@ watch(currentAct, (idx, prev) => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.detail-lines--frozen .detail-line {
+  color: var(--text-dim);
 }
 .detail-line {
   margin: 0;
