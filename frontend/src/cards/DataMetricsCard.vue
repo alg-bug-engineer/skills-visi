@@ -157,12 +157,6 @@ const dimensionNote = computed(() => {
         </ul>
       </div>
 
-      <div v-if="imbalance != null" class="row">
-        <span class="row__k">方向失衡</span>
-        <span class="row__v us-mono" :class="{ 'tone-evidence': imbalanceHigh }">{{ num(imbalance, 2) }}</span>
-        <span v-if="imbalanceHigh" class="row__meta">各进口差异大</span>
-      </div>
-
       <div v-if="overallLos" class="row">
         <span class="row__k">服务水平</span>
         <span class="row__v us-mono" :class="{ 'tone-alarm': overallLos === 'F' }">{{ losLabel(overallLos) }}</span>

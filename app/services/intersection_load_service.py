@@ -8,6 +8,7 @@ from typing import Any, Iterator
 
 from app.config import Settings
 from app.data.pg_adapters import (
+    enrich_downstream_metrics,
     merge_pg_task_into_context,
     metrics_for_diagnosis,
     parse_day_of_week,
@@ -100,7 +101,7 @@ class IntersectionLoadService:
                 "errors": loaded.get("errors") or ["PG 加载失败"],
             }
 
-        task = self._build_agent_task(loaded, ticket)
+        task = self._build_agent_task(loaded, ticket, day_of_week=dow, time_hhmm=hhmm, time_range=time_range)
         checklist = loaded.get("checklist_queries") or []
         has_data = sum(1 for item in checklist if item.get("status") == "has_data")
         return {
@@ -158,7 +159,9 @@ class IntersectionLoadService:
                 yield self._sse("error", {"message": event.get("message")})
                 return
             elif event.get("type") == "complete":
-                task = self._build_agent_task(event, ticket)
+                task = self._build_agent_task(
+                    event, ticket, day_of_week=dow, time_hhmm=hhmm, time_range=time_range
+                )
                 yield self._sse(
                     "complete",
                     {
@@ -176,7 +179,15 @@ class IntersectionLoadService:
                     },
                 )
 
-    def _build_agent_task(self, loaded: dict[str, Any], ticket: dict[str, Any]) -> dict[str, Any]:
+    def _build_agent_task(
+        self,
+        loaded: dict[str, Any],
+        ticket: dict[str, Any],
+        *,
+        day_of_week: int | None = None,
+        time_hhmm: str | None = None,
+        time_range: str | None = None,
+    ) -> dict[str, Any]:
         pg_task = loaded.get("task") or {}
         raw = loaded.get("raw") or {}
         inter = raw.get("inter") or {}
@@ -188,6 +199,7 @@ class IntersectionLoadService:
         pg_metrics = pg_task.get("metrics") or {}
         metrics = metrics_for_diagnosis(pg_metrics, ticket)
         topology = topology_from_pg_raw({**raw, "metrics": pg_metrics}, ticket, inter)
+        self._enrich_downstream(topology, day_of_week=day_of_week, time_hhmm=time_hhmm, time_range=time_range)
 
         diagnosis_ticket = {
             **ticket,
@@ -211,6 +223,37 @@ class IntersectionLoadService:
             }
         )
         return task
+
+    def _enrich_downstream(
+        self,
+        topology: dict[str, Any],
+        *,
+        day_of_week: int | None,
+        time_hhmm: str | None,
+        time_range: str | None,
+    ) -> None:
+        """为下游相邻节点注入真实 PG 运行指标（修复下游指标恒为 0，BUG-004）。
+
+        使用轻量指标加载器（跳过 AOI/几何/信号等昂贵查询），避免首步阻塞（需求21-R4）。
+        """
+        try:
+            from app.data.load_intersection_from_pg import load_intersection_metrics_only
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("下游指标加载模块不可用：%s", exc)
+            return
+
+        def _adjacent_metrics(adj_id: str) -> dict[str, Any] | None:
+            adj = load_intersection_metrics_only(
+                inter_id=str(adj_id),
+                day_of_week=day_of_week if day_of_week is not None else 5,
+                time_hhmm=time_hhmm,
+                time_range=time_range,
+            )
+            if not adj.get("ok"):
+                return None
+            return adj.get("metrics") or None
+
+        enrich_downstream_metrics(topology, load_pg_metrics=_adjacent_metrics)
 
     @staticmethod
     def _sse(event: str, data: dict[str, Any]) -> str:

@@ -7,6 +7,7 @@ from typing import Any
 
 from app.config import Settings
 from app.data.pg_adapters import (
+    enrich_downstream_metrics,
     merge_pg_task_into_context,
     metrics_for_diagnosis,
     parse_day_of_week,
@@ -63,6 +64,22 @@ def load_pg_diagnosis_bundle(
     pg_metrics = pg_task.get("metrics") or {}
     metrics = metrics_for_diagnosis(pg_metrics, ticket)
     topology = topology_from_pg_raw({**raw, "metrics": pg_metrics}, ticket, inter)
+
+    # 轻量指标加载（跳过 AOI/几何/信号昂贵查询），避免逐下游节点整份检查单加载（需求21-R4）。
+    from app.data.load_intersection_from_pg import load_intersection_metrics_only
+
+    def _adjacent_metrics(adj_id: str) -> dict[str, Any] | None:
+        adj = load_intersection_metrics_only(
+            inter_id=str(adj_id),
+            day_of_week=parse_day_of_week(ticket),
+            time_hhmm=parse_time_hhmm(ticket.get("time_range")),
+            time_range=ticket.get("time_range"),
+        )
+        if not adj.get("ok"):
+            return None
+        return adj.get("metrics") or None
+
+    enrich_downstream_metrics(topology, load_pg_metrics=_adjacent_metrics)
 
     merge_pg_task_into_context(task, pg_task)
     task["pg_raw"] = raw

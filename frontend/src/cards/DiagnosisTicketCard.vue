@@ -8,6 +8,15 @@ import BaseCard from './BaseCard.vue'
 
 const store = usePresentationStore()
 const tk = computed(() => store.ticket)
+
+// 约束可能来自 NLU 的字符串或数组：字符串须整体作为一条约束，
+// 不能被 v-for 当作字符序列逐字拆分（会渲染成「优/先/避/免…」单字标签）。
+const constraintList = computed<string[]>(() => {
+  const c = tk.value?.constraints as unknown
+  if (Array.isArray(c)) return c.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+  if (typeof c === 'string' && c.trim()) return [c.trim()]
+  return []
+})
 </script>
 
 <template>
@@ -29,9 +38,9 @@ const tk = computed(() => store.ticket)
       <li><span class="k">治理目标</span><span class="v">{{ t('governance_goal', tk.governance_goal) }}</span></li>
     </ul>
 
-    <div v-if="tk.constraints?.length" class="constraints">
+    <div v-if="constraintList.length" class="constraints">
       <span class="lbl">约束</span>
-      <span v-for="c in tk.constraints" :key="c" class="tag tag--evidence">{{ productCopy(t('constraint', c)) }}</span>
+      <span v-for="c in constraintList" :key="c" class="tag tag--evidence">{{ productCopy(t('constraint', c)) }}</span>
     </div>
 
     <div class="conf">

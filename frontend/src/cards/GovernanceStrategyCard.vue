@@ -29,7 +29,12 @@ const points = computed<string[]>(() => {
   return out
 })
 
-const hardConstraints = computed<string[]>(() => strategy.value?.hard_constraints ?? [])
+const hardConstraints = computed<string[]>(() => {
+  const c = strategy.value?.hard_constraints as unknown
+  if (Array.isArray(c)) return c.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+  if (typeof c === 'string' && c.trim()) return [c.trim()]
+  return []
+})
 
 /** 场景名 → sceneId（构建期专家库匹配；无匹配返回 null，仍渲染 chip）。 */
 const industrySceneId = computed<string | null>(() => {

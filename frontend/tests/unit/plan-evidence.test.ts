@@ -44,7 +44,7 @@ function candidateWithEvidence(overTarget = false): PlanCandidate {
 }
 
 describe('PlanEvidencePanel', () => {
-  it('renders cycle comparison, stage cards, intensity and audit evidence', () => {
+  it('renders cycle comparison, stage cards and intensity evidence', () => {
     const wrapper = mount(PlanEvidencePanel, {
       props: { candidate: candidateWithEvidence() },
     })
@@ -56,8 +56,9 @@ describe('PlanEvidencePanel', () => {
     expect(wrapper.text()).toContain('西直')
     expect(wrapper.text()).toContain('各方向供需强度')
     expect(wrapper.text()).toContain('75.0%')
-    expect(wrapper.text()).toContain('求解器')
-    expect(wrapper.text()).toContain('scipy_slsqp_document_model')
+    // 需求 20·R3：治理建议中的「优化审计」已删除
+    expect(wrapper.text()).not.toContain('优化审计')
+    expect(wrapper.text()).not.toContain('求解器')
   })
 
   it('falls back when backend evidence is incomplete', () => {

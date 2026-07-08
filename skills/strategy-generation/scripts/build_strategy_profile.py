@@ -101,6 +101,8 @@ def build_strategy_profile(
     cause: dict[str, Any],
     diagnosis: dict[str, Any],
     llm_strategy: dict[str, Any] | None = None,
+    signal: dict[str, Any] | None = None,
+    constraints: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     package_scores = score_strategy_packages(cause, diagnosis)
     package = select_strategy_package(cause, diagnosis)
@@ -111,6 +113,12 @@ def build_strategy_profile(
         llm_strategy.get("trigger_exit_rules"),
         instruction.get("trigger_exit_rules"),
     )
+    quantitative = _quantitative_constraints(signal, constraints)
+    # 红线：LLM 定性项（或包定性项）在前，量化护栏在后；量化项恒补齐，
+    # 避免「纯定性描述与红线关联不大」（需求 20·R5）。
+    hard_constraints = (
+        llm_strategy.get("hard_constraints") or _hard_constraints(package, diagnosis)
+    ) + quantitative["constraints"]
     return {
         "strategy_package": package,
         "package_scores": package_scores,
@@ -119,8 +127,8 @@ def build_strategy_profile(
             "principles": llm_strategy.get("principles") or instruction["principles"],
             "not_recommended": llm_strategy.get("not_recommended") or instruction["not_recommended"],
             "recommended": llm_strategy.get("recommended") or _recommended_for_package(package),
-            "hard_constraints": llm_strategy.get("hard_constraints")
-            or _hard_constraints(package, diagnosis),
+            "hard_constraints": hard_constraints,
+            "quantitative_constraints": quantitative["detail"],
             "trigger_exit_rules": trigger_exit,
             "explanation": llm_strategy.get("explanation"),
             "narrative": llm_strategy.get("narrative"),
@@ -154,6 +162,72 @@ def _recommended_for_package(package: str) -> list[str]:
         "arterial_coordination": ["上游控流 + 目标小步释放 + 下游保护"],
     }
     return mapping.get(package, mapping["downstream_protection"])
+
+
+def _to_number(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    return num if num > 0 else None
+
+
+def _fmt_s(value: float) -> str:
+    return f"{int(value)}s" if float(value).is_integer() else f"{value:g}s"
+
+
+def _quantitative_constraints(
+    signal: dict[str, Any] | None,
+    constraints: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """从真实现状配时/约束派生量化红线（最小绿/最大绿/最大周期）。
+
+    数据缺失时不编造，仅记录 ``missing`` 供上层降级（rule 14/16）。
+    """
+    signal = signal or {}
+    constraints = constraints or {}
+    stages = signal.get("phase_stage_timing_list") or []
+    min_greens: list[float] = []
+    max_greens: list[float] = []
+    for stage in stages:
+        if not isinstance(stage, dict):
+            continue
+        mg = _to_number(stage.get("min_green_time_s") or stage.get("minGreenTime"))
+        if mg is not None:
+            min_greens.append(mg)
+        xg = _to_number(stage.get("max_green_time_s") or stage.get("maxGreenTime"))
+        if xg is not None:
+            max_greens.append(xg)
+
+    max_cycle = _to_number(constraints.get("max_cycle_s") or signal.get("max_cycle_s"))
+    current_cycle = _to_number(signal.get("current_cycle_s") or signal.get("cycle_s"))
+
+    detail: dict[str, Any] = {
+        "min_green_s": round(min(min_greens), 1) if min_greens else None,
+        "max_green_s": round(max(max_greens), 1) if max_greens else None,
+        "max_cycle_s": max_cycle,
+        "current_cycle_s": current_cycle,
+        "source": "pg_signal_plan" if stages else "unavailable",
+        "missing": [],
+    }
+    items: list[str] = []
+    if min_greens:
+        items.append(f"各相位最小绿不得低于 {_fmt_s(min(min_greens))}（含黄灯全红、行人过街清空）")
+    else:
+        detail["missing"].append("min_green_s")
+    if max_greens:
+        items.append(f"单相位绿灯不得超过 {_fmt_s(max(max_greens))}（最大绿上限）")
+    else:
+        detail["missing"].append("max_green_s")
+    if max_cycle is not None:
+        items.append(f"信号周期不得超过 {_fmt_s(max_cycle)}（最大周期约束）")
+    else:
+        detail["missing"].append("max_cycle_s")
+    if not items:
+        detail["missing"].append("all")
+    return {"constraints": items, "detail": detail}
 
 
 def _hard_constraints(package: str, diagnosis: dict[str, Any]) -> list[str]:

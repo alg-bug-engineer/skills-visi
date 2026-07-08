@@ -58,7 +58,13 @@ class StrategyGenerationSkill(BaseSkill):
                 errors=["策略生成返回非 JSON 结构"],
             )
 
-        profile = profile_module.build_strategy_profile(cause, diagnosis, llm_result)
+        signal = context.task.get("signal") if isinstance(context.task.get("signal"), dict) else {}
+        constraints = (
+            context.task.get("constraints") if isinstance(context.task.get("constraints"), dict) else {}
+        )
+        profile = profile_module.build_strategy_profile(
+            cause, diagnosis, llm_result, signal=signal, constraints=constraints
+        )
         output = {
             "strategy": profile["strategy"],
             "strategy_package": profile["strategy_package"],

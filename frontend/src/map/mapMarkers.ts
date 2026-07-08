@@ -39,17 +39,29 @@ export function buildHudMetrics(resp: RunResponse | null): HudMetric[] {
     items.push({ label: '排队比', value: ratio(m.queue_ratio), severity: sevFromQueueRatio(m.queue_ratio) })
   }
   if (saturation != null) {
-    items.push({ label: '饱和度', value: pct(saturation), severity: sevFromSaturation(saturation) })
+    // 小数形式（禁百分比），阈值语义色不变
+    items.push({ label: '饱和度', value: ratio(saturation), severity: sevFromSaturation(saturation) })
   }
   if (m.green_utilization != null) {
     items.push({
       label: '绿灯利用率',
-      value: pct(m.green_utilization),
+      value: ratio(m.green_utilization),
       severity: m.green_utilization < 0.5 ? 'medium' : 'low',
+    })
+  }
+  if (typeof m.imbalance_index === 'number') {
+    items.push({
+      label: '方向失衡',
+      value: ratio(m.imbalance_index),
+      severity: m.imbalance_index >= 0.3 ? 'medium' : 'low',
     })
   }
   if (m.queue_length_m != null) {
     items.push({ label: '排队长度', value: `${Math.round(m.queue_length_m)}m`, severity: 'low' })
+  }
+  // 进口道长度＝排队比分母（storage_length_m；queue_ratio = queue_length_m / storage_length_m）
+  if (m.storage_length_m != null) {
+    items.push({ label: '进口道长度', value: `${Math.round(m.storage_length_m)}m`, severity: 'low' })
   }
   return items
 }

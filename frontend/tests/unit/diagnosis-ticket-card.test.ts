@@ -57,6 +57,19 @@ describe('DiagnosisTicketCard', () => {
     expect(text).toContain(RAW_INPUT)
   })
 
+  it('renders a string constraint as ONE tag (not split per character)', () => {
+    const s = usePresentationStore()
+    const data = snap()
+    // 模拟 NLU 返回字符串（而非数组）约束：应整体成一条标签，不能逐字拆分。
+    ;(data.diagnosis_ticket as unknown as Record<string, unknown>).constraints = '优先避免下游继续外溢'
+    s.applySnapshot(data)
+    s.userInput = RAW_INPUT
+    const wrapper = mount(DiagnosisTicketCard)
+    const tags = wrapper.findAll('.constraints .tag')
+    expect(tags.length).toBe(1)
+    expect(tags[0].text()).toBe('优先避免下游继续外溢')
+  })
+
   it('shows Chinese labels for fixture ticket enums', () => {
     const s = usePresentationStore()
     s.applySnapshot({

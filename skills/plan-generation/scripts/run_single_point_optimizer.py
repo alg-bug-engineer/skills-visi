@@ -7,8 +7,35 @@ from typing import Any
 
 from app.optimization.bootstrap import engine_available, get_optimize_intersection
 from app.optimization.request_builder import build_optimizer_request
+from app.trace.topology import DIR8_ENTRY
 
 logger = logging.getLogger(__name__)
+
+# 优化引擎 turnDirNo 口径：0=掉头,1=左转,2=直行,3=右转（见 turn_flow_binding）。
+_ENGINE_TURN_LABEL = {0: "掉头", 1: "左转", 2: "直行", 3: "右转", 4: "掉头"}
+
+
+def _movement_cn_label(dir8: Any, turn: Any, existing: Any = None) -> str | None:
+    """人可读中文转向标签；已有非机器码标签优先，否则由 dir8/turn 生成。
+
+    避免前端在缺 label 时回落到 ``d2_t2`` 机器码（需求 20·R1）。
+    """
+    if isinstance(existing, str) and existing.strip() and not _is_machine_key(existing):
+        return existing
+    try:
+        entry = DIR8_ENTRY.get(int(dir8), "")
+        turn_cn = _ENGINE_TURN_LABEL.get(int(turn), "")
+    except (TypeError, ValueError):
+        entry, turn_cn = "", ""
+    label = f"{entry}{turn_cn}" if entry and turn_cn else (entry or turn_cn)
+    if label:
+        return label
+    return existing if isinstance(existing, str) and existing.strip() else None
+
+
+def _is_machine_key(value: str) -> bool:
+    text = value.strip()
+    return text.startswith("d") and "_t" in text
 
 
 def run_single_point_optimizer(
@@ -222,6 +249,16 @@ def _build_optimization_meta(meta: dict[str, Any]) -> dict[str, Any]:
     direction_list = meta.get("direction_intensity_list")
     if not isinstance(direction_list, list):
         direction_list = []
+    normalized_direction: list[dict[str, Any]] = []
+    for item in direction_list:
+        if not isinstance(item, dict):
+            continue
+        enriched = dict(item)
+        enriched["label"] = _movement_cn_label(
+            item.get("dir8No"), item.get("turnDirNo"), item.get("label")
+        )
+        normalized_direction.append(enriched)
+    direction_list = normalized_direction
     virtual_movements = [
         item.get("label") or item.get("movementKey")
         for item in direction_list
@@ -247,10 +284,11 @@ def _normalize_movement_evidence(item: dict[str, Any]) -> dict[str, Any]:
     movement_key = item.get("movement_key") or item.get("movementKey")
     if not movement_key and item.get("dir8No") is not None and item.get("turnDirNo") is not None:
         movement_key = f"d{item.get('dir8No')}_t{item.get('turnDirNo')}"
+    label = _movement_cn_label(item.get("dir8No"), item.get("turnDirNo"), item.get("label"))
     return {
         "movement_key": movement_key,
         "movementKey": movement_key,
-        "label": item.get("label"),
+        "label": label,
         "dir8No": item.get("dir8No"),
         "turnDirNo": item.get("turnDirNo"),
         "turnFlowTotal": item.get("turnFlowTotal"),

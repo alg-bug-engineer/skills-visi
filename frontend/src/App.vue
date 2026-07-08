@@ -7,7 +7,6 @@ import UnderstandingPanel from '@/panels/UnderstandingPanel.vue'
 import RunningDataPanel from '@/panels/RunningDataPanel.vue'
 import ProcessPanel from '@/panels/ProcessPanel.vue'
 import BottomDock from '@/panels/BottomDock.vue'
-import ChannelizationInset from '@/panels/ChannelizationInset.vue'
 import DownstreamTopologyInset from '@/panels/DownstreamTopologyInset.vue'
 import SkillSolidifyOverlay from '@/panels/SkillSolidifyOverlay.vue'
 import SkillBuildDrawer from '@/panels/SkillBuildDrawer.vue'
@@ -17,10 +16,6 @@ const store = usePresentationStore()
 const { status, dock, fullscreen, planMinimized, rollbackBanner, toast } = storeToRefs(store)
 
 const running = computed(() => status.value !== 'idle')
-const showInset = computed(() => {
-  const kind = store.activeAct?.scene.kind
-  return running.value && (kind === 'lane' || kind === 'intersection')
-})
 const showTopologyInset = computed(() => {
   const scene = store.activeAct?.scene
   return running.value && !!scene && sceneEvidencePolicy(scene).downstreamTopology
@@ -75,12 +70,6 @@ watch(toast, (v) => {
       <aside v-show="running && !fullscreen" class="rail rail--right">
         <ProcessPanel />
       </aside>
-    </Transition>
-
-    <Transition name="fade">
-      <div v-show="showInset && !fullscreen" class="inset-slot">
-        <ChannelizationInset />
-      </div>
     </Transition>
 
     <Transition name="fade">
@@ -253,19 +242,6 @@ watch(toast, (v) => {
 .left-stack__running {
   flex: 0 1 42%;
   min-height: 160px;
-}
-.inset-slot {
-  position: absolute;
-  left: calc(var(--insight-w) + 32px);
-  right: calc(var(--process-w) + 32px);
-  bottom: 88px;
-  z-index: 20;
-  display: flex;
-  justify-content: flex-end;
-  pointer-events: none;
-}
-.inset-slot > * {
-  pointer-events: auto;
 }
 .topology-slot {
   position: absolute;

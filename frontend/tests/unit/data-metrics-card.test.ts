@@ -59,7 +59,7 @@ function snap(metrics: Record<string, unknown>): RunResponse {
 describe('DataMetricsCard', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('renders the detailed 运行数据 panel with per-approach / per-movement / imbalance / los', () => {
+  it('renders the detailed 运行数据 panel with per-approach / per-movement / los (imbalance moved to HUD)', () => {
     const s = usePresentationStore()
     s.applySnapshot(
       snap({
@@ -91,9 +91,8 @@ describe('DataMetricsCard', () => {
     // per-movement + level tag
     expect(text).toContain('东左转')
     expect(text).toContain('过饱和')
-    // 方向失衡
-    expect(text).toContain('方向失衡')
-    expect(text).toContain('0.46')
+    // 方向失衡已移至左上角运行数据 HUD（需求21-R1），明细面板不再展示
+    expect(text).not.toContain('方向失衡')
     // 服务水平 / F
     expect(text).toContain('服务水平')
     expect(text).toContain('F')

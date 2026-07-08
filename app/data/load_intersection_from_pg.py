@@ -1149,12 +1149,39 @@ def iter_checklist_load(
 ):
     """Yield checklist item progress events, then final load payload."""
     from app.config import get_settings
+    from app.data.pg_client import pg_connection
 
     settings = get_settings()
     total = len(CHECKLIST_SPEC)
     if not settings.pg_dsn:
         yield {"type": "error", "message": "PostgreSQL 未配置：请设置 PG_DSN"}
         return
+
+    # 整份检查单共享一条连接，避免逐查询重连远端 PG（需求21-R4 首步耗时优化）。
+    with pg_connection():
+        yield from _iter_checklist_load_body(
+            settings=settings,
+            total=total,
+            inter_id=inter_id,
+            inter_name=inter_name,
+            day_of_week=day_of_week,
+            step_index=step_index,
+            step_index_end=step_index_end,
+            time_hhmm=time_hhmm,
+        )
+
+
+def _iter_checklist_load_body(
+    *,
+    settings: Any,
+    total: int,
+    inter_id: str | None,
+    inter_name: str | None,
+    day_of_week: int,
+    step_index: int | None,
+    step_index_end: int | None,
+    time_hhmm: str | None,
+):
 
     if step_index is None and time_hhmm:
         step_index = _step_index_from_hhmm(time_hhmm)
@@ -1401,6 +1428,92 @@ def load_intersection_from_pg(
         "checklist_queries": [],
         "errors": ["检查单加载未完成"],
     }
+
+
+def load_intersection_metrics_only(
+    inter_id: str | None = None,
+    inter_name: str | None = None,
+    day_of_week: int = 1,
+    time_hhmm: str | None = None,
+    time_range: str | None = None,
+) -> dict[str, Any]:
+    """轻量加载：仅运行 ``_aggregate_metrics`` 所需的运行指标查询，返回 metrics。
+
+    用途：下游相邻路口指标富化（BUG-004）。相较 :func:`load_intersection_from_pg`
+    跳过 AOI/POI 空间连接、路网几何、信号配时/调度等昂贵查询（这些是首屏耗时主因，
+    见需求21-R4 排查），把单个相邻路口的加载从「整份检查单」降到约 9 条指标查询，
+    显著降低首步阻塞时延。数据仍为真实 PG，缺失即返回 ``ok=False``（不伪造）。
+    """
+    from app.config import get_settings
+    from app.data.pg_client import pg_connection
+
+    settings = get_settings()
+    if not settings.pg_dsn:
+        return {"ok": False, "reason": "PG_DSN 未配置"}
+
+    step_index: int | None = None
+    step_index_end: int | None = None
+    if time_range:
+        from app.data.pg_adapters import parse_time_step_range
+
+        step_index, step_index_end = parse_time_step_range(time_range)
+    if step_index is None and time_hhmm:
+        step_index = _step_index_from_hhmm(time_hhmm)
+    if step_index is not None and step_index_end is None:
+        step_index_end = step_index
+
+    road = settings.pg_schema
+    flow = settings.pg_flow_schema
+    inter_table = settings.pg_dim_inter_table
+    channel_table = settings.pg_channel_table
+    version_sql = _enabled_version_sql(road)
+
+    # 相邻路口指标：共享一条连接，跳过 AOI/几何/信号昂贵查询（需求21-R4）。
+    with pg_connection():
+        try:
+            inter_rows = _query_intersection(road, inter_table, version_sql, inter_id, inter_name)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "reason": f"路口查询失败：{exc}"}
+        if not inter_rows:
+            return {"ok": False, "reason": "未找到路口"}
+        resolved_id = str(inter_rows[0]["inter_id"])
+
+        # 仅指标相关查询（skip AOI/几何/信号）；单条失败降级为空行，不中断。
+        channel_rows, _ = _safe_query(_query_channelization, road, channel_table, version_sql, resolved_id)
+        adjacent_rows, _ = _safe_query(_query_adjacent_spacing, road, channel_table, version_sql, resolved_id)
+        flow_rows_raw, _ = _safe_query(_query_turn_flow, flow, resolved_id, day_of_week)
+        lane_flow_raw, _ = _safe_query(_query_lane_flow, flow, resolved_id, day_of_week)
+        sat_rows_raw, _ = _safe_query(_query_turn_saturation, flow, resolved_id, day_of_week)
+        eval_raw, _ = _safe_query(_query_inter_evaluation, flow, resolved_id, day_of_week)
+        perf_raw, _ = _safe_query(_query_turn_perf, flow, resolved_id, day_of_week)
+        util_raw, _ = _safe_query(_query_green_utilization, flow, resolved_id, day_of_week)
+        lane_cap_raw, _ = _safe_query(_query_lane_capacity, flow, resolved_id, day_of_week)
+
+    eval_rows = _filter_rows_by_step_range(eval_raw or [], step_index, step_index_end)
+    sat_rows = _filter_rows_by_step_range(sat_rows_raw or [], step_index, step_index_end)
+    flow_rows = _filter_rows_by_step_range(flow_rows_raw or [], step_index, step_index_end)
+    util_rows = _filter_rows_by_step_range(util_raw or [], step_index, step_index_end)
+    perf_rows = _filter_rows_by_step_range(perf_raw or [], step_index, step_index_end)
+    lane_capacity_rows = _filter_rows_by_step_range(lane_cap_raw or [], step_index, step_index_end)
+    lane_flow_rows = _filter_rows_by_step_range(lane_flow_raw or [], step_index, step_index_end)
+    channel_rows = channel_rows or []
+
+    sat_rows = _enrich_movement_rows(sat_rows, channel_rows)
+    flow_rows = _enrich_movement_rows(flow_rows, channel_rows)
+    util_rows = _enrich_movement_rows(util_rows, channel_rows)
+
+    metrics = _aggregate_metrics(
+        eval_rows,
+        sat_rows,
+        flow_rows,
+        util_rows,
+        perf_rows,
+        lane_capacity_rows,
+        adjacent_rows=adjacent_rows or [],
+        channel_rows=channel_rows,
+        lane_flow_rows=lane_flow_rows,
+    )
+    return {"ok": True, "metrics": metrics, "inter_id": resolved_id}
 
 
 def build_task_from_pg(task_or_inter_id: Any = None, **kwargs: Any) -> dict[str, Any]:

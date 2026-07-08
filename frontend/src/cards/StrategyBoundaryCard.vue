@@ -7,6 +7,14 @@ import { productCopy } from '@/utils/productCopy'
 const store = usePresentationStore()
 const s = computed(() => store.strategy?.strategy ?? null)
 const pkg = computed(() => store.strategy?.strategy_package ?? null)
+
+// 红线约束可能为字符串或数组；字符串整体成一条，避免逐字拆分。
+const hardConstraints = computed<string[]>(() => {
+  const c = s.value?.hard_constraints as unknown
+  if (Array.isArray(c)) return c.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+  if (typeof c === 'string' && c.trim()) return [c.trim()]
+  return []
+})
 </script>
 
 <template>
@@ -17,10 +25,10 @@ const pkg = computed(() => store.strategy?.strategy_package ?? null)
       <li v-for="(x, i) in s.recommended ?? []" :key="i">{{ productCopy(x) }}</li>
     </ul>
 
-    <div v-if="s.hard_constraints?.length" class="hard">
+    <div v-if="hardConstraints.length" class="hard">
       <span class="hard__hd">红线</span>
       <div class="hard__tags">
-        <span v-for="(c, i) in s.hard_constraints" :key="i" class="tag">{{ productCopy(c) }}</span>
+        <span v-for="(c, i) in hardConstraints" :key="i" class="tag">{{ productCopy(c) }}</span>
       </div>
     </div>
   </BaseCard>

@@ -6,7 +6,23 @@ import re
 from typing import Any
 
 from app.trace.geometry import orient_path, parse_linestring_wkt, parse_point_wkt
-from app.trace.topology import TURN_LABEL, exit_dir8_for_turn, movement_label, resolve_dir8_turn
+from app.trace.topology import (
+    DIRECTION_MOVEMENT,
+    TURN_LABEL,
+    exit_dir8_for_turn,
+    movement_label,
+    resolve_dir8_turn,
+)
+
+# dir8 进口方向码 → 方向字符串（直行口径），用于反查相邻路口承接进口方向。
+_DIR8_TO_DIRECTION = {pair[0]: label for label, pair in DIRECTION_MOVEMENT.items()}
+
+
+def _direction_for_dir8(dir8: Any) -> str | None:
+    try:
+        return _DIR8_TO_DIRECTION.get(int(dir8))
+    except (TypeError, ValueError):
+        return None
 
 
 def parse_day_of_week(ticket: dict[str, Any]) -> int:
@@ -261,6 +277,70 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
         "geometry_source": "dim_link_info.geom" if has_geometry else "unavailable",
         "caveat": "PG 拓扑：几何取自 dim_link_info.geom，占比取自 flow_correlate",
     }
+
+
+_ADJ_METRIC_FIELDS = (
+    "queue_length_m",
+    "storage_length_m",
+    "volume_vph",
+    "capacity_vph",
+    "saturation",
+    "saturation_rate",
+    "green_utilization",
+    "stop_count",
+    "avg_delay_s",
+)
+
+
+def enrich_downstream_metrics(
+    topology: dict[str, Any],
+    *,
+    load_pg_metrics: Any,
+) -> dict[str, Any]:
+    """为下游相邻节点注入真实运行指标（修复 BUG-004）。
+
+    PG 拓扑构建仅写入几何/占比，未加载相邻路口自身指标，导致下游排队/饱和度恒为 0。
+    这里按每个下游节点的承接进口方向 ``receiving_dir8`` 载入其真实 PG 指标并绑定。
+
+    参数:
+        load_pg_metrics: ``callable(inter_id) -> dict | None``，返回相邻路口原始
+            聚合指标（``metrics_for_diagnosis`` 入参）；无数据返回 ``None``。
+
+    行为（rule 14/16）：取到真实指标 → ``metrics_available=True``；取不到 →
+    ``metrics_available=False`` + ``metrics_reason``，绝不静默回落 0。
+    """
+    for node in topology.get("downstream_nodes") or []:
+        if not isinstance(node, dict):
+            continue
+        inter_id = node.get("inter_id")
+        if not inter_id:
+            node["metrics_available"] = False
+            node["metrics_reason"] = "下游节点缺 inter_id，无法加载指标"
+            continue
+        receiving_dir8 = node.get("receiving_dir8")
+        direction = _direction_for_dir8(receiving_dir8)
+        try:
+            pg_metrics = load_pg_metrics(str(inter_id))
+        except Exception as exc:  # noqa: BLE001 - 记录降级原因，不中断主流程
+            node["metrics_available"] = False
+            node["metrics_reason"] = f"下游路口指标加载失败：{exc}"
+            continue
+        if not pg_metrics:
+            node["metrics_available"] = False
+            node["metrics_reason"] = "下游路口 PG 指标缺失"
+            continue
+        adj_ticket = {
+            "direction": direction or "东向西",
+            "movement": "直行",
+        }
+        metrics = metrics_for_diagnosis(pg_metrics, adj_ticket)
+        for field in _ADJ_METRIC_FIELDS:
+            if metrics.get(field) is not None:
+                node[field] = metrics[field]
+        node["metrics_available"] = True
+        node["metrics_source"] = "pg_adjacent"
+        node["metrics_receiving_direction"] = direction
+    return topology
 
 
 def merge_pg_task_into_context(task: dict[str, Any], pg_task: dict[str, Any]) -> None:

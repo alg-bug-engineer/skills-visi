@@ -78,10 +78,12 @@ describe('CoordinationDiagram', () => {
         { inter_id: 'T', inter_name: '目标路口', role: 'target', spacing_m: 0, offset_abs_s: 10, phase_diff_s: 0, travel_speed_kmh: null, travel_time_s: null },
       ],
     }
-    const text = mount(CoordinationDiagram, { props: { coordination: partial } }).text()
-    expect(text).not.toContain('间距')
-    expect(text).not.toContain('行程')
-    expect(text).not.toContain('km/h')
-    expect(text).toContain('相位差 +12s')
+    const wrapper = mount(CoordinationDiagram, { props: { coordination: partial } })
+    // 仅校验节点字段区不合成缺失值（解释性文案可提及「间距」等术语）
+    const nodeText = wrapper.get('.coord__nodes').text()
+    expect(nodeText).not.toContain('间距')
+    expect(nodeText).not.toContain('行程')
+    expect(nodeText).not.toContain('km/h')
+    expect(nodeText).toContain('相位差 +12s')
   })
 })

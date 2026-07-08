@@ -10,6 +10,7 @@ const rows = computed(() =>
     .filter((item) => typeof item.intensity === 'number')
     .sort((a, b) => (b.intensity ?? 0) - (a.intensity ?? 0)),
 )
+const hasVirtual = computed(() => rows.value.some((row) => row.historyVirtualFlowVph != null))
 
 function pct(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '—'
@@ -24,6 +25,9 @@ function width(value?: number | null) {
 <template>
   <section class="intensity">
     <h4>各方向供需强度</h4>
+    <p class="intro">
+      按进口转向对比实际供需强度 <b>I_dir</b>（≈饱和度）与目标强度 <b>I_obj</b>；越接近目标越均衡，超过目标（红色越过刻度线）说明该方向供不应求、需优先配时。
+    </p>
     <div v-if="!rows.length" class="missing">后端未返回供需强度证据</div>
     <table v-else>
       <thead>
@@ -54,6 +58,9 @@ function width(value?: number | null) {
       </tbody>
     </table>
     <p class="foot">目标强度 I_obj = {{ pct(target) }}</p>
+    <p v-if="hasVirtual" class="foot foot--note">
+      标注「虚拟流量」的转向：该时段缺实测流量，按现状放行时间比例估算的兜底流量参与配时（与最小绿对应流量取较大者），仅用于保底最小绿，不代表实测需求。
+    </p>
   </section>
 </template>
 
@@ -118,10 +125,24 @@ th {
   color: var(--evidence);
   font-size: 10px;
 }
+.intro {
+  margin: 0 0 8px;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.intro b {
+  color: var(--text);
+  font-weight: 600;
+}
 .foot,
 .missing {
   margin: 7px 0 0;
   color: var(--text-mute);
   font-size: 11px;
+}
+.foot--note {
+  line-height: 1.5;
+  color: var(--text-dim);
 }
 </style>

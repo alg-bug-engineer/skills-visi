@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import type { PlanCandidate, PlanTimingEvidence } from '@/api/types'
 import StageCards from '@/viz/StageCards.vue'
 import DirectionIntensityPanel from '@/viz/DirectionIntensityPanel.vue'
-import OptimizationAuditPanel from '@/viz/OptimizationAuditPanel.vue'
 
 const props = defineProps<{ candidate: PlanCandidate | null }>()
 
@@ -32,7 +31,9 @@ function delta(value?: number | null) {
     <div v-if="!evidenceComplete" class="fallback">
       <strong>后端未返回可审计方案证据</strong>
       <span>{{ timing?.reason || '缺少现状配时、释放方向或供需强度字段，前端不补假数据。' }}</span>
-      <OptimizationAuditPanel :timing="timing" />
+      <ul v-if="timing?.missing_fields?.length" class="fallback-missing">
+        <li v-for="field in timing.missing_fields" :key="field">{{ field }}</li>
+      </ul>
     </div>
     <template v-else>
       <div class="banner">
@@ -49,7 +50,6 @@ function delta(value?: number | null) {
       </div>
       <StageCards :stages="stages" />
       <DirectionIntensityPanel :meta="timing?.meta" />
-      <OptimizationAuditPanel :timing="timing" />
     </template>
   </section>
 </template>
@@ -113,5 +113,12 @@ function delta(value?: number | null) {
 .fallback span {
   color: var(--text-dim);
   font-size: 12px;
+}
+.fallback-missing {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.45;
 }
 </style>
