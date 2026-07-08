@@ -8,6 +8,7 @@ import ProcessPanel from '@/panels/ProcessPanel.vue'
 import BottomDock from '@/panels/BottomDock.vue'
 import ChannelizationInset from '@/panels/ChannelizationInset.vue'
 import DownstreamTopologyInset from '@/panels/DownstreamTopologyInset.vue'
+import SkillSolidifyOverlay from '@/panels/SkillSolidifyOverlay.vue'
 import { sceneEvidencePolicy } from '@/map/sceneEvidencePolicy'
 
 const store = usePresentationStore()
@@ -91,6 +92,8 @@ watch(toast, (v) => {
     >
       <BottomDock />
     </footer>
+
+    <SkillSolidifyOverlay />
   </div>
 </template>
 

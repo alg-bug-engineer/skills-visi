@@ -1,14 +1,23 @@
 import { defineStore } from 'pinia'
 import { isApiError } from '@/api/client'
-import { runAgent, runAgentStream, regeneratePlan, submitDecision, DEMO_INPUT } from '@/api/endpoints'
+import {
+  runAgent,
+  runAgentStream,
+  regeneratePlan,
+  submitDecision,
+  solidifySkill,
+  DEMO_INPUT,
+} from '@/api/endpoints'
 import type { StreamController, StreamEvent } from '@/api/sse'
-import type { RunResponse, UserExperience, CaseCard } from '@/api/types'
+import type { RunResponse, UserExperience, CaseCard, SkillSolidificationResult } from '@/api/types'
 import { ACT_DEFS, narrationFor, phaseReady, type ActDef, type CardKey, type PhaseKey } from '@/composables/useTimeline'
 
 export type RunStatus = 'idle' | 'submitting' | 'running' | 'done' | 'error'
 export type DockState = 'input' | 'running' | 'plan'
 export type SignalState = 'idle' | 'connecting' | 'open' | 'closed' | 'error'
 export type RunMode = 'stream' | 'batch'
+/** 方案下发后的技能固化子流程状态机。 */
+export type SolidifyPhase = 'idle' | 'prompt' | 'absorbing' | 'building' | 'completed'
 
 // 流控制器保存在模块作用域，避免进入响应式系统。
 let controller: StreamController | null = null
@@ -40,6 +49,9 @@ interface State {
   errorMsg: string | null
   autoPlay: boolean
   mapResetSeq: number
+  solidifyPhase: SolidifyPhase
+  skillResult: SkillSolidificationResult | null
+  pendingSolidifyPlanId: string | null
 }
 
 export const usePresentationStore = defineStore('presentation', {
@@ -62,6 +74,9 @@ export const usePresentationStore = defineStore('presentation', {
     errorMsg: null,
     autoPlay: true,
     mapResetSeq: 0,
+    solidifyPhase: 'idle',
+    skillResult: null,
+    pendingSolidifyPlanId: null,
   }),
 
   getters: {
@@ -274,16 +289,64 @@ export const usePresentationStore = defineStore('presentation', {
 
     async accept(planId: string) {
       if (!this.traceId) return
-      await submitDecision({
+      const res = await submitDecision({
         trace_id: this.traceId,
         plan_id: planId,
         decision: 'accept',
         plan_snapshot: this.plan?.recommended ?? undefined,
         diagnosis_ticket: this.ticket ?? undefined,
       })
-      // 接受并下发后回到主页（输入态）
+      // 下发失败：提示并回到主页，不进入固化流程
+      if (isApiError(res)) {
+        this.toast = `方案下发失败：${res.reason}`
+        this.reset(true)
+        return
+      }
+      // 下发成功：不 reset，保留 response 快照，进入技能固化确认弹窗
+      this.pendingSolidifyPlanId = planId
+      this.solidifyPhase = 'prompt'
+    },
+
+    /** 暂不固化：直接返回主页（输入态），清理固化态。 */
+    declineSolidify() {
+      this.solidifyPhase = 'idle'
+      this.skillResult = null
       this.reset(true)
-      this.toast = '方案已接受并下发，已返回主页。'
+      this.toast = '方案已下发，已返回主页。'
+    },
+
+    /** 确认固化：透传真实快照调用后端，成功后由 overlay 驱动吸收→构建→完成。 */
+    async confirmSolidify() {
+      if (!this.traceId) return
+      this.solidifyPhase = 'absorbing'
+      const res = await solidifySkill({
+        trace_id: this.traceId,
+        plan_id: this.pendingSolidifyPlanId ?? '',
+        diagnosis_ticket: this.ticket ?? undefined,
+        plan_snapshot: this.plan?.recommended ?? undefined,
+        strategy: this.strategy ?? undefined,
+      })
+      if (isApiError(res)) {
+        this.toast = `技能固化失败：${res.reason}`
+        this.solidifyPhase = 'idle'
+        this.reset(true)
+        return
+      }
+      // 保留 absorbing 阶段：overlay 消费 skillResult 驱动可视化推进。
+      this.skillResult = res
+    },
+
+    /** overlay 编排推进：absorbing→building→completed。 */
+    setSolidifyPhase(phase: SolidifyPhase) {
+      this.solidifyPhase = phase
+    },
+
+    /** 完成：技能已入库，返回主页（输入态）。 */
+    finishSolidify() {
+      this.solidifyPhase = 'idle'
+      this.skillResult = null
+      this.reset(true)
+      this.toast = '技能已固化并入库，已返回主页。'
     },
 
     async reject(planId: string, reason: string, restartFrom = 'plan_generation') {
@@ -322,6 +385,9 @@ export const usePresentationStore = defineStore('presentation', {
       this.computingPhase = null
       this.rollbackBanner = null
       this.errorMsg = null
+      this.solidifyPhase = 'idle'
+      this.skillResult = null
+      this.pendingSolidifyPlanId = null
       if (toInput) this.dock = 'input'
     },
   },
