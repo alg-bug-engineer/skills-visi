@@ -10,8 +10,17 @@ describe('enums', () => {
     expect(t('constraint', 'avoid_downstream_spillover')).toBe('优先避免下游继续外溢')
     expect(t('plan_id', 'plan_dp')).toBe('干线联控方案')
   })
-  it('falls back to raw value for unknown codes (F-01)', () => {
-    expect(t('direction', 'diagonal_xyz')).toBe('diagonal_xyz')
+  it('translates requirement-16 production enum codes', () => {
+    expect(t('period', 'evening_rush_hour')).toBe('晚高峰')
+    expect(t('problem_type', 'queue_overflow')).toBe('排队溢出')
+    expect(t('diagnosis_scope', 'signal_timing_and_queue_management')).toBe('信号配时与排队管理')
+    expect(t('governance_goal', 'clear_upstream_queue_and_isolate_downstream_impact')).toBe(
+      '清空上游排队并隔离下游影响',
+    )
+  })
+  it('humanizes unknown snake_case instead of exposing raw codes', () => {
+    expect(t('direction', 'diagonal_xyz')).toBe('diagonal xyz')
+    expect(t('problem_type', 'foo_bar_queue')).toContain('排队')
   })
   it('handles null/empty', () => {
     expect(t('direction', null)).toBe('—')

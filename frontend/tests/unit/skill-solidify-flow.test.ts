@@ -6,7 +6,6 @@ import fixture from '@/mock/skill_solidify_fixture.json'
 
 const result = fixture as unknown as SkillSolidificationResult
 
-// 仅桩 solidifySkill，返回真实 fixture；其余端点保留原实现（store 依赖它们）。
 vi.mock('@/api/endpoints', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/endpoints')>()
   return {
@@ -16,9 +15,9 @@ vi.mock('@/api/endpoints', async (importOriginal) => {
 })
 
 import SkillSolidifyOverlay from '@/panels/SkillSolidifyOverlay.vue'
+import ProcessPanel from '@/panels/ProcessPanel.vue'
 import { usePresentationStore } from '@/stores/presentation'
 
-// 强制即时动画路径（生产代码路径不变）：overlay/composables 探测 navigator.webdriver。
 let originalWebdriver: PropertyDescriptor | undefined
 beforeAll(() => {
   originalWebdriver = Object.getOwnPropertyDescriptor(navigator, 'webdriver')
@@ -28,7 +27,7 @@ afterAll(() => {
   if (originalWebdriver) Object.defineProperty(navigator, 'webdriver', originalWebdriver)
 })
 
-describe('SkillSolidifyOverlay flow', () => {
+describe('Skill solidify flow', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
   it('renders prompt and returns home on decline', async () => {
@@ -48,23 +47,26 @@ describe('SkillSolidifyOverlay flow', () => {
     expect(store.dock).toBe('input')
   })
 
-  it('confirm drives absorbing→building→completed and finish returns home', async () => {
+  it('confirm drives absorbing→building→completed in ProcessPanel tab and finish returns home', async () => {
     const store = usePresentationStore()
     store.traceId = 't1'
     store.pendingSolidifyPlanId = 'downstream_protection'
     store.solidifyPhase = 'prompt'
+    store.status = 'running'
+    store.currentAct = 8
 
-    const wrapper = mount(SkillSolidifyOverlay, { global: { stubs: { teleport: true } } })
+    const overlay = mount(SkillSolidifyOverlay, { global: { stubs: { teleport: true } } })
+    const panel = mount(ProcessPanel)
     await flushPromises()
 
-    await wrapper.find('[data-testid="solidify-confirm"]').trigger('click')
-    // solidifySkill (mock) resolves → skillResult set → instant chain runs synchronously
+    await overlay.find('[data-testid="solidify-confirm"]').trigger('click')
     await flushPromises()
     await flushPromises()
 
     expect(store.solidifyPhase).toBe('completed')
+    expect(panel.find('[data-testid="process-solidify-tab"]').exists()).toBe(true)
 
-    const finish = wrapper.find('[data-testid="solidify-finish"]')
+    const finish = panel.find('[data-testid="solidify-finish"]')
     expect(finish.exists()).toBe(true)
 
     await finish.trigger('click')

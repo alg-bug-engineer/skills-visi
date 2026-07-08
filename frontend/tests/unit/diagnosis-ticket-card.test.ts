@@ -57,12 +57,38 @@ describe('DiagnosisTicketCard', () => {
     expect(text).toContain(RAW_INPUT)
   })
 
-  it('shows the 诊断范围 field', () => {
+  it('shows Chinese labels for fixture ticket enums', () => {
     const s = usePresentationStore()
-    s.applySnapshot(snap())
-    s.userInput = RAW_INPUT
+    s.applySnapshot({
+      trace_id: 't',
+      completed: null,
+      pipeline_complete: false,
+      diagnosis_ticket: {
+        object_type: 'intersection',
+        intersection_name: '经十路与转山西路路口',
+        inter_id: '011wwe289qc00001',
+        time_range: '18:10 - 18:30',
+        period: 'evening_rush_hour',
+        direction: 'east_to_west',
+        movement: 'through',
+        problem_type: 'queue_overflow',
+        constraints: [],
+        diagnosis_scope: 'signal_timing_and_queue_management',
+        governance_goal: 'clear_upstream_queue_and_isolate_downstream_impact',
+        match_confidence: 1,
+        match_method: 'reversed_order',
+      },
+      phases: {},
+      plan: null,
+      phase_results: [],
+    } as unknown as RunResponse)
+    s.userInput = '测试输入'
     const text = mount(DiagnosisTicketCard).text()
-    expect(text).toContain('诊断范围')
-    expect(text).toContain('目标路口 + 上下游 + 干线协调')
+    expect(text).not.toContain('queue_overflow')
+    expect(text).not.toContain('evening_rush_hour')
+    expect(text).toContain('排队溢出')
+    expect(text).toContain('晚高峰')
+    expect(text).toContain('信号配时与排队管理')
+    expect(text).toContain('清空上游排队并隔离下游影响')
   })
 })

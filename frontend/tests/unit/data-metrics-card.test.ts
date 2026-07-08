@@ -139,4 +139,26 @@ describe('DataMetricsCard', () => {
 
     expect(wrapper.text()).toContain('88.0%')
   })
+
+  it('renders summary mode without per-approach detail rows', () => {
+    const s = usePresentationStore()
+    s.applySnapshot(
+      snap({
+        ...baseMetrics(),
+        los: 'F',
+        by_approach: [{ approach: '东进口', saturation: 3.49, delay_index: 1.8, los: 'F' }],
+        by_movement: [{ movement: '东左转', saturation: 1.77, green_utilization: 1.77, level: '过饱和' }],
+        imbalance_index: 0.46,
+        approach_count: 4,
+        lane_count: 26,
+      }),
+    )
+    const wrapper = mount(DataMetricsCard, { props: { variant: 'summary' } })
+    const text = wrapper.text()
+    expect(text).toContain('运行数据摘要')
+    expect(text).toContain('详细逐进口/逐转向数据见左下')
+    expect(wrapper.find('[data-testid="metrics-detail"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="metrics-summary"]').exists()).toBe(true)
+    expect(text).not.toContain('东左转')
+  })
 })

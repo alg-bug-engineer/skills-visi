@@ -44,7 +44,7 @@ watch(activeContent, () => {
   <section class="build us-panel" data-testid="skill-build-panel">
     <header class="build__hd">
       <div>
-        <span class="build__eyebrow">SKILL BUILD · 技能固化</span>
+        <span class="build__eyebrow">技能固化</span>
         <h2>{{ productCopy(state.intersection) || '技能构建' }}</h2>
         <p v-if="state.timePeriodLabel" class="build__sub">{{ state.timePeriodLabel }}</p>
       </div>

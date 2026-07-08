@@ -360,7 +360,7 @@ export const usePresentationStore = defineStore('presentation', {
         rejection_reason: reason,
         diagnosis_ticket: this.ticket ?? undefined,
       })
-      this.toast = '已拒绝，开始按修改意见再生成…'
+      this.toast = '已记录修改意见，正在按意见再生成…'
       const res = await regeneratePlan({
         trace_id: this.traceId,
         user_input: reason,
@@ -369,7 +369,8 @@ export const usePresentationStore = defineStore('presentation', {
       })
       if (!isApiError(res)) {
         this.applySnapshot(res)
-        this.toast = '方案已按修改意见再生成。'
+        this.toast = '方案已按修改意见再生成，已返回主页。'
+        this.reset(true)
       }
     },
 

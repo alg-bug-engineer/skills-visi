@@ -7,6 +7,14 @@ import { t } from '@/labels/enums'
 import BaseCard from './BaseCard.vue'
 import type { MovementMetric } from '@/api/types'
 
+const props = withDefaults(
+  defineProps<{
+    /** detail：左下完整面板；summary：闭环内仅摘要。 */
+    variant?: 'detail' | 'summary'
+  }>(),
+  { variant: 'detail' },
+)
+
 const store = usePresentationStore()
 const m = computed(() => store.diagnosis?.metrics ?? null)
 const tk = computed(() => store.ticket ?? null)
@@ -26,6 +34,7 @@ const verdictTone = computed(() => {
 const byApproach = computed(() => m.value?.by_approach ?? [])
 const byMovement = computed(() => m.value?.by_movement ?? [])
 const hasRich = computed(() => byApproach.value.length > 0 || byMovement.value.length > 0)
+const isSummary = computed(() => props.variant === 'summary')
 
 const imbalance = computed(() => {
   const v = m.value?.imbalance_index
@@ -71,12 +80,12 @@ const overallLos = computed(() => m.value?.los ?? null)
 <template>
   <BaseCard
     v-if="m"
-    :title="hasRich ? '运行数据' : '运行数据单'"
+    :title="isSummary ? '运行数据摘要' : hasRich ? '运行数据' : '运行数据单'"
     :act="3"
     :tone="qrTone === 'alarm' ? 'alarm' : 'primary'"
   >
     <!-- 头部：路口名 / inter_id / 进口·车道 / 关注·保护方向 -->
-    <div v-if="hasRich" class="head">
+    <div v-if="hasRich || isSummary" class="head">
       <div class="head__title">
         <span class="head__name">{{ productCopy(tk?.intersection_name) || '路口' }}</span>
         <span v-if="tk?.inter_id" class="head__id us-mono">{{ tk.inter_id }}</span>
@@ -92,8 +101,29 @@ const overallLos = computed(() => m.value?.los ?? null)
       </div>
     </div>
 
+    <!-- 摘要模式：关键指标一行 + 指向左下详情 -->
+    <div v-if="isSummary" class="summary" data-testid="metrics-summary">
+      <div class="summary__row">
+        <span class="summary__k">排队比</span>
+        <span class="summary__v us-mono" :class="`tone-${qrTone}`">{{ ratio(m.queue_ratio) }}</span>
+      </div>
+      <div class="summary__row">
+        <span class="summary__k">饱和度</span>
+        <span class="summary__v us-mono">{{ pct(saturation) }}</span>
+      </div>
+      <div v-if="overallLos" class="summary__row">
+        <span class="summary__k">服务水平</span>
+        <span class="summary__v us-mono" :class="{ 'tone-alarm': overallLos === 'F' }">{{ losLabel(overallLos) }}</span>
+      </div>
+      <div v-if="imbalance != null" class="summary__row">
+        <span class="summary__k">方向失衡</span>
+        <span class="summary__v us-mono" :class="{ 'tone-evidence': imbalanceHigh }">{{ num(imbalance, 2) }}</span>
+      </div>
+      <p class="summary__hint">详细逐进口/逐转向数据见左下「运行数据」面板</p>
+    </div>
+
     <!-- 详细运行数据列表（富指标） -->
-    <div v-if="hasRich" class="rows" data-testid="metrics-detail">
+    <div v-else-if="hasRich" class="rows" data-testid="metrics-detail">
       <div v-for="ap in byApproach" :key="ap.approach" class="row">
         <span class="row__k">{{ ap.approach }}饱和度</span>
         <span class="row__v us-mono" :class="`tone-${satTone(ap.saturation)}`">{{ num(ap.saturation, 2) }}</span>
@@ -129,7 +159,7 @@ const overallLos = computed(() => m.value?.los ?? null)
     </div>
 
     <!-- 降级兜底：hero 排队比 + 6 格网格 -->
-    <template v-if="!hasRich">
+    <template v-if="!hasRich && !isSummary">
       <div class="hero" :class="`tone-${qrTone}`">
         <span class="hero__num us-mono">{{ ratio(m.queue_ratio) }}</span>
         <span class="hero__lbl">排队比</span>
@@ -327,5 +357,38 @@ const overallLos = computed(() => m.value?.los ?? null)
   margin: 10px 0 0;
   font-size: 11px;
   color: var(--text-mute);
+}
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.summary__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.summary__k {
+  flex: 0 0 64px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.summary__v {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.summary__v.tone-alarm {
+  color: var(--alarm);
+}
+.summary__v.tone-evidence {
+  color: var(--evidence);
+}
+.summary__hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-mute);
+  line-height: 1.45;
 }
 </style>

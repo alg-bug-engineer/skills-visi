@@ -80,7 +80,7 @@ const signalText = computed(
   height: auto;
 }
 .dock--plan {
-  height: 46vh;
+  height: 100%;
 }
 
 /* 输入态 */

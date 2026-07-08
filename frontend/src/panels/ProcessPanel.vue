@@ -12,9 +12,13 @@ import CauseCard from '@/cards/CauseCard.vue'
 import StrategyBoundaryCard from '@/cards/StrategyBoundaryCard.vue'
 import ProblemVerificationCard from '@/cards/ProblemVerificationCard.vue'
 import GovernanceStrategyCard from '@/cards/GovernanceStrategyCard.vue'
+import ExperienceAbsorptionPanel from '@/panels/ExperienceAbsorptionPanel.vue'
+import SkillBuildPanel from '@/panels/SkillBuildPanel.vue'
+import { useExperienceAbsorption } from '@/composables/useExperienceAbsorption'
+import { useSkillBuildProcess } from '@/composables/useSkillBuildProcess'
 
 const store = usePresentationStore()
-const { acts, currentAct, revealedActs } = storeToRefs(store)
+const { acts, currentAct, revealedActs, solidifyPhase } = storeToRefs(store)
 
 const INSIGHT_CARDS: Record<string, unknown> = {
   ticket: DiagnosisTicketCard,
@@ -29,16 +33,76 @@ const INSIGHT_CARDS: Record<string, unknown> = {
 
 const panelExpanded = ref(true)
 const manualExpanded = ref<Set<number>>(new Set())
+type ProcessTab = 'closure' | 'solidify'
+const activeTab = ref<ProcessTab>('closure')
 
-const prefersReduced =
-  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-const isAutomation = typeof navigator !== 'undefined' && (navigator as Navigator).webdriver === true
-const instant = ref(prefersReduced || isAutomation)
+const showSolidifyTab = computed(() => solidifyPhase.value !== 'idle')
+const absorption = useExperienceAbsorption()
+const build = useSkillBuildProcess()
+
+const instant = (() => {
+  const reduced =
+    typeof window !== 'undefined' &&
+    !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const automation =
+    typeof navigator !== 'undefined' && (navigator as Navigator).webdriver === true
+  return reduced || automation
+})()
+
+const absorptionStarted = ref(false)
+const buildStarted = ref(false)
+
+watch(
+  () => solidifyPhase.value,
+  (phase) => {
+    if (phase !== 'idle' && phase !== 'prompt') activeTab.value = 'solidify'
+    if (phase === 'idle') {
+      activeTab.value = 'closure'
+      absorptionStarted.value = false
+      buildStarted.value = false
+      absorption.reset()
+      build.reset()
+    }
+  },
+)
+
+watch(
+  () => [solidifyPhase.value, store.skillResult] as const,
+  ([phase, result]) => {
+    if (phase === 'absorbing' && result && !absorptionStarted.value) {
+      absorptionStarted.value = true
+      absorption.start(result.absorption, {
+        instant,
+        skillId: result.skill_id,
+        intersection: result.intersection ?? '',
+        onDone: () => store.setSolidifyPhase('building'),
+      })
+    } else if (phase === 'building' && result && !buildStarted.value) {
+      buildStarted.value = true
+      build.start(
+        result.build,
+        {
+          skillId: result.skill_id,
+          skillDir: result.skill_dir,
+          downloadUrl: result.download_url,
+          intersection: result.intersection ?? '',
+          timePeriodLabel: result.time_period_label ?? '',
+          action: result.action,
+        },
+        {
+          instant,
+          onDone: () => store.setSolidifyPhase('completed'),
+        },
+      )
+    }
+  },
+  { immediate: true },
+)
 
 const lines = computed(() => store.activeNarration)
 
 const { shown, done } = useTyping(lines, {
-  instant: instant.value,
+  instant,
   onDone: () => {
     const idx = store.currentAct
     if (idx < 0) return
@@ -93,6 +157,11 @@ function extraCardKeysFor(index: number): CardKey[] {
   return act.extraCards.filter((k) => k in INSIGHT_CARDS)
 }
 
+function cardPropsFor(key: CardKey | null): Record<string, unknown> {
+  if (key === 'metrics') return { variant: 'summary' }
+  return {}
+}
+
 watch(currentAct, (idx, prev) => {
   if (prev != null && prev >= 0 && idx > prev + 1) {
     const next = new Set(manualExpanded.value)
@@ -107,12 +176,57 @@ watch(currentAct, (idx, prev) => {
     <header class="reasoning__hd">
       <span class="reasoning-icon" aria-hidden="true">◆</span>
       <h2>处置闭环</h2>
-      <button type="button" class="panel-toggle" @click="panelExpanded = !panelExpanded">
+      <div v-if="showSolidifyTab" class="tab-switch" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="tab-switch__btn"
+          :class="{ active: activeTab === 'closure' }"
+          data-testid="process-tab-closure"
+          @click="activeTab = 'closure'"
+        >
+          闭环过程
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="tab-switch__btn"
+          :class="{ active: activeTab === 'solidify' }"
+          data-testid="process-tab-solidify"
+          @click="activeTab = 'solidify'"
+        >
+          经验固化
+        </button>
+      </div>
+      <button
+        v-if="activeTab === 'closure'"
+        type="button"
+        class="panel-toggle"
+        @click="panelExpanded = !panelExpanded"
+      >
         {{ panelExpanded ? '收起' : '展开过程' }}
       </button>
     </header>
 
-    <ol v-show="panelExpanded" class="timeline" data-testid="reasoning-timeline">
+    <div v-if="activeTab === 'solidify'" class="solidify-body" data-testid="process-solidify-tab">
+      <div v-if="solidifyPhase === 'absorbing'" class="solidify-pane">
+        <ExperienceAbsorptionPanel :state="absorption.state" />
+      </div>
+      <div v-else class="solidify-split">
+        <div class="solidify-pane solidify-pane--aside">
+          <ExperienceAbsorptionPanel :state="absorption.state" />
+        </div>
+        <div class="solidify-pane solidify-pane--main">
+          <SkillBuildPanel
+            :state="build.state"
+            @select="build.selectFile($event)"
+            @finish="store.finishSolidify()"
+          />
+        </div>
+      </div>
+    </div>
+
+    <ol v-else-if="panelExpanded" class="timeline" data-testid="reasoning-timeline">
       <li
         v-for="(act, i) in visibleActs"
         :key="act.id"
@@ -160,6 +274,7 @@ watch(currentAct, (idx, prev) => {
                 <component
                   v-if="cardKeyFor(act.index)"
                   :is="INSIGHT_CARDS[cardKeyFor(act.index)!]"
+                  v-bind="cardPropsFor(cardKeyFor(act.index))"
                   data-testid="insight-card"
                 />
                 <component
@@ -179,10 +294,10 @@ watch(currentAct, (idx, prev) => {
       </li>
     </ol>
 
-    <p v-if="!panelExpanded && currentAct >= 0" class="summary-strip">
+    <p v-else-if="activeTab === 'closure' && !panelExpanded && currentAct >= 0" class="summary-strip">
       处置闭环 · {{ currentAct + 1 }} / {{ acts.length }} 步
     </p>
-    <p v-else-if="currentAct < 0" class="empty-hint">推演开始后，将按阶段展示推理明细…</p>
+    <p v-else-if="activeTab === 'closure' && currentAct < 0" class="empty-hint">推演开始后，将按阶段展示推理明细…</p>
   </aside>
 </template>
 
@@ -228,6 +343,50 @@ watch(currentAct, (idx, prev) => {
 .panel-toggle:hover {
   color: var(--primary);
   border-color: var(--primary);
+}
+.tab-switch {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: 6px;
+}
+.tab-switch__btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-mute);
+  font-size: 11px;
+  cursor: pointer;
+}
+.tab-switch__btn.active {
+  border-color: var(--primary);
+  background: var(--primary-dim);
+  color: var(--text);
+}
+.solidify-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.solidify-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.4fr);
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+.solidify-pane {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.solidify-pane--aside,
+.solidify-pane--main {
+  display: flex;
+  flex-direction: column;
 }
 .timeline {
   list-style: none;

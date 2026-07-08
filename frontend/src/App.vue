@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import AMapProvider from '@/map/AMapProvider.vue'
 import UnderstandingPanel from '@/panels/UnderstandingPanel.vue'
+import RunningDataPanel from '@/panels/RunningDataPanel.vue'
 import ProcessPanel from '@/panels/ProcessPanel.vue'
 import BottomDock from '@/panels/BottomDock.vue'
 import ChannelizationInset from '@/panels/ChannelizationInset.vue'
@@ -48,13 +49,16 @@ watch(toast, (v) => {
     </header>
 
     <Transition name="fade">
-      <aside v-show="running && !fullscreen" class="rail rail--left" :class="{ 'rail--up': dock === 'plan' }">
-        <UnderstandingPanel />
+      <aside v-show="running && !fullscreen" class="rail rail--left">
+        <div class="left-stack">
+          <UnderstandingPanel class="left-stack__understanding" />
+          <RunningDataPanel class="left-stack__running" />
+        </div>
       </aside>
     </Transition>
 
     <Transition name="fade">
-      <aside v-show="running && !fullscreen" class="rail rail--right" :class="{ 'rail--up': dock === 'plan' }">
+      <aside v-show="running && !fullscreen" class="rail rail--right">
         <ProcessPanel />
       </aside>
     </Transition>
@@ -161,13 +165,9 @@ watch(toast, (v) => {
 .rail {
   position: absolute;
   top: 64px;
-  bottom: 150px;
+  bottom: 16px;
   z-index: 20;
   width: var(--insight-w);
-  transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.rail--up {
-  bottom: calc(56vh + 28px);
 }
 .rail--left {
   left: 16px;
@@ -176,17 +176,46 @@ watch(toast, (v) => {
   right: 16px;
   width: var(--process-w);
 }
+.left-stack {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px;
+  min-height: 0;
+}
+.left-stack__understanding {
+  flex: 1 1 58%;
+  min-height: 0;
+}
+.left-stack__running {
+  flex: 0 1 42%;
+  min-height: 160px;
+}
 .inset-slot {
   position: absolute;
+  left: calc(var(--insight-w) + 32px);
   right: calc(var(--process-w) + 32px);
-  bottom: 160px;
+  bottom: 88px;
   z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.inset-slot > * {
+  pointer-events: auto;
 }
 .topology-slot {
   position: absolute;
   left: calc(var(--insight-w) + 32px);
-  bottom: 160px;
+  right: calc(var(--process-w) + 32px);
+  bottom: 88px;
   z-index: 20;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+.topology-slot > * {
+  pointer-events: auto;
 }
 .dock-slot {
   position: absolute;
@@ -213,8 +242,8 @@ watch(toast, (v) => {
   transform: translate(-50%, -50%);
 }
 .dock-slot--running {
-  left: 16px;
-  right: 16px;
+  left: calc(var(--insight-w) + 32px);
+  right: calc(var(--process-w) + 32px);
   top: auto;
   bottom: 16px;
   width: auto;
@@ -222,11 +251,10 @@ watch(toast, (v) => {
   padding: 10px 16px;
 }
 .dock-slot--plan {
-  height: min(56vh, 620px);
-  left: max(32px, calc(var(--insight-w) + 40px));
-  right: max(32px, calc(var(--process-w) + 40px));
-  top: auto;
+  top: 64px;
   bottom: 16px;
+  left: calc(var(--insight-w) + 32px);
+  right: calc(var(--process-w) + 32px);
   width: auto;
   transform: none;
   border-radius: 8px;
@@ -234,6 +262,17 @@ watch(toast, (v) => {
   box-shadow:
     0 -18px 70px rgba(0, 0, 0, 0.58),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: plan-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes plan-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .rollback {
   position: absolute;

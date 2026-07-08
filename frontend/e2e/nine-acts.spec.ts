@@ -35,9 +35,12 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     expect(left && right && dock).toBeTruthy()
     if (left && right && dock) {
       expect(left.x + left.width).toBeLessThanOrEqual(right.x + 2)
-      // 左右栏底边不侵入底部 Dock 顶边
-      expect(left.y + left.height).toBeLessThanOrEqual(dock.y + 2)
-      expect(right.y + right.height).toBeLessThanOrEqual(dock.y + 2)
+      // 左右栏通顶延伸，底部与视口底对齐（与治理建议同高策略一致）
+      const viewport = page.viewportSize()
+      if (viewport) {
+        expect(left.y + left.height).toBeGreaterThan(viewport.height - 100)
+        expect(right.y + right.height).toBeGreaterThan(viewport.height - 100)
+      }
     }
   })
 
@@ -56,11 +59,14 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     await page.waitForTimeout(500)
     await page.screenshot({ path: `${SHOTS}/02-plan-stage.png` })
 
-    // 遮挡检查（方案态）：抬起后的侧栏底边不侵入抽屉顶边
+    // 方案抽屉与左右侧栏同高（通顶到底）
     const railL = await boxes(page, '.rail--left')
+    const railR = await boxes(page, '.rail--right')
     const dockBox = await boxes(page, '.dock-slot')
-    if (railL && dockBox) {
-      expect(railL.y + railL.height).toBeLessThanOrEqual(dockBox.y + 2)
+    if (railL && railR && dockBox) {
+      expect(Math.abs(dockBox.height - railL.height)).toBeLessThan(8)
+      expect(Math.abs(dockBox.height - railR.height)).toBeLessThan(8)
+      expect(Math.abs(dockBox.y - railL.y)).toBeLessThan(8)
     }
 
     // 决策：退回 → 展开修改意见输入

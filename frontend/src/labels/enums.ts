@@ -23,6 +23,7 @@ const movement: Dict = {
 const period: Dict = {
   morning_peak: '早高峰',
   evening_peak: '晚高峰',
+  evening_rush_hour: '晚高峰',
   midday: '平峰',
   off_peak: '平峰',
   night: '夜间',
@@ -30,9 +31,11 @@ const period: Dict = {
 
 const problem_type: Dict = {
   queue_spillover: '排队溢出',
+  queue_overflow: '排队溢出',
   congestion_spillover: '拥堵外溢',
   congestion: '拥堵',
   spillback: '拥堵传导',
+  queue_spillback: '排队倒灌',
   imbalance: '流量失衡',
 }
 
@@ -46,18 +49,23 @@ const diagnosis_scope: Dict = {
   intersection: '目标路口',
   corridor: '目标路口 + 上下游 + 干线协调',
   area: '区域',
+  signal_timing_and_queue_management: '信号配时与排队管理',
+  signal_timing_optimization: '信号配时优化',
 }
 
 const governance_goal: Dict = {
   mitigate_spillover: '控制溢出扩散',
   prevent_downstream_congestion_spillover: '避免下游继续外溢',
   clear_queue: '清空排队',
+  clear_upstream_queue_and_isolate_downstream_impact: '清空上游排队并隔离下游影响',
+  clear_queue_and_prevent_spillback: '清空排队并防止倒灌',
   balance: '均衡放行',
 }
 
 const constraint: Dict = {
   avoid_downstream_spillover: '优先避免下游继续外溢',
   protect_downstream: '保护下游承接空间',
+  prevent_downstream_overflow: '优先避免下游继续外溢',
 }
 
 const risk_level: Dict = {
@@ -137,7 +145,31 @@ const DICTS: Record<string, Dict> = {
 export function t(kind: keyof typeof DICTS, value: string | null | undefined): string {
   if (value == null || value === '') return '—'
   const dict = DICTS[kind]
-  return (dict && dict[value]) ?? value
+  return (dict && dict[value]) ?? labelAny(value)
+}
+
+/** 跨字典查找中文标签；仍未知则降级为可读短语（禁止裸露 snake_case）。 */
+export function labelAny(value: string | null | undefined): string {
+  if (value == null || value === '') return '—'
+  if (/[\u4e00-\u9fff]/.test(value)) return value
+  for (const dict of Object.values(DICTS)) {
+    if (dict[value]) return dict[value]
+  }
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\bqueue\b/gi, '排队')
+    .replace(/\boverflow\b/gi, '溢出')
+    .replace(/\bupstream\b/gi, '上游')
+    .replace(/\bdownstream\b/gi, '下游')
+    .replace(/\bsignal\b/gi, '信号')
+    .replace(/\btiming\b/gi, '配时')
+    .replace(/\bmanagement\b/gi, '管理')
+    .replace(/\bclear\b/gi, '清空')
+    .replace(/\bisolate\b/gi, '隔离')
+    .replace(/\bimpact\b/gi, '影响')
+    .replace(/\bevening\b/gi, '晚')
+    .replace(/\brush\b/gi, '高峰')
+    .replace(/\bhour\b/gi, '时段')
 }
 
 /** 方向 + 转向 组合，如「东向西直行」。 */

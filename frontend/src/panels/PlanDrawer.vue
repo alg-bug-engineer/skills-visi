@@ -119,7 +119,7 @@ async function onReject() {
         <input v-model="rejectReason" class="reason" placeholder="填写修改意见，例如：优先保护下游、缩小调整幅度…" />
         <button class="btn btn--ghost" :disabled="busy" @click="rejecting = false">取消</button>
         <button class="btn btn--warn" :disabled="busy || !rejectReason.trim()" @click="onReject">
-          {{ busy ? '再生成中…' : '提交并再生成' }}
+          {{ busy ? '生成中…' : '提交并生成' }}
         </button>
       </template>
     </footer>
