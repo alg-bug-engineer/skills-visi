@@ -1,7 +1,8 @@
 import { getJSON, postJSON } from './client'
 import { streamPost, type StreamHandlers, type StreamController } from './sse'
-import type { ApiError, HealthResponse, RunResponse } from './types'
+import type { ApiError, HealthResponse, RunResponse, SkillSolidificationResult } from './types'
 import fixture from '@/mock/run_1_fixture.json'
+import skillSolidifyFixture from '@/mock/skill_solidify_fixture.json'
 
 const MOCK = import.meta.env.VITE_MOCK === '1'
 
@@ -190,4 +191,28 @@ export async function listCases(params: {
 export async function loadIntersection(body: Record<string, unknown>): Promise<Record<string, unknown> | ApiError> {
   if (MOCK) return { ok: false, reason: 'mock_mode' }
   return postJSON('/intersection/load', body)
+}
+
+export interface SolidifyOptions {
+  trace_id: string
+  plan_id: string
+  diagnosis_ticket?: unknown
+  plan_snapshot?: unknown
+  strategy?: unknown
+  artifacts_summary?: unknown
+}
+
+/**
+ * 技能固化：透传真实快照 → 后端落盘并返回结构化吸收/构建结果。
+ * MOCK 模式回放真实固化 fixture（明确来源，非编造）。
+ * 注意：结果内 download_url 已含 /api/v1 前缀，勿再拼接。
+ */
+export async function solidifySkill(
+  opts: SolidifyOptions,
+): Promise<SkillSolidificationResult | ApiError> {
+  if (MOCK) {
+    await delay(400)
+    return skillSolidifyFixture as unknown as SkillSolidificationResult
+  }
+  return postJSON<SkillSolidificationResult>('/agent/skill/solidify', opts)
 }

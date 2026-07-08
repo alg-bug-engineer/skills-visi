@@ -3,6 +3,9 @@
  * 约定：可能缺失/为空的字段一律 `| null` 或可选，前端做守卫降级。
  */
 
+import type { EvidenceChip, ValueSnapshot } from '@/types/skillAbsorption'
+import type { SkillBuildStage } from '@/types/skillBuild'
+
 export type LngLat = [number, number]
 
 export interface MatchCandidate {
@@ -375,6 +378,66 @@ export interface HealthResponse {
   llm_mock: boolean
   model: string
   pg_configured: boolean
+}
+
+// ── 需求14：技能固化（经验吸收 + 构建落盘）响应契约 ─────────────────────────
+// 契约以真实后端响应为准（frontend/src/mock/skill_solidify_fixture.json）。
+
+/** 构建阶段 key（对齐 SkillBuildStage 非终态子集）。 */
+export type SkillStage = Exclude<SkillBuildStage, 'idle' | 'completed' | 'failed'>
+
+/** build.stages 单项：进度由响应驱动。 */
+export interface SkillBuildStageInfo {
+  key: SkillStage
+  label: string
+  progress: number
+}
+
+/** build.files 单项：真实文件内容。 */
+export interface SkillFile {
+  path: string
+  name: string
+  language: string
+  content: string
+}
+
+/** absorption.stages 单项：6 阶段真实证据。 */
+export interface AbsorptionStageInfo {
+  key: string
+  label: string
+  monologue: string
+  evidence_chips: EvidenceChip[]
+  duration_ms: number
+}
+
+/** 技能标签：来自真实 ticket/strategy/plan。 */
+export interface SkillTags {
+  match: Record<string, unknown>
+  content: Record<string, unknown>
+  meta: Record<string, unknown>
+}
+
+/** POST /agent/skill/solidify 响应。download_url 已含 /api/v1 前缀，勿再拼接。 */
+export interface SkillSolidificationResult {
+  action: 'created' | 'updated' | 'unchanged'
+  skill_id: string
+  skill_dir: string
+  download_url: string
+  intersection: string | null
+  inter_id: string | null
+  time_period_label: string | null
+  tags: SkillTags
+  trace_id: string
+  plan_id: string
+  absorption: {
+    action: 'CREATE' | 'UPDATE' | 'UNCHANGED'
+    stages: AbsorptionStageInfo[]
+    value_snapshot: ValueSnapshot
+  }
+  build: {
+    stages: SkillBuildStageInfo[]
+    files: SkillFile[]
+  }
 }
 
 export interface ApiError {

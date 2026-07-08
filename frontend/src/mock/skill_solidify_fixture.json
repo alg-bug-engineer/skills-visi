@@ -1,0 +1,248 @@
+{
+  "action": "created",
+  "skill_id": "skill-011wwe289qc00001-evening_rush_hour",
+  "skill_dir": "data/skills/skill-011wwe289qc00001-evening_rush_hour",
+  "download_url": "/api/v1/agent/skills/skill-011wwe289qc00001-evening_rush_hour/download",
+  "intersection": "经十路与转山西路路口",
+  "inter_id": "011wwe289qc00001",
+  "time_period_label": "18:10-18:30",
+  "tags": {
+    "match": {
+      "intersection": "经十路与转山西路路口",
+      "inter_id": "011wwe289qc00001",
+      "time_period": "evening_rush_hour",
+      "problem_type": "queue_spillback",
+      "directions": [
+        "east_to_west"
+      ],
+      "match_keywords": [
+        "经十路与转山西路路口",
+        "queue_spillback",
+        "evening_rush_hour",
+        "east_to_west",
+        "through"
+      ]
+    },
+    "content": {
+      "has_user_constraints": true,
+      "constraint_intent": "clear_queue_and_prevent_spillback"
+    },
+    "meta": {
+      "experience_source": "plan_accept",
+      "version": "0.1.0",
+      "source_utterance_summary": "六点十分到六点半，东向西排队溢出到上游；优先避免下游继续外溢"
+    }
+  },
+  "trace_id": "734b59d1ca494370",
+  "plan_id": "downstream_protection",
+  "absorption": {
+    "action": "CREATE",
+    "stages": [
+      {
+        "key": "recap",
+        "label": "回顾本轮约束",
+        "monologue": "回顾本轮已采纳的诊断与治理约束：经十路与转山西路路口。",
+        "evidence_chips": [
+          {
+            "key": "intersection",
+            "label": "路口",
+            "value": "经十路与转山西路路口"
+          },
+          {
+            "key": "period",
+            "label": "时段",
+            "value": "18:10-18:30"
+          },
+          {
+            "key": "problem_type",
+            "label": "问题类型",
+            "value": "queue_spillback"
+          }
+        ],
+        "duration_ms": 520
+      },
+      {
+        "key": "decompose",
+        "label": "解构为可索引字段",
+        "monologue": "将约束与方向解构为可索引字段。",
+        "evidence_chips": [
+          {
+            "key": "constraints",
+            "label": "约束条数",
+            "value": 4
+          },
+          {
+            "key": "directions",
+            "label": "方向",
+            "value": "east_to_west"
+          },
+          {
+            "key": "movement",
+            "label": "转向",
+            "value": "through"
+          }
+        ],
+        "duration_ms": 560
+      },
+      {
+        "key": "retrieve",
+        "label": "检索既有技能库",
+        "monologue": "检索既有技能库，判断是否已有同键技能。",
+        "evidence_chips": [
+          {
+            "key": "existing",
+            "label": "既有技能数",
+            "value": 0
+          },
+          {
+            "key": "skill_id",
+            "label": "目录键",
+            "value": "skill-011wwe289qc00001-evening_rush_hour"
+          }
+        ],
+        "duration_ms": 600
+      },
+      {
+        "key": "compare",
+        "label": "比对 创建/更新",
+        "monologue": "比对内容签名，得出创建 / 更新 / 无变化判定。",
+        "evidence_chips": [
+          {
+            "key": "action",
+            "label": "判定",
+            "value": "CREATE"
+          }
+        ],
+        "duration_ms": 520
+      },
+      {
+        "key": "value",
+        "label": "价值前后对照",
+        "monologue": "对照固化前后的复用价值。",
+        "evidence_chips": [
+          {
+            "key": "recommended",
+            "label": "推荐做法",
+            "value": 4
+          },
+          {
+            "key": "principles",
+            "label": "策略原则",
+            "value": 4
+          }
+        ],
+        "duration_ms": 560
+      },
+      {
+        "key": "blueprint",
+        "label": "转化写入蓝图",
+        "monologue": "转化为可落盘的技能包蓝图。",
+        "evidence_chips": [
+          {
+            "key": "files",
+            "label": "待写文件",
+            "value": 4
+          }
+        ],
+        "duration_ms": 600
+      }
+    ],
+    "value_snapshot": {
+      "what": {
+        "title": "固化技能 skill-011wwe289qc00001-evening_rush_hour",
+        "bullets": [
+          "路口：经十路与转山西路路口",
+          "时段：18:10-18:30",
+          "问题类型：queue_spillback",
+          "沉淀约束：4 条"
+        ]
+      },
+      "why_rows": [
+        {
+          "key": "reuse",
+          "label": "复用方式",
+          "before": "手工检索历史工单",
+          "after": "技能库按标签自动命中"
+        },
+        {
+          "key": "retrieval",
+          "label": "检索方式",
+          "before": "人工翻阅方案记录",
+          "after": "按路口/时段/问题类型秒级匹配"
+        },
+        {
+          "key": "fidelity",
+          "label": "约束保真",
+          "before": "口头传递易遗漏",
+          "after": "落盘 4 条约束"
+        }
+      ],
+      "delta_rows": []
+    }
+  },
+  "build": {
+    "stages": [
+      {
+        "key": "understanding",
+        "label": "理解本轮成果",
+        "progress": 8
+      },
+      {
+        "key": "planning",
+        "label": "规划技能包结构",
+        "progress": 20
+      },
+      {
+        "key": "writing_skill_md",
+        "label": "写入 SKILL.md",
+        "progress": 45
+      },
+      {
+        "key": "writing_reference",
+        "label": "写入 reference.md",
+        "progress": 62
+      },
+      {
+        "key": "writing_scripts",
+        "label": "写入取数脚本",
+        "progress": 80
+      },
+      {
+        "key": "writing_meta",
+        "label": "写入技能元信息",
+        "progress": 92
+      },
+      {
+        "key": "packaging",
+        "label": "打包与登记",
+        "progress": 100
+      }
+    ],
+    "files": [
+      {
+        "path": "SKILL.md",
+        "name": "SKILL.md",
+        "language": "markdown",
+        "content": "---\nname: \"skill-011wwe289qc00001-evening_rush_hour\"\ndescription: \"经十路与转山西路路口、queue_spillback、18:10-18:30 的治理经验固化技能\"\nmetadata:\n  intersection: \"经十路与转山西路路口\"\n  inter_id: \"011wwe289qc00001\"\n  problem_type: \"queue_spillback\"\n  time_period: \"evening_rush_hour\"\n  time_range: \"18:10-18:30\"\n  directions: [\"east_to_west\"]\n  tags: [\"经十路与转山西路路口\", \"queue_spillback\", \"evening_rush_hour\", \"east_to_west\", \"through\"]\n  experience_source: \"plan_accept\"\n---\n\n# 经十路与转山西路路口 治理技能\n\n## 诊断结论\n\n- 路口：经十路与转山西路路口\n- 路口 ID：011wwe289qc00001\n- 时段：18:10-18:30\n- 方向/转向：east_to_west / through\n- 问题类型：queue_spillback\n- 诊断范围：signal_timing_optimization\n- 治理目标：clear_queue_and_prevent_spillback\n\n## 治理策略要点\n\n### 原则\n\n- 防溢流优先原则：将防止下游路口（岔口/海右路）发生溢出作为最高约束，任何配时调整不得以牺牲下游通行能力为代价。\n- 供需匹配原则：基于下游实际通行能力反推上游允许的最大放行量，避免‘绿灯空放’造成的时间资源浪费。\n- 协调平滑原则：通过上下游信号协调（绿波或感应控制），削峰填谷，减少上游车流集中到达导致的瞬时拥堵。\n- 动态适应原则：根据实时排队长度和饱和度动态调整相位时长，而非固定配时，以应对晚高峰流态变化。\n\n### 推荐做法\n\n- 实施下游优先的局部增绿策略：仅在确认下游路口有空余通行能力（未饱和、无溢出风险）的前提下，适度增加东进口直行绿灯时间，并设置严格的溢出预警阈值。\n- 建立上下游信号协调机制：针对奥体西路方向来车，实施绿波带或自适应协调控制，平滑车流到达曲线，避免多股车流叠加冲击下游瓶颈。\n- 排查并消除下游物理瓶颈：重点检查岔口及经十路辅路与海右路路口的车道渠化、违停占道情况，必要时通过交通管理手段（如严管违停）恢复下游实际通行能力。\n- 引入排队长度反馈控制：利用检测数据实时监控下游排队长度，当接近溢出临界值时，自动缩短上游绿灯时间或提前切换相位，强制截断上游车流。\n\n## 配时建议摘要\n\n- 推荐方案：下游保护方案\n- 周期：98s\n- 西直、东直：绿灯 36s\n- 东左、西左：绿灯 12s\n- 南直：绿灯 35s\n\n## 约束与红线\n\n### 用户约束\n\n- priority: prevent_downstream_spillback\n\n### 策略红线\n\n- 严禁在下游路口饱和度>0.9或排队长度超过物理存储空间80%时增加东进口直行绿灯时间。\n- 所有配时调整必须确保下游路口不发生向上一级路口的回流溢出。\n- 相位切换必须保留足够的全红清空时间，防止冲突。\n\n## 预期效果与回滚\n\n- 预期效果：抑制向下游继续送车，避免外溢扩散\n- 风险提示：目标进口排队缓解速度较慢，需配合上游控流\n- 回滚条件：下游排队比持续上升时回滚至原方案\n"
+      },
+      {
+        "path": "reference.md",
+        "name": "reference.md",
+        "language": "markdown",
+        "content": "# 诊断依据与策略要点明细\n\n## 用户原始诉求\n\n> 六点十分到六点半，东向西排队溢出到上游；优先避免下游继续外溢\n\n## 策略原则\n\n1. 防溢流优先原则：将防止下游路口（岔口/海右路）发生溢出作为最高约束，任何配时调整不得以牺牲下游通行能力为代价。\n2. 供需匹配原则：基于下游实际通行能力反推上游允许的最大放行量，避免‘绿灯空放’造成的时间资源浪费。\n3. 协调平滑原则：通过上下游信号协调（绿波或感应控制），削峰填谷，减少上游车流集中到达导致的瞬时拥堵。\n4. 动态适应原则：根据实时排队长度和饱和度动态调整相位时长，而非固定配时，以应对晚高峰流态变化。\n\n## 推荐做法\n\n1. 实施下游优先的局部增绿策略：仅在确认下游路口有空余通行能力（未饱和、无溢出风险）的前提下，适度增加东进口直行绿灯时间，并设置严格的溢出预警阈值。\n2. 建立上下游信号协调机制：针对奥体西路方向来车，实施绿波带或自适应协调控制，平滑车流到达曲线，避免多股车流叠加冲击下游瓶颈。\n3. 排查并消除下游物理瓶颈：重点检查岔口及经十路辅路与海右路路口的车道渠化、违停占道情况，必要时通过交通管理手段（如严管违停）恢复下游实际通行能力。\n4. 引入排队长度反馈控制：利用检测数据实时监控下游排队长度，当接近溢出临界值时，自动缩短上游绿灯时间或提前切换相位，强制截断上游车流。\n\n## 不建议做法\n\n- 单点激进增加东进口直行绿灯时间：在下游通行能力受限或存在隐性瓶颈的情况下，单纯增加绿灯只会加剧下游排队溢出风险，导致拥堵向上游蔓延。\n- 忽视下游状态的静态配时优化：不考虑下游路口实时饱和度和排队长度的固定周期方案，无法解决‘绿灯给了也用不上’的核心矛盾。\n- 仅依赖局部增绿而不进行协调控制：缺乏上下游联动，上游车流仍会集中到达下游节点，导致下游迅速饱和，局部优化效果短暂且不稳定。\n\n## 硬约束（红线）\n\n- 严禁在下游路口饱和度>0.9或排队长度超过物理存储空间80%时增加东进口直行绿灯时间。\n- 所有配时调整必须确保下游路口不发生向上一级路口的回流溢出。\n- 相位切换必须保留足够的全红清空时间，防止冲突。\n\n## 策略解释\n\n当前核心问题是‘绿灯利用率低’与‘下游排队高’并存，表明问题根源不在于上游绿灯时间绝对不足，而在于下游通行能力受限或车流到达不协调。若盲目增加东进口绿灯时间，会导致更多车辆涌入已饱和的下游路段，引发严重的溢出效应（Spillback），使拥堵范围扩大至上游多个路口。因此，治理策略必须从‘单向增绿’转向‘双向协调’与‘下游容量管控’。首先需确保下游通畅（排查物理瓶颈），其次通过协调控制平滑上游车流，最后在下游有余量的前提下谨慎释放上游需求，实现系统整体效率最大化而非单一路口指标优化。\n\n## 预期效果与回滚\n\n- 预期效果：抑制向下游继续送车，避免外溢扩散\n- 回滚条件：下游排队比持续上升时回滚至原方案\n"
+      },
+      {
+        "path": "scripts/fetch_traffic_data.sql",
+        "name": "fetch_traffic_data.sql",
+        "language": "sql",
+        "content": "-- 取数模板：经十路与转山西路路口（inter_id=011wwe289qc00001）\n-- 时段：18:10-18:30；方向：east_to_west\n-- 说明：本文件为参数化取数模板，占位符 :inter_id / :start_time / :end_time\n--       由调用方在执行时注入；本模板不含任何示例结果行。\nSELECT\n    link.inter_id,\n    link.link_id,\n    inter.inter_name\nFROM road6.dwd_tfc_rltn_wide_inter_ft_link AS link\nJOIN road6.dim_inter_info AS inter\n    ON inter.inter_id = link.inter_id\nWHERE link.inter_id = :inter_id\n  AND :start_time <= :end_time\nORDER BY link.inter_id, link.link_id;\n"
+      },
+      {
+        "path": "skill.meta.json",
+        "name": "skill.meta.json",
+        "language": "json",
+        "content": "{\n  \"skill_id\": \"skill-011wwe289qc00001-evening_rush_hour\",\n  \"skill_dir\": \"data/skills/skill-011wwe289qc00001-evening_rush_hour\",\n  \"created_at\": \"2026-07-08T04:13:18.504184+00:00\",\n  \"updated_at\": \"2026-07-08T04:13:18.504184+00:00\",\n  \"intersection\": \"经十路与转山西路路口\",\n  \"inter_id\": \"011wwe289qc00001\",\n  \"problem_type\": \"queue_spillback\",\n  \"time_period_label\": \"18:10-18:30\",\n  \"tags\": {\n    \"match\": {\n      \"intersection\": \"经十路与转山西路路口\",\n      \"inter_id\": \"011wwe289qc00001\",\n      \"time_period\": \"evening_rush_hour\",\n      \"problem_type\": \"queue_spillback\",\n      \"directions\": [\n        \"east_to_west\"\n      ],\n      \"match_keywords\": [\n        \"经十路与转山西路路口\",\n        \"queue_spillback\",\n        \"evening_rush_hour\",\n        \"east_to_west\",\n        \"through\"\n      ]\n    },\n    \"content\": {\n      \"has_user_constraints\": true,\n      \"constraint_intent\": \"clear_queue_and_prevent_spillback\"\n    },\n    \"meta\": {\n      \"experience_source\": \"plan_accept\",\n      \"version\": \"0.1.0\",\n      \"source_utterance_summary\": \"六点十分到六点半，东向西排队溢出到上游；优先避免下游继续外溢\"\n    }\n  },\n  \"content_signature\": \"sha256:30f6208255cb567a7a232cc6cc23c9985f8b14cd842fedb547e533435277af97\"\n}\n"
+      }
+    ]
+  }
+}
