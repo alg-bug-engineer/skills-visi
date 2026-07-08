@@ -62,6 +62,26 @@ describe('UnderstandingPanel · 案例库（行业/路口）', () => {
     expect(wrapper.text()).toContain('货运通道关键节点')
   })
 
+  it('代表案例锚点唯一，采用 industry-case-<sceneId>-<caseId> 格式', async () => {
+    const wrapper = mount(UnderstandingPanel)
+    await wrapper.find('[data-testid="case-library-tab"]').trigger('click')
+    await wrapper.find('[data-testid="case-subtab-industry"]').trigger('click')
+    // 展开全部场景以渲染所有代表案例锚点
+    for (const head of wrapper.findAll('.scene-head')) {
+      await head.trigger('click')
+    }
+
+    const anchors = wrapper.findAll('li.rep-case[id]')
+    expect(anchors.length).toBeGreaterThan(0)
+    const ids = anchors.map((a) => a.attributes('id') as string)
+    // 全部锚点 id 唯一（无重复 DOM id）
+    expect(new Set(ids).size).toBe(ids.length)
+    // 格式：industry-case-<sceneId>-<caseId>
+    for (const id of ids) {
+      expect(id).toMatch(/^industry-case-.+-.+$/)
+    }
+  })
+
   it('路口案例子标签渲染已有案例并展示 case_id', async () => {
     const s = usePresentationStore()
     s.applySnapshot(snapWithCases())

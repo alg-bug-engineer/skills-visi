@@ -39,6 +39,33 @@ interface IndustryScene {
 
 const scenes = expertKnowledge as IndustryScene[]
 
+// 代表案例 id 在多个方案/问题下会重复出现，若直接用 `industry-case-<id>` 作锚点会产生
+// 重复 DOM id（无效 HTML，且破坏 Task 8 的 getElementById 定位）。这里为每条案例
+// 计算一个唯一锚点：`industry-case-<sceneId>-<caseId>`，仅赋给该场景内首次出现者，
+// 保证 (sceneId, caseId) 首个出现处可被确定性定位。
+type DecoratedCase = IndustryCase & { anchorId?: string }
+type DecoratedScheme = Omit<IndustryScheme, 'cases'> & { cases: DecoratedCase[] }
+type DecoratedProblem = Omit<IndustryProblem, 'schemes'> & { schemes: DecoratedScheme[] }
+type DecoratedScene = Omit<IndustryScene, 'problems'> & { problems: DecoratedProblem[] }
+
+const decoratedScenes: DecoratedScene[] = scenes.map((s) => {
+  const seen = new Set<string>()
+  return {
+    ...s,
+    problems: s.problems.map((p) => ({
+      ...p,
+      schemes: p.schemes.map((sc) => ({
+        ...sc,
+        cases: sc.cases.map((c) => {
+          if (seen.has(c.id)) return { ...c }
+          seen.add(c.id)
+          return { ...c, anchorId: `industry-case-${s.sceneId}-${c.id}` }
+        }),
+      })),
+    })),
+  }
+})
+
 const store = usePresentationStore()
 const { experiencesByType, existingCases, experienceReady, casesReady } = storeToRefs(store)
 
@@ -73,8 +100,8 @@ const searching = computed(() => industryQuery.value.trim().length > 0)
 
 const filteredScenes = computed(() => {
   const q = industryQuery.value.trim().toLowerCase()
-  if (!q) return scenes
-  return scenes.filter((s) => {
+  if (!q) return decoratedScenes
+  return decoratedScenes.filter((s) => {
     if (s.scene.toLowerCase().includes(q)) return true
     return s.problems.some(
       (p) =>
@@ -214,6 +241,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases)
               type="button"
               class="scene-head"
               :class="{ open: isSceneOpen(s.sceneId) }"
+              :aria-expanded="isSceneOpen(s.sceneId)"
               @click="toggleScene(s.sceneId)"
             >
               <span class="scene-caret">{{ isSceneOpen(s.sceneId) ? '▾' : '▸' }}</span>
@@ -245,9 +273,9 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases)
                   <p v-if="sc.caution" class="scheme-caution">注意事项：{{ sc.caution }}</p>
                   <ul v-if="sc.cases.length" class="rep-cases">
                     <li
-                      v-for="c in sc.cases"
-                      :key="c.id"
-                      :id="'industry-case-' + c.id"
+                      v-for="(c, ci) in sc.cases"
+                      :key="ci"
+                      :id="c.anchorId"
                       class="rep-case"
                     >
                       <span class="rep-id">[#{{ c.id }}]</span>
@@ -399,10 +427,6 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases)
   color: var(--text-mute);
   text-align: center;
   line-height: 1.5;
-}
-.hint-row.deposited {
-  text-align: left;
-  color: var(--text-dim);
 }
 .exp-list,
 .case-list {
@@ -652,5 +676,8 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases)
 }
 .rep-title {
   color: var(--text-dim);
+}
+.rep-snippet {
+  color: var(--text-mute);
 }
 </style>
