@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     signal_opt_engine_src: str = ""
     feedback_log_path: str = "data/plan_feedback.jsonl"
     user_experience_path: str = "data/user_experience.jsonl"
+    skills_output_path: str = "data/skills"
 
     @property
     def case_library_abs_path(self) -> Path:
@@ -44,6 +45,11 @@ class Settings(BaseSettings):
     @property
     def user_experience_abs_path(self) -> Path:
         path = Path(self.user_experience_path)
+        return path if path.is_absolute() else PROJECT_ROOT / path
+
+    @property
+    def skills_output_abs_path(self) -> Path:
+        path = Path(self.skills_output_path)
         return path if path.is_absolute() else PROJECT_ROOT / path
 
 
