@@ -2,6 +2,16 @@
 
 必填字段：object_type, intersection_name, intersection_name_candidates, time_range, period, direction, movement, problem_type, constraints, diagnosis_scope, governance_goal。
 
+字段约束（必须遵守）：
+- direction：标准行驶方向，仅取以下之一，不要带「由」前缀、不要附带转向词
+  东向西 | 西向东 | 南向北 | 北向南
+  （用户说「由南向北」「从南往北」等，应归一化为「南向北」）
+- movement：左转 | 直行 | 右转 | 掉头
+- period：与数据库时段三档对齐，仅取以下之一
+  早高峰 | 晚高峰 | 平峰
+  若用户给出具体时刻（如 07:30-07:50）但未说时段，请根据时刻推断 period（07-10 点→早高峰，17-20 点→晚高峰，其余→平峰）
+- time_range：HH:MM-HH:MM 格式，如 07:30-07:50
+
 intersection_name_candidates 为数组，列出用户口语中可能出现的路口名变体（含简略说法、道路顺序互换，如「B路与A路」对应数据库「A路与B路路口」）。
 
 同时拆分用户输入中的经验（不一定全部出现，有则提取）：

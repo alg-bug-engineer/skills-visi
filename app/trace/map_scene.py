@@ -2,37 +2,32 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.trace.geometry import orient_path, parse_linestring_wkt
 
 MIN_PATH_COVERAGE = 10.0
 
-# flow_correlate.period_type 采用大写代码；中文时段（ticket.period）映射到该代码，
-# 用于把溯源 peer 限定在与诊断一致的单一时段，避免跨时段聚合导致流量点虚增。
-_PERIOD_CODE_BY_CN = {
-    "早高峰": "MORNING_PEAK",
-    "晚高峰": "EVENING_PEAK",
-    "白平峰": "OFF_PEAK",
-    "午平峰": "OFF_PEAK",
-    "平峰": "OFF_PEAK",
-}
-_PERIOD_CODES = {"MORNING_PEAK", "EVENING_PEAK", "OFF_PEAK"}
+# flow_correlate.period_type 映射与推断见 app.data.ticket_nlu_schema（与意图 NLU 共用配置）。
+from app.data.ticket_nlu_schema import (
+    FLOW_TRACE_PERIOD_FILTER_CAVEAT,
+    FLOW_TRACE_PERIOD_FILTER_ENABLED,
+    infer_diagnosis_period_type,
+    period_db_codes as _period_db_codes,
+    resolve_correlate_period,
+)
+
+_PERIOD_CODE_BY_CN = _period_db_codes()
+_PERIOD_CODES = frozenset(_PERIOD_CODE_BY_CN.values())
 
 
-def resolve_correlate_period(*candidates: Any) -> str | None:
-    """把中文时段或已是大写代码的时段解析为 flow_correlate.period_type 代码。"""
-    for candidate in candidates:
-        if not candidate:
-            continue
-        text = str(candidate).strip()
-        upper = text.upper()
-        if upper in _PERIOD_CODES:
-            return upper
-        for cn, code in _PERIOD_CODE_BY_CN.items():
-            if cn in text:
-                return code
-    return None
+def effective_flow_trace_period_type(topology: dict[str, Any] | None) -> str | None:
+    """流量溯源实际使用的 period_type；关闭时间片过滤时恒为 None（全时段）。"""
+    if not FLOW_TRACE_PERIOD_FILTER_ENABLED:
+        return None
+    topo = topology or {}
+    return resolve_correlate_period(topo.get("period_type"))
 
 
 def _scene_trace_type(trace_direction: str, turn_dir_no: int) -> str:
@@ -369,7 +364,7 @@ def build_flow_trace_links_sniff_map_scene(
 
     dir8_code = int(topo.get("dir8_code") or 0)
     turn_dir_no = int(topo.get("turn_dir_no") or 2)
-    period_type = resolve_correlate_period(topo.get("period_type"))
+    period_type = effective_flow_trace_period_type(topo)
     trace_dir = "downstream" if trace_direction == "downstream" else "upstream"
     shares = _best_share_by_inter(raw, dir8_code, turn_dir_no, trace_dir, period_type)
     channel_by_link = _channelization_by_link(raw)
@@ -412,7 +407,7 @@ def build_flow_trace_links_sniff_map_scene(
         period_type=period_type,
     )
     period_applied = period_type
-    if not correlate_peers and period_type:
+    if FLOW_TRACE_PERIOD_FILTER_ENABLED and not correlate_peers and period_type:
         # 该时段无 flow_correlate 行（真实数据缺口）时回退全时段，避免溯源空场景；不合成。
         correlate_peers = _correlate_peers(
             raw,
@@ -605,6 +600,10 @@ def build_flow_trace_links_sniff_map_scene(
             "missing_center": sum(1 for n in peer_list if not n.get("center")),
             "hidden_non_main": hidden_non_main,
             "period_type": period_applied,
+            "period_filter_enabled": FLOW_TRACE_PERIOD_FILTER_ENABLED,
+            "period_filter_caveat": (
+                None if FLOW_TRACE_PERIOD_FILTER_ENABLED else FLOW_TRACE_PERIOD_FILTER_CAVEAT
+            ),
         },
         "main_corridor_chain": main_chain,
         "intersections": intersections,

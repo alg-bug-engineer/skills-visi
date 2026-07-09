@@ -47,6 +47,11 @@ def _load_schema() -> dict[str, Any]:
 
 
 def _infer_time_period(text: str, schema: dict[str, Any]) -> str | None:
+    from app.data.ticket_nlu_schema import resolve_period_label
+
+    canonical = resolve_period_label(text)
+    if canonical:
+        return canonical
     synonyms = schema.get("time_period_synonyms") or {}
     for period, keys in synonyms.items():
         for key in keys:

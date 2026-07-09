@@ -7,6 +7,9 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
+from app.trace.topology import normalize_travel_direction
+from app.data.ticket_nlu_schema import normalize_ticket_period
+
 logger = logging.getLogger(__name__)
 
 _ROAD_SPLIT = re.compile(r"[与和及/\、]+")
@@ -284,6 +287,12 @@ def _is_reversed_match(query_terms: list[str], matched_name: str) -> bool:
 def enrich_ticket_with_match(ticket: dict[str, Any], *, user_input: str = "") -> dict[str, Any]:
     """Enrich ticket using matcher; preserves explicit inter_id when already set."""
     enriched = dict(ticket)
+    if enriched.get("direction"):
+        enriched["direction"] = normalize_travel_direction(str(enriched["direction"]))
+    if enriched.get("period"):
+        normalized_period = normalize_ticket_period(str(enriched["period"]))
+        if normalized_period:
+            enriched["period"] = normalized_period
     if enriched.get("inter_id"):
         enriched.setdefault("match_confidence", 1.0)
         enriched.setdefault("match_method", "explicit")

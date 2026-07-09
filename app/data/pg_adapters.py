@@ -227,7 +227,8 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
             if cor_id and cor_id in seen_down:
                 continue
             seen_down.add(cor_id)
-            share = _match_coverage(coverage, "DOWNSTREAM", cor_id)
+            # 下游去向在 flow_correlate 中 trace_type=UPSTREAM（对齐 map_scene._scene_trace_type）。
+            share = _match_coverage(coverage, "UPSTREAM", cor_id)
             oriented = orient_path(path, target_lng, target_lat, adj_lng, adj_lat)
             downstream_nodes.append(
                 {
@@ -254,9 +255,12 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
     volume_vph = float(metrics_for_diagnosis(raw.get("metrics") or {}, ticket).get("volume_vph") or 0)
     has_geometry = bool(upstream_nodes or downstream_nodes)
 
-    from app.trace.map_scene import resolve_correlate_period
+    from app.data.ticket_nlu_schema import (
+        FLOW_TRACE_PERIOD_FILTER_CAVEAT,
+        infer_diagnosis_period_type,
+    )
 
-    period_type = resolve_correlate_period(ticket.get("period"), ticket.get("time_range")) or "EVENING_PEAK"
+    period_type = infer_diagnosis_period_type(ticket)
 
     return {
         "target_inter_id": str(inter.get("inter_id") or ticket.get("inter_id") or ""),
@@ -276,6 +280,7 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
         "downstream_nodes": downstream_nodes,
         "geometry_source": "dim_link_info.geom" if has_geometry else "unavailable",
         "caveat": "PG 拓扑：几何取自 dim_link_info.geom，占比取自 flow_correlate",
+        "flow_trace_period_caveat": FLOW_TRACE_PERIOD_FILTER_CAVEAT,
     }
 
 

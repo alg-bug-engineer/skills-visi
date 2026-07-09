@@ -1,0 +1,57 @@
+# 诊断工单 NLU 字段约束与 DB 映射（意图理解 LLM + 确定性护栏共用）
+# flow_correlate.period_type 仅三档：MORNING_PEAK / EVENING_PEAK / OFF_PEAK
+
+version: "1.0.0"
+
+direction:
+  allowed:
+    - 东向西
+    - 西向东
+    - 南向北
+    - 北向南
+  allowed_diagonal:
+    - 东北向西南
+    - 东南向西北
+    - 西南向东北
+    - 西北向东南
+
+movement:
+  allowed:
+    - 左转
+    - 直行
+    - 右转
+    - 掉头
+
+period:
+  # LLM 应输出的标准中文时段（与 dws_tfc_inter_turn_flow_correlate_m.period_type 三档对齐）
+  allowed:
+    - 早高峰
+    - 晚高峰
+    - 平峰
+  db_code:
+    早高峰: MORNING_PEAK
+    晚高峰: EVENING_PEAK
+    平峰: OFF_PEAK
+    白平峰: OFF_PEAK
+    午平峰: OFF_PEAK
+  # 从口语 / ticket.period / time_range 文本推断标准时段（中文）
+  synonyms:
+    早高峰:
+      - 早高峰
+      - 早晨
+      - 早上
+      - 清晨
+    晚高峰:
+      - 晚高峰
+      - 傍晚
+      - 晚高峰时段
+    平峰:
+      - 平峰
+      - 白平峰
+      - 午平峰
+      - 日间
+      - 平峰期
+  # time_range 首时刻小时兜底（左闭右开）
+  hour_ranges:
+    早高峰: [7, 10]
+    晚高峰: [17, 20]

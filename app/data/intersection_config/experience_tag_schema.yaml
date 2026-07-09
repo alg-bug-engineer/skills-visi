@@ -54,6 +54,7 @@ strategy_actions:
   - 上游控流
 
 time_period_synonyms:
+  # 诊断三档时段 synonym 与 ticket_nlu_schema.yaml 对齐；「下午时段」仅用于经验标签
   下午时段:
     - 下午
     - 午后

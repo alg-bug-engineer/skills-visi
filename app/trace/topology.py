@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.data.ticket_nlu_schema import normalize_travel_direction
+
 DIR8_ENTRY = {
     0: "北进口",
     1: "东北进口",
@@ -62,7 +64,7 @@ def movement_label(dir8: int | None, turn: int | None) -> str:
 
 
 def resolve_dir8_turn(direction: str, movement: str = "直行") -> tuple[int, int]:
-    raw_direction = str(direction or "").strip()
+    raw_direction = normalize_travel_direction(direction)
     raw_movement = str(movement or "").strip().lower()
     turn_map = {
         "左转": 1,
@@ -82,9 +84,9 @@ def resolve_dir8_turn(direction: str, movement: str = "直行") -> tuple[int, in
     normalized_direction = raw_direction.lower().replace("-", "_").replace(" ", "_")
     if normalized_direction in EN_DIRECTION_MOVEMENT:
         return EN_DIRECTION_MOVEMENT[normalized_direction][0], turn
-    if direction in DIRECTION_MOVEMENT:
-        return DIRECTION_MOVEMENT[direction][0], turn
+    if raw_direction in DIRECTION_MOVEMENT:
+        return DIRECTION_MOVEMENT[raw_direction][0], turn
     for label, pair in DIRECTION_MOVEMENT.items():
-        if direction in label:
+        if raw_direction in label or label in raw_direction:
             return pair[0], turn
     return 2, turn

@@ -594,8 +594,8 @@ def test_flow_trace_links_sniff_map_scene_excludes_off_approach_peer():
     assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1"]
 
 
-def test_flow_trace_links_sniff_scene_filters_by_period():
-    """跨时段聚合会虚增溯源流量点：只应渲染诊断时段（晚高峰）的真实 peer。"""
+def test_flow_trace_links_sniff_scene_skips_period_filter_while_single_day_sample():
+    """单日 flow_correlate 样本期暂不卡 period_type，应渲染各时段 peer。"""
     raw = _demo_raw()
     raw["flow_correlate"] = [
         {
@@ -633,13 +633,15 @@ def test_flow_trace_links_sniff_scene_filters_by_period():
     )
 
     assert scene["available"] is True
-    assert scene["stats"]["period_type"] == "EVENING_PEAK"
-    assert scene["stats"]["distinct_peers"] == 1  # 仅晚高峰 P1，早高峰/平峰不计入
-    assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1"]
+    assert scene["stats"]["period_type"] is None
+    assert scene["stats"]["period_filter_enabled"] is False
+    assert scene["stats"]["period_filter_caveat"]
+    assert scene["stats"]["distinct_peers"] == 3
+    assert [n["inter_id"] for n in scene["intersections"][1:]] == ["P1", "P2", "P3"]
 
 
 def test_flow_trace_links_sniff_scene_period_falls_back_when_empty():
-    """诊断时段无 flow_correlate 行时回退全时段真实数据，避免溯源空场景。"""
+    """关闭时间片过滤时，早高峰 peer 直接参与渲染。"""
     raw = _demo_raw()
     raw["flow_correlate"] = [
         {
@@ -677,7 +679,11 @@ def test_topology_resolves_period_from_ticket():
     topo_default = topology_from_pg_raw(raw, {"direction": "东向西", "movement": "直行"}, raw["inter"])
     assert topo_am["period_type"] == "MORNING_PEAK"
     assert topo_pm["period_type"] == "EVENING_PEAK"
-    assert topo_default["period_type"] == "EVENING_PEAK"
+    topo_morning_time = topology_from_pg_raw(
+        raw, {"direction": "东向西", "movement": "直行", "time_range": "07:30-07:50"}, raw["inter"]
+    )
+    assert topo_morning_time["period_type"] == "MORNING_PEAK"
+    assert topo_default["period_type"] is None
 
 
 def test_topology_no_synthesis_when_geometry_missing():

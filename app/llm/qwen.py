@@ -89,22 +89,37 @@ class QwenClient:
 
     def _mock_intent(self, user_prompt: str) -> dict[str, Any]:
         intersection = "文化西路与舜华路交叉口"
-        match = re.search(r"([\u4e00-\u9fff]+路与[\u4e00-\u9fff]+路交叉口)", user_prompt)
+        match = re.search(
+            r"([\u4e00-\u9fff]+(?:路|街|大道)?与[\u4e00-\u9fff]+(?:路|街|大道)?(?:路口|交叉口)?)",
+            user_prompt,
+        )
         if match:
             intersection = match.group(1)
 
         time_range = "18:10-18:30"
-        time_match = re.search(r"(\d{1,2}[:：]\d{2}).*?(\d{1,2}[:：]\d{2})", user_prompt)
+        time_match = re.search(r"(\d{1,2})[:：](\d{2}).*?(\d{1,2})[:：](\d{2})", user_prompt)
         if time_match:
-            time_range = f"{time_match.group(1).replace('：', ':')}-{time_match.group(2).replace('：', ':')}"
+            time_range = f"{int(time_match.group(1)):02d}:{time_match.group(2)}-{int(time_match.group(3)):02d}:{time_match.group(4)}"
         elif "下午" in user_prompt and "3点" in user_prompt:
             time_range = "15:00-16:00"
 
         direction = "东向西"
         for d in ("东向西", "西向东", "南向北", "北向南"):
-            if d in user_prompt:
+            if d in user_prompt or f"由{d}" in user_prompt:
                 direction = d
                 break
+
+        period = "晚高峰"
+        if time_match:
+            hour = int(time_match.group(1))
+            if 7 <= hour < 10:
+                period = "早高峰"
+            elif 17 <= hour < 20:
+                period = "晚高峰"
+            else:
+                period = "平峰"
+        elif "18" in time_range:
+            period = "晚高峰"
 
         problem_type = "排队溢出"
         if "拥堵" in user_prompt and "溢出" not in user_prompt:
@@ -148,7 +163,7 @@ class QwenClient:
             "intersection_name": intersection,
             "intersection_name_candidates": generate_name_variants(intersection.replace("交叉口", "路口")),
             "time_range": time_range,
-            "period": "晚高峰" if "18" in time_range else "下午时段",
+            "period": period,
             "direction": direction,
             "movement": "直行",
             "problem_type": problem_type,

@@ -101,7 +101,7 @@ def build_flow_trace(
         "entry_traces": entry_traces,
         "problem_turns": problem_turns,
         "governance_hints": governance_hints,
-        "caveat": topology.get("caveat"),
+        "caveat": topology.get("caveat") or topology.get("flow_trace_period_caveat"),
     }
 
 
