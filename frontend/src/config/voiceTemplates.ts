@@ -67,9 +67,17 @@ export function renderVoiceTemplate(template: string, slots: Record<string, stri
 }
 
 /** 拼接完整播报：步骤名 + 目的 + 方法 + 结论（诊断幕起，结论来自快照）。 */
-export function composeVoiceAnnounce(def: VoiceTemplateDef, slots: Record<string, string>): string {
+export function composeVoiceAnnounce(
+  def: VoiceTemplateDef,
+  slots: Record<string, string>,
+  options?: { conclusionOnly?: boolean },
+): string {
   const method = renderVoiceTemplate(def.methodTemplate, slots).trim()
   const conclusion = (slots.conclusion ?? '').trim()
+  if (options?.conclusionOnly) {
+    const parts = [def.stepTitle, conclusion].filter(Boolean)
+    return `${parts.join('。')}。`
+  }
   const parts = [def.stepTitle, def.purpose.trim(), method, conclusion].filter(Boolean)
   return `${parts.join('。')}。`
 }

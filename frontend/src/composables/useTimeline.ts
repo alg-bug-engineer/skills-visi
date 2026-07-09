@@ -145,7 +145,6 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
           `辅因：${cause.cause_ranking[0].cause}`,
         cause?.case_cards?.matched_count != null &&
           `案例校验：匹配同类案例 ${cause.case_cards.matched_count} 个，高度相似 ${cause.case_cards.high_similarity_count ?? 0} 个`,
-        cause?.cause_analysis?.narrative && `归因说明：${cause.cause_analysis.narrative}`,
       )
     case 'act7_strategy':
       return lines(
@@ -196,7 +195,7 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
     case 'act5_corridor':
       return productCopy(diag?.arterial_analysis?.summary ?? '干线溯源完成')
     case 'act6_cause':
-      return productCopy(cause?.cause_analysis?.narrative ?? cause?.cause_analysis?.primary_cause ?? '成因判断完成')
+      return productCopy(cause?.cause_analysis?.primary_cause ?? '成因判断完成')
     case 'act7_strategy':
       return productCopy(strategy?.strategy?.principles?.[0] ?? '策略推荐完成')
     case 'act8_plan':

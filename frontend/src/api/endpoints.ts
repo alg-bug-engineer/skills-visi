@@ -9,7 +9,7 @@ const MOCK = import.meta.env.VITE_MOCK === '1'
 
 /** 演示句默认输入（数据齐全 Case 1：解放东路-奥体中路，目标口与下游口 12 维度全通）。 */
 export const DEMO_INPUT =
-  '解放东路与奥体中路路口，早高峰，由南向北直行排队溢出到上游，下游坤顺路路口还有空间，优先避免下游继续外溢。'
+  '解放东路与奥体中路路口，早高峰，北向南拥堵排队'
 
 /** 数据齐全 Case 2：经十路辅路-洪山路，目标口与下游口 12 维度全通。 */
 export const DEMO_INPUT_CASE2 =

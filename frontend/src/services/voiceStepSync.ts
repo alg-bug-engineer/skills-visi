@@ -1,7 +1,7 @@
 import type { RunResponse } from '@/api/types'
 import type { ActDef } from '@/composables/useTimeline'
 import { composeVoiceAnnounce, VOICE_TEMPLATES } from '@/config/voiceTemplates'
-import { voiceSlotsForAct } from '@/services/voiceSlotFillers'
+import { voiceConclusionOnly, voiceSlotsForAct } from '@/services/voiceSlotFillers'
 import type { VoiceCue } from '@/types/voice'
 
 const spokenKeys = new Set<string>()
@@ -14,7 +14,7 @@ export function voiceTextForAct(act: ActDef, resp: RunResponse | null): string {
   const def = VOICE_TEMPLATES[act.id]
   if (!def) return `${act.processTitle}。`
   const slots = voiceSlotsForAct(act, resp)
-  return composeVoiceAnnounce(def, slots)
+  return composeVoiceAnnounce(def, slots, { conclusionOnly: voiceConclusionOnly(act) })
 }
 
 /** 构建语音 cue（不占用去重位，供预合成使用）。 */

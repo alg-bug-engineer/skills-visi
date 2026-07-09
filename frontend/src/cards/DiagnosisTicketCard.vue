@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import { t, directionMovement } from '@/labels/enums'
-import { pct } from '@/utils/format'
 import { productCopy } from '@/utils/productCopy'
 import { ticketTimeLabel } from '@/utils/ticketCopy'
 import BaseCard from './BaseCard.vue'
@@ -35,18 +34,12 @@ const constraintList = computed<string[]>(() => {
       <li><span class="k">时间</span><span class="v">{{ ticketTimeLabel(tk) }}</span></li>
       <li><span class="k">方向转向</span><span class="v">{{ directionMovement(tk.direction, tk.movement) }}</span></li>
       <li><span class="k">问题</span><span class="v"><span class="tag tag--alarm">{{ t('problem_type', tk.problem_type) }}</span></span></li>
-      <li><span class="k">诊断范围</span><span class="v">{{ t('diagnosis_scope', tk.diagnosis_scope) }}</span></li>
       <li><span class="k">治理目标</span><span class="v">{{ t('governance_goal', tk.governance_goal) }}</span></li>
     </ul>
 
     <div v-if="constraintList.length" class="constraints">
       <span class="lbl">约束</span>
       <span v-for="c in constraintList" :key="c" class="tag tag--evidence">{{ productCopy(t('constraint', c)) }}</span>
-    </div>
-
-    <div class="conf">
-      <span>解析置信度 {{ pct(tk.match_confidence) }}</span>
-      <span class="mute">· {{ t('match_method', tk.match_method) }}</span>
     </div>
   </BaseCard>
 </template>
@@ -117,13 +110,5 @@ const constraintList = computed<string[]>(() => {
   font-size: 11px;
   color: var(--text-mute);
   margin-right: 4px;
-}
-.conf {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--primary);
-}
-.conf .mute {
-  color: var(--text-mute);
 }
 </style>

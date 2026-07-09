@@ -38,6 +38,19 @@ describe('narrationFor', () => {
     expect(narrationFor(strategy, fx).join('')).toContain('干线联控')
   })
 
+  it('cause act omits narrative from typewriter and summarizes primary cause only', () => {
+    const act = ACT_DEFS.find((item) => item.id === 'act6_cause')!
+    const narration = narrationFor(act, fx).join('\n')
+    const narrative = fx.phases?.cause?.cause_analysis?.narrative ?? ''
+    const primary = fx.phases?.cause?.cause_analysis?.primary_cause ?? ''
+
+    expect(narration).not.toContain('归因说明')
+    if (narrative) expect(narration).not.toContain(narrative)
+    expect(narration).toContain(primary)
+    expect(summaryFor(act, fx)).toBe(primary)
+    expect(summaryFor(act, fx)).not.toContain('核心矛盾')
+  })
+
   it('uses saturation_rate when saturation is absent', () => {
     const response = {
       phases: {
