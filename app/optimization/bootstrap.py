@@ -7,17 +7,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
 
-from app.config import PROJECT_ROOT, get_settings
+from app.config import PROJECT_ROOT
 
 
 @lru_cache(maxsize=1)
 def _ensure_engine_path() -> Path | None:
-    settings = get_settings()
-    candidates: list[Path] = []
-    if settings.signal_opt_engine_src:
-        candidates.append(Path(settings.signal_opt_engine_src))
-    candidates.append(PROJECT_ROOT / "vendor" / "signal_optimization_engine" / "src")
-    candidates.append(PROJECT_ROOT.parent / "古特代码仓库" / "signal_optimization_engine" / "src")
+    candidates = [
+        PROJECT_ROOT / "vendor" / "signal_optimization_engine" / "src",
+    ]
 
     for path in candidates:
         resolved = path.resolve()
@@ -37,7 +34,7 @@ def engine_available() -> bool:
 def get_optimize_intersection() -> Callable[[dict[str, Any]], dict[str, Any]]:
     if not _ensure_engine_path():
         raise RuntimeError(
-            "未找到 signal_optimization_engine，请设置 SIGNAL_OPT_ENGINE_SRC 指向其 src 目录"
+            "未找到 signal_optimization_engine（vendor/signal_optimization_engine/src）"
         )
     from optimization.intersection_optimizer import optimize_intersection
 

@@ -34,7 +34,6 @@ class Settings(BaseSettings):
     pg_flow_schema: str = "xianchang"
     pg_dim_inter_table: str = "dim_inter_info"
     pg_channel_table: str = "dwd_tfc_rltn_wide_inter_ft_link"
-    signal_opt_engine_src: str = ""
     feedback_log_path: str = "data/plan_feedback.jsonl"
     user_experience_path: str = "data/user_experience.jsonl"
     skills_output_path: str = "data/skills"

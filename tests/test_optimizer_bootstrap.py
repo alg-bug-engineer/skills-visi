@@ -1,4 +1,4 @@
-"""单点优化器 vendor 集成：无需外部 SIGNAL_OPT_ENGINE_SRC 即可加载。"""
+"""单点优化器 vendor 集成：仓库内置 vendor 副本即可加载。"""
 
 from app.optimization.bootstrap import _ensure_engine_path, engine_available, get_optimize_intersection
 
