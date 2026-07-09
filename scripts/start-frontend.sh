@@ -29,5 +29,5 @@ if [ ! -d "node_modules" ]; then
   npm install
 fi
 
-echo "▶ 启动前端 http://localhost:${PORT}  （dev 代理 /api → 后端）"
-exec npm run dev -- --port "${PORT}" --strictPort
+echo "▶ 启动前端 http://0.0.0.0:${PORT}  （dev 代理 /api → 后端，支持公网 IP 访问）"
+exec npm run dev -- --host 0.0.0.0 --port "${PORT}" --strictPort

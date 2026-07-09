@@ -1,0 +1,2644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>指标 GIS 地图 · 数据验证</title>
+  <link rel="stylesheet" href="/debug/assets/debug-shell.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script defer src="/debug/assets/debug-ui.js"></script>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #eef4fb; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; color: #0f172a; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 16px; background: linear-gradient(90deg, #061122, #0a1b32);
+      border-bottom: 1px solid rgba(110,184,255,.22); color: #e8f0ff;
+    }
+    .topbar h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .topbar nav a { color: #9ec5ff; text-decoration: none; font-size: 13px; margin-left: 14px; }
+    .topbar nav a:hover { color: #fff; }
+    .layout { display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 46px); }
+    .sidebar {
+      overflow: auto; padding: 14px; background: #fff; border-right: 1px solid #dbe5f0;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .panel {
+      border: 1px solid #dbe5f0; border-radius: 12px; padding: 12px; background: #f8fbff;
+    }
+    .panel h3 { margin: 0 0 10px; font-size: 13px; color: #475569; font-weight: 600; letter-spacing: .02em; }
+    label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    select, input[type="text"], input[type="number"] {
+      width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px;
+      font-size: 13px; background: #fff;
+    }
+    .level-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .level-tab {
+      flex: 1; min-width: 80px; padding: 7px 8px; border: 1px solid #cbd5e1; border-radius: 8px;
+      background: #fff; font-size: 12px; cursor: pointer; text-align: center;
+    }
+    .level-tab.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+    .metric-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow: auto; }
+    .metric-item {
+      padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
+      cursor: pointer; font-size: 13px;
+    }
+    .metric-item:hover { border-color: #93c5fd; }
+    .metric-item.active { border-color: #2563eb; background: #eff6ff; }
+    .metric-item small { display: block; color: #64748b; font-size: 11px; margin-top: 2px; }
+    .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    input[type="range"] { width: 100%; accent-color: #2563eb; }
+    .time-display { font-size: 18px; font-weight: 700; color: #1d4ed8; text-align: center; margin: 4px 0; }
+    .legend { display: flex; flex-direction: column; gap: 4px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .legend-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); flex-shrink: 0; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px; }
+    .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; }
+    .stat b { display: block; font-size: 14px; color: #0f172a; }
+    .map-wrap { position: relative; }
+    #map { width: 100%; height: 100%; background: #dbeafe; }
+    .status-bar {
+      position: absolute; bottom: 12px; left: 12px; z-index: 500;
+      background: rgba(15,23,42,.82); color: #e2e8f0; border-radius: 8px;
+      padding: 6px 10px; font-size: 12px;
+    }
+    .btn {
+      width: 100%; padding: 9px 12px; border: none; border-radius: 8px;
+      background: #2563eb; color: #fff; font-size: 13px; cursor: pointer; font-weight: 600;
+    }
+    .btn:hover { background: #1d4ed8; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .hint { font-size: 11px; color: #64748b; line-height: 1.5; }
+    .size-hint { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; color: #64748b; }
+    .size-dot { border-radius: 50%; background: #64748b; opacity: .7; }
+    .leaflet-popup-content { font-size: 13px; line-height: 1.55; margin: 10px 12px; }
+    .popup-link { color: #2563eb; text-decoration: none; font-weight: 600; }
+    .corridor-inter-list { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color: #475569; max-height: 120px; overflow: auto; }
+    .corridor-stop-panel { font-size: 12px; line-height: 1.55; color: #334155; }
+    .corridor-stop-panel b { color: #1d4ed8; }
+    .corridor-stop-set {
+      margin-top: 6px; padding: 6px 8px; border-radius: 8px;
+      background: #fff; border: 1px solid #e2e8f0; font-size: 11px; color: #475569;
+    }
+    .survey-photo-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .survey-photo-thumb {
+      width: 72px; height: 54px; object-fit: cover; border-radius: 6px;
+      border: 1px solid #dbe5f0; cursor: pointer; background: #f1f5f9;
+    }
+    .survey-photo-thumb:hover { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+    .survey-photo-label { font-size: 11px; color: #64748b; margin-top: 6px; }
+    .survey-issue-block {
+      margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0;
+      font-size: 12px; line-height: 1.45;
+    }
+    .survey-issue-title { font-weight: 600; color: #334155; margin-bottom: 4px; }
+    .photo-lightbox {
+      position: fixed; inset: 0; z-index: 9999; background: rgba(15,23,42,.82);
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .photo-lightbox.open { display: flex; }
+    .photo-lightbox img {
+      max-width: min(92vw, 960px); max-height: 88vh; border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+    .photo-lightbox-close {
+      position: absolute; top: 16px; right: 20px; color: #fff; font-size: 28px;
+      cursor: pointer; line-height: 1;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
+      .sidebar { max-height: 42vh; border-right: none; border-bottom: 1px solid #dbe5f0; }
+      .map-wrap { height: 58vh; }
+      .curve-panel { width: calc(100% - 24px); right: 12px; left: 12px; }
+    }
+    .curve-panel {
+      position: absolute; right: 16px; bottom: 52px; z-index: 600;
+      width: min(640px, calc(100% - 360px)); background: #fff;
+      border: 1px solid #dbe5f0; border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(15,23,42,.18);
+      display: none; flex-direction: column; max-height: 42vh;
+    }
+    .curve-panel.open { display: flex; }
+    .curve-panel-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 10px 12px; border-bottom: 1px solid #e2e8f0; background: #f8fbff;
+      border-radius: 12px 12px 0 0;
+    }
+    .curve-panel-head h4 { margin: 0; font-size: 13px; color: #0f172a; font-weight: 600; }
+    .curve-panel-close {
+      border: none; background: transparent; color: #64748b;
+      font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px;
+    }
+    .curve-panel-close:hover { color: #0f172a; }
+    .curve-metric-tabs { display: flex; gap: 6px; padding: 8px 12px 0; flex-wrap: wrap; }
+    .curve-metric-tab {
+      padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 8px;
+      background: #fff; font-size: 12px; cursor: pointer;
+    }
+    .curve-metric-tab.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+    .curve-chart-wrap { position: relative; flex: 1; min-height: 200px; padding: 8px 12px 12px; }
+    .curve-hint { font-size: 11px; color: #64748b; padding: 0 12px 10px; line-height: 1.45; }
+  </style>
+</head>
+<body class="sc-ui">
+  <header class="topbar">
+    <h1>指标 GIS 地图 · 数据验证</h1>
+    <nav>
+      <a href="/debug/">工具首页</a>
+      <a href="/debug/timing-optimizer.html">单路口优化</a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="panel">
+        <h3>数据粒度</h3>
+        <div class="level-tabs" id="level-tabs"></div>
+      </div>
+
+      <div class="panel" id="dimension-panel">
+        <h3>查看维度</h3>
+        <div class="level-tabs" id="dimension-tabs"></div>
+        <p class="hint" id="dimension-hint" style="margin-top:8px">路口整体、进口方向、转向、车道等多粒度指标</p>
+      </div>
+
+      <div class="panel">
+        <h3>指标图层</h3>
+        <div class="metric-list" id="metric-list"></div>
+      </div>
+
+      <div class="panel" id="time-panel">
+        <h3>时间维度</h3>
+        <div class="time-row">
+          <div>
+            <label for="day-select">星期</label>
+            <select id="day-select"></select>
+          </div>
+          <div>
+            <label for="step-input">时间片</label>
+            <input id="step-input" type="number" min="0" max="287" value="72">
+          </div>
+        </div>
+        <div class="time-display" id="time-label">06:00</div>
+        <input id="step-slider" type="range" min="0" max="287" value="72">
+        <button class="btn" id="load-btn" type="button">加载图层</button>
+      </div>
+
+      <div class="panel" id="complaint-panel" style="display:none">
+        <h3>投诉筛选</h3>
+        <div>
+          <label for="stat-period-select">统计时段</label>
+          <select id="stat-period-select"></select>
+        </div>
+        <div style="margin-top:8px">
+          <label for="complaint-type-select">投诉类型</label>
+          <select id="complaint-type-select"></select>
+        </div>
+        <p class="hint" style="margin-top:8px">数据来源：xianchang.dwd_tfc_complaint_inter_issue</p>
+        <button class="btn" id="complaint-load-btn" type="button" style="margin-top:10px">加载图层</button>
+      </div>
+
+      <div class="panel" id="manual-survey-panel" style="display:none">
+        <h3>人工调查筛选</h3>
+        <div>
+          <label for="survey-batch-select">调查批次</label>
+          <select id="survey-batch-select"></select>
+        </div>
+        <div style="margin-top:8px">
+          <label for="survey-time-select">时段</label>
+          <select id="survey-time-select"></select>
+        </div>
+        <div style="margin-top:8px">
+          <label for="survey-problem-select">问题类型</label>
+          <select id="survey-problem-select"></select>
+        </div>
+        <p class="hint" style="margin-top:8px">数据来源：xianchang.dwd_ctl_inter_manual_survey_issue</p>
+        <button class="btn" id="manual-survey-load-btn" type="button" style="margin-top:10px">加载图层</button>
+      </div>
+
+      <div class="panel" id="field-survey-panel" style="display:none">
+        <h3>交通组织调研筛选</h3>
+        <div>
+          <label for="field-batch-select">调研批次</label>
+          <select id="field-batch-select"></select>
+        </div>
+        <div style="margin-top:8px">
+          <label for="field-issue-select">问题类型</label>
+          <select id="field-issue-select"></select>
+        </div>
+        <p class="hint" style="margin-top:8px">数据来源：xianchang.dwd_tfc_field_survey_inter_issue</p>
+        <button class="btn" id="field-survey-load-btn" type="button" style="margin-top:10px">加载图层</button>
+      </div>
+
+      <div class="panel" id="corridor-panel" style="display:none">
+        <h3>干线协调</h3>
+        <p class="hint">数据来源：xianchang.dws_corridor_coord_cfg / dws_corridor_coord_group</p>
+        <p class="hint">按左侧「时间维度」选择星期与时刻，加载当前时段生效的协调走廊。</p>
+        <p class="hint">停车指标来自 xianchang.dws_inter_link_status_5min_mm.stop_times（干线进口 link）；原始值 &gt; 0.6 记为协调口径 1 次停车，再聚合。</p>
+      </div>
+
+      <div class="panel" id="corridor-stop-panel" style="display:none">
+        <h3>干线停车指标</h3>
+        <div class="corridor-stop-panel" id="corridor-stop-content">
+          <p class="hint">加载协调走廊后显示正向/反向平均总停车次数与连续停车路口集合。</p>
+        </div>
+      </div>
+
+      <div class="panel" id="line-panel" style="display:none">
+        <h3>line 道路筛选</h3>
+        <div>
+          <label for="line-select">道路 line</label>
+          <select id="line-select"></select>
+        </div>
+        <div style="margin-top:8px">
+          <label for="travel-dir-select">行驶方向</label>
+          <select id="travel-dir-select">
+            <option value="">全部方向</option>
+            <option value="1">正向（起点→终点）</option>
+            <option value="2">反向（终点→起点）</option>
+          </select>
+        </div>
+        <p class="hint" style="margin-top:8px">数据来源：xianchang.dws_line_val_index_5min_mm · road6.dim_line_info</p>
+        <p class="hint">点击道路折线可查看该 line 指标日曲线（正向/反向）。</p>
+      </div>
+
+      <div class="panel">
+        <h3 id="legend-title">图例 · 颜色 = 严重程度</h3>
+        <div class="legend" id="legend"></div>
+        <div class="size-hint">
+          <span class="size-dot" style="width:8px;height:8px"></span>低
+          <span class="size-dot" style="width:14px;height:14px"></span>中
+          <span class="size-dot" style="width:22px;height:22px"></span>高
+          <span id="size-hint-text" style="margin-left:4px">圆点大小 = 数值相对大小</span>
+        </div>
+        <p class="hint" id="viz-hint" style="margin-top:6px"></p>
+      </div>
+
+      <div class="panel">
+        <h3 id="stats-title">当前图层统计</h3>
+        <div class="stats" id="stats">
+          <div class="stat">点数<b id="stat-count">—</b></div>
+          <div class="stat"><span id="stat-label-min">最小值</span><b id="stat-min">—</b></div>
+          <div class="stat"><span id="stat-label-p50">中位数</span><b id="stat-p50">—</b></div>
+          <div class="stat"><span id="stat-label-max">最大值</span><b id="stat-max">—</b></div>
+        </div>
+        <p class="hint" id="metric-desc" style="margin:8px 0 0"></p>
+      </div>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+      <div class="curve-panel" id="curve-panel" aria-hidden="true">
+        <div class="curve-panel-head">
+          <h4 id="curve-panel-title">路口指标曲线</h4>
+          <button type="button" class="curve-panel-close" id="curve-panel-close" title="关闭">×</button>
+        </div>
+        <div class="curve-metric-tabs" id="curve-metric-tabs"></div>
+        <div class="curve-chart-wrap"><canvas id="curve-chart"></canvas></div>
+        <p class="curve-hint" id="curve-hint">点击路口圆点或 line 道路折线查看指标日曲线</p>
+      </div>
+      <div class="status-bar" id="status-bar">初始化中…</div>
+    </main>
+  </div>
+
+  <div class="photo-lightbox" id="photo-lightbox" aria-hidden="true">
+    <span class="photo-lightbox-close" id="photo-lightbox-close" title="关闭">×</span>
+    <img id="photo-lightbox-img" alt="调研现场图">
+  </div>
+
+  <script>
+    const state = {
+      config: null,
+      level: 'intersection',
+      dimension: 'intersection',
+      metricId: 'saturation_max',
+      dayOfWeek: 1,
+      stepIndex: 72,
+      statPeriod: '2025',
+      complaintType: '全部',
+      surveyBatch: 'jinan_2025',
+      surveyTimePeriod: '全部',
+      surveyProblemType: '全部',
+      fieldSurveyBatch: 'jinan_20260609',
+      fieldSurveyIssueType: '全部',
+      lineId: '全部',
+      travelDir: '',
+      lineCatalog: [],
+      layer: null,
+      map: null,
+      markers: [],
+      polylines: [],
+      corridorHighlights: [],
+      amap: null,
+      selectedInterId: null,
+      selectedInterName: '',
+      selectedLineId: null,
+      selectedLineName: '',
+      curveMetricId: 'link_stop_time_sec',
+      curveChart: null,
+      curveLoading: false,
+      mapInfoWindow: null,
+      corridorPopupPeriodByCorridor: {},
+    };
+
+    const APPROACH_METRIC_IDS = ['link_stop_time_sec', 'link_stop_times', 'link_queue_len_est_m'];
+    const INTERSECTION_SERIES_METRIC_IDS = ['saturation_max', 'saturation_avg', 'unbalance_index'];
+    const LINE_SERIES_METRIC_IDS = [
+      'line_travel_time_sec', 'line_stop_time_sec', 'line_travel_speed_kmh',
+      'line_delay_index', 'line_total_stop_times',
+    ];
+    const DIR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#059669', '#ea580c', '#0891b2', '#ca8a04', '#dc2626'];
+    const CORRIDOR_FWD_STOP_RING = '#dc2626';
+    const CORRIDOR_REV_STOP_RING = '#7c3aed';
+    const CORRIDOR_STOP_ELLIPSE_HALF_WIDTH_M = 42;
+    const CORRIDOR_STOP_ELLIPSE_CAP_PAD_M = 28;
+
+    const DAY_LABELS = {1:'周一',2:'周二',3:'周三',4:'周四',5:'周五',6:'周六',7:'周日'};
+
+    function stepToLabel(step) {
+      const m = Math.max(0, Math.min(287, step)) * 5;
+      return `${String(Math.floor(m / 60)).padStart(2,'0')}:${String(m % 60).padStart(2,'0')}`;
+    }
+
+    function setStatus(msg, ok) {
+      const el = document.getElementById('status-bar');
+      el.textContent = msg;
+      el.style.background = ok === false ? 'rgba(153,27,27,.88)' : 'rgba(15,23,42,.82)';
+    }
+
+    function currentMetric() {
+      return (state.config?.metrics || []).find(m => m.id === state.metricId);
+    }
+
+    function currentDimension() {
+      const metric = currentMetric();
+      if (state.level === 'intersection') {
+        return metric?.dimension || state.dimension || 'intersection';
+      }
+      return metric?.dimension || state.level;
+    }
+
+    function intersectionMetrics() {
+      return (state.config?.metrics || []).filter(m => m.level === 'intersection');
+    }
+
+    function metricsForLevel(level) {
+      if (level === 'intersection') {
+        return intersectionMetrics().filter(m => (m.dimension || 'intersection') === state.dimension);
+      }
+      return (state.config?.metrics || []).filter(m => m.level === level);
+    }
+
+    function metricsForDimension(dimension) {
+      return intersectionMetrics().filter(m => (m.dimension || 'intersection') === dimension);
+    }
+
+    function isIntersectionLevel() {
+      return state.level === 'intersection';
+    }
+
+    function isComplaintLevel() {
+      return state.level === 'complaint';
+    }
+
+    function isManualSurveyLevel() {
+      return state.level === 'manual_survey';
+    }
+
+    function isFieldSurveyLevel() {
+      return state.level === 'field_survey';
+    }
+
+    function isCorridorCoordLevel() {
+      return state.level === 'corridor_coord';
+    }
+
+    function isLineLevel() {
+      return state.level === 'line';
+    }
+
+    function isApproachDimension() {
+      return isIntersectionLevel() && currentDimension() === 'approach';
+    }
+
+    function isIntersectionDimension() {
+      return isIntersectionLevel() && currentDimension() === 'intersection';
+    }
+
+    function isCurveDimension() {
+      return isApproachDimension() || isIntersectionDimension();
+    }
+
+    function isLineCurveDimension() {
+      return isLineLevel();
+    }
+
+    function lineMetricsForLevel() {
+      return (state.config?.metrics || []).filter(m => m.level === 'line');
+    }
+
+    function curveMetricsForLineLevel() {
+      return lineMetricsForLevel();
+    }
+
+    function curveMetricsForDimension() {
+      if (isApproachDimension()) return metricsForDimension('approach');
+      if (isIntersectionDimension()) return metricsForDimension('intersection').filter(m => INTERSECTION_SERIES_METRIC_IDS.includes(m.id));
+      return [];
+    }
+
+    function timingOptimizerUrl(props) {
+      const params = new URLSearchParams();
+      const interId = props?.interId;
+      if (interId) params.set('id', interId);
+      const dow = props?.dayOfWeek ?? state.dayOfWeek;
+      const step = props?.stepIndex ?? state.stepIndex;
+      if (dow) params.set('day_of_week', String(dow));
+      if (step != null) params.set('step_index', String(step));
+      return `/debug/timing-optimizer.html?${params}`;
+    }
+
+    function isTimeSeriesLevel() {
+      return isIntersectionLevel();
+    }
+
+    function isOverlayLevel() {
+      return isComplaintLevel() || isManualSurveyLevel() || isFieldSurveyLevel();
+    }
+
+    function updatePanelVisibility() {
+      document.getElementById('time-panel').style.display = isOverlayLevel() ? 'none' : '';
+      document.getElementById('dimension-panel').style.display = isIntersectionLevel() ? '' : 'none';
+      document.getElementById('complaint-panel').style.display = isComplaintLevel() ? '' : 'none';
+      document.getElementById('manual-survey-panel').style.display = isManualSurveyLevel() ? '' : 'none';
+      document.getElementById('field-survey-panel').style.display = isFieldSurveyLevel() ? '' : 'none';
+      document.getElementById('corridor-panel').style.display = isCorridorCoordLevel() ? '' : 'none';
+      document.getElementById('corridor-stop-panel').style.display = isCorridorCoordLevel() ? '' : 'none';
+      document.getElementById('line-panel').style.display = isLineLevel() ? '' : 'none';
+      document.getElementById('metric-list').parentElement.style.display =
+        isCorridorCoordLevel() ? 'none' : '';
+      document.getElementById('legend-title').textContent = isComplaintLevel()
+        ? '图例 · 颜色 = 投诉件数'
+        : isManualSurveyLevel()
+          ? '图例 · 颜色 = 问题记录数 / 问题类型'
+          : isCorridorCoordLevel()
+            ? '图例 · 颜色 = 走廊区分'
+            : '图例 · 颜色 = 严重程度';
+    }
+
+    function renderComplaintFilters() {
+      const periodSel = document.getElementById('stat-period-select');
+      const typeSel = document.getElementById('complaint-type-select');
+      periodSel.innerHTML = '';
+      (state.config?.complaintStatPeriods || ['2025']).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p + ' 全年';
+        periodSel.appendChild(opt);
+      });
+      periodSel.value = state.statPeriod;
+      typeSel.innerHTML = '';
+      (state.config?.complaintTypes || ['全部']).forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        typeSel.appendChild(opt);
+      });
+      typeSel.value = state.complaintType;
+    }
+
+    function renderManualSurveyFilters() {
+      const batchSel = document.getElementById('survey-batch-select');
+      const timeSel = document.getElementById('survey-time-select');
+      const probSel = document.getElementById('survey-problem-select');
+      batchSel.innerHTML = '';
+      (state.config?.manualSurveyBatches || ['jinan_2025']).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b;
+        opt.textContent = b;
+        batchSel.appendChild(opt);
+      });
+      batchSel.value = state.surveyBatch;
+      timeSel.innerHTML = '';
+      (state.config?.manualSurveyTimePeriods || ['全部']).forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        timeSel.appendChild(opt);
+      });
+      timeSel.value = state.surveyTimePeriod;
+      probSel.innerHTML = '';
+      (state.config?.manualSurveyProblemTypes || ['全部']).forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        probSel.appendChild(opt);
+      });
+      probSel.value = state.surveyProblemType;
+    }
+
+    function renderFieldSurveyFilters() {
+      const batchSel = document.getElementById('field-batch-select');
+      const issueSel = document.getElementById('field-issue-select');
+      batchSel.innerHTML = '';
+      (state.config?.fieldSurveyBatches || ['jinan_20260609']).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b;
+        opt.textContent = b;
+        batchSel.appendChild(opt);
+      });
+      batchSel.value = state.fieldSurveyBatch;
+      issueSel.innerHTML = '';
+      (state.config?.fieldSurveyIssueTypes || ['全部']).forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        issueSel.appendChild(opt);
+      });
+      issueSel.value = state.fieldSurveyIssueType;
+    }
+
+    function renderLineFilters() {
+      const sel = document.getElementById('line-select');
+      sel.innerHTML = '';
+      const allOpt = document.createElement('option');
+      allOpt.value = '全部';
+      allOpt.textContent = '全部 line';
+      sel.appendChild(allOpt);
+      (state.lineCatalog || []).forEach(line => {
+        const opt = document.createElement('option');
+        opt.value = line.lineId;
+        opt.textContent = `${line.lineName}（${line.interCount}口）`;
+        sel.appendChild(opt);
+      });
+      sel.value = state.lineId || '全部';
+      document.getElementById('travel-dir-select').value = state.travelDir || '';
+    }
+
+    function renderDimensionTabs() {
+      const root = document.getElementById('dimension-tabs');
+      if (!root) return;
+      root.innerHTML = '';
+      const dims = state.config?.intersectionDimensions || [
+        {id: 'intersection', label: '路口整体'},
+        {id: 'approach', label: '进口方向'},
+        {id: 'turn', label: '转向'},
+        {id: 'lane', label: '车道'},
+      ];
+      dims.forEach(dim => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'level-tab' + (state.dimension === dim.id ? ' active' : '');
+        const count = metricsForDimension(dim.id).length;
+        btn.textContent = count ? `${dim.label} (${count})` : dim.label;
+        btn.onclick = () => {
+          state.dimension = dim.id;
+          const list = metricsForDimension(dim.id);
+          if (list.length) state.metricId = list[0].id;
+          if (dim.id !== 'approach' && dim.id !== 'intersection') closeCurvePanel();
+          renderDimensionTabs();
+          renderMetricList();
+          renderLegend();
+          updateMetricDesc();
+          loadTimeSlicesAndLayer();
+        };
+        root.appendChild(btn);
+      });
+      const hint = document.getElementById('dimension-hint');
+      if (hint) {
+        const dim = dims.find(d => d.id === state.dimension);
+        const labels = {
+          intersection: '路口中心圆点；点击可查看最大/平均饱和度、失衡指数日曲线',
+          approach: '进口 link 锚点圆点；点击可查看各方向日曲线（延误/停车/排队）',
+          turn: '进口转向箭头，颜色表示转向级指标严重程度',
+          lane: '车道导向线，颜色表示车道级指标严重程度',
+        };
+        hint.textContent = labels[state.dimension] || `${dim?.label || ''} 维度指标`;
+      }
+    }
+
+    function renderLevelTabs() {
+      const root = document.getElementById('level-tabs');
+      root.innerHTML = '';
+      (state.config?.levels || []).forEach(lv => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'level-tab' + (state.level === lv.id ? ' active' : '');
+        btn.textContent = lv.label;
+        btn.onclick = () => {
+          state.level = lv.id;
+          const list = metricsForLevel(lv.id);
+          if (list.length) state.metricId = list[0].id;
+          if (lv.id === 'complaint') state.metricId = 'complaint_count';
+          if (lv.id === 'manual_survey') state.metricId = 'manual_survey_issue_cnt';
+          if (lv.id === 'field_survey') state.metricId = 'field_survey_issue_cnt';
+          if (lv.id === 'corridor_coord') state.metricId = 'corridor_coord';
+          if (lv.id === 'line') {
+            const list = lineMetricsForLevel();
+            state.metricId = list.length ? list[0].id : 'line_delay_index';
+          }
+          if (lv.id === 'intersection') {
+            state.dimension = state.dimension || 'intersection';
+            const list = metricsForDimension(state.dimension);
+            if (list.length) state.metricId = list[0].id;
+            else state.metricId = 'saturation_max';
+          }
+          updatePanelVisibility();
+          renderComplaintFilters();
+          renderManualSurveyFilters();
+          renderFieldSurveyFilters();
+          renderLineFilters();
+          renderDimensionTabs();
+          renderLevelTabs();
+          renderMetricList();
+          renderLegend();
+          updateMetricDesc();
+          if (!isCurveDimension() && !isLineCurveDimension()) closeCurvePanel();
+          if (lv.id === 'corridor_coord') {
+            loadCorridorTimeSlices().then(() => loadLayer());
+          } else if (lv.id === 'line') {
+            loadLineTimeSlices().then(() => loadLayer());
+          } else if (isOverlayLevel()) {
+            loadLayer();
+          } else {
+            loadTimeSlicesAndLayer();
+          }
+        };
+        root.appendChild(btn);
+      });
+    }
+
+    function renderMetricList() {
+      const root = document.getElementById('metric-list');
+      root.innerHTML = '';
+      metricsForLevel(state.level).forEach(metric => {
+        const div = document.createElement('div');
+        div.className = 'metric-item' + (state.metricId === metric.id ? ' active' : '');
+        div.innerHTML = `${metric.label}<small>${metric.description || ''}</small>`;
+        div.onclick = () => {
+          state.metricId = metric.id;
+          if (isIntersectionLevel()) state.dimension = metric.dimension || state.dimension;
+          renderDimensionTabs();
+          renderMetricList();
+          renderLegend();
+          updateMetricDesc();
+          if (isCurveDimension()) {
+            state.curveMetricId = metric.id;
+            renderCurveMetricTabs();
+            if (state.selectedInterId) loadCurveSeries();
+          } else if (isLineCurveDimension()) {
+            state.curveMetricId = metric.id;
+            renderCurveMetricTabs();
+            if (state.selectedLineId) loadLineCurveSeries();
+          } else {
+            closeCurvePanel();
+          }
+          if (isLineLevel()) {
+            loadLineTimeSlices().then(() => loadLayer());
+          } else {
+            loadTimeSlicesAndLayer();
+          }
+        };
+        root.appendChild(div);
+      });
+    }
+
+    function renderLegend() {
+      const metric = currentMetric();
+      const root = document.getElementById('legend');
+      root.innerHTML = '';
+      if (isCorridorCoordLevel()) {
+        ['#2563eb', '#7c3aed', '#db2777', '#059669', '#ea580c'].forEach((color, idx) => {
+          const row = document.createElement('div');
+          row.className = 'legend-item';
+          row.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>走廊 ${idx + 1}`;
+          root.appendChild(row);
+        });
+        [
+          { color: CORRIDOR_FWD_STOP_RING, label: '正向连续停车椭圆' },
+          { color: CORRIDOR_REV_STOP_RING, label: '反向连续停车椭圆' },
+        ].forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'legend-item';
+          row.innerHTML = `<span class="legend-swatch" style="background:transparent;border:2px solid ${item.color}"></span>${item.label}`;
+          root.appendChild(row);
+        });
+        return;
+      }
+      if (isLineLevel()) {
+        const metric = currentMetric();
+        if (!metric) return;
+        const thresholds = metric.thresholds || [];
+        const colors = metric.colors || [];
+        for (let i = 0; i < colors.length; i++) {
+          const lo = thresholds[i];
+          const hi = thresholds[i + 1];
+          const label = metric.legendLabels?.[i]
+            || (hi != null ? `${lo} ~ ${hi}` : `≥ ${lo}`);
+          const row = document.createElement('div');
+          row.className = 'legend-item';
+          row.innerHTML = `<span class="legend-swatch" style="background:${colors[i]}"></span>${label}`;
+          root.appendChild(row);
+        }
+        return;
+      }
+      if (!metric) return;
+      if (metric.valueType === 'categorical') {
+        Object.values(metric.categories || {}).sort((a,b) => (a.rank||0)-(b.rank||0)).forEach(cat => {
+          const row = document.createElement('div');
+          row.className = 'legend-item';
+          row.innerHTML = `<span class="legend-swatch" style="background:${cat.color}"></span>${cat.label}`;
+          root.appendChild(row);
+        });
+      } else {
+        const thresholds = metric.thresholds || [];
+        const colors = metric.colors || [];
+        for (let i = 0; i < colors.length; i++) {
+          const lo = thresholds[i];
+          const hi = thresholds[i + 1];
+          const label = metric.legendLabels?.[i]
+            || (hi != null ? `${lo} ~ ${hi}` : `≥ ${lo}`);
+          const row = document.createElement('div');
+          row.className = 'legend-item';
+          row.innerHTML = `<span class="legend-swatch" style="background:${colors[i]}"></span>${label}`;
+          root.appendChild(row);
+        }
+      }
+    }
+
+    function updateMetricDesc() {
+      if (isCorridorCoordLevel()) {
+        document.getElementById('metric-desc').textContent =
+          '基于配时方案与 PG 路网相邻关系挖掘：日期类型、相邻、周期三条件同时满足（时段不要求一致）。';
+      } else if (isLineLevel()) {
+        const metric = currentMetric();
+        document.getElementById('metric-desc').textContent = metric?.description || '';
+      } else {
+        const metric = currentMetric();
+        document.getElementById('metric-desc').textContent = metric?.description || '';
+      }
+      const sizeHint = document.getElementById('size-hint-text');
+      const vizHint = document.getElementById('viz-hint');
+      if (sizeHint) {
+        sizeHint.textContent = isCorridorCoordLevel()
+          ? '圆点 = 协调路口，折线 = 走廊连接路段'
+          : isLineLevel()
+            ? '折线颜色/粗细 = 指标严重程度，圆点 = 信控路口'
+          : isInverseSeverity(currentMetric())
+          ? '圆点大小 = 问题严重程度（越低越大）'
+          : '圆点大小 = 数值相对大小';
+      }
+      if (vizHint) {
+        if (isComplaintLevel()) {
+          vizHint.textContent = '路口中心圆点，颜色与大小表示投诉条数（2025 全年聚合）';
+        } else if (isManualSurveyLevel()) {
+          vizHint.textContent = '路口圆点：颜色可按问题类型着色，大小表示调查问题记录数';
+        } else if (isCorridorCoordLevel()) {
+          vizHint.textContent = '走廊路段为彩色折线，路口为圆点；红/紫椭圆外扩 = 正向/反向连续停车路段（≥2 口）';
+        } else if (isLineLevel()) {
+          vizHint.textContent = 'line 道路绘制为彩色折线（颜色=指标值），信控路口为圆点；点击折线查看日曲线';
+        } else if (isIntersectionLevel()) {
+          const dim = currentDimension();
+          if (dim === 'approach') {
+            vizHint.textContent = '按进口 link 锚点绘制圆点；点击可查看该路口各方向指标日曲线';
+          } else if (dim === 'intersection') {
+            vizHint.textContent = '路口中心圆点；点击可查看最大/平均饱和度、失衡指数日曲线';
+          } else if (dim === 'turn') {
+            vizHint.textContent = '按 link 锚点绘制转向箭头，颜色表示指标严重程度';
+          } else if (dim === 'lane') {
+            vizHint.textContent = '按车道锚点绘制导向线，颜色表示指标严重程度';
+          } else {
+            vizHint.textContent = '路口中心圆点，颜色表示指标严重程度';
+          }
+        } else {
+          vizHint.textContent = '路口中心圆点，颜色表示指标严重程度';
+        }
+      }
+    }
+
+    function featureAnchorLonLat(feature) {
+      const geom = feature.geometry || {};
+      if (geom.type === 'Point') return geom.coordinates;
+      if (geom.type === 'LineString') {
+        const coords = geom.coordinates || [];
+        return coords.length ? coords[coords.length - 1] : null;
+      }
+      return null;
+    }
+
+    function geoBoundsFromFeatures(features) {
+      const bounds = [];
+      (features || []).forEach(feature => {
+        const geom = feature.geometry || {};
+        if (geom.type === 'LineString') {
+          geom.coordinates.forEach(([lon, lat]) => bounds.push([lat, lon]));
+        } else if (geom.type === 'Point') {
+          const [lon, lat] = geom.coordinates;
+          bounds.push([lat, lon]);
+        }
+      });
+      return bounds;
+    }
+
+    function colorForValue(metric, value, stats) {
+      if (!metric) return '#64748b';
+      if (metric.valueType === 'categorical') {
+        const cat = metric.categories?.[String(value).toUpperCase()];
+        return cat?.color || '#64748b';
+      }
+      const thresholds = metric.thresholds || [];
+      const colors = metric.colors || ['#64748b'];
+      const num = Number(value);
+      if (!Number.isFinite(num)) return colors[0];
+      for (let i = thresholds.length - 1; i >= 0; i--) {
+        if (num >= thresholds[i]) return colors[Math.min(i, colors.length - 1)];
+      }
+      return colors[0];
+    }
+
+    function isInverseSeverity(metric) {
+      return metric?.severityDirection === 'inverse';
+    }
+
+    function radiusForValue(metric, value, stats) {
+      if (metric?.valueType === 'categorical') {
+        const rank = metric.categories?.[String(value).toUpperCase()]?.rank || 1;
+        return 8 + rank * 2.5;
+      }
+      const num = Number(value);
+      if (!Number.isFinite(num)) return 10;
+      if (isInverseSeverity(metric)) {
+        const thresholds = metric.thresholds || [];
+        if (num < (thresholds[1] ?? 0.3)) return 20;
+        if (num < (thresholds[2] ?? 0.6)) return 14;
+        return 8;
+      }
+      if (!stats || stats.max == null || stats.min == null) return 10;
+      const span = stats.max - stats.min;
+      const norm = span > 1e-9 ? (num - stats.min) / span : 0.5;
+      return 7 + norm * 16;
+    }
+
+    function fmtStop(v) {
+      if (v == null || Number.isNaN(Number(v))) return '—';
+      return Number(v).toFixed(2);
+    }
+
+    function metricById(id) {
+      return (state.config?.metrics || []).find(m => m.id === id);
+    }
+
+    function renderCurveMetricTabs() {
+      const root = document.getElementById('curve-metric-tabs');
+      root.innerHTML = '';
+      const tabs = isLineLevel() ? curveMetricsForLineLevel() : curveMetricsForDimension();
+      tabs.forEach(metric => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'curve-metric-tab' + (state.curveMetricId === metric.id ? ' active' : '');
+        btn.textContent = metric.label;
+        btn.onclick = () => {
+          state.curveMetricId = metric.id;
+          renderCurveMetricTabs();
+          if (state.selectedInterId) loadCurveSeries();
+          if (state.selectedLineId) loadLineCurveSeries();
+        };
+        root.appendChild(btn);
+      });
+    }
+
+    function closeCurvePanel() {
+      const panel = document.getElementById('curve-panel');
+      panel.classList.remove('open');
+      panel.setAttribute('aria-hidden', 'true');
+      state.selectedInterId = null;
+      state.selectedInterName = '';
+      state.selectedLineId = null;
+      state.selectedLineName = '';
+      if (state.curveChart) {
+        state.curveChart.destroy();
+        state.curveChart = null;
+      }
+    }
+
+    function openCurvePanel(interId, interName) {
+      if (!isCurveDimension() || !interId) return;
+      state.selectedInterId = interId;
+      state.selectedInterName = interName || interId;
+      const tabs = curveMetricsForDimension();
+      if (!tabs.some(m => m.id === state.curveMetricId)) {
+        state.curveMetricId = tabs[0]?.id || state.metricId;
+      }
+      const panel = document.getElementById('curve-panel');
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden', 'false');
+      renderCurveMetricTabs();
+      loadCurveSeries();
+    }
+
+    function openLineCurvePanel(lineId, lineName) {
+      if (!isLineLevel() || !lineId) return;
+      state.selectedLineId = lineId;
+      state.selectedLineName = lineName || lineId;
+      state.selectedInterId = null;
+      state.selectedInterName = '';
+      const tabs = curveMetricsForLineLevel();
+      if (!tabs.some(m => m.id === state.curveMetricId)) {
+        state.curveMetricId = tabs[0]?.id || state.metricId;
+      }
+      const panel = document.getElementById('curve-panel');
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden', 'false');
+      renderCurveMetricTabs();
+      loadLineCurveSeries();
+    }
+
+    function onLineFeatureSelect(props) {
+      if (!isLineLevel() || props?.featureKind !== 'line_road' || !props?.lineId) return;
+      openLineCurvePanel(props.lineId, props.lineName);
+    }
+
+    function dirColor(dir8Code, idx) {
+      if (dir8Code != null && Number.isFinite(Number(dir8Code))) {
+        return DIR_COLORS[((Number(dir8Code) % 8) + 8) % 8];
+      }
+      return DIR_COLORS[idx % DIR_COLORS.length];
+    }
+
+    function renderCurveChart(data) {
+      const canvas = document.getElementById('curve-chart');
+      const metric = metricById(data.metricId) || currentMetric();
+      const unit = data.unit || metric?.unit || '';
+      const dimLabel = data.dimension === 'intersection' ? '路口整体'
+        : (data.dimension === 'approach' ? '进口方向' : (data.dimension === 'line' ? 'line 道路' : ''));
+      const titleName = data.lineName || data.interName || data.lineId || data.interId || '';
+      document.getElementById('curve-panel-title').textContent =
+        `${titleName} · ${data.dayLabel || ''}${dimLabel ? ' · ' + dimLabel : ''} · ${data.metricLabel}${unit ? '（' + unit + '）' : ''}`;
+
+      if (!window.Chart) {
+        document.getElementById('curve-hint').textContent = 'Chart.js 未加载，无法绘制曲线';
+        return;
+      }
+      if (state.curveChart) {
+        state.curveChart.destroy();
+        state.curveChart = null;
+      }
+
+      const series = data.series || [];
+      if (!series.length || !series.some(s => (s.values || []).length)) {
+        document.getElementById('curve-hint').textContent = '该路口当前日型无可用指标数据';
+        return;
+      }
+
+      const stepLabels = Array.from({length: 288}, (_, i) => stepToLabel(i));
+      const isSingle = data.dimension === 'intersection' || series.length === 1;
+      const datasets = series.map((s, idx) => {
+        const byStep = new Map((s.values || []).map(v => [v.stepIndex, v.value]));
+        const label = isSingle
+          ? (s.label || data.metricLabel)
+          : (data.dimension === 'line'
+            ? (s.label || `方向${s.travelDir || ''}`)
+            : (s.dir8Label ? `${s.dir8Label}${s.linkName ? ' · ' + s.linkName : ''}` : (s.linkName || s.linkId || s.label)));
+        const color = isSingle ? '#2563eb' : (data.dimension === 'line' ? (s.travelDir === 2 ? '#db2777' : '#2563eb') : dirColor(s.dir8Code, idx));
+        return {
+          label,
+          data: stepLabels.map((_, step) => byStep.has(step) ? byStep.get(step) : null),
+          borderColor: color,
+          backgroundColor: color + '33',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.15,
+          spanGaps: false,
+        };
+      });
+
+      const sourceHint = data.dimension === 'line'
+        ? 'xianchang.dws_line_val_index_5min_mm'
+        : data.dimension === 'intersection'
+        ? 'xianchang.dws_inter_evaluation_5min_mm'
+        : 'xianchang.dws_inter_link_status_5min_mm';
+      document.getElementById('curve-hint').textContent = isSingle
+        ? `288 个 5 分钟时间片 · 数据来源 ${sourceHint}`
+        : `共 ${series.length} 条序列 · 288 个 5 分钟时间片 · 数据来源 ${sourceHint}`;
+
+      const ctx = canvas.getContext('2d');
+      state.curveChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: stepLabels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+            tooltip: {
+              callbacks: {
+                title: items => items[0]?.label || '',
+                label: item => `${item.dataset.label}: ${item.parsed.y != null ? Number(item.parsed.y).toFixed(2) : '—'}${unit ? ' ' + unit : ''}`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              ticks: {
+                maxTicksLimit: 12,
+                font: { size: 10 },
+                callback: (val, idx) => (idx % 24 === 0 ? stepLabels[idx] : ''),
+              },
+              grid: { color: 'rgba(148,163,184,.2)' },
+            },
+            y: {
+              title: { display: !!unit, text: unit, font: { size: 11 } },
+              grid: { color: 'rgba(148,163,184,.2)' },
+            },
+          },
+        },
+      });
+    }
+
+    async function loadLineCurveSeries() {
+      if (!state.selectedLineId || state.curveLoading) return;
+      state.curveLoading = true;
+      document.getElementById('curve-hint').textContent = '加载曲线数据中…';
+      const params = new URLSearchParams({
+        line_id: state.selectedLineId,
+        day_of_week: String(state.dayOfWeek),
+        metric_id: state.curveMetricId,
+      });
+      if (state.travelDir) params.set('travel_dir', state.travelDir);
+      try {
+        const res = await fetch(`/v1/map/line-val/series?${params}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        renderCurveChart(data);
+      } catch (err) {
+        document.getElementById('curve-hint').textContent = `曲线加载失败：${err.message}`;
+        if (window.ScDebugUI?.toast) ScDebugUI.toast(err.message, 'error');
+      } finally {
+        state.curveLoading = false;
+      }
+    }
+
+    async function loadCurveSeries() {
+      if (!state.selectedInterId || state.curveLoading) return;
+      state.curveLoading = true;
+      document.getElementById('curve-hint').textContent = '加载曲线数据中…';
+      const params = new URLSearchParams({
+        inter_id: state.selectedInterId,
+        day_of_week: String(state.dayOfWeek),
+        metric_id: state.curveMetricId,
+      });
+      try {
+        const res = await fetch(`/v1/map/metric-series?${params}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        renderCurveChart(data);
+      } catch (err) {
+        document.getElementById('curve-hint').textContent = `曲线加载失败：${err.message}`;
+        if (window.ScDebugUI?.toast) ScDebugUI.toast(err.message, 'error');
+      } finally {
+        state.curveLoading = false;
+      }
+    }
+
+    function onFeatureSelect(props) {
+      if (!isCurveDimension() || !props?.interId) return;
+      openCurvePanel(props.interId, props.interName);
+    }
+
+    function corridorStopSetsHtml(sets, directionLabel) {
+      const list = sets || [];
+      if (!list.length) {
+        return `<div class="corridor-stop-set">${directionLabel}：无 ≥2 个连续停车路口</div>`;
+      }
+      return list.map((set, idx) => {
+        const names = (set.interNames || set.interIds || []).join(' → ');
+        return `<div class="corridor-stop-set">${directionLabel} 集合 ${idx + 1}（${set.count || list.length} 口）：${names}</div>`;
+      }).join('');
+    }
+
+    function corridorPeriodOptionsFor(corridorId) {
+      const byCorridor = state.layer?.corridorPeriodOptionsByCorridor || {};
+      if (corridorId && byCorridor[corridorId]?.length) {
+        return byCorridor[corridorId];
+      }
+      return state.layer?.corridorPeriodOptions || [];
+    }
+
+    function resolveCorridorPeriodGroupId(corridorId, options) {
+      const key = corridorId || '';
+      const preferred = state.corridorPopupPeriodByCorridor[key];
+      if (preferred && options.some(g => g.groupId === preferred)) {
+        return preferred;
+      }
+      const active = options.filter(g => g.activeAtQuery);
+      return (active[0] || options[0])?.groupId || '';
+    }
+
+    function mergeCorridorPropsWithPeriod(props, periodEntry) {
+      if (!periodEntry) return props;
+      const merged = {
+        ...props,
+        groupId: periodEntry.groupId,
+        periodStartTime: periodEntry.periodStartTime,
+        periodEndTime: periodEntry.periodEndTime,
+        cycleLenSec: periodEntry.cycleLenSec,
+        stopMetrics: {
+          forward: periodEntry.forward,
+          reverse: periodEntry.reverse,
+          stopTimesThreshold: periodEntry.stopTimesThreshold,
+          periodStepCount: periodEntry.periodStepCount,
+          sourceTable: periodEntry.sourceTable,
+        },
+      };
+      if (props.featureKind === 'corridor_inter' && props.interId) {
+        const fwd = periodEntry.forward?.interStopDetails?.find(d => d.interId === props.interId);
+        const rev = periodEntry.reverse?.interStopDetails?.find(d => d.interId === props.interId);
+        merged.forwardAvgStopTimes = fwd?.avgStopTimes ?? null;
+        merged.reverseAvgStopTimes = rev?.avgStopTimes ?? null;
+      }
+      return merged;
+    }
+
+    function corridorPeriodFieldHtml(corridorId, options, selectedGroupId, fallback) {
+      if (!options.length) {
+        return `时段：${fallback.periodStartTime || '—'} — ${fallback.periodEndTime || '—'}`;
+      }
+      if (options.length === 1) {
+        const g = options[0];
+        return `时段：${g.periodStartTime} — ${g.periodEndTime}`;
+      }
+      const opts = options.map(g => {
+        const activeMark = g.activeAtQuery ? '（当前时刻生效）' : '';
+        const selected = g.groupId === selectedGroupId ? ' selected' : '';
+        return `<option value="${g.groupId}"${selected}>${g.periodStartTime}—${g.periodEndTime} · ${g.cycleLenSec}s${activeMark}</option>`;
+      }).join('');
+      return [
+        '<div class="corridor-popup-period-wrap">',
+        '<label style="display:block;font-size:12px;color:#64748b;margin-bottom:4px">协调时段</label>',
+        `<select class="corridor-popup-period-select" data-corridor-id="${corridorId}" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#fff">`,
+        opts,
+        '</select>',
+        '</div>',
+      ].join('');
+    }
+
+    function syncCorridorPeriodSelection(corridorId, groupId) {
+      if (!corridorId || !groupId) return;
+      state.corridorPopupPeriodByCorridor[corridorId] = groupId;
+    }
+
+    function bindCorridorPopupInteractions(container, props) {
+      const sel = container?.querySelector?.('.corridor-popup-period-select');
+      if (!sel) return;
+      sel.addEventListener('click', (e) => e.stopPropagation());
+      sel.addEventListener('mousedown', (e) => e.stopPropagation());
+      sel.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const corridorId = sel.dataset.corridorId || props.corridorId;
+        syncCorridorPeriodSelection(corridorId, sel.value);
+        const html = popupHtml(props);
+        const popupRoot = sel.closest('.leaflet-popup-content')
+          || sel.closest('.amap-info-content')
+          || container;
+        if (popupRoot) {
+          popupRoot.innerHTML = html;
+          bindCorridorPopupInteractions(popupRoot, props);
+        }
+      });
+    }
+
+    function openCorridorMapPopup(props, position, offsetY = -8) {
+      const html = popupHtml(props);
+      if (state.amap) {
+        openMapInfoWindow(html, position, offsetY);
+        setTimeout(() => {
+          bindCorridorPopupInteractions(document.querySelector('.amap-info-content'), props);
+        }, 30);
+        return;
+      }
+      return html;
+    }
+
+    function corridorStopGroupsForPanel(layer) {
+      return layer?.stopMetricsByGroup || [];
+    }
+
+    function renderCorridorStopPanel(layer) {
+      const root = document.getElementById('corridor-stop-content');
+      const groups = corridorStopGroupsForPanel(layer);
+      if (!groups.length) {
+        root.innerHTML = '<p class="hint">当前时刻无生效协调组，或未匹配到走廊。</p>';
+        return;
+      }
+      root.innerHTML = groups.map(g => {
+        const fwd = g.forward || {};
+        const rev = g.reverse || {};
+        return [
+          `<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed #dbe5f0">`,
+          `<div><strong>${g.corridorName || g.corridorId}</strong> · ${g.periodStartTime}—${g.periodEndTime}</div>`,
+          `<div style="margin-top:4px">正向平均总停车：<b>${fmtStop(fwd.avgTotalStopTimes)}</b> 次（原始 stop_times&gt;0.6 记 1 · ${fwd.intersectionCount || 0} 口）</div>`,
+          `<div>反向平均总停车：<b>${fmtStop(rev.avgTotalStopTimes)}</b> 次（${rev.intersectionCount || 0} 口）</div>`,
+          corridorStopSetsHtml(fwd.continuousStopSets, '正向连续停车'),
+          corridorStopSetsHtml(rev.continuousStopSets, '反向连续停车'),
+          `</div>`,
+        ].join('');
+      }).join('');
+    }
+
+    function lineWeightForValue(metric, value, stats) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return 4;
+      if (!stats || stats.max == null || stats.min == null) return 5;
+      const span = stats.max - stats.min;
+      const norm = span > 1e-9 ? (num - stats.min) / span : 0.5;
+      return 3 + norm * 5;
+    }
+
+    function lineContinuousStopHtml(sets) {
+      const list = sets || [];
+      if (!list.length) return '连续停车：无 ≥2 个相邻路口';
+      return list.map((set, idx) => {
+        const names = (set.interNames || set.interIds || []).join(' → ');
+        return `连续停车 ${idx + 1}（${set.count || 0} 口）：${names}`;
+      }).join('<br>');
+    }
+
+    function corridorStopPopupLines(stopMetrics) {
+      if (!stopMetrics) return [];
+      const lines = [];
+      const fwd = stopMetrics.forward || {};
+      const rev = stopMetrics.reverse || {};
+      if (fwd.avgTotalStopTimes != null || rev.avgTotalStopTimes != null) {
+        lines.push(
+          `停车（时段均值 · 进口 link · 原始&gt;0.6记1次）：正向总停 <b>${fmtStop(fwd.avgTotalStopTimes)}</b> · 反向总停 <b>${fmtStop(rev.avgTotalStopTimes)}</b>`,
+        );
+      }
+      const fwdSets = fwd.continuousStopSets || [];
+      const revSets = rev.continuousStopSets || [];
+      if (fwdSets.length) {
+        lines.push(`正向连续停车：${fwdSets.map(s => (s.interNames || s.interIds || []).join('→')).join('；')}`);
+      }
+      if (revSets.length) {
+        lines.push(`反向连续停车：${revSets.map(s => (s.interNames || s.interIds || []).join('→')).join('；')}`);
+      }
+      return lines;
+    }
+
+    function renderStats(layer) {
+      const stats = layer?.valueStats || {};
+      const labelMin = document.getElementById('stat-label-min');
+      const labelP50 = document.getElementById('stat-label-p50');
+      const labelMax = document.getElementById('stat-label-max');
+      if (isCorridorCoordLevel()) {
+        document.getElementById('stats-title').textContent = '当前图层统计 · 协调';
+        const groups = corridorStopGroupsForPanel(layer);
+        const displayGroups = groups.length ? groups : (layer?.stopMetricsByGroup || []);
+        document.getElementById('stat-count').textContent = layer?.featureCount ?? '—';
+        if (displayGroups.length === 1) {
+          labelMin.textContent = '正向总停';
+          labelP50.textContent = '反向总停';
+          labelMax.textContent = '路口数';
+          document.getElementById('stat-min').textContent = fmtStop(displayGroups[0]?.forward?.avgTotalStopTimes);
+          document.getElementById('stat-p50').textContent = fmtStop(displayGroups[0]?.reverse?.avgTotalStopTimes);
+          document.getElementById('stat-max').textContent = displayGroups[0]?.forward?.intersectionCount ?? '—';
+        } else {
+          labelMin.textContent = '走廊数';
+          labelP50.textContent = '协调组';
+          labelMax.textContent = '最大路口';
+          document.getElementById('stat-min').textContent = layer?.corridorCount ?? '—';
+          document.getElementById('stat-p50').textContent = layer?.groupCount ?? '—';
+          document.getElementById('stat-max').textContent = stats.max ?? '—';
+        }
+        return;
+      }
+      if (isLineLevel()) {
+        document.getElementById('stats-title').textContent = '当前图层统计 · line';
+        labelMin.textContent = '最小值';
+        labelP50.textContent = '中位数';
+        labelMax.textContent = '最大值';
+        document.getElementById('stat-count').textContent = layer?.lineCount ?? layer?.featureCount ?? '—';
+        document.getElementById('stat-min').textContent = stats.min ?? '—';
+        document.getElementById('stat-p50').textContent = stats.p50 ?? '—';
+        document.getElementById('stat-max').textContent = stats.max ?? '—';
+        return;
+      }
+      document.getElementById('stats-title').textContent = '当前图层统计';
+      labelMin.textContent = '最小值';
+      labelP50.textContent = '中位数';
+      labelMax.textContent = '最大值';
+      document.getElementById('stat-count').textContent = layer?.featureCount ?? '—';
+      document.getElementById('stat-min').textContent = stats.min ?? '—';
+      document.getElementById('stat-p50').textContent = stats.p50 ?? '—';
+      document.getElementById('stat-max').textContent = stats.max ?? '—';
+    }
+
+    function openPhotoLightbox(url, caption) {
+      const box = document.getElementById('photo-lightbox');
+      const img = document.getElementById('photo-lightbox-img');
+      img.src = url;
+      img.alt = caption || '调研现场图';
+      box.classList.add('open');
+      box.setAttribute('aria-hidden', 'false');
+    }
+
+    function closePhotoLightbox() {
+      const box = document.getElementById('photo-lightbox');
+      box.classList.remove('open');
+      box.setAttribute('aria-hidden', 'true');
+      document.getElementById('photo-lightbox-img').removeAttribute('src');
+    }
+
+    function surveyPhotoGridHtml(images, limit = 6) {
+      const list = (images || []).filter(x => x && x.url);
+      if (!list.length) return '';
+      const shown = list.slice(0, limit);
+      const extra = list.length - shown.length;
+      const thumbs = shown.map((img, idx) => {
+        const cap = (img.caption || `现场图 ${idx + 1}`).replace(/"/g, '&quot;');
+        return `<img class="survey-photo-thumb" src="${img.url}" alt="${cap}" title="${cap}" data-photo-url="${img.url}" loading="lazy">`;
+      }).join('');
+      const label = extra > 0
+        ? `<div class="survey-photo-label">共 ${list.length} 张，点击图片放大查看</div>`
+        : `<div class="survey-photo-label">点击图片放大查看</div>`;
+      return `<div class="survey-photo-grid">${thumbs}</div>${label}`;
+    }
+
+    function fieldSurveyIssuesHtml(issues) {
+      const list = (issues || []).filter(x => x && (x.images?.length || x.issueDesc));
+      if (!list.length) return '';
+      return list.map(issue => {
+        const title = `问题${issue.issueSeq || ''}：${issue.issueType || ''}`.replace(/^问题：/, '问题');
+        const parts = [`<div class="survey-issue-title">${title}</div>`];
+        if (issue.issueDesc) {
+          parts.push(`<div style="color:#475569">${issue.issueDesc}</div>`);
+        }
+        if (issue.recommendationText) {
+          parts.push(`<div style="color:#64748b;margin-top:4px">建议：${issue.recommendationText}</div>`);
+        }
+        if (issue.images?.length) {
+          parts.push(surveyPhotoGridHtml(issue.images, 4));
+        }
+        return `<div class="survey-issue-block">${parts.join('')}</div>`;
+      }).join('');
+    }
+
+    function bindSurveyPhotoClicks(root) {
+      (root || document).querySelectorAll('.survey-photo-thumb[data-photo-url]').forEach(el => {
+        if (el.dataset.bound) return;
+        el.dataset.bound = '1';
+        el.addEventListener('click', () => openPhotoLightbox(el.dataset.photoUrl, el.alt || ''));
+      });
+    }
+
+    function closeMapInfoWindow() {
+      if (state.mapInfoWindow) {
+        state.mapInfoWindow.close();
+        state.mapInfoWindow = null;
+      }
+    }
+
+    function openMapInfoWindow(html, position, offsetY = -8) {
+      closeMapInfoWindow();
+      state.mapInfoWindow = new AMap.InfoWindow({
+        content: `<div class="leaflet-popup-content">${html}</div>`,
+        offset: new AMap.Pixel(0, offsetY),
+      });
+      state.mapInfoWindow.open(state.map, position);
+    }
+
+    function bindMapPopupCloseOnBlank() {
+      if (!state.map) return;
+      if (state.amap) {
+        state.map.on('click', closeMapInfoWindow);
+      } else {
+        state.map.on('click', () => state.map.closePopup());
+      }
+    }
+
+    function popupHtml(props) {
+      if (props.layerKind === 'complaint') {
+        const lines = [
+          `<strong>${props.interName || props.interId}</strong>`,
+          `统计时段：${props.statPeriod || '2025'}`,
+          `投诉类型：${props.complaintType || '全部'}`,
+          `投诉条数：<b>${props.valueLabel || props.value}</b>`,
+        ];
+        if (props.typeBreakdown?.length) {
+          const top = props.typeBreakdown.slice(0, 4)
+            .map(x => `${x.type}（${x.count}）`).join('、');
+          lines.push(`类型分布：${top}`);
+        }
+        if (props.coreProblemDesc) {
+          lines.push(`<span style="color:#475569">${props.coreProblemDesc}</span>`);
+        }
+        lines.push(`<a class="popup-link" href="${timingOptimizerUrl(props)}" target="_blank">打开配时优化 →</a>`);
+        return lines.join('<br>');
+      }
+      if (props.layerKind === 'manual_survey') {
+        const lines = [
+          `<strong>${props.interName || props.interId}</strong>`,
+          `调查批次：${props.surveyBatch || 'jinan_2025'}`,
+          `时段：${props.timePeriod || '全部时段'}`,
+          `问题类型：${props.problemType || '全部'}`,
+          `记录数：<b>${props.valueLabel || props.value}</b>`,
+        ];
+        if (props.periodBreakdown?.length) {
+          const top = props.periodBreakdown.slice(0, 4)
+            .map(x => `${x.period}（${x.count}）`).join('、');
+          lines.push(`时段分布：${top}`);
+        }
+        if (props.typeBreakdown?.length) {
+          const top = props.typeBreakdown.slice(0, 4)
+            .map(x => `${x.type}（${x.count}）`).join('、');
+          lines.push(`类型分布：${top}`);
+        }
+        if (props.problemDesc) {
+          lines.push(`<span style="color:#475569">${props.problemDesc}</span>`);
+        }
+        if (props.interId) {
+          lines.push(`<a class="popup-link" href="${timingOptimizerUrl(props)}" target="_blank">打开配时优化 →</a>`);
+        }
+        return lines.join('<br>');
+      }
+      if (props.layerKind === 'field_survey') {
+        const head = [
+          `<strong>${props.interName || props.interId}</strong>`,
+          `调研批次：${props.reportBatch || 'jinan_20260609'}`,
+          `问题类型：${props.issueType || '全部'}`,
+          `问题条数：<b>${props.valueLabel || props.value}</b>`,
+        ];
+        if (props.typeBreakdown?.length) {
+          const top = props.typeBreakdown.slice(0, 4)
+            .map(x => `${x.type}（${x.count}）`).join('、');
+          head.push(`类型分布：${top}`);
+        }
+        const issuesHtml = fieldSurveyIssuesHtml(props.surveyIssues);
+        let body = '';
+        if (issuesHtml) {
+          body = issuesHtml;
+        } else {
+          const bits = [];
+          if (props.issueDesc) bits.push(`<span style="color:#475569">${props.issueDesc}</span>`);
+          if (props.surveyImages?.length) bits.push(surveyPhotoGridHtml(props.surveyImages));
+          body = bits.join('<br>');
+        }
+        const foot = props.interId
+          ? `<a class="popup-link" href="${timingOptimizerUrl(props)}" target="_blank">打开配时优化 →</a>`
+          : '';
+        return [head.join('<br>'), body, foot].filter(Boolean).join('<br>');
+      }
+      if (props.layerKind === 'corridor_coord') {
+        const options = corridorPeriodOptionsFor(props.corridorId);
+        const selectedGroupId = resolveCorridorPeriodGroupId(props.corridorId, options);
+        const periodEntry = options.find(g => g.groupId === selectedGroupId);
+        const viewProps = mergeCorridorPropsWithPeriod(props, periodEntry || null);
+        const lines = [
+          `<strong>${viewProps.corridorName || viewProps.corridorId}</strong>`,
+          corridorPeriodFieldHtml(props.corridorId, options, selectedGroupId, viewProps),
+          `周期：<b>${viewProps.cycleLenSec}s</b> · ${viewProps.intersectionCount} 个路口`,
+          `查询时刻：${viewProps.dayLabel || ''} ${viewProps.timeLabel || ''}`,
+        ];
+        lines.push(...corridorStopPopupLines(viewProps.stopMetrics));
+        if (viewProps.featureKind === 'corridor_inter') {
+          lines.push(`路口 #${viewProps.seqNo}：${viewProps.interName || viewProps.interId}`);
+          if (viewProps.planNo != null) lines.push(`方案号：${viewProps.planNo}`);
+          if (viewProps.forwardAvgStopTimes != null) {
+            lines.push(`正向协调停车占比：<b>${fmtStop(viewProps.forwardAvgStopTimes)}</b>（0~1，进口 link stop_times&gt;0.6 记 1）`);
+          }
+          if (viewProps.reverseAvgStopTimes != null) {
+            lines.push(`反向协调停车占比：<b>${fmtStop(viewProps.reverseAvgStopTimes)}</b>`);
+          }
+        } else if (viewProps.featureKind === 'corridor_link') {
+          if (viewProps.roadName) lines.push(`路段：${viewProps.roadName}`);
+          if (viewProps.lengthM != null) lines.push(`长度：${Math.round(viewProps.lengthM)} m`);
+        }
+        if (viewProps.interNamesOrdered?.length) {
+          const list = viewProps.interNamesOrdered
+            .map((name, idx) => `<li>${idx + 1}. ${name}</li>`)
+            .join('');
+          lines.push(`<ul class="corridor-inter-list">${list}</ul>`);
+        }
+        if (viewProps.interId) {
+          lines.push(`<a class="popup-link" href="${timingOptimizerUrl(viewProps)}" target="_blank">打开配时优化 →</a>`);
+        }
+        return lines.join('<br>');
+      }
+      if (props.layerKind === 'line_val') {
+        const lines = [
+          `<strong>${props.lineName || props.lineId}</strong>`,
+          `主路：${props.roadName || '—'}`,
+          `方向：${props.travelDirLabel || props.travelDir || '—'}`,
+          `指标：${props.metricLabel} = <b>${props.valueLabel || props.value}</b>`,
+          `时间：${props.dayLabel || DAY_LABELS[props.dayOfWeek] || props.dayOfWeek} ${props.timeLabel}`,
+        ];
+        if (props.travelTimeSec != null) lines.push(`行程时间：${fmtStop(props.travelTimeSec)} 秒`);
+        if (props.travelSpeedKmh != null) lines.push(`行程速度：${fmtStop(props.travelSpeedKmh)} km/h`);
+        if (props.delayIndex != null) lines.push(`拥堵指数：${fmtStop(props.delayIndex)}`);
+        if (props.totalStopTimes != null) lines.push(`总停车次数：${fmtStop(props.totalStopTimes)}`);
+        if (props.continuousStopSets?.length) {
+          lines.push(lineContinuousStopHtml(props.continuousStopSets));
+        }
+        if (props.featureKind === 'line_inter') {
+          lines.push(`路口 #${props.seqNo}：${props.interName || props.interId}`);
+        }
+        if (props.featureKind === 'line_road') {
+          lines.push(`<span style="color:#2563eb;cursor:pointer" class="line-curve-link">点击查看该 line 指标日曲线 →</span>`);
+        }
+        return lines.join('<br>');
+      }
+      const lines = [
+        `<strong>${props.interName || props.interId}</strong>`,
+        `指标：${props.metricLabel}${props.dimensionLabel ? ' · ' + props.dimensionLabel : ''} = <b>${props.valueLabel || props.value}</b>`,
+        `时间：${DAY_LABELS[props.dayOfWeek] || props.dayOfWeek} ${props.timeLabel}`,
+      ];
+      if (props.dir8Label) lines.push(`方向：${props.dir8Label}${props.turnLabel ? ' · ' + props.turnLabel : ''}`);
+      if (props.linkName) lines.push(`路段：${props.linkName}`);
+      if (props.linkId) lines.push(`Link：${props.linkId}`);
+      if (props.laneNo) lines.push(`车道：${props.laneNo}`);
+      if (isCurveDimension()) {
+        lines.push(`<span style="color:#2563eb;cursor:pointer" class="curve-link">点击查看该路口指标日曲线 →</span>`);
+      }
+      lines.push(`<a class="popup-link" href="${timingOptimizerUrl(props)}" target="_blank">打开配时优化 →</a>`);
+      return lines.join('<br>');
+    }
+
+    function clearMapLayers() {
+      state.markers.forEach(m => {
+        if (state.map?.removeLayer) state.map.removeLayer(m);
+        if (m.setMap) m.setMap(null);
+      });
+      state.markers = [];
+      state.polylines.forEach(p => {
+        if (state.map?.removeLayer) state.map.removeLayer(p);
+        if (p.setMap) p.setMap(null);
+      });
+      state.polylines = [];
+      state.corridorHighlights.forEach(h => {
+        if (state.map?.removeLayer) state.map.removeLayer(h);
+        if (h.setMap) h.setMap(null);
+      });
+      state.corridorHighlights = [];
+    }
+
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = deg => deg * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    function distLonLatM(lon1, lat1, lon2, lat2) {
+      return haversineMeters(lat1, lon1, lat2, lon2);
+    }
+
+    function buildCorridorInterCoordIndex(layer) {
+      const index = new Map();
+      (layer?.features || []).forEach(feature => {
+        const props = feature.properties || {};
+        if (props.featureKind !== 'corridor_inter' || !props.groupId || !props.interId) return;
+        const anchor = featureAnchorLonLat(feature);
+        if (!anchor) return;
+        index.set(`${props.groupId}:${props.interId}`, {
+          groupId: props.groupId,
+          interId: props.interId,
+          interName: props.interName || props.interId,
+          lon: anchor[0],
+          lat: anchor[1],
+        });
+      });
+      return index;
+    }
+
+    function buildCorridorLinkIndex(layer) {
+      const index = new Map();
+      (layer?.features || []).forEach(feature => {
+        const props = feature.properties || {};
+        const geom = feature.geometry || {};
+        if (props.featureKind !== 'corridor_link' || !props.groupId) return;
+        if (geom.type !== 'LineString' || !(geom.coordinates || []).length) return;
+        const fInterId = String(props.fInterId || '').trim();
+        const tInterId = String(props.tInterId || '').trim();
+        const entry = {
+          groupId: props.groupId,
+          linkId: props.linkId,
+          coordinates: geom.coordinates.map(([lon, lat]) => [lon, lat]),
+          fInterId,
+          tInterId,
+        };
+        if (fInterId && tInterId) {
+          index.set(`${props.groupId}:${fInterId}:${tInterId}`, entry);
+        }
+        if (props.linkId) {
+          index.set(`${props.groupId}:link:${props.linkId}`, entry);
+        }
+      });
+      return index;
+    }
+
+    function orientLinkCoords(coords, fromLon, fromLat) {
+      if (!coords?.length) return [];
+      const [startLon, startLat] = coords[0];
+      const [endLon, endLat] = coords[coords.length - 1];
+      const dStart = distLonLatM(startLon, startLat, fromLon, fromLat);
+      const dEnd = distLonLatM(endLon, endLat, fromLon, fromLat);
+      return dStart <= dEnd ? coords.slice() : coords.slice().reverse();
+    }
+
+    function appendPathCoords(path, segment) {
+      if (!segment.length) return;
+      if (!path.length) {
+        path.push(...segment);
+        return;
+      }
+      const [lastLon, lastLat] = path[path.length - 1];
+      const [firstLon, firstLat] = segment[0];
+      if (distLonLatM(lastLon, lastLat, firstLon, firstLat) < 1.5) {
+        path.push(...segment.slice(1));
+      } else {
+        path.push(...segment);
+      }
+    }
+
+    function resolveCorridorEdgeCoords(groupId, fromInter, toInter, linkIndex, coordIndex, layer) {
+      const from = coordIndex.get(`${groupId}:${fromInter}`);
+      const to = coordIndex.get(`${groupId}:${toInter}`);
+      if (!from || !to) return [];
+      const link = linkIndex.get(`${groupId}:${fromInter}:${toInter}`)
+        || linkIndex.get(`${groupId}:${toInter}:${fromInter}`);
+      if (link?.coordinates?.length) {
+        const oriented = orientLinkCoords(link.coordinates, from.lon, from.lat);
+        const end = oriented[oriented.length - 1];
+        if (distLonLatM(end[0], end[1], to.lon, to.lat) > distLonLatM(oriented[0][0], oriented[0][1], to.lon, to.lat)) {
+          oriented.reverse();
+        }
+        return oriented;
+      }
+      let bestCoords = null;
+      let bestScore = Infinity;
+      (layer?.features || []).forEach(feature => {
+        const props = feature.properties || {};
+        const geom = feature.geometry || {};
+        if (props.groupId !== groupId || props.featureKind !== 'corridor_link') return;
+        if (geom.type !== 'LineString' || !(geom.coordinates || []).length) return;
+        const coords = geom.coordinates.map(([lon, lat]) => [lon, lat]);
+        const [sLon, sLat] = coords[0];
+        const [eLon, eLat] = coords[coords.length - 1];
+        const scoreFwd = distLonLatM(sLon, sLat, from.lon, from.lat) + distLonLatM(eLon, eLat, to.lon, to.lat);
+        const scoreRev = distLonLatM(eLon, eLat, from.lon, from.lat) + distLonLatM(sLon, sLat, to.lon, to.lat);
+        const useRev = scoreRev < scoreFwd;
+        const score = Math.min(scoreFwd, scoreRev);
+        if (score >= bestScore || score > 180) return;
+        bestScore = score;
+        bestCoords = useRev ? coords.slice().reverse() : coords.slice();
+      });
+      if (bestCoords?.length) return bestCoords;
+      return [[from.lon, from.lat], [to.lon, to.lat]];
+    }
+
+    function pathLengthM(coords) {
+      let total = 0;
+      for (let i = 1; i < coords.length; i += 1) {
+        total += distLonLatM(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]);
+      }
+      return total;
+    }
+
+    function interpolateAlongPath(coords, fraction) {
+      if (!coords.length) return null;
+      if (coords.length === 1) return coords[0];
+      const total = pathLengthM(coords);
+      if (total <= 0) return coords[0];
+      const target = total * Math.max(0, Math.min(1, fraction));
+      let acc = 0;
+      for (let i = 1; i < coords.length; i += 1) {
+        const seg = distLonLatM(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]);
+        if (acc + seg >= target) {
+          const t = seg > 0 ? (target - acc) / seg : 0;
+          return [
+            coords[i - 1][0] + t * (coords[i][0] - coords[i - 1][0]),
+            coords[i - 1][1] + t * (coords[i][1] - coords[i - 1][1]),
+          ];
+        }
+        acc += seg;
+      }
+      return coords[coords.length - 1];
+    }
+
+    function pathBearingDeg(coords) {
+      if (!coords || coords.length < 2) return 0;
+      const [lon1, lat1] = coords[0];
+      const [lon2, lat2] = coords[coords.length - 1];
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const lat1r = lat1 * Math.PI / 180;
+      const lat2r = lat2 * Math.PI / 180;
+      const y = Math.sin(dLon) * Math.cos(lat2r);
+      const x = Math.cos(lat1r) * Math.sin(lat2r) - Math.sin(lat1r) * Math.cos(lat2r) * Math.cos(dLon);
+      return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    }
+
+    function ellipseLonLatPoint(centerLon, centerLat, majorM, minorM, bearingDeg, theta) {
+      const a = majorM / 2;
+      const b = minorM / 2;
+      const localX = a * Math.cos(theta);
+      const localY = b * Math.sin(theta);
+      const br = bearingDeg * Math.PI / 180;
+      const eastM = localX * Math.sin(br) + localY * Math.cos(br);
+      const northM = localX * Math.cos(br) - localY * Math.sin(br);
+      const lat = centerLat + northM / 111320;
+      const lon = centerLon + eastM / (111320 * Math.cos(centerLat * Math.PI / 180));
+      return [lon, lat];
+    }
+
+    function buildSegmentEllipseRing(
+      segmentCoords,
+      halfWidthM = CORRIDOR_STOP_ELLIPSE_HALF_WIDTH_M,
+      capPadM = CORRIDOR_STOP_ELLIPSE_CAP_PAD_M,
+      steps = 40,
+    ) {
+      if (!segmentCoords || segmentCoords.length < 2) return [];
+      const len = pathLengthM(segmentCoords);
+      const major = Math.max(len + capPadM * 2, halfWidthM * 3.2);
+      const minor = halfWidthM * 2;
+      const center = interpolateAlongPath(segmentCoords, 0.5);
+      if (!center) return [];
+      const bearing = pathBearingDeg(segmentCoords);
+      const ring = [];
+      for (let i = 0; i < steps; i += 1) {
+        const theta = (i / steps) * 2 * Math.PI;
+        ring.push(ellipseLonLatPoint(center[0], center[1], major, minor, bearing, theta));
+      }
+      return ring;
+    }
+
+    function buildStopSetSegmentPaths(groupId, interIds, coordIndex, linkIndex, layer) {
+      const segments = [];
+      for (let i = 0; i < interIds.length - 1; i += 1) {
+        const segment = resolveCorridorEdgeCoords(
+          groupId,
+          interIds[i],
+          interIds[i + 1],
+          linkIndex,
+          coordIndex,
+          layer,
+        );
+        if (segment.length >= 2) segments.push(segment);
+      }
+      return segments;
+    }
+
+    function collectCorridorContinuousStopHighlights(layer) {
+      const coordIndex = buildCorridorInterCoordIndex(layer);
+      const linkIndex = buildCorridorLinkIndex(layer);
+      const highlights = [];
+      (layer?.stopMetricsByGroup || []).forEach(group => {
+        const groupId = group.groupId;
+        [
+          { dir: 'forward', label: '正向', sets: group.forward?.continuousStopSets || [], stroke: CORRIDOR_FWD_STOP_RING },
+          { dir: 'reverse', label: '反向', sets: group.reverse?.continuousStopSets || [], stroke: CORRIDOR_REV_STOP_RING },
+        ].forEach(({ dir, label, sets, stroke }) => {
+          (sets || []).forEach((set, idx) => {
+            const interIds = set.interIds || [];
+            if (interIds.length < 2) return;
+            const segmentPaths = buildStopSetSegmentPaths(groupId, interIds, coordIndex, linkIndex, layer);
+            if (!segmentPaths.length) return;
+            const pathCoords = [];
+            segmentPaths.forEach(segment => appendPathCoords(pathCoords, segment));
+            if (pathCoords.length < 2) return;
+            const ellipseRings = segmentPaths
+              .map(segment => buildSegmentEllipseRing(segment))
+              .filter(ring => ring.length >= 4);
+            if (!ellipseRings.length) return;
+            highlights.push({
+              groupId,
+              corridorName: group.corridorName || group.corridorId,
+              dir,
+              dirLabel: label,
+              setIndex: idx + 1,
+              interIds,
+              interNames: set.interNames || [],
+              pathCoords,
+              ellipseRings,
+              stroke,
+            });
+          });
+        });
+      });
+      return highlights;
+    }
+
+    function renderCorridorStopSetHighlights(layer) {
+      const highlights = collectCorridorContinuousStopHighlights(layer);
+      highlights.forEach(item => {
+        const title = `${item.corridorName} · ${item.dirLabel}连续停车 ${item.setIndex}（${item.interIds.length} 口）`;
+        const popupHtmlText = `<strong>${item.corridorName}</strong><br>${item.dirLabel}连续停车集合 ${item.setIndex}<br>${(item.interNames || item.interIds).join(' → ')}`;
+        const midIdx = Math.floor(item.pathCoords.length / 2);
+        const [midLon, midLat] = item.pathCoords[midIdx] || item.pathCoords[0];
+
+        const bindHighlightPopup = (overlay) => {
+          if (state.amap) {
+            overlay.setExtData(item);
+            overlay.on('click', (e) => {
+              if (e?.stopPropagation) e.stopPropagation();
+              openMapInfoWindow(popupHtmlText, [midLon, midLat], -12);
+            });
+            overlay.setMap(state.map);
+            state.corridorHighlights.push(overlay);
+            return;
+          }
+          overlay.bindTooltip(title, { sticky: true, direction: 'top' });
+          overlay.on('click', () => {
+            L.popup({ maxWidth: 360 })
+              .setLatLng([midLat, midLon])
+              .setContent(popupHtmlText)
+              .openOn(state.map);
+          });
+          state.corridorHighlights.push(overlay);
+        };
+
+        (item.ellipseRings || []).forEach(ring => {
+          if (state.amap) {
+            const path = ring.map(([lon, lat]) => [lon, lat]);
+            const fill = new AMap.Polygon({
+              path,
+              strokeColor: item.stroke,
+              strokeWeight: 2,
+              strokeOpacity: 0.9,
+              strokeStyle: 'dashed',
+              fillColor: item.stroke,
+              fillOpacity: 0.18,
+              zIndex: 88,
+              bubble: true,
+            });
+            bindHighlightPopup(fill);
+            return;
+          }
+          const latlngs = ring.map(([lon, lat]) => [lat, lon]);
+          const polygon = L.polygon(latlngs, {
+            color: item.stroke,
+            weight: 2,
+            opacity: 0.9,
+            dashArray: '8 6',
+            fillColor: item.stroke,
+            fillOpacity: 0.18,
+          }).addTo(state.map);
+          bindHighlightPopup(polygon);
+        });
+      });
+    }
+
+    function clearMarkers() {
+      clearMapLayers();
+    }
+
+    function renderLeafletLayer(layer, metric) {
+      clearMarkers();
+      const stats = layer.valueStats;
+      (layer.features || []).forEach(feature => {
+        const anchor = featureAnchorLonLat(feature);
+        if (!anchor) return;
+        const [lon, lat] = anchor;
+        const props = feature.properties || {};
+        const color = props.color || colorForValue(metric, props.value, stats);
+        const marker = L.circleMarker([lat, lon], {
+          radius: radiusForValue(metric, props.value, stats),
+          color: '#fff',
+          weight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.82,
+        }).addTo(state.map);
+        marker.bindPopup(popupHtml(props), { maxWidth: 360 });
+        marker.on('popupopen', (ev) => {
+          bindSurveyPhotoClicks(ev.popup.getElement());
+          const el = ev.popup.getElement();
+          const curveLink = el?.querySelector('.curve-link');
+          if (curveLink) {
+            curveLink.addEventListener('click', (e) => {
+              e.preventDefault();
+              onFeatureSelect(props);
+            });
+          }
+        });
+        marker.on('click', () => {
+          if (isCurveDimension()) onFeatureSelect(props);
+        });
+        state.markers.push(marker);
+      });
+
+      const bounds = geoBoundsFromFeatures(layer.features);
+      if (bounds.length) state.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    }
+
+    function renderLineLeafletLayer(layer, metric) {
+      clearMapLayers();
+      const stats = layer.valueStats;
+      (layer.features || []).forEach(feature => {
+        const geom = feature.geometry || {};
+        const props = feature.properties || {};
+        const color = props.color || colorForValue(metric, props.value, stats);
+
+        if (geom.type === 'LineString' && props.featureKind === 'line_road') {
+          const latlngs = (geom.coordinates || []).map(([lon, lat]) => [lat, lon]);
+          if (!latlngs.length) return;
+          const line = L.polyline(latlngs, {
+            color,
+            weight: lineWeightForValue(metric, props.value, stats),
+            opacity: 0.9,
+          }).addTo(state.map);
+          line.bindPopup(popupHtml(props), { maxWidth: 420 });
+          line.on('popupopen', (ev) => {
+            const el = ev.popup.getElement();
+            const link = el?.querySelector('.line-curve-link');
+            if (link) {
+              link.addEventListener('click', (e) => {
+                e.preventDefault();
+                onLineFeatureSelect(props);
+              });
+            }
+          });
+          line.on('click', () => onLineFeatureSelect(props));
+          state.polylines.push(line);
+          return;
+        }
+
+        if (geom.type === 'Point' && props.featureKind === 'line_inter') {
+          const [lon, lat] = geom.coordinates;
+          const marker = L.circleMarker([lat, lon], {
+            radius: 5,
+            color: '#fff',
+            weight: 1.5,
+            fillColor: color,
+            fillOpacity: 0.85,
+          }).addTo(state.map);
+          marker.bindPopup(popupHtml(props), { maxWidth: 380 });
+          state.markers.push(marker);
+        }
+      });
+
+      const bounds = geoBoundsFromFeatures(layer.features);
+      if (bounds.length) state.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+
+    function renderLineAmapLayer(layer, metric) {
+      clearMapLayers();
+      const stats = layer.valueStats;
+      (layer.features || []).forEach(feature => {
+        const geom = feature.geometry || {};
+        const props = feature.properties || {};
+        const color = props.color || colorForValue(metric, props.value, stats);
+
+        if (geom.type === 'LineString' && props.featureKind === 'line_road') {
+          const path = (geom.coordinates || []).map(([lon, lat]) => [lon, lat]);
+          if (!path.length) return;
+          const line = new AMap.Polyline({
+            path,
+            strokeColor: color,
+            strokeWeight: lineWeightForValue(metric, props.value, stats),
+            strokeOpacity: 0.9,
+            zIndex: 60,
+          });
+          line.setExtData(props);
+          line.on('click', () => {
+            openMapInfoWindow(popupHtml(props), path[Math.floor(path.length / 2)]);
+            onLineFeatureSelect(props);
+          });
+          line.setMap(state.map);
+          state.polylines.push(line);
+          return;
+        }
+
+        if (geom.type === 'Point' && props.featureKind === 'line_inter') {
+          const [lon, lat] = geom.coordinates;
+          const marker = new AMap.CircleMarker({
+            center: [lon, lat],
+            radius: 5,
+            strokeColor: '#ffffff',
+            strokeWeight: 1.5,
+            fillColor: color,
+            fillOpacity: 0.85,
+            zIndex: 110,
+          });
+          marker.setExtData(props);
+          marker.on('click', () => {
+            openMapInfoWindow(popupHtml(props), [lon, lat], -5);
+          });
+          marker.setMap(state.map);
+          state.markers.push(marker);
+        }
+      });
+
+      const overlays = [...state.markers, ...state.polylines];
+      if (overlays.length) state.map.setFitView(overlays, false, [50, 50, 50, 50]);
+    }
+
+    function renderCorridorLeafletLayer(layer) {
+      clearMapLayers();
+      (layer.features || []).forEach(feature => {
+        const geom = feature.geometry || {};
+        const props = feature.properties || {};
+        const color = props.color || '#2563eb';
+
+        const bindCorridorPopup = (layerObj) => {
+          layerObj.bindPopup(() => popupHtml(props), { maxWidth: 420 });
+          layerObj.on('popupopen', (ev) => {
+            bindCorridorPopupInteractions(ev.popup.getElement(), props);
+          });
+        };
+
+        if (geom.type === 'LineString') {
+          const latlngs = (geom.coordinates || []).map(([lon, lat]) => [lat, lon]);
+          if (!latlngs.length) return;
+          const line = L.polyline(latlngs, {
+            color,
+            weight: 5,
+            opacity: 0.88,
+          }).addTo(state.map);
+          bindCorridorPopup(line);
+          state.polylines.push(line);
+          return;
+        }
+
+        const anchor = featureAnchorLonLat(feature);
+        if (!anchor) return;
+        const [lon, lat] = anchor;
+        const marker = L.circleMarker([lat, lon], {
+          radius: props.featureKind === 'corridor_inter' ? 7 : 6,
+          color: '#fff',
+          weight: 2,
+          fillColor: color,
+          fillOpacity: 0.92,
+        }).addTo(state.map);
+        bindCorridorPopup(marker);
+        state.markers.push(marker);
+      });
+
+      renderCorridorStopSetHighlights(layer);
+      const bounds = geoBoundsFromFeatures(layer.features);
+      if (bounds.length) state.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+
+    function renderCorridorAmapLayer(layer) {
+      clearMapLayers();
+      (layer.features || []).forEach(feature => {
+        const geom = feature.geometry || {};
+        const props = feature.properties || {};
+        const color = props.color || '#2563eb';
+
+        if (geom.type === 'LineString') {
+          const path = (geom.coordinates || []).map(([lon, lat]) => [lon, lat]);
+          if (!path.length) return;
+          const line = new AMap.Polyline({
+            path,
+            strokeColor: color,
+            strokeWeight: 5,
+            strokeOpacity: 0.88,
+            zIndex: 50,
+          });
+          line.setExtData(props);
+          line.on('click', (e) => {
+            if (e?.stopPropagation) e.stopPropagation();
+            openCorridorMapPopup(props, path[Math.floor(path.length / 2)]);
+          });
+          line.setMap(state.map);
+          state.polylines.push(line);
+          return;
+        }
+
+        const anchor = featureAnchorLonLat(feature);
+        if (!anchor) return;
+        const [lon, lat] = anchor;
+        const radius = props.featureKind === 'corridor_inter' ? 8 : 6;
+        const marker = new AMap.CircleMarker({
+          center: [lon, lat],
+          radius,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+          fillColor: color,
+          fillOpacity: 0.92,
+          zIndex: 120,
+        });
+        marker.setExtData(props);
+        marker.on('click', (e) => {
+          if (e?.stopPropagation) e.stopPropagation();
+          openCorridorMapPopup(props, [lon, lat], -radius);
+        });
+        marker.setMap(state.map);
+        state.markers.push(marker);
+      });
+
+      renderCorridorStopSetHighlights(layer);
+      const overlays = [...state.markers, ...state.polylines, ...state.corridorHighlights];
+      if (overlays.length) state.map.setFitView(overlays, false, [50, 50, 50, 50]);
+    }
+
+    function loadAmapScript(key, securityCode) {
+      return new Promise((resolve, reject) => {
+        if (window.AMap) { resolve(); return; }
+        if (securityCode) window._AMapSecurityConfig = { securityJsCode: securityCode };
+        const s = document.createElement('script');
+        s.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}&plugin=AMap.CircleMarker`;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('高德地图脚本加载失败'));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function initMap() {
+      const cfg = state.config;
+      if (cfg?.mapProvider === 'amap' && cfg.amapKey) {
+        try {
+          await loadAmapScript(cfg.amapKey, cfg.amapSecurityCode);
+          state.map = new AMap.Map('map', {
+            zoom: 12,
+            viewMode: '2D',
+            center: [116.29, 36.11],
+          });
+          state.amap = true;
+          bindMapPopupCloseOnBlank();
+          const srs = (cfg?.coordSrs || 'gcj02').toLowerCase();
+          setStatus(`高德地图已就绪 · 坐标 ${srs.toUpperCase()} · 数据源 PG/xianchang`);
+          return;
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+      state.map = L.map('map').setView([36.11, 116.29], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap',
+      }).addTo(state.map);
+      state.amap = false;
+      bindMapPopupCloseOnBlank();
+      const srs = (cfg?.coordSrs || 'wgs84').toLowerCase();
+      const hint = srs === 'gcj02' ? '（坐标为 GCJ-02，底图可能存在偏移）' : '';
+      setStatus(`Leaflet 地图已就绪 · 数据源 PG/xianchang ${hint}`);
+    }
+
+    function renderAmapLayer(layer, metric) {
+      clearMarkers();
+      const stats = layer.valueStats;
+      (layer.features || []).forEach(feature => {
+        const anchor = featureAnchorLonLat(feature);
+        if (!anchor) return;
+        const [lon, lat] = anchor;
+        const props = feature.properties || {};
+        const color = props.color || colorForValue(metric, props.value, stats);
+        const radius = radiusForValue(metric, props.value, stats);
+        const marker = new AMap.CircleMarker({
+          center: [lon, lat],
+          radius,
+          strokeColor: '#ffffff',
+          strokeWeight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.82,
+          zIndex: 100,
+        });
+        marker.setExtData(props);
+        marker.on('click', () => {
+          const content = popupHtml(props);
+          openMapInfoWindow(content, [lon, lat], -radius);
+          setTimeout(() => {
+            bindSurveyPhotoClicks(document.querySelector('.amap-info-content') || document);
+            const curveLink = document.querySelector('.amap-info-content .curve-link');
+            if (curveLink) {
+              curveLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                onFeatureSelect(props);
+              });
+            }
+          }, 30);
+          if (isCurveDimension()) onFeatureSelect(props);
+        });
+        marker.setMap(state.map);
+        state.markers.push(marker);
+      });
+
+      if (state.markers.length) state.map.setFitView(state.markers, false, [50, 50, 50, 50]);
+    }
+
+    async function parseJsonResponse(res) {
+      const text = await res.text();
+      if (!text) return {};
+      try {
+        return JSON.parse(text);
+      } catch (_) {
+        throw new Error(text.slice(0, 120) || res.statusText || '响应不是有效 JSON');
+      }
+    }
+
+    async function loadTimeSlices() {
+      try {
+        const res = await fetch(`/v1/map/time-slices?metric_id=${encodeURIComponent(state.metricId)}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        const sel = document.getElementById('day-select');
+        sel.innerHTML = '';
+        (data.days || []).forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.dayOfWeek;
+          opt.textContent = `${d.dayLabel} (${d.interCount} 路口)`;
+          opt.dataset.minStep = d.minStepIndex;
+          opt.dataset.maxStep = d.maxStepIndex;
+          sel.appendChild(opt);
+        });
+        if (data.days?.length) {
+          const first = data.days[0];
+          const prevDay = state.dayOfWeek;
+          const matched = data.days.find(d => d.dayOfWeek === prevDay);
+          const dayInfo = matched || first;
+          state.dayOfWeek = dayInfo.dayOfWeek;
+          sel.value = String(state.dayOfWeek);
+          if (!matched || state.stepIndex < dayInfo.minStepIndex || state.stepIndex > dayInfo.maxStepIndex) {
+            syncStep(Math.max(dayInfo.minStepIndex, Math.min(state.stepIndex, dayInfo.maxStepIndex)));
+          }
+        } else {
+          setStatus('当前指标表无可用时间片，请检查数据是否已写入', false);
+        }
+        return data;
+      } catch (err) {
+        setStatus(`时间片加载失败：${err.message}`, false);
+        return null;
+      }
+    }
+
+    async function loadTimeSlicesAndLayer() {
+      if (isLineLevel()) {
+        await loadLineTimeSlices();
+      } else {
+        await loadTimeSlices();
+      }
+      await loadLayer();
+    }
+
+    async function loadComplaintLayer() {
+      const btn = document.getElementById('complaint-load-btn');
+      btn.disabled = true;
+      setStatus('加载投诉图层中…');
+      const params = new URLSearchParams({
+        stat_period: state.statPeriod,
+        complaint_type: state.complaintType,
+      });
+      try {
+        const res = await fetch(`/v1/map/complaint/layer?${params}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        state.layer = data;
+        const metric = currentMetric();
+        renderStats(data);
+        if (state.amap) renderAmapLayer(data, metric);
+        else renderLeafletLayer(data, metric);
+        setStatus(`已加载 ${data.featureCount} 个投诉路口 · ${data.complaintType}`, true);
+      } catch (err) {
+        setStatus(`加载失败：${err.message}`, false);
+        if (window.ScDebugUI?.toast) ScDebugUI.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadManualSurveyLayer() {
+      const btn = document.getElementById('manual-survey-load-btn');
+      btn.disabled = true;
+      setStatus('加载人工调查图层中…');
+      const params = new URLSearchParams({
+        survey_batch: state.surveyBatch,
+        time_period: state.surveyTimePeriod,
+        problem_type: state.surveyProblemType,
+      });
+      try {
+        const res = await fetch(`/v1/map/manual-survey/layer?${params}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        state.layer = data;
+        const metric = currentMetric();
+        renderStats(data);
+        if (state.amap) renderAmapLayer(data, metric);
+        else renderLeafletLayer(data, metric);
+        setStatus(`已加载 ${data.featureCount} 个调查路口 · ${data.timePeriod} · ${data.problemType}`, true);
+      } catch (err) {
+        setStatus(`加载失败：${err.message}`, false);
+        if (window.ScDebugUI?.toast) ScDebugUI.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadFieldSurveyLayer() {
+      const btn = document.getElementById('field-survey-load-btn');
+      btn.disabled = true;
+      setStatus('加载交通组织调研图层中…');
+      const params = new URLSearchParams({
+        report_batch: state.fieldSurveyBatch,
+        issue_type: state.fieldSurveyIssueType,
+      });
+      try {
+        const res = await fetch(`/v1/map/field-survey/layer?${params}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        state.layer = data;
+        const metric = currentMetric();
+        renderStats(data);
+        if (state.amap) renderAmapLayer(data, metric);
+        else renderLeafletLayer(data, metric);
+        setStatus(`已加载 ${data.featureCount} 个调研路口 · ${data.issueType}`, true);
+      } catch (err) {
+        setStatus(`加载失败：${err.message}`, false);
+        if (window.ScDebugUI?.toast) ScDebugUI.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadCorridorTimeSlices() {
+      try {
+        const res = await fetch('/v1/map/corridor-coord/time-slices');
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        const sel = document.getElementById('day-select');
+        sel.innerHTML = '';
+        (data.days || []).forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.dayOfWeek;
+          opt.textContent = `${d.dayLabel} (${d.corridorCount} 走廊 / ${d.groupCount} 组)`;
+          sel.appendChild(opt);
+        });
+        if (data.days?.length) {
+          state.dayOfWeek = data.days[0].dayOfWeek;
+          sel.value = String(state.dayOfWeek);
+        }
+      } catch (err) {
+        setStatus(`干线协调时间片加载失败：${err.message}`, false);
+      }
+    }
+
+    async function loadLineCatalog() {
+      try {
+        const res = await fetch('/v1/map/line-val/lines');
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        state.lineCatalog = data.lines || [];
+        renderLineFilters();
+      } catch (err) {
+        console.warn('line 目录加载失败', err);
+      }
+    }
+
+    async function loadLineTimeSlices() {
+      try {
+        const res = await fetch(`/v1/map/line-val/time-slices?metric_id=${encodeURIComponent(state.metricId)}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        const sel = document.getElementById('day-select');
+        sel.innerHTML = '';
+        (data.days || []).forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.dayOfWeek;
+          opt.textContent = `${d.dayLabel} (${d.lineCount} 条 line)`;
+          opt.dataset.minStep = d.minStepIndex;
+          opt.dataset.maxStep = d.maxStepIndex;
+          sel.appendChild(opt);
+        });
+        if (data.days?.length) {
+          const matched = data.days.find(d => d.dayOfWeek === state.dayOfWeek);
+          const dayInfo = matched || data.days[0];
+          state.dayOfWeek = dayInfo.dayOfWeek;
+          sel.value = String(state.dayOfWeek);
+          if (!matched || state.stepIndex < dayInfo.minStepIndex || state.stepIndex > dayInfo.maxStepIndex) {
+            syncStep(Math.max(dayInfo.minStepIndex, Math.min(state.stepIndex, dayInfo.maxStepIndex)));
+          }
+        }
+      } catch (err) {
+        setStatus(`line 时间片加载失败：${err.message}`, false);
+      }
+    }
+
+    async function loadLineValLayer() {
+      const btn = document.getElementById('load-btn');
+      btn.disabled = true;
+      setStatus('加载 line 道路图层中…');
+      const params = new URLSearchParams({
+        metric_id: state.metricId,
+        day_of_week: String(state.dayOfWeek),
+        step_index: String(state.stepIndex),
+        line_id: state.lineId || '全部',
+      });
+      if (state.travelDir) params.set('travel_dir', state.travelDir);
+      try {
+        const res = await fetch(`/v1/map/line-val/layer?${params}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        state.layer = data;
+        const metric = currentMetric();
+        renderStats(data);
+        if (state.amap) renderLineAmapLayer(data, metric);
+        else renderLineLeafletLayer(data, metric);
+        setStatus(
+          `已加载 ${data.lineCount} 条 line / ${data.featureCount} 要素 · ${data.metricLabel} · ${data.timeLabel}`,
+          true,
+        );
+        if (state.selectedLineId) loadLineCurveSeries();
+      } catch (err) {
+        setStatus(`加载失败：${err.message}`, false);
+        if (window.ScDebugUI?.toast) ScDebugUI.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadCorridorCoordLayer() {
+      const btn = document.getElementById('load-btn');
+      btn.disabled = true;
+      setStatus('加载干线协调图层中…');
+      const params = new URLSearchParams({
+        day_of_week: String(state.dayOfWeek),
+        step_index: String(state.stepIndex),
+        corridor_id: '全部',
+      });
+      try {
+        const res = await fetch(`/v1/map/corridor-coord/layer?${params}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        state.layer = data;
+        state.corridorPopupPeriodByCorridor = {};
+        renderStats(data);
+        renderCorridorStopPanel(data);
+        if (state.amap) renderCorridorAmapLayer(data);
+        else renderCorridorLeafletLayer(data);
+        setStatus(
+          `已加载 ${data.corridorCount} 条走廊 / ${data.groupCount} 组 / ${data.featureCount} 要素 · ${data.timeLabel}`,
+          true,
+        );
+      } catch (err) {
+        setStatus(`加载失败：${err.message}`, false);
+        if (window.ScDebugUI?.toast) ScDebugUI.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadLayer() {
+      if (isComplaintLevel()) {
+        return loadComplaintLayer();
+      }
+      if (isManualSurveyLevel()) {
+        return loadManualSurveyLayer();
+      }
+      if (isFieldSurveyLevel()) {
+        return loadFieldSurveyLayer();
+      }
+      if (isCorridorCoordLevel()) {
+        return loadCorridorCoordLayer();
+      }
+      if (isLineLevel()) {
+        return loadLineValLayer();
+      }
+      const btn = document.getElementById('load-btn');
+      btn.disabled = true;
+      setStatus('加载图层中…');
+      const params = new URLSearchParams({
+        metric_id: state.metricId,
+        day_of_week: String(state.dayOfWeek),
+        step_index: String(state.stepIndex),
+      });
+      try {
+        const res = await fetch(`/v1/map/layer?${params}`);
+        const data = await parseJsonResponse(res);
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        state.layer = data;
+        const metric = currentMetric();
+        renderStats(data);
+        if (state.amap) renderAmapLayer(data, metric);
+        else renderLeafletLayer(data, metric);
+        setStatus(`已加载 ${data.featureCount} 条记录 · ${data.metricLabel}`, true);
+        if (!data.featureCount && isTimeSeriesLevel()) {
+          setStatus(`当前星期/时刻无数据（${DAY_LABELS[state.dayOfWeek] || state.dayOfWeek} ${stepToLabel(state.stepIndex)}），请切换时间片`, false);
+        }
+        if (state.selectedInterId && isCurveDimension()) loadCurveSeries();
+      } catch (err) {
+        setStatus(`加载失败：${err.message}`, false);
+        if (window.ScDebugUI?.toast) ScDebugUI.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function syncStep(v) {
+      state.stepIndex = Math.max(0, Math.min(287, Number(v) || 0));
+      const stepSlider = document.getElementById('step-slider');
+      const stepInput = document.getElementById('step-input');
+      const timeLabel = document.getElementById('time-label');
+      if (stepSlider) stepSlider.value = state.stepIndex;
+      if (stepInput) stepInput.value = state.stepIndex;
+      if (timeLabel) timeLabel.textContent = stepToLabel(state.stepIndex);
+    }
+
+    function bindControls() {
+      const daySel = document.getElementById('day-select');
+      const stepSlider = document.getElementById('step-slider');
+      const stepInput = document.getElementById('step-input');
+
+      daySel.addEventListener('change', () => {
+        state.dayOfWeek = Number(daySel.value);
+        const opt = daySel.selectedOptions[0];
+        if (opt?.dataset.minStep != null && opt?.dataset.maxStep != null) {
+          const minStep = Number(opt.dataset.minStep);
+          const maxStep = Number(opt.dataset.maxStep);
+          if (state.stepIndex < minStep || state.stepIndex > maxStep) {
+            syncStep(minStep);
+          }
+        }
+        if (state.selectedInterId && isCurveDimension()) loadCurveSeries();
+        if (state.selectedLineId && isLineLevel()) loadLineCurveSeries();
+      });
+      stepSlider.addEventListener('input', () => syncStep(stepSlider.value));
+      stepInput.addEventListener('change', () => syncStep(stepInput.value));
+      document.getElementById('load-btn').addEventListener('click', loadLayer);
+      document.getElementById('complaint-load-btn').addEventListener('click', loadLayer);
+      document.getElementById('manual-survey-load-btn').addEventListener('click', loadLayer);
+      document.getElementById('field-survey-load-btn').addEventListener('click', loadLayer);
+      document.getElementById('stat-period-select').addEventListener('change', e => {
+        state.statPeriod = e.target.value;
+      });
+      document.getElementById('complaint-type-select').addEventListener('change', e => {
+        state.complaintType = e.target.value;
+      });
+      document.getElementById('survey-batch-select').addEventListener('change', e => {
+        state.surveyBatch = e.target.value;
+      });
+      document.getElementById('survey-time-select').addEventListener('change', e => {
+        state.surveyTimePeriod = e.target.value;
+      });
+      document.getElementById('survey-problem-select').addEventListener('change', e => {
+        state.surveyProblemType = e.target.value;
+      });
+      document.getElementById('field-batch-select').addEventListener('change', e => {
+        state.fieldSurveyBatch = e.target.value;
+      });
+      document.getElementById('field-issue-select').addEventListener('change', e => {
+        state.fieldSurveyIssueType = e.target.value;
+      });
+      document.getElementById('line-select').addEventListener('change', e => {
+        state.lineId = e.target.value;
+      });
+      document.getElementById('travel-dir-select').addEventListener('change', e => {
+        state.travelDir = e.target.value;
+      });
+
+      document.getElementById('photo-lightbox-close').addEventListener('click', closePhotoLightbox);
+      document.getElementById('curve-panel-close').addEventListener('click', closeCurvePanel);
+      document.getElementById('photo-lightbox').addEventListener('click', (ev) => {
+        if (ev.target.id === 'photo-lightbox') closePhotoLightbox();
+      });
+      document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape') closePhotoLightbox();
+      });
+
+      syncStep(72);
+      for (let d = 1; d <= 7; d++) {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = DAY_LABELS[d];
+        daySel.appendChild(opt);
+      }
+      daySel.value = '1';
+    }
+
+    async function init() {
+      bindControls();
+      try {
+        const res = await fetch('/v1/map/config');
+        if (!res.ok) throw new Error('无法读取地图配置');
+        state.config = await res.json();
+        renderLevelTabs();
+        renderDimensionTabs();
+        renderComplaintFilters();
+        renderManualSurveyFilters();
+        renderFieldSurveyFilters();
+        updatePanelVisibility();
+        renderMetricList();
+        renderLegend();
+        updateMetricDesc();
+        await loadLineCatalog();
+        await initMap();
+        if (state.level === 'corridor_coord') {
+          await loadCorridorTimeSlices();
+        } else if (state.level === 'line') {
+          await loadLineTimeSlices();
+        } else {
+          await loadTimeSlices();
+        }
+        await loadLayer();
+      } catch (err) {
+        setStatus(`初始化失败：${err.message}`, false);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

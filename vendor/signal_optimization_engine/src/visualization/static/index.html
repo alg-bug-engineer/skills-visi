@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>信号优化可视化工具</title>
+  <link rel="stylesheet" href="/debug/assets/debug-shell.css">
+  <script defer src="/debug/assets/debug-ui.js"></script>
+  <style>
+    body { margin: 0; min-height: 100vh; background: #eef4fb; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 28px 20px 40px; }
+    .hero { padding: 24px; border-radius: 16px; background: #fff; border: 1px solid #dbe5f0; box-shadow: 0 10px 24px rgba(15,23,42,.06); margin-bottom: 18px; }
+    h1 { margin: 0 0 8px; color: #1d4ed8; font-size: 24px; }
+    p { margin: 0; color: #64748b; line-height: 1.7; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .card { display: block; padding: 20px; border-radius: 14px; background: #fff; border: 1px solid #dbe5f0; text-decoration: none; color: inherit; transition: transform .15s, box-shadow .15s; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(37,99,235,.12); border-color: #93c5fd; }
+    .card h2 { margin: 0 0 8px; font-size: 18px; color: #0f172a; }
+    .card span { color: #64748b; font-size: 13px; line-height: 1.6; }
+    .status { margin-top: 16px; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>信号智能优化工程 · 可视化工具</h1>
+      <p>不依赖大模型的确定性优化框架。选择下方工具进入交互界面，通过 API 调用本地算法模块生成配时与干线协调方案。</p>
+      <div class="status" id="api-status">检测服务状态中…</div>
+    </div>
+    <div class="grid">
+      <a class="card" href="/debug/timing-optimizer.html">
+        <h2>单路口配时优化</h2>
+        <span>配置渠化、相位与流量，生成单点配时方案并查看周期、绿信比与饱和度。</span>
+      </a>
+      <a class="card" href="/debug/corridor-coordination.html">
+        <h2>干线协调绿波</h2>
+        <span>配置走廊路口、路段与约束，计算周期、相位差与双向绿波带宽，并查看时距图。</span>
+      </a>
+      <a class="card" href="/debug/offline-timing-viewer.html">
+        <h2>离线多时段方案</h2>
+        <span>读取 MySQL 标准配时表，查看调度表、日计划时段、方案阶段图和绿信比。</span>
+      </a>
+      <a class="card" href="/debug/ring-barrier-viewer.html">
+        <h2>Ring-Barrier 相位环图</h2>
+        <span>从海信 ODS 配时表选择路口与方案号，查看 NEMA 环图结构与跟随相位时序（主相位与跟随相位分开展示）。</span>
+      </a>
+      <a class="card" href="/debug/history-timing-viewer.html">
+        <h2>历史配时方案</h2>
+        <span>读取时段方案执行历史，按路口和日期查看各时段实际执行方案与阶段放行。</span>
+      </a>
+      <a class="card" href="/debug/period-segmentation-viewer.html">
+        <h2>配时时段划分</h2>
+        <span>选择路口与日期类型，查看全天 5 分钟流量曲线，一键运行自动时段划分算法并叠加色带。</span>
+      </a>
+      <a class="card" href="/debug/metric-map-viewer.html">
+        <h2>指标 GIS 地图</h2>
+        <span>按路口/转向/车道分层展示饱和度、失衡指数等指标，颜色深浅与圆点大小编码数值，用于验证 PG 数据合理性。</span>
+      </a>
+    </div>
+  </div>
+  <script>
+    fetch('/health').then(r => {
+      const el = document.getElementById('api-status');
+      if (r.ok) {
+        el.textContent = 'API 已连接，可直接使用下方工具。';
+        el.style.color = '#166534';
+      } else throw new Error('bad status');
+    }).catch(() => {
+      const el = document.getElementById('api-status');
+      el.textContent = 'API 未连接：请先运行 signal-opt serve';
+      el.style.color = '#991b1b';
+    });
+  </script>
+</body>
+</html>

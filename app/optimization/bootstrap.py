@@ -16,8 +16,8 @@ def _ensure_engine_path() -> Path | None:
     candidates: list[Path] = []
     if settings.signal_opt_engine_src:
         candidates.append(Path(settings.signal_opt_engine_src))
-    default = PROJECT_ROOT.parent / "古特代码仓库" / "signal_optimization_engine" / "src"
-    candidates.append(default)
+    candidates.append(PROJECT_ROOT / "vendor" / "signal_optimization_engine" / "src")
+    candidates.append(PROJECT_ROOT.parent / "古特代码仓库" / "signal_optimization_engine" / "src")
 
     for path in candidates:
         resolved = path.resolve()

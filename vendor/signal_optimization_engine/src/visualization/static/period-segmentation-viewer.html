@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>配时时段划分 · 可视化工具</title>
+  <style>
+    :root {
+      --bg: #071426;
+      --card: #0d1f38;
+      --card2: #102a4a;
+      --border: #1c426b;
+      --accent: #4fd1ff;
+      --accent2: #34d399;
+      --text: #e5eefb;
+      --muted: #8aa3bd;
+      --warn: #fbbf24;
+      --danger: #fb7185;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 16px 24px;
+      background: #0d2340;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 20px; color: var(--accent); }
+    header .sub { font-size: 12px; color: var(--muted); }
+    #api-status {
+      margin-left: auto;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #102a4a;
+      color: var(--muted);
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 14px 24px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .ctrl-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    select, .btn {
+      background: #0a1e38;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    select { min-width: 120px; cursor: pointer; }
+    #selInter { min-width: 260px; }
+    select:focus { border-color: var(--accent); }
+    select:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn {
+      cursor: pointer;
+      font-weight: 600;
+      transition: background .15s, transform .12s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      border-color: #0ea5e9;
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: #102a4a; }
+    .btn-secondary:hover:not(:disabled) { background: #173d6a; }
+    main { padding: 18px 24px 32px; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .summary-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .summary-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .summary-value { font-size: 18px; font-weight: 800; color: var(--accent); }
+    section {
+      margin-bottom: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    section h2 {
+      margin: 0;
+      padding: 11px 16px;
+      font-size: 15px;
+      color: #93e5ff;
+      background: var(--card2);
+      border-bottom: 1px solid var(--border);
+    }
+    .section-body { padding: 14px 16px; }
+    .muted { color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .chart-panel {
+      position: relative;
+    }
+    .chart-toolbar {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 25;
+    }
+    .flow-layer-tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 8px;
+      background: rgba(7, 20, 38, 0.94);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+    .flow-tab {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .flow-tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .flow-tab.active {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #fff;
+      font-weight: 600;
+    }
+    .chart-tooltip {
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      z-index: 20;
+      min-width: 160px;
+      max-width: 320px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #1c426b;
+      background: rgba(7, 20, 38, 0.96);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      font-size: 12px;
+      line-height: 1.55;
+      color: #e5eefb;
+    }
+    .chart-tooltip.on { display: block; }
+    .chart-tooltip .tt-time {
+      font-weight: 700;
+      color: #93e5ff;
+      margin-bottom: 4px;
+    }
+    .chart-tooltip .tt-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chart-tooltip .tt-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+    .chart-crosshair {
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      width: 1px;
+      background: rgba(147, 229, 255, 0.45);
+      pointer-events: none;
+      display: none;
+      z-index: 15;
+    }
+    .chart-crosshair.on { display: block; }
+    .chart-wrap {
+      background: #08192d;
+      border: 1px solid #18375d;
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 200px;
+      position: relative;
+    }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .period-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #102a4a;
+      border: 1px solid var(--border);
+      color: #b8cce4;
+    }
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.15);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #18375d;
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    .ok { color: var(--accent2); font-weight: 700; }
+    .bar-wrap {
+      width: 100px;
+      height: 8px;
+      background: #132b49;
+      border-radius: 999px;
+      display: inline-block;
+      overflow: hidden;
+      vertical-align: middle;
+    }
+    .bar { display: block; height: 8px; background: var(--accent2); }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 48px 20px;
+    }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .status-line { font-size: 12px; color: var(--muted); min-width: 120px; }
+    .status-line.error { color: var(--danger); }
+    .status-line.ok { color: var(--accent2); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>配时时段划分</h1>
+      <div class="sub">基于 5 分钟进口关键车道流量 · 类内相似 + 类间差异自动分段</div>
+    </div>
+    <span id="api-status">检测服务…</span>
+  </header>
+
+  <div class="controls">
+    <span class="ctrl-label">路口</span>
+    <select id="selInter" onchange="onInterChange()">
+      <option value="">— 选择路口 —</option>
+    </select>
+    <span class="ctrl-label">日期类型</span>
+    <select id="selWeekday" onchange="onWeekdayChange()" disabled>
+      <option value="1" selected>周一</option>
+      <option value="2">周二</option>
+      <option value="3">周三</option>
+      <option value="4">周四</option>
+      <option value="5">周五</option>
+      <option value="6">周六</option>
+      <option value="7">周日</option>
+    </select>
+    <span class="ctrl-label">划分方式</span>
+    <select id="selEngine" onchange="onEngineChange()">
+      <option value="deterministic" selected>确定性算法</option>
+      <option value="llm">大模型推理</option>
+    </select>
+    <button type="button" class="btn btn-secondary" id="btnReload" onclick="loadFlow()" disabled>刷新流量</button>
+    <button type="button" class="btn btn-primary" id="btnSegment" onclick="runSegmentation()" disabled>时段划分</button>
+    <span class="status-line" id="statusLine"></span>
+  </div>
+
+  <main>
+    <div class="summary" id="summary">
+      <div class="summary-card"><div class="summary-label">路口</div><div class="summary-value" id="sumInter">—</div></div>
+      <div class="summary-card"><div class="summary-label">日期类型</div><div class="summary-value" id="sumDayPlan" style="font-size:14px;">—</div></div>
+      <div class="summary-card"><div class="summary-label">划分方式</div><div class="summary-value" id="sumEngine" style="font-size:14px;">—</div></div>
+      <div class="summary-card"><div class="summary-label">时段数</div><div class="summary-value" id="sumPeriods">—</div></div>
+      <div class="summary-card"><div class="summary-label">平均类内标准差</div><div class="summary-value" id="sumStd" style="font-size:14px;">—</div></div>
+      <div class="summary-card"><div class="summary-label">数据完整率</div><div class="summary-value" id="sumComplete" style="font-size:14px;">—</div></div>
+    </div>
+
+    <section>
+      <h2>流量曲线<span id="chartSubtitle" style="font-weight:400;font-size:12px;color:var(--muted);margin-left:8px;"></span></h2>
+      <div class="section-body">
+        <div class="chart-panel">
+          <div class="chart-toolbar">
+            <div class="flow-layer-tabs" id="flowLayerTabs"></div>
+          </div>
+          <div id="chartArea" class="chart-wrap">
+            <div id="chartCrosshair" class="chart-crosshair"></div>
+            <div id="chartTooltip" class="chart-tooltip"></div>
+            <div class="empty"><div class="empty-icon">📈</div><div>选择路口与日期类型后自动加载流量曲线</div></div>
+          </div>
+        </div>
+        <div class="legend" id="seriesLegend"></div>
+        <div class="legend" id="periodLegend"></div>
+        <div class="muted" style="margin-top:8px;" id="chartHint">
+          使用右上角 Tab 切换原始 / 一至三次平滑曲线（15 分钟居中滑动平均，默认三次，不含右转）。点击「时段划分」后叠加色带。
+        </div>
+      </div>
+    </section>
+
+    <section id="periodSection" class="hidden">
+      <h2 id="periodSectionTitle">划分时段明细</h2>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>时段</th><th>时长</th><th>类内流量标准差</th><th>类内相似度</th>
+              <th>总流量均值/峰值</th><th>主导流向</th><th>切分依据</th>
+            </tr>
+          </thead>
+          <tbody id="periodTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="pairSection" class="hidden">
+      <h2>相邻时段类间差异</h2>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>边界</th><th>左时段</th><th>右时段</th><th>差异度</th></tr></thead>
+          <tbody id="pairTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+<script>
+const PERIOD_COLORS = [
+  '#38bdf8','#34d399','#a78bfa','#fbbf24','#fb7185','#2dd4bf','#818cf8',
+  '#f472b6','#4ade80','#60a5fa','#c084fc','#facc15','#22d3ee','#f87171','#a3e635',
+];
+const WEEKDAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const DIR_COLORS = {
+  0: '#3b82f6', 1: '#06b6d4', 2: '#10b981', 3: '#84cc16',
+  4: '#f59e0b', 5: '#ef4444', 6: '#8b5cf6', 7: '#ec4899',
+};
+const CHART_LAYOUT = { width: 980, height: 420, left: 56, right: 18, top: 28, bottom: 34 };
+const TURN_DASH = { left: '7 4', through: '', right: '2 4', approach: '' };
+const FLOW_LAYERS = [
+  { key: 'criticalVph', label: '原始' },
+  { key: 'smoothPass1Vph', label: '一次平滑' },
+  { key: 'smoothPass2Vph', label: '二次平滑' },
+  { key: 'smoothPass3Vph', label: '三次平滑' },
+];
+
+const STATE = {
+  intersections: [],
+  flowPayload: null,
+  segmentResult: null,
+  loadingFlow: false,
+  loadingSegment: false,
+  chartInteractionCleanup: null,
+  activeFlowLayer: 'smoothPass3Vph',
+  flowChart: null,
+  segmentEngine: 'deterministic',
+};
+
+function currentEngine() {
+  const value = document.getElementById('selEngine')?.value || 'deterministic';
+  return value === 'llm' ? 'llm' : 'deterministic';
+}
+
+function engineLabel(engine) {
+  return engine === 'llm' ? '大模型推理' : '确定性算法';
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function setStatus(msg, kind) {
+  const el = document.getElementById('statusLine');
+  el.textContent = msg || '';
+  el.className = 'status-line' + (kind ? ' ' + kind : '');
+}
+
+function currentInterId() {
+  return document.getElementById('selInter').value || '';
+}
+
+function currentWeekday() {
+  const value = parseInt(document.getElementById('selWeekday').value, 10);
+  return Number.isFinite(value) && value >= 1 && value <= 7 ? value : null;
+}
+
+function updateWeekdaySummary() {
+  const weekday = currentWeekday();
+  document.getElementById('sumDayPlan').textContent = weekday ? WEEKDAY_NAMES[weekday] : '—';
+}
+
+function flowMetaLabel(meta) {
+  meta = meta || {};
+  if (meta.weekdayLabels?.length) return meta.weekdayLabels.join('、');
+  if (meta.selectedWeekday) return WEEKDAY_NAMES[meta.selectedWeekday] || '';
+  const weekday = currentWeekday();
+  return weekday ? WEEKDAY_NAMES[weekday] : '';
+}
+
+function flowSourceLabel(meta) {
+  meta = meta || {};
+  return meta.profileMode ? 'MySQL dws_lane_flow_5min_mm 历史均值' : 'PostgreSQL 原始 5 分钟车道流量';
+}
+
+function onEngineChange() {
+  STATE.segmentEngine = currentEngine();
+  STATE.segmentResult = null;
+  clearSegmentationView(false);
+  document.getElementById('sumEngine').textContent = engineLabel(STATE.segmentEngine);
+  updateControls();
+}
+
+function updateControls() {
+  const hasInter = !!currentInterId();
+  const hasWeekday = currentWeekday() != null;
+  const busy = STATE.loadingFlow || STATE.loadingSegment;
+  document.getElementById('btnReload').disabled = !hasInter || !hasWeekday || busy;
+  document.getElementById('btnSegment').disabled = !hasInter || !hasWeekday || busy || !STATE.flowPayload;
+}
+
+async function checkApi() {
+  const el = document.getElementById('api-status');
+  try {
+    const r = await fetch('/health');
+    if (!r.ok) throw new Error('bad');
+    el.textContent = 'API 已连接';
+    el.style.color = '#34d399';
+  } catch {
+    el.textContent = '请先运行 signal-opt serve';
+    el.style.color = '#fb7185';
+  }
+}
+
+async function loadIntersections() {
+  const sel = document.getElementById('selInter');
+  setStatus('正在加载路口列表…');
+  try {
+    const resp = await fetch('/v1/db/intersections');
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error(data?.detail || `HTTP ${resp.status}`);
+    STATE.intersections = (data.intersections || []).slice()
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN'));
+    sel.innerHTML = '<option value="">— 选择路口 —</option>' +
+      STATE.intersections.map(it =>
+        `<option value="${esc(it.interId)}">${esc(it.name || it.interId)}</option>`).join('');
+    setStatus(`共 ${STATE.intersections.length} 个路口`, 'ok');
+  } catch (e) {
+    setStatus('路口列表加载失败: ' + e.message, 'error');
+  }
+}
+
+async function onInterChange() {
+  const interId = currentInterId();
+  const weekSel = document.getElementById('selWeekday');
+  STATE.flowPayload = null;
+  STATE.segmentResult = null;
+  clearSegmentationView();
+  document.getElementById('sumInter').textContent = interId
+    ? (STATE.intersections.find(i => i.interId === interId)?.name || interId)
+    : '—';
+  if (!interId) {
+    weekSel.disabled = true;
+    weekSel.value = '1';
+    document.getElementById('sumDayPlan').textContent = '—';
+    updateControls();
+    return;
+  }
+  weekSel.disabled = false;
+  weekSel.value = '1';
+  updateWeekdaySummary();
+  setStatus('正在加载流量曲线…', '');
+  await loadFlow();
+  updateControls();
+}
+
+async function onWeekdayChange() {
+  STATE.segmentResult = null;
+  clearSegmentationView(false);
+  updateWeekdaySummary();
+  await loadFlow();
+}
+
+function clearSegmentationView(clearChart) {
+  if (clearChart !== false) {
+    detachChartInteractions();
+    document.getElementById('seriesLegend').innerHTML = '';
+    document.getElementById('periodLegend').innerHTML = '';
+    document.getElementById('sumPeriods').textContent = '—';
+    document.getElementById('sumStd').textContent = '—';
+    document.getElementById('sumComplete').textContent = '—';
+  } else {
+    document.getElementById('periodLegend').innerHTML = '';
+  }
+  document.getElementById('periodSection').classList.add('hidden');
+  document.getElementById('pairSection').classList.add('hidden');
+  document.getElementById('periodTable').innerHTML = '';
+  document.getElementById('pairTable').innerHTML = '';
+}
+
+function renderFlowLayerTabs() {
+  const tabs = document.getElementById('flowLayerTabs');
+  if (!tabs) return;
+  tabs.innerHTML = FLOW_LAYERS.map(layer =>
+    `<button type="button" class="flow-tab${layer.key === STATE.activeFlowLayer ? ' active' : ''}" data-layer="${layer.key}">${layer.label}</button>`
+  ).join('');
+}
+
+function movingAverage(values, windowSize) {
+  const half = Math.floor(windowSize / 2);
+  const out = new Array(values.length);
+  for (let i = 0; i < values.length; i++) {
+    let sum = 0;
+    let count = 0;
+    for (let j = i - half; j <= i + half; j++) {
+      const idx = Math.max(0, Math.min(values.length - 1, j));
+      sum += values[idx];
+      count += 1;
+    }
+    out[i] = sum / count;
+  }
+  return out;
+}
+
+function defaultFlowLayerKey(flowChart) {
+  const passes = Number(flowChart?.smoothPasses) || 3;
+  return `smoothPass${passes}Vph`;
+}
+
+function ensureSmoothLayers(flowChart) {
+  if (!flowChart?.series?.length) return flowChart;
+  const passes = Number(flowChart.smoothPasses) || 3;
+  const needsSmooth = flowChart.series.some(series => {
+    for (let pass = 1; pass <= passes; pass++) {
+      if (!series[`smoothPass${pass}Vph`]) return true;
+    }
+    return false;
+  });
+  if (!needsSmooth) return flowChart;
+
+  const windowMinutes = Number(flowChart.smoothWindowMinutes) || 15;
+  let windowSlots = Math.max(1, Math.round(windowMinutes / 5));
+  if (windowSlots % 2 === 0) windowSlots += 1;
+
+  for (const series of flowChart.series) {
+    const raw = (series.criticalVph || series.totalVph || []).map(value =>
+      value == null ? 0 : Number(value)
+    );
+    let current = raw.slice();
+    for (let pass = 1; pass <= passes; pass++) {
+      current = movingAverage(current, windowSlots);
+      series[`smoothPass${pass}Vph`] = current.map(value => Math.round(value * 10) / 10);
+    }
+  }
+  flowChart.yMax = computeFlowChartYMax(flowChart);
+  return flowChart;
+}
+
+function setFlowLayer(layerKey) {
+  if (!FLOW_LAYERS.some(layer => layer.key === layerKey)) return;
+  STATE.activeFlowLayer = layerKey;
+  renderFlowLayerTabs();
+  renderFlowSeriesGroup(STATE.flowChart);
+}
+
+function flowLayerValues(series, layerKey) {
+  if (layerKey === 'criticalVph') return series.criticalVph || series.totalVph || [];
+  return series[layerKey] || series.criticalVph || series.totalVph || [];
+}
+
+function computeFlowChartYMax(flowChart) {
+  if (flowChart?.yMax) return Number(flowChart.yMax);
+  let peak = 0;
+  for (const series of flowChart?.series || []) {
+    for (const layer of FLOW_LAYERS) {
+      for (const value of flowLayerValues(series, layer.key)) {
+        if (value != null) peak = Math.max(peak, Number(value));
+      }
+    }
+  }
+  return peak > 0 ? Math.ceil(peak * 1.08 / 10) * 10 : 100;
+}
+
+function buildSeriesPath(values, slotCount, xOf, yOf) {
+  let d = '';
+  let pen = false;
+  for (let slot = 0; slot < Math.min(slotCount, values.length); slot++) {
+    const value = values[slot];
+    if (value == null) {
+      pen = false;
+      continue;
+    }
+    const x = xOf(slot);
+    const y = yOf(Number(value));
+    d += `${pen ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
+    pen = true;
+  }
+  return d;
+}
+
+function stripLegacyFlowPaths(svg) {
+  svg.querySelectorAll('path[fill="none"]').forEach(path => {
+    if (!path.closest('#flowSeriesGroup')) path.remove();
+  });
+}
+
+function renderFlowSeriesGroup(flowChart) {
+  if (!flowChart) return;
+  STATE.flowChart = ensureSmoothLayers(JSON.parse(JSON.stringify(flowChart)));
+  flowChart = STATE.flowChart;
+  const svg = document.querySelector('#chartArea svg');
+  if (!svg) return;
+
+  stripLegacyFlowPaths(svg);
+
+  let group = svg.querySelector('#flowSeriesGroup');
+  if (!group) {
+    group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('id', 'flowSeriesGroup');
+    svg.appendChild(group);
+  }
+  while (group.firstChild) group.removeChild(group.firstChild);
+
+  const layout = CHART_LAYOUT;
+  const slotCount = (flowChart.times || []).length || 288;
+  const ymax = Number(group.getAttribute('data-y-max')) || computeFlowChartYMax(flowChart);
+  const plotW = layout.width - layout.left - layout.right;
+  const plotH = layout.height - layout.top - layout.bottom;
+  const xOf = slot => layout.left + (slot / slotCount) * plotW;
+  const yOf = value => layout.top + (1 - value / ymax) * plotH;
+  const layerKey = STATE.activeFlowLayer || defaultFlowLayerKey(flowChart);
+
+  for (const series of flowChart.series || []) {
+    const values = flowLayerValues(series, layerKey);
+    const d = buildSeriesPath(values, slotCount, xOf, yOf);
+    if (!d) continue;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    const color = DIR_COLORS[Number(series.dir8Code) || 0] || '#94a3b8';
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('opacity', '0.82');
+    const dash = TURN_DASH[String(series.turn || 'through')] || '';
+    if (dash) path.setAttribute('stroke-dasharray', dash);
+    group.appendChild(path);
+  }
+}
+
+function applyFlowLayerVisibility() {
+  renderFlowSeriesGroup(STATE.flowChart);
+}
+
+function activeFlowLayerLabel() {
+  return FLOW_LAYERS.find(layer => layer.key === STATE.activeFlowLayer)?.label || '流量';
+}
+
+function bindFlowLayerTabs() {
+  const tabs = document.getElementById('flowLayerTabs');
+  if (!tabs || tabs.dataset.bound === '1') return;
+  tabs.dataset.bound = '1';
+  tabs.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-layer]');
+    if (!btn) return;
+    setFlowLayer(btn.dataset.layer);
+  });
+}
+
+function detachChartInteractions() {
+  if (typeof STATE.chartInteractionCleanup === 'function') {
+    STATE.chartInteractionCleanup();
+    STATE.chartInteractionCleanup = null;
+  }
+}
+
+function attachFlowChartInteractions(flowChart) {
+  detachChartInteractions();
+  const area = document.getElementById('chartArea');
+  const svg = area.querySelector('svg');
+  const tooltip = document.getElementById('chartTooltip');
+  const crosshair = document.getElementById('chartCrosshair');
+  if (!svg || !flowChart || !(flowChart.series || []).length) {
+    tooltip.classList.remove('on');
+    crosshair.classList.remove('on');
+    return;
+  }
+
+  const layout = CHART_LAYOUT;
+  const slotMinutes = Number(flowChart.intervalMinutes) || 5;
+  const slotCount = (flowChart.times || []).length || 288;
+  const plotLeft = layout.left;
+  const plotRight = layout.width - layout.right;
+  const plotTop = layout.top;
+  const plotBottom = layout.height - layout.bottom;
+  const plotW = plotRight - plotLeft;
+  const plotH = plotBottom - plotTop;
+  const pad = 8;
+
+  function hideTip() {
+    tooltip.classList.remove('on');
+    crosshair.classList.remove('on');
+  }
+
+  function slotFromClientX(clientX) {
+    const rect = svg.getBoundingClientRect();
+    const scaleX = layout.width / rect.width;
+    const x = (clientX - rect.left) * scaleX;
+    const ratio = (x - plotLeft) / plotW;
+    if (ratio < 0 || ratio > 1) return null;
+    return Math.max(0, Math.min(slotCount - 1, Math.round(ratio * slotCount)));
+  }
+
+  function seriesColor(series) {
+    return DIR_COLORS[Number(series.dir8Code) || 0] || '#94a3b8';
+  }
+
+  function valuesAtSlot(slot) {
+    const layerKey = STATE.activeFlowLayer || defaultFlowLayerKey(flowChart);
+    return (flowChart.series || []).map(series => {
+      const values = flowLayerValues(series, layerKey);
+      const raw = slot < values.length ? values[slot] : null;
+      if (raw == null) return null;
+      return {
+        label: series.label || series.turnName || '车流',
+        value: Number(raw),
+        color: seriesColor(series),
+      };
+    }).filter(Boolean).sort((a, b) => b.value - a.value);
+  }
+
+  function onMove(event) {
+    const slot = slotFromClientX(event.clientX);
+    if (slot == null) {
+      hideTip();
+      return;
+    }
+    const rows = valuesAtSlot(slot);
+    if (!rows.length) {
+      hideTip();
+      return;
+    }
+    const time = (flowChart.times || [])[slot] || `${String(Math.floor(slot * slotMinutes / 60)).padStart(2, '0')}:${String((slot * slotMinutes) % 60).padStart(2, '0')}`;
+    const areaRect = area.getBoundingClientRect();
+    const svgRect = svg.getBoundingClientRect();
+    const slotX = plotLeft + (slot / slotCount) * plotW;
+    const crossX = ((slotX / layout.width) * svgRect.width) + (svgRect.left - areaRect.left);
+    crosshair.style.left = `${crossX}px`;
+    crosshair.classList.add('on');
+
+    tooltip.innerHTML =
+      `<div class="tt-time">${esc(time)} · ${esc(activeFlowLayerLabel())}</div>` +
+      rows.map(row =>
+        `<div class="tt-row"><span class="tt-dot" style="background:${row.color};"></span>` +
+        `<span>${esc(row.label)}</span>` +
+        `<span style="margin-left:auto;color:#93e5ff;font-weight:700;">${row.value.toFixed(1)} veh/h</span></div>`
+      ).join('');
+    tooltip.classList.add('on');
+
+    let left = event.clientX - areaRect.left + 14;
+    let top = event.clientY - areaRect.top - 12;
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.left = '0px';
+    tooltip.style.top = '0px';
+    const tipW = tooltip.offsetWidth;
+    const tipH = tooltip.offsetHeight;
+    tooltip.style.visibility = '';
+    if (left + tipW > areaRect.width - pad) left = areaRect.width - tipW - pad;
+    if (left < pad) left = pad;
+    if (top + tipH > areaRect.height - pad) top = areaRect.height - tipH - pad;
+    if (top < pad) top = pad;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  svg.addEventListener('mousemove', onMove);
+  svg.addEventListener('mouseleave', hideTip);
+  area.addEventListener('mouseleave', hideTip);
+  STATE.chartInteractionCleanup = () => {
+    svg.removeEventListener('mousemove', onMove);
+    svg.removeEventListener('mouseleave', hideTip);
+    area.removeEventListener('mouseleave', hideTip);
+    hideTip();
+  };
+}
+
+function renderFlowChart(payload) {
+  const area = document.getElementById('chartArea');
+  const meta = payload.flowDateMeta || {};
+  document.getElementById('chartSubtitle').textContent =
+    payload.interName ? ` · ${payload.interName}` : '';
+  document.getElementById('chartHint').textContent =
+    `${flowSourceLabel(meta)} · ${flowMetaLabel(meta)} · 5 分钟粒度 · 右上角 Tab 切换曲线层次 · 悬停查看数值`;
+  area.innerHTML =
+    '<div id="chartCrosshair" class="chart-crosshair"></div>' +
+    '<div id="chartTooltip" class="chart-tooltip"></div>' +
+    (payload.chartSvg || '<div class="empty">无图表数据</div>');
+  document.getElementById('seriesLegend').innerHTML = payload.seriesLegendHtml || '';
+  document.getElementById('periodLegend').innerHTML = '';
+  document.getElementById('sumComplete').textContent = '—';
+  STATE.flowChart = payload.flowChart || null;
+  renderFlowLayerTabs();
+  renderFlowSeriesGroup(STATE.flowChart);
+  attachFlowChartInteractions(STATE.flowChart);
+}
+
+function renderSegmentation(payload) {
+  const result = payload.result || {};
+  const engine = payload.engine || result.engine || 'deterministic';
+  STATE.segmentResult = result;
+  STATE.segmentEngine = engine;
+  document.getElementById('sumEngine').textContent = engineLabel(engine);
+  document.getElementById('periodSectionTitle').textContent =
+    engine === 'llm' ? '大模型划分时段明细' : '确定性算法划分时段明细';
+  const area = document.getElementById('chartArea');
+  area.innerHTML =
+    '<div id="chartCrosshair" class="chart-crosshair"></div>' +
+    '<div id="chartTooltip" class="chart-tooltip"></div>' +
+    (payload.chartSvg || '');
+  document.getElementById('seriesLegend').innerHTML = payload.seriesLegendHtml || '';
+  document.getElementById('chartHint').textContent =
+    `背景色带为自动划分时段；当前显示 ${activeFlowLayerLabel()} 曲线；右上角 Tab 可切换层次。`;
+  STATE.flowChart = result.flowChart || null;
+  renderFlowLayerTabs();
+  renderFlowSeriesGroup(STATE.flowChart);
+  attachFlowChartInteractions(STATE.flowChart);
+
+  const constraints = result.constraints || {};
+  const quality = result.dataQuality || {};
+  document.getElementById('sumPeriods').textContent = String(result.periodCount ?? '—');
+  document.getElementById('sumStd').textContent =
+    constraints.avgIntraFlowStd != null ? `${constraints.avgIntraFlowStd} veh/h` : '—';
+  document.getElementById('sumComplete').textContent =
+    quality.completeRate != null ? `${(quality.completeRate * 100).toFixed(1)}%` : '—';
+
+  const legend = document.getElementById('periodLegend');
+  legend.innerHTML = (result.periods || []).map((p, i) => {
+    const color = PERIOD_COLORS[i % PERIOD_COLORS.length];
+    return `<span class="period-chip"><span class="legend-swatch" style="background:${color};"></span>P${i + 1} ${esc(p.startTime)}-${esc(p.endTime)}</span>`;
+  }).join('');
+
+  const tbody = document.getElementById('periodTable');
+  tbody.innerHTML = (result.periods || []).map((p, i) => {
+    const color = PERIOD_COLORS[i % PERIOD_COLORS.length];
+    const sim = Number(p.intraSimilarity || 0);
+    const dominant = (p.dominantMovements || []).map(m =>
+      typeof m === 'string' ? m : `${m.movement} ${m.meanVph}vph`
+    ).join('，');
+    const reason = p.boundaryReason ? esc(p.boundaryReason) : '—';
+    return `<tr>
+      <td><span class="legend-swatch" style="background:${color};"></span> ${i + 1}</td>
+      <td>${esc(p.startTime)}-${esc(p.endTime)}</td>
+      <td>${p.durationMinutes} 分钟</td>
+      <td><b>${p.intraFlowStd}</b> veh/h</td>
+      <td><span class="bar-wrap"><span class="bar" style="width:${Math.min(100, sim * 100).toFixed(1)}%;"></span></span> ${sim.toFixed(3)}</td>
+      <td>${p.meanTotalVph} / ${p.peakTotalVph}</td>
+      <td>${esc(dominant)}</td>
+      <td class="muted">${reason}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('periodSection').classList.remove('hidden');
+
+  const pairs = result.adjacentPairs || [];
+  if (pairs.length) {
+    document.getElementById('pairTable').innerHTML = pairs.map(item => `<tr>
+      <td>${esc(item.boundaryTime)}</td>
+      <td>${esc(item.leftPeriod)}</td>
+      <td>${esc(item.rightPeriod)}</td>
+      <td>${Number(item.interDissimilarity || 0).toFixed(3)}</td>
+    </tr>`).join('');
+    document.getElementById('pairSection').classList.remove('hidden');
+  }
+}
+
+async function loadFlow() {
+  const interId = currentInterId();
+  const weekday = currentWeekday();
+  if (!interId || weekday == null) {
+    updateControls();
+    return;
+  }
+  STATE.loadingFlow = true;
+  STATE.segmentResult = null;
+  clearSegmentationView();
+  detachChartInteractions();
+  updateControls();
+  setStatus('正在加载流量曲线…');
+  document.getElementById('chartArea').innerHTML =
+    '<div id="chartCrosshair" class="chart-crosshair"></div>' +
+    '<div id="chartTooltip" class="chart-tooltip"></div>' +
+    '<div class="empty"><div class="empty-icon">⏳</div><div>正在读取 5 分钟流量…</div></div>';
+  try {
+    const params = new URLSearchParams({ inter_id: interId, weekday: String(weekday) });
+    const resp = await fetch(`/v1/timing/period-segmentation/flow?${params}`);
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error(data?.detail || `HTTP ${resp.status}`);
+    STATE.flowPayload = data;
+    renderFlowChart(data);
+    setStatus('流量已加载，可点击「时段划分」', 'ok');
+  } catch (e) {
+    STATE.flowPayload = null;
+    document.getElementById('chartArea').innerHTML =
+      `<div class="empty"><div class="empty-icon">⚠️</div><div>${esc(e.message)}</div></div>`;
+    setStatus('流量加载失败', 'error');
+  }
+  STATE.loadingFlow = false;
+  updateControls();
+}
+
+async function runSegmentation() {
+  const interId = currentInterId();
+  const weekday = currentWeekday();
+  const engine = currentEngine();
+  if (!interId || weekday == null) return;
+  STATE.loadingSegment = true;
+  updateControls();
+  const busyLabel = engine === 'llm' ? '大模型推理中…' : '划分中…';
+  setStatus(engine === 'llm' ? '正在调用大模型划分配时时段…' : '正在运行确定性划分算法…');
+  document.getElementById('btnSegment').textContent = busyLabel;
+  try {
+    const params = new URLSearchParams({
+      inter_id: interId,
+      weekday: String(weekday),
+      engine,
+    });
+    const resp = await fetch(`/v1/timing/period-segmentation?${params}`);
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error(data?.detail || `HTTP ${resp.status}`);
+    renderSegmentation(data);
+    const engineName = engineLabel(data.engine || engine);
+    setStatus(`${engineName}完成，共 ${data.result?.periodCount ?? 0} 个时段`, 'ok');
+  } catch (e) {
+    setStatus('划分失败: ' + e.message, 'error');
+  }
+  STATE.loadingSegment = false;
+  document.getElementById('btnSegment').textContent = '时段划分';
+  updateControls();
+}
+
+checkApi();
+loadIntersections();
+renderFlowLayerTabs();
+bindFlowLayerTabs();
+document.getElementById('sumEngine').textContent = engineLabel(currentEngine());
+</script>
+</body>
+</html>

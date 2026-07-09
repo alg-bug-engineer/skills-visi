@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>干线协调绿波 · 可视化</title>
+  <link rel="stylesheet" href="/debug/assets/debug-shell.css" />
+  <script defer src="/debug/assets/debug-ui.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-d: #1d4ed8;
+      --success: #16a34a;
+      --muted: #64748b;
+      --text: #1e293b;
+      --bg: #eef4fb;
+      --surface: #fff;
+      --surface-2: #f8fbff;
+      --border: #dbe5f0;
+      --r: 14px;
+      --shadow: 0 10px 24px rgba(15,23,42,.06);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .hd {
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+    }
+    .hd h1 { font-size: 17px; font-weight: 700; color: var(--primary); }
+    .hd .sub { color: var(--muted); font-size: 13px; }
+    .hd a { color: var(--primary); text-decoration: none; font-size: 13px; }
+    .hd a:hover { text-decoration: underline; }
+    #api-status { margin-left: auto; font-size: 12px; padding: 4px 12px; border-radius: 20px; background: var(--bg); }
+    #api-status.ok { background: #dcfce7; color: #166534; }
+    #api-status.err { background: #fee2e2; color: #991b1b; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(340px, 380px) minmax(320px, 360px) minmax(0, 1fr);
+      grid-template-areas: "input detail viz";
+      gap: 16px;
+      padding: 16px;
+      height: calc(100vh - 60px);
+    }
+    @media (max-width: 1024px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "input"
+          "detail"
+          "viz";
+        height: auto;
+        overflow: auto;
+      }
+    }
+    .input-panel { grid-area: input; }
+    .detail-panel { grid-area: detail; }
+    .viz-panel { grid-area: viz; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      min-height: 0;
+    }
+    .ph {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #fff, #f8fbff);
+    }
+    .pb { padding: 16px; overflow-y: auto; flex: 1; }
+    .form-body, .side-body { display: flex; flex-direction: column; gap: 14px; }
+    .section {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-2);
+      padding: 14px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .section-desc {
+      margin-top: 4px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .section-head .section-desc { margin-top: 2px; }
+    .fl { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin: 10px 0 4px; }
+    .fl:first-child { margin-top: 0; }
+    .fc {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+      background: #fff;
+    }
+    .fc:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    textarea.fc { min-height: 72px; resize: vertical; font-family: ui-monospace, monospace; font-size: 12px; }
+    .fr2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .fr3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    @media (max-width: 1280px) {
+      .fr3 { grid-template-columns: 1fr; }
+    }
+    .chk { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; cursor: pointer; }
+    .chk input { width: 16px; height: 16px; }
+
+    .btn-p {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-p:hover { background: var(--primary-d); }
+    .btn-p:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    .links-wrap { margin-top: 8px; }
+    .links-head, .links-row {
+      display: grid;
+      grid-template-columns: 0.95fr 0.8fr 0.8fr 0.75fr 36px;
+      gap: 6px;
+      align-items: center;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .links-head { color: var(--muted); font-weight: 600; }
+    .links-row .fc { padding: 5px 8px; font-size: 12px; }
+    .btn-mini {
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .btn-mini:hover { background: #e2e8f0; }
+    .btn-rm { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+    .action-bar {
+      position: sticky;
+      bottom: -16px;
+      padding-top: 10px;
+      margin-top: auto;
+      background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,.92) 35%, rgba(255,255,255,1));
+    }
+
+    .mid { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+    .viz {
+      flex: 1;
+      min-height: 200px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 16px;
+      overflow: auto;
+      box-shadow: none;
+    }
+    .viz-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .viz-card {
+      grid-column: span 12;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-2);
+      padding: 14px;
+    }
+    .viz-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .viz-head h3 {
+      font-size: 13px;
+      color: #0f172a;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+    .viz-head p {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .schematic {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 8px 18px;
+      gap: 4px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .sc-node {
+      flex: 0 0 auto;
+      text-align: center;
+    }
+    .sc-node .dot {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 6px;
+      box-shadow: 0 2px 8px rgba(37,99,235,.35);
+    }
+    .sc-node .id { font-size: 11px; color: var(--muted); max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
+    .sc-edge {
+      flex: 1;
+      height: 3px;
+      background: linear-gradient(90deg, #cbd5e1, #94a3b8);
+      border-radius: 2px;
+      position: relative;
+      top: -14px;
+      min-width: 20px;
+    }
+    .sc-edge .len {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: -18px;
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .cycle-viz {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border);
+    }
+    .cy-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .cy-row .lab {
+      width: 88px;
+      flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .cy-track {
+      flex: 1;
+      height: 22px;
+      background: #fee2e2;
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid #fca5a5;
+    }
+    .cy-track .g {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      background: linear-gradient(180deg, #4ade80, #16a34a);
+      border-radius: 4px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+    }
+    .cy-meta { width: 120px; flex-shrink: 0; font-size: 11px; color: var(--muted); text-align: right; }
+
+    .st-wrap { margin-top: 12px; }
+    .st-wrap svg {
+      width: 100%;
+      min-height: 430px;
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      font-size: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .slider-row input[type="range"] { flex: 1; }
+    .slider-note {
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .kpi { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi .k {
+      background: #fff;
+      border: 1px solid #dbeafe;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .kpi .k .t { font-size: 11px; color: var(--muted); }
+    .kpi .k .v { font-size: 20px; font-weight: 800; color: var(--primary); margin-top: 4px; }
+
+    table.tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+    table.tbl th, table.tbl td { border-bottom: 1px solid var(--border); padding: 6px 4px; text-align: left; }
+    table.tbl th { color: var(--muted); font-weight: 600; }
+    .ix-editors { margin-top: 12px; display: grid; gap: 10px; }
+    .ix-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .ix-summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      cursor: pointer;
+      background: linear-gradient(180deg, #fff, #f8fbff);
+    }
+    .ix-summary::-webkit-details-marker { display: none; }
+    .ix-summary::after {
+      content: "展开";
+      font-size: 11px;
+      color: var(--primary);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .ix-card[open] .ix-summary {
+      border-bottom: 1px solid var(--border);
+    }
+    .ix-card[open] .ix-summary::after { content: "收起"; }
+    .ix-summary-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .ix-body { padding: 12px; }
+    .ix-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .ix-title { font-size: 12px; font-weight: 700; color: var(--text); }
+    .ix-sub { font-size: 11px; color: var(--muted); }
+    .stage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+    .stage-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px;
+      background: #fff;
+    }
+    .stage-card h4 { font-size: 11px; margin-bottom: 4px; color: var(--muted); }
+    .mv-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 10px; }
+    .mv-table th, .mv-table td { border-bottom: 1px solid var(--border); padding: 4px 3px; text-align: left; }
+    .mv-table th { color: var(--muted); font-weight: 600; }
+    .mv-table .fc { padding: 4px 6px; font-size: 11px; }
+    .tiny { font-size: 10px; color: var(--muted); }
+    .detail-cards { display: grid; gap: 10px; }
+    .detail-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 12px;
+    }
+    .detail-card h4 { font-size: 12px; margin-bottom: 6px; }
+    .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .cmp-box {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      background: #fff;
+    }
+    .cmp-box .tt { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .cmp-box .cv { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+
+    .err-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    pre.raw {
+      padding: 10px;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 8px;
+      font-size: 10px;
+      overflow: auto;
+      max-height: 260px;
+    }
+    .placeholder {
+      color: var(--muted);
+      text-align: center;
+      padding: 48px 20px;
+      font-size: 13px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <header class="hd topnav">
+    <h1>干线协调绿波</h1>
+    <span class="sub">单向/双向绿波 · 分层求解 · 周期/绿时/相位差</span>
+    <a class="nav-link" href="/debug/">工具入口</a>
+    <a class="nav-link" href="/debug/timing-optimizer.html">单路口优化</a>
+    <span id="api-status">检测中…</span>
+  </header>
+
+  <div class="layout">
+    <div class="panel input-panel">
+      <div class="ph">参数输入</div>
+      <div class="pb form-body">
+        <div class="section">
+          <div class="section-title">基础走廊</div>
+          <div class="section-desc">先定义路口顺序与路段属性。列表自上而下即为协调正向。</div>
+          <label class="fl">走廊 ID</label>
+          <input class="fc" id="corridor-id" type="text" value="COR-DEMO" />
+
+          <label class="fl">路口 ID（逗号或换行分隔）</label>
+          <textarea class="fc" id="intersections" rows="3">N1, N2, N3</textarea>
+
+          <label class="chk">
+            <input type="checkbox" id="uniform-links" checked />
+            均匀路段间距（使用下方默认间距，不填逐段表）
+          </label>
+
+          <div id="uniform-block">
+            <div class="fr2">
+              <div>
+                <label class="fl">默认间距 (m)</label>
+                <input class="fc" id="spacing-m" type="number" value="350" min="50" step="10" />
+              </div>
+              <div>
+                <label class="fl">设计速度（千米/时）</label>
+                <input class="fc" id="design-speed" type="number" value="45" min="10" step="5" />
+              </div>
+            </div>
+          </div>
+
+          <div id="custom-links-block" class="links-wrap" style="display:none">
+            <div class="links-head">
+              <span>间距 m</span>
+              <span>正向速度</span>
+              <span>反向速度</span>
+              <span>车道数</span>
+              <span></span>
+            </div>
+            <div id="links-rows"></div>
+            <button type="button" class="btn-mini" id="btn-add-link">+ 路段</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">协调约束</div>
+          <div class="section-desc">统一配置周期、绿时边界、策略方向和默认流量场景。</div>
+          <div class="fr2">
+            <div>
+              <label class="fl">最小周期 s</label>
+              <input class="fc" id="min-cyc" type="number" value="70" />
+            </div>
+            <div>
+              <label class="fl">最大周期 s</label>
+              <input class="fc" id="max-cyc" type="number" value="110" />
+            </div>
+          </div>
+          <div class="fr2">
+            <div>
+              <label class="fl">最小绿 s</label>
+              <input class="fc" id="min-grn" type="number" value="14" />
+            </div>
+            <div>
+              <label class="fl">最大绿 s</label>
+              <input class="fc" id="max-grn" type="number" value="40" />
+            </div>
+          </div>
+          <div class="fr2">
+            <div>
+              <label class="fl">对齐罚权重</label>
+              <input class="fc" id="prog-w" type="number" value="0.08" step="0.01" />
+            </div>
+            <div>
+              <label class="fl">损失时间 s</label>
+              <input class="fc" id="lost-t" type="number" value="0" />
+            </div>
+          </div>
+
+          <label class="fl">协调策略</label>
+          <select class="fc" id="strategy">
+            <option value="bidirectional">双向绿波</option>
+            <option value="bidirectional_no_double_stop">双向绿波 + 抑制双停</option>
+            <option value="oneway_forward">单向绿波（正向优先）</option>
+            <option value="oneway_reverse">单向绿波（反向优先）</option>
+          </select>
+
+          <div class="fr2">
+            <div>
+              <label class="fl">默认流量场景</label>
+              <select class="fc" id="traffic-profile">
+                <option value="low">低峰</option>
+                <option value="normal" selected>平峰</option>
+                <option value="high">高峰</option>
+              </select>
+            </div>
+            <div>
+              <label class="fl">非协调目标强度</label>
+              <input class="fc" id="target-intensity" type="number" value="0.8" min="0.4" max="1.2" step="0.05" />
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div>
+              <div class="section-title">路口级细化编辑</div>
+              <div class="section-desc">每个路口可单独调整渠化、阶段、相位顺序与流量；周期上下限统一跟随干线设置。</div>
+            </div>
+            <button type="button" class="btn-mini" id="btn-sync-editors">刷新路口编辑区</button>
+          </div>
+          <div id="intersection-editors" class="ix-editors"></div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn-p" id="btn-run">计算协调方案</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel detail-panel">
+      <div class="ph">指标与明细</div>
+      <div class="pb side-body">
+        <div id="err-panel" style="display:none" class="err-box"></div>
+        <div class="section">
+          <div class="section-title">关键指标</div>
+          <div class="section-desc">结果摘要固定集中展示，便于先看周期、带宽和延误，再看下方明细。</div>
+          <div id="kpi-panel" style="display:none" class="kpi">
+            <div class="k"><div class="t">绿波带宽（秒）</div><div class="v" id="kpi-bw">—</div></div>
+            <div class="k"><div class="t">公共周期（秒）</div><div class="v" id="kpi-cyc">—</div></div>
+            <div class="k"><div class="t">正向带宽（秒）</div><div class="v" id="kpi-bw-fwd">—</div></div>
+            <div class="k"><div class="t">反向带宽（秒）</div><div class="v" id="kpi-bw-rev">—</div></div>
+            <div class="k"><div class="t">韦伯斯特总延误（秒）</div><div class="v" id="kpi-dly">—</div></div>
+            <div class="k"><div class="t">连续双停指标</div><div class="v" id="kpi-ds">—</div></div>
+          </div>
+        </div>
+        <div id="tbl-wrap" style="display:none" class="section">
+          <div class="section-title">路口明细</div>
+          <table class="tbl" id="tbl-nodes" style="margin-top:10px;">
+            <thead>
+              <tr>
+                <th>路口</th>
+                <th>相位差（秒）</th>
+                <th>协调绿灯（秒）</th>
+                <th>绿信比</th>
+                <th>延误（秒）</th>
+                <th>各阶段绿时</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="opt-compare" class="detail-cards" style="display:none"></div>
+        <div class="section">
+          <div class="section-title">原始 JSON</div>
+          <pre class="raw" id="raw-json" style="margin-top:10px;">{}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel mid viz-panel">
+      <div class="ph">绿波时距图</div>
+      <div class="pb viz" id="viz-area">
+        <div class="placeholder" id="viz-placeholder">
+          填写左侧参数后点击「计算协调方案」，将显示绿波时距图与可拖拽的相位差预览。
+        </div>
+        <div id="viz-content" style="display:none">
+          <div class="viz-grid">
+            <section class="viz-card">
+              <div class="viz-head">
+                <div>
+                  <h3>绿波时距图</h3>
+                  <p>布局只保留时距图主视图。纵轴展示 3 个周期，刻度自底向上增长，并支持直接拖拽绿灯条调整相位差。</p>
+                </div>
+              </div>
+              <div class="slider-row">
+                <button type="button" class="btn-mini" id="btn-reset-offsets" style="margin-top:0">恢复优化结果</button>
+                <span class="slider-note" id="drag-status">拖动图中绿灯条可手动调整相位差并实时预览</span>
+              </div>
+              <div class="st-wrap">
+                <svg id="st-svg" viewBox="0 0 920 440" preserveAspectRatio="xMidYMid meet"></svg>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function parseIds(text) {
+    return text.split(/[\s,，;；]+/).map((s) => s.trim()).filter(Boolean);
+  }
+
+  function travelTimeS(distanceM, speedKmh) {
+    const v = Math.max(0.1, Number(speedKmh) || 40);
+    return distanceM / (v / 3.6);
+  }
+
+  const DEFAULT_MOVEMENTS = [
+    { key: "N_L", label: "北左", dir8No: 1, turnDirNo: 1, stageId: "A", laneCount: 1, low: 70, normal: 110, high: 160 },
+    { key: "N_T", label: "北直", dir8No: 1, turnDirNo: 2, stageId: "A", laneCount: 2, low: 260, normal: 420, high: 620 },
+    { key: "S_L", label: "南左", dir8No: 5, turnDirNo: 1, stageId: "A", laneCount: 1, low: 75, normal: 120, high: 180 },
+    { key: "S_T", label: "南直", dir8No: 5, turnDirNo: 2, stageId: "A", laneCount: 2, low: 240, normal: 400, high: 580 },
+    { key: "E_L", label: "东左", dir8No: 3, turnDirNo: 1, stageId: "B", laneCount: 1, low: 60, normal: 95, high: 140 },
+    { key: "E_T", label: "东直", dir8No: 3, turnDirNo: 2, stageId: "B", laneCount: 2, low: 200, normal: 320, high: 450 },
+    { key: "W_L", label: "西左", dir8No: 7, turnDirNo: 1, stageId: "B", laneCount: 1, low: 65, normal: 100, high: 150 },
+    { key: "W_T", label: "西直", dir8No: 7, turnDirNo: 2, stageId: "B", laneCount: 2, low: 210, normal: 330, high: 470 }
+  ];
+  const STAGE_IDS = ["A", "B", "C", "D"];
+
+  function defaultStageName(stageId) {
+    if (stageId === "A") return "南北放行";
+    if (stageId === "B") return "东西放行";
+    if (stageId === "C") return "行人/左转1";
+    if (stageId === "D") return "行人/左转2";
+    return stageId;
+  }
+
+  function buildIntersectionEditor(id, index) {
+    const card = document.createElement("details");
+    card.className = "ix-card";
+    card.dataset.intersectionId = id;
+    card.innerHTML =
+      '<summary class="ix-summary">' +
+        '<div>' +
+          '<div class="ix-title">' + escapeHtml(id) + '</div>' +
+          '<div class="ix-summary-meta">路口 ' + (index + 1) + ' · 默认折叠，点击查看详细配置</div>' +
+        '</div>' +
+      '</summary>' +
+      '<div class="ix-body">' +
+        '<div class="ix-head">' +
+          '<div><div class="ix-sub">可编辑渠化 / 流量 / 相位相序</div></div>' +
+          '<select class="fc" data-role="profile-mode" style="max-width:120px">' +
+            '<option value="global">跟随全局</option>' +
+            '<option value="low">低峰</option>' +
+            '<option value="normal">平峰</option>' +
+            '<option value="high">高峰</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="fr3">' +
+          '<div><label class="fl">阶段顺序</label><input class="fc" data-role="stage-order" type="text" value="A,B" /></div>' +
+          '<div><label class="fl">协调相位</label><select class="fc" data-role="coord-stage">' +
+            '<option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>' +
+          '</select></div>' +
+          '<div><label class="fl">排队长度 m</label><input class="fc" data-role="queue-length" type="number" value="' + (20 + index * 8) + '" step="1" /></div>' +
+        '</div>' +
+        '<div class="fr2">' +
+          '<div><label class="fl">实际均速（千米/时）</label><input class="fc" data-role="actual-speed" type="number" value="32" step="1" /></div>' +
+          '<div><label class="fl">周期边界</label><input class="fc" type="text" value="跟随干线最小/最大周期" disabled /></div>' +
+        '</div>' +
+        '<div class="stage-grid">' +
+          STAGE_IDS.map((sid) =>
+            '<div class="stage-card">' +
+              '<h4>阶段 ' + sid + '</h4>' +
+              '<label class="fl">名称</label><input class="fc" data-role="stage-name" data-stage="' + sid + '" type="text" value="' + defaultStageName(sid) + '" />' +
+              '<div class="fr2">' +
+                '<div><label class="fl">最小绿</label><input class="fc" data-role="stage-min" data-stage="' + sid + '" type="number" value="' + (sid === "A" || sid === "B" ? 18 : 12) + '" step="1" /></div>' +
+                '<div><label class="fl">最大绿</label><input class="fc" data-role="stage-max" data-stage="' + sid + '" type="number" value="' + (sid === "A" || sid === "B" ? 55 : 30) + '" step="1" /></div>' +
+              '</div>' +
+            '</div>'
+          ).join("") +
+        '</div>' +
+        '<table class="mv-table"><thead><tr><th>流向</th><th>阶段</th><th>车道</th><th>低峰</th><th>平峰</th><th>高峰</th></tr></thead><tbody>' +
+          DEFAULT_MOVEMENTS.map((m) =>
+            '<tr data-movement="' + m.key + '">' +
+              '<td>' + escapeHtml(m.label) + '</td>' +
+              '<td><select class="fc" data-role="movement-stage">' +
+                STAGE_IDS.map((sid) => '<option value="' + sid + '"' + (sid === m.stageId ? ' selected' : '') + '>' + sid + '</option>').join("") +
+              '</select></td>' +
+              '<td><input class="fc" data-role="lane-count" type="number" value="' + m.laneCount + '" min="1" step="1" /></td>' +
+              '<td><input class="fc" data-role="flow-low" type="number" value="' + m.low + '" min="0" step="10" /></td>' +
+              '<td><input class="fc" data-role="flow-normal" type="number" value="' + m.normal + '" min="0" step="10" /></td>' +
+              '<td><input class="fc" data-role="flow-high" type="number" value="' + m.high + '" min="0" step="10" /></td>' +
+            '</tr>'
+          ).join("") +
+        '</tbody></table>' +
+      '</div>';
+    return card;
+  }
+
+  function syncIntersectionEditors() {
+    const ids = parseIds($("intersections").value);
+    const wrap = $("intersection-editors");
+    const existing = Array.from(wrap.querySelectorAll(".ix-card"));
+    const existingMap = new Map(existing.map((card) => [card.dataset.intersectionId, card]));
+    wrap.innerHTML = "";
+    ids.forEach((id, index) => {
+      const card = existingMap.get(id) || buildIntersectionEditor(id, index);
+      wrap.appendChild(card);
+    });
+  }
+
+  function syncLinkRows() {
+    const ids = parseIds($("intersections").value);
+    const n = Math.max(0, ids.length - 1);
+    const wrap = $("links-rows");
+    const rows = wrap.querySelectorAll(".links-row");
+    if (rows.length < n) {
+      for (let i = rows.length; i < n; i++) {
+        const d = document.createElement("div");
+        d.className = "links-row";
+        d.innerHTML =
+          '<input class="fc" type="number" data-k="d" value="350" min="10" step="10" />' +
+          '<input class="fc" type="number" data-k="vf" value="45" min="5" step="5" />' +
+          '<input class="fc" type="number" data-k="vr" value="" placeholder="同正向" min="5" step="5" />' +
+          '<input class="fc" type="number" data-k="lanes" value="3" min="1" step="1" />' +
+          '<button type="button" class="btn-mini btn-rm" title="删除">×</button>';
+        d.querySelector(".btn-rm").onclick = () => {
+          d.remove();
+          syncLinkRows();
+        };
+        wrap.appendChild(d);
+      }
+    } else if (rows.length > n) {
+      for (let j = rows.length - 1; j >= n; j--) rows[j].remove();
+    }
+  }
+
+  $("intersections").addEventListener("input", () => {
+    if (!$("uniform-links").checked) syncLinkRows();
+    syncIntersectionEditors();
+  });
+  $("uniform-links").addEventListener("change", () => {
+    const u = $("uniform-links").checked;
+    $("uniform-block").style.display = u ? "block" : "none";
+    $("custom-links-block").style.display = u ? "none" : "block";
+    if (!u) syncLinkRows();
+  });
+  $("btn-add-link").onclick = () => {
+    $("uniform-links").checked = false;
+    $("uniform-block").style.display = "none";
+    $("custom-links-block").style.display = "block";
+    const ids = parseIds($("intersections").value);
+    if (ids.length < 2) {
+      $("intersections").value = "A, B";
+    }
+    syncLinkRows();
+    const wrap = $("links-rows");
+    const last = wrap.lastElementChild;
+    if (last) last.querySelector('[data-k="d"]').value = "400";
+  };
+  $("btn-sync-editors").onclick = () => syncIntersectionEditors();
+
+  function buildPayload() {
+    const corridor_id = $("corridor-id").value.trim() || "COR-DEMO";
+    const intersection_ids = parseIds($("intersections").value);
+    const globalProfile = $("traffic-profile").value;
+    const constraints = {
+      design_speed_kmh: Number($("design-speed").value) || 40,
+      min_cycle_s: Number($("min-cyc").value) || 60,
+      max_cycle_s: Number($("max-cyc").value) || 120,
+      min_green_s: Number($("min-grn").value) || 12,
+      max_green_s: Number($("max-grn").value) || 45,
+      lost_time_s: Number($("lost-t").value) || 0,
+      progression_weight: Number($("prog-w").value) || 0.08,
+      strategy: $("strategy").value,
+      target_non_coord_intensity: Number($("target-intensity").value) || 0.8,
+    };
+    const payload = { corridor_id, intersection_ids, constraints };
+    if ($("uniform-links").checked) {
+      constraints.default_link_spacing_m = Number($("spacing-m").value) || 400;
+    } else {
+      syncLinkRows();
+      const rows = $("links-rows").querySelectorAll(".links-row");
+      const links = [];
+      rows.forEach((row) => {
+        const inp = row.querySelectorAll(".fc");
+        const d = Number(inp[0].value);
+        const vf = Number(inp[1].value);
+        const vrRaw = inp[2].value.trim();
+        const laneCount = Number(inp[3].value) || 3;
+        const o = { distance_m: d, forward_speed_kmh: vf, lane_count: laneCount };
+        if (vrRaw !== "") o.reverse_speed_kmh = Number(vrRaw);
+        links.push(o);
+      });
+      if (links.length === intersection_ids.length - 1 && links.length > 0) payload.links = links;
+    }
+    const cards = Array.from($("intersection-editors").querySelectorAll(".ix-card"));
+    if (cards.length === intersection_ids.length && cards.length > 0) {
+      payload.intersections = cards.map((card) => {
+        const intersectionId = card.dataset.intersectionId;
+        const profileMode = card.querySelector('[data-role="profile-mode"]').value;
+        const profile = profileMode === "global" ? globalProfile : profileMode;
+        const orderTokens = card.querySelector('[data-role="stage-order"]').value
+          .split(/[\s,，;；]+/)
+          .map((v) => v.trim().toUpperCase())
+          .filter(Boolean);
+        const stageOrder = orderTokens.length ? orderTokens : ["A", "B"];
+        const stageMap = new Map();
+        stageOrder.forEach((sid) => {
+          stageMap.set(sid, {
+            phaseStageId: sid,
+            phaseStageName: card.querySelector('[data-role="stage-name"][data-stage="' + sid + '"]').value.trim() || sid,
+            min_green_s: Number(card.querySelector('[data-role="stage-min"][data-stage="' + sid + '"]').value) || 12,
+            max_green_s: Number(card.querySelector('[data-role="stage-max"][data-stage="' + sid + '"]').value) || 45,
+            phaseDirInfoDTOList: [],
+          });
+        });
+        Array.from(card.querySelectorAll("tbody tr")).forEach((row) => {
+          const movementKey = row.dataset.movement;
+          const movementDef = DEFAULT_MOVEMENTS.find((item) => item.key === movementKey);
+          if (!movementDef) return;
+          const stageId = row.querySelector('[data-role="movement-stage"]').value;
+          if (!stageMap.has(stageId)) {
+            stageMap.set(stageId, {
+              phaseStageId: stageId,
+              phaseStageName: stageId,
+              min_green_s: 12,
+              max_green_s: 45,
+              phaseDirInfoDTOList: [],
+            });
+          }
+          const flowKey = profile === "low" ? "flow-low" : profile === "high" ? "flow-high" : "flow-normal";
+          stageMap.get(stageId).phaseDirInfoDTOList.push({
+            movementKey,
+            label: movementDef.label,
+            dir8No: movementDef.dir8No,
+            turnDirNo: movementDef.turnDirNo,
+            laneCount: Number(row.querySelector('[data-role="lane-count"]').value) || 1,
+            turnFlowTotal: Number(row.querySelector('[data-role="' + flowKey + '"]').value) || 0,
+            criticalLaneFlow: Number(row.querySelector('[data-role="' + flowKey + '"]').value) || 0,
+            saturation_flow_vph: 1400,
+          });
+        });
+        const phaseStageInfoList = Array.from(stageMap.values()).filter((stage) => stage.phaseDirInfoDTOList.length > 0);
+        return {
+          intersection_id: intersectionId,
+          route_name: intersectionId,
+          coord_phase_id: card.querySelector('[data-role="coord-stage"]').value,
+          queue_length_m: Number(card.querySelector('[data-role="queue-length"]').value) || 0,
+          actual_avg_speed_kmh: Number(card.querySelector('[data-role="actual-speed"]').value) || 0,
+          traffic_profile: profile,
+          phaseStageInfoList,
+          constraints: {
+            min_cycle_s: constraints.min_cycle_s,
+            max_cycle_s: constraints.max_cycle_s,
+            min_green_s: constraints.min_green_s,
+            saturation_flow_vph: 1400,
+          },
+          obj_intensity: constraints.target_non_coord_intensity,
+        };
+      });
+    }
+    return payload;
+  }
+
+  function greenSegments(offset, green, cycle) {
+    const C = cycle;
+    const o = ((offset % C) + C) % C;
+    const g = Math.min(green, C);
+    const segs = [];
+    if (o + g <= C) segs.push([o, o + g]);
+    else {
+      segs.push([o, C]);
+      segs.push([0, o + g - C]);
+    }
+    return segs;
+  }
+
+  function normalizeTime(t, cycle) {
+    return ((Number(t) || 0) % cycle + cycle) % cycle;
+  }
+
+  function cloneJson(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function getNodeOffset(node) {
+    return Number(node.main_coordination_offset_s != null ? node.main_coordination_offset_s : node.offset_s) || 0;
+  }
+
+  function setNodeOffset(node, offset, cycle) {
+    const v = normalizeTime(offset, cycle);
+    node.main_coordination_offset_s = v;
+    node.offset_s = v;
+  }
+
+  function repeatedGreenSegments(offset, green, cycle, cyclesToShow) {
+    const base = greenSegments(offset, green, cycle);
+    const out = [];
+    for (let k = 0; k < cyclesToShow; k++) {
+      base.forEach(([a, b]) => out.push([a + k * cycle, b + k * cycle]));
+    }
+    return out;
+  }
+
+  function redSegments(offset, green, cycle) {
+    const C = cycle;
+    const gSegs = greenSegments(offset, green, cycle);
+    const rSegs = [];
+    let t = 0;
+    [...gSegs].sort((a, b) => a[0] - b[0]).forEach(([a, b]) => {
+      if (a > t) rSegs.push([t, a]);
+      t = Math.max(t, b);
+    });
+    if (t < C) rSegs.push([t, C]);
+    return rSegs;
+  }
+
+  function repeatedRedSegments(offset, green, cycle, cyclesToShow) {
+    const base = redSegments(offset, green, cycle);
+    const out = [];
+    for (let k = 0; k < cyclesToShow; k++) {
+      base.forEach(([a, b]) => out.push([a + k * cycle, b + k * cycle]));
+    }
+    return out;
+  }
+
+  let lastPayload = null;
+  let lastPlan = null;
+  let basePlan = null;
+  let dragState = null;
+
+  function renderSchematic(payload, nodes) {
+    const el = $("schematic");
+    el.innerHTML = "";
+    const ids = nodes.map((n) => n.intersection_id);
+    let dists = [];
+    if (payload.links && payload.links.length === ids.length - 1) {
+      dists = payload.links.map((l) => l.distance_m);
+    } else {
+      const sp = payload.constraints.default_link_spacing_m || 400;
+      for (let i = 0; i < ids.length - 1; i++) dists.push(sp);
+    }
+    ids.forEach((id, i) => {
+      const node = document.createElement("div");
+      node.className = "sc-node";
+      node.innerHTML = '<div class="dot">' + (i + 1) + "</div>";
+      const idEl = document.createElement("div");
+      idEl.className = "id";
+      idEl.title = id;
+      idEl.textContent = id;
+      node.appendChild(idEl);
+      el.appendChild(node);
+      if (i < ids.length - 1) {
+        const edge = document.createElement("div");
+        edge.className = "sc-edge";
+        edge.innerHTML = '<span class="len">' + dists[i] + " m</span>";
+        el.appendChild(edge);
+      }
+    });
+  }
+
+  function renderCycleViz(nodes, cycle, tObs) {
+    const wrap = $("cycle-viz");
+    wrap.innerHTML = "";
+    const C = cycle;
+    const t = Math.min(tObs, C - 0.01);
+    nodes.forEach((n) => {
+      const row = document.createElement("div");
+      row.className = "cy-row";
+      const lab = document.createElement("span");
+      lab.className = "lab";
+      lab.textContent = n.intersection_id;
+      lab.title = n.intersection_id;
+      const track = document.createElement("div");
+      track.className = "cy-track";
+      const g = n.coordinated_green_s;
+      const off = getNodeOffset(n);
+      greenSegments(off, g, C).forEach(([a, b]) => {
+        const s = document.createElement("div");
+        s.className = "g";
+        s.style.left = (100 * a) / C + "%";
+        s.style.width = (100 * (b - a)) / C + "%";
+        track.appendChild(s);
+      });
+      const play = document.createElement("div");
+      play.style.cssText =
+        "position:absolute;top:-3px;bottom:-3px;width:2px;background:#1e293b;opacity:.85;left:" +
+        (100 * t) / C +
+        "%;pointer-events:none;z-index:2;";
+      track.style.position = "relative";
+      track.appendChild(play);
+      const meta = document.createElement("span");
+      meta.className = "cy-meta";
+      const inGreen = greenSegments(off, g, C).some(([a, b]) => t >= a && t < b);
+      meta.textContent = (inGreen ? "● 绿灯" : "○ 红灯") + " @" + t.toFixed(1) + "秒";
+      row.appendChild(lab);
+      row.appendChild(track);
+      row.appendChild(meta);
+      wrap.appendChild(row);
+    });
+  }
+
+  function phaseListText(phases) {
+    return (phases || []).map((p) => {
+      const phaseId = p.phase_stage_id || p.phaseStageId || "?";
+      const green = p.green_s != null ? p.green_s : p.greenTime;
+      const ratio = p.green_ratio != null ? p.green_ratio : p.splitRatio;
+      const sat = p.phase_saturation != null ? p.phase_saturation : p.phaseSaturation;
+      return escapeHtml(phaseId) + "：" + Number(green || 0).toFixed(1) + "秒 / "
+        Number((ratio || 0) * 100).toFixed(1) + "% / x=" + Number(sat || 0).toFixed(2);
+    }).join("<br/>");
+  }
+
+  function renderOptimizationCompare(nodes) {
+    const wrap = $("opt-compare");
+    wrap.innerHTML = "";
+    if (!nodes || !nodes.length) {
+      wrap.style.display = "none";
+      return;
+    }
+    wrap.style.display = "grid";
+    nodes.forEach((node) => {
+      const firstOpt = node.first_optimization || {};
+      const secondOpt = node.second_optimization || {};
+      const firstIntensities = (firstOpt.direction_intensity_list || []).map((item) =>
+        escapeHtml(item.label || item.movementKey || "?") + " x=" + Number(item.intensity || 0).toFixed(2)
+      ).join(" / ");
+      const secondIntensities = (secondOpt.direction_intensity_list || []).map((item) =>
+        escapeHtml(item.label || item.movementKey || "?") + " x=" + Number(item.intensity || 0).toFixed(2)
+      ).join(" / ");
+      const card = document.createElement("div");
+      card.className = "detail-card";
+      card.innerHTML =
+        '<h4>' + escapeHtml(node.intersection_id) + ' · 一次/二次优化对比</h4>' +
+        '<div class="cmp-grid">' +
+          '<div class="cmp-box">' +
+            '<div class="tt">一次优化：' + escapeHtml(firstOpt.source || "—") + '</div>' +
+            '<div class="cv">' + Number(firstOpt.cycle_s || 0).toFixed(1) + ' 秒</div>' +
+            '<div class="tiny">' + phaseListText(firstOpt.phase_stage_timing_list) + '</div>' +
+            '<div class="tiny" style="margin-top:6px;">' + (firstIntensities || "—") + '</div>' +
+          '</div>' +
+          '<div class="cmp-box">' +
+            '<div class="tt">二次优化：' + escapeHtml(secondOpt.source || "—") + '</div>' +
+            '<div class="cv">' + Number(secondOpt.cycle_s || 0).toFixed(1) + ' 秒</div>' +
+            '<div class="tiny">' + phaseListText(secondOpt.phase_stage_timing_list) + '</div>' +
+            '<div class="tiny" style="margin-top:6px;">' + (secondIntensities || "—") + '</div>' +
+          '</div>' +
+        '</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function renderSpaceTime(payload, coord) {
+    const nodes = coord.nodes || [];
+    const cycle = coord.cycle_s;
+    const svg = $("st-svg");
+    const W = 920;
+    const H = 440;
+    const padL = 64;
+    const padR = 20;
+    const padT = 34;
+    const padB = 42;
+    const cyclesToShow = 3;
+    const totalTime = cycle * cyclesToShow;
+    const ids = nodes.map((n) => n.intersection_id);
+    let dists = [];
+    if (payload.links && payload.links.length === ids.length - 1) {
+      dists = payload.links.map((l) => l.distance_m);
+    } else {
+      const sp = payload.constraints.default_link_spacing_m || 400;
+      for (let i = 0; i < ids.length - 1; i++) dists.push(sp);
+    }
+    const cum = [0];
+    for (let i = 0; i < dists.length; i++) cum.push(cum[i] + dists[i]);
+    const xMax = cum[cum.length - 1] || 1;
+    const x0 = padL;
+    const x1 = W - padR;
+    const y0 = padT;
+    const y1 = H - padB;
+    const sx = (d) => x0 + (d / xMax) * (x1 - x0);
+    const sy = (t) => y1 - (Math.max(0, Math.min(totalTime, t)) / totalTime) * (y1 - y0);
+
+    function repeatedGreenSegmentsExtended(offset, green) {
+      const base = greenSegments(offset, green, cycle);
+      const out = [];
+      for (let k = -1; k <= cyclesToShow; k++) {
+        base.forEach(([a, b]) => out.push([a + k * cycle, b + k * cycle]));
+      }
+      return out;
+    }
+
+    function appendPairOverlapBands(h, pairBands, style) {
+      pairBands.forEach((band) => {
+        const polygonPts = [
+          [band.xStart, sy(band.start)],
+          [band.xEnd, sy(band.start + band.travel)],
+          [band.xEnd, sy(band.end + band.travel)],
+          [band.xStart, sy(band.end)]
+        ].map((p) => p[0] + "," + p[1]).join(" ");
+        h += '<polygon fill="' + style.fill + '" stroke="' + style.stroke + '" stroke-width="1"' +
+          (style.dash ? ' stroke-dasharray="' + style.dash + '"' : "") +
+          ' points="' + polygonPts + '"/>';
+      });
+      return h;
+    }
+
+    function collectForwardPairBands() {
+      const bands = [];
+      for (let i = 0; i < nodes.length - 1; i++) {
+        const left = nodes[i];
+        const right = nodes[i + 1];
+        const travel = payload.links && payload.links[i]
+          ? travelTimeS(dists[i], payload.links[i].forward_speed_kmh)
+          : travelTimeS(dists[i], payload.constraints.design_speed_kmh);
+        const leftSegs = repeatedGreenSegmentsExtended(getNodeOffset(left), Number(left.coordinated_green_s || 0));
+        const rightSegs = repeatedGreenSegmentsExtended(getNodeOffset(right), Number(right.coordinated_green_s || 0));
+        leftSegs.forEach(([la, lb]) => {
+          rightSegs.forEach(([ra, rb]) => {
+            const overlapStart = Math.max(la, ra - travel);
+            const overlapEnd = Math.min(lb, rb - travel);
+            if (overlapEnd <= overlapStart) return;
+            if (overlapEnd < 0 || overlapStart > totalTime) return;
+            bands.push({
+              xStart: sx(cum[i]),
+              xEnd: sx(cum[i + 1]),
+              start: overlapStart,
+              end: overlapEnd,
+              travel
+            });
+          });
+        });
+      }
+      return bands;
+    }
+
+    function collectReversePairBands() {
+      const bands = [];
+      for (let i = nodes.length - 1; i > 0; i--) {
+        const right = nodes[i];
+        const left = nodes[i - 1];
+        const linkIdx = i - 1;
+        const speed = payload.links && payload.links[linkIdx] && payload.links[linkIdx].reverse_speed_kmh
+          ? payload.links[linkIdx].reverse_speed_kmh
+          : payload.links && payload.links[linkIdx]
+            ? payload.links[linkIdx].forward_speed_kmh
+            : payload.constraints.design_speed_kmh;
+        const travel = travelTimeS(dists[linkIdx], speed);
+        const rightSegs = repeatedGreenSegmentsExtended(getNodeOffset(right), Number(right.coordinated_green_s || 0));
+        const leftSegs = repeatedGreenSegmentsExtended(getNodeOffset(left), Number(left.coordinated_green_s || 0));
+        rightSegs.forEach(([ra, rb]) => {
+          leftSegs.forEach(([la, lb]) => {
+            const overlapStart = Math.max(ra, la - travel);
+            const overlapEnd = Math.min(rb, lb - travel);
+            if (overlapEnd <= overlapStart) return;
+            if (overlapEnd < 0 || overlapStart > totalTime) return;
+            bands.push({
+              xStart: sx(cum[i]),
+              xEnd: sx(cum[i - 1]),
+              start: overlapStart,
+              end: overlapEnd,
+              travel
+            });
+          });
+        });
+      }
+      return bands;
+    }
+
+    let h = "";
+    h += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#ffffff"/>';
+    h += '<line x1="' + x0 + '" y1="' + y1 + '" x2="' + x1 + '" y2="' + y1 + '" stroke="#cbd5e1" stroke-width="1"/>';
+    h += '<line x1="' + x0 + '" y1="' + y0 + '" x2="' + x0 + '" y2="' + y1 + '" stroke="#cbd5e1" stroke-width="1"/>';
+    h += '<text x="' + ((x0 + x1) / 2) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="#64748b">距离 / 路口位置（米）</text>';
+    h += '<text transform="rotate(-90 14 ' + ((y0 + y1) / 2) + ')" x="14" y="' + ((y0 + y1) / 2) + '" text-anchor="middle" font-size="11" fill="#64748b">公共周期时间（秒，自下而上增长）</text>';
+    for (let tick = 0; tick <= cyclesToShow; tick++) {
+      const t = cycle * tick;
+      const yy = sy(t);
+      h += '<line x1="' + x0 + '" y1="' + yy + '" x2="' + x1 + '" y2="' + yy + '" stroke="#cbd5e1" stroke-dasharray="4 3" stroke-width="1"/>';
+      h += '<text x="' + (x0 - 8) + '" y="' + (yy + 4) + '" text-anchor="end" font-size="10" fill="#475569">' + t.toFixed(0) + "秒</text>";
+      if (tick < cyclesToShow) {
+        const midT = t + cycle / 2;
+        const midY = sy(midT);
+        h += '<line x1="' + x0 + '" y1="' + midY + '" x2="' + x1 + '" y2="' + midY + '" stroke="#e2e8f0" stroke-dasharray="2 4" stroke-width="1"/>';
+      }
+    }
+    for (let tick = 1; tick < cyclesToShow * 4; tick++) {
+      if (tick % 2 === 0) continue;
+      const yy = sy((totalTime * tick) / (cyclesToShow * 4));
+      h += '<line x1="' + x0 + '" y1="' + yy + '" x2="' + x1 + '" y2="' + yy + '" stroke="#f1f5f9" stroke-width="1"/>';
+    }
+
+    nodes.forEach((n, i) => {
+      const xx = sx(cum[i]);
+      const off = getNodeOffset(n);
+      const g = Number(n.coordinated_green_s || 0);
+      h += '<line x1="' + xx + '" y1="' + y0 + '" x2="' + xx + '" y2="' + y1 + '" stroke="#cbd5e1" stroke-width="1"/>';
+      h += '<text x="' + xx + '" y="' + (y0 - 12) + '" text-anchor="middle" font-size="10" fill="#1e293b">' + escapeHtml(n.intersection_id) + "</text>";
+      h += '<text x="' + xx + '" y="' + (y0 - 1) + '" text-anchor="middle" font-size="9" fill="#64748b">偏移:' + off.toFixed(1) + '秒 / 绿灯:' + g.toFixed(1) + '秒</text>';
+      h += '<text x="' + xx + '" y="' + (y1 + 16) + '" text-anchor="middle" font-size="10" fill="#334155">' + escapeHtml(n.intersection_id) + "</text>";
+      repeatedRedSegments(off, g, cycle, cyclesToShow).forEach(([a, b]) => {
+        const rectY = sy(b);
+        const rectH = Math.max(2, sy(a) - sy(b));
+        h += '<rect x="' + (xx - 12) + '" y="' + rectY + '" width="8" height="' + rectH + '" fill="rgba(239,68,68,.55)" rx="1"/>';
+        h += '<rect x="' + (xx + 4) + '" y="' + rectY + '" width="8" height="' + rectH + '" fill="rgba(220,38,38,.45)" rx="1"/>';
+      });
+      repeatedGreenSegments(off, g, cycle, cyclesToShow).forEach(([a, b]) => {
+        const rectY = sy(b);
+        const rectH = Math.max(2, sy(a) - sy(b));
+        h += '<rect x="' + (xx - 12) + '" y="' + rectY + '" width="8" height="' + rectH + '" fill="rgba(34,197,94,.88)" rx="1" data-drag-node="' + i + '" style="cursor:ns-resize"/>';
+        h += '<rect x="' + (xx + 4) + '" y="' + rectY + '" width="8" height="' + rectH + '" fill="rgba(21,128,61,.72)" rx="1" data-drag-node="' + i + '" style="cursor:ns-resize"/>';
+      });
+      if (i < dists.length) {
+        const midX = (sx(cum[i]) + sx(cum[i + 1])) / 2;
+        const speed = payload.links && payload.links[i]
+          ? payload.links[i].forward_speed_kmh
+          : payload.constraints.design_speed_kmh;
+        h += '<text x="' + midX + '" y="' + (y1 + 30) + '" text-anchor="middle" font-size="9" fill="#64748b">' +
+          dists[i].toFixed(0) + '米 / ' + Number(speed).toFixed(0) + '千米/时</text>';
+      }
+    });
+
+    const forwardBands = collectForwardPairBands();
+    const reverseBands = collectReversePairBands();
+    h = appendPairOverlapBands(h, forwardBands, {
+      fill: "rgba(74, 222, 128, .48)",
+      stroke: "rgba(22, 163, 74, .9)"
+    });
+    h = appendPairOverlapBands(h, reverseBands, {
+      fill: "rgba(22, 163, 74, .22)",
+      stroke: "rgba(21, 128, 61, .85)",
+      dash: "5 4"
+    });
+
+    h += '<rect x="' + (x1 - 290) + '" y="' + (y0 + 2) + '" width="286" height="60" rx="5" fill="rgba(255,255,255,.94)" stroke="#e2e8f0"/>';
+    h += '<rect x="' + (x1 - 283) + '" y="' + (y0 + 9) + '" width="11" height="8" rx="2" fill="rgba(34,197,94,.88)"/>';
+    h += '<text x="' + (x1 - 269) + '" y="' + (y0 + 17) + '" font-size="9" fill="#15803d">绿灯</text>';
+    h += '<rect x="' + (x1 - 238) + '" y="' + (y0 + 9) + '" width="11" height="8" rx="2" fill="rgba(239,68,68,.55)"/>';
+    h += '<text x="' + (x1 - 224) + '" y="' + (y0 + 17) + '" font-size="9" fill="#b91c1c">红灯</text>';
+    h += '<rect x="' + (x1 - 193) + '" y="' + (y0 + 9) + '" width="11" height="8" rx="2" fill="rgba(74,222,128,.48)" stroke="rgba(22,163,74,.9)"/>';
+    h += '<text x="' + (x1 - 179) + '" y="' + (y0 + 17) + '" font-size="9" fill="#15803d">正向重叠</text>';
+    h += '<rect x="' + (x1 - 128) + '" y="' + (y0 + 9) + '" width="11" height="8" rx="2" fill="rgba(22,163,74,.22)" stroke="rgba(21,128,61,.85)" stroke-dasharray="2 1"/>';
+    h += '<text x="' + (x1 - 114) + '" y="' + (y0 + 17) + '" font-size="9" fill="#166534">反向重叠</text>';
+    h += '<text x="' + (x1 - 283) + '" y="' + (y0 + 33) + '" font-size="9" fill="#475569">↕ 拖动绿灯条可调整相位差 · 按相邻路口逐段计算重叠</text>';
+    h += '<text x="' + (x1 - 283) + '" y="' + (y0 + 48) + '" font-size="9" fill="#475569">绿/红灯条宽度相互补充，覆盖整个周期时间轴</text>';
+
+    nodes.forEach((n, i) => {
+      const xx = sx(cum[i]);
+      h += '<rect x="' + (xx - 30) + '" y="' + y0 + '" width="60" height="' + (y1 - y0) + '" fill="#000" fill-opacity="0.001" data-drag-node="' + i + '" style="cursor:ns-resize"/>';
+    });
+
+    svg.innerHTML = h;
+  }
+
+  function refreshCurrentViews() {
+    if (!lastPlan) return;
+    $("raw-json").textContent = JSON.stringify(lastPlan, null, 2);
+    const plan = lastPlan.plan || {};
+    const coord = plan.coordination || {};
+    const nodes = coord.nodes || [];
+    $("viz-placeholder").style.display = "none";
+    $("viz-content").style.display = "block";
+    $("err-panel").style.display = "none";
+    $("kpi-panel").style.display = "none";
+    $("tbl-wrap").style.display = "none";
+    $("opt-compare").style.display = "none";
+
+    if (!coord.cycle_s || nodes.length === 0) {
+      const notes = (plan.meta && plan.meta.notes) || [];
+      $("err-panel").style.display = "block";
+      $("err-panel").textContent =
+        notes.join("；") || "未得到有效周期或路口列表，请检查输入路段与约束。";
+      $("st-svg").innerHTML = "";
+      $("opt-compare").innerHTML = "";
+      return;
+    }
+
+    const C = coord.cycle_s;
+    $("kpi-panel").style.display = "grid";
+    $("tbl-wrap").style.display = "block";
+    $("kpi-bw").textContent = (coord.bandwidth_s != null ? coord.bandwidth_s : 0).toFixed(1);
+    $("kpi-cyc").textContent = C.toFixed(1);
+    $("kpi-bw-fwd").textContent = (coord.bandwidth_forward_s != null ? coord.bandwidth_forward_s : 0).toFixed(1);
+    $("kpi-bw-rev").textContent = (coord.bandwidth_reverse_s != null ? coord.bandwidth_reverse_s : 0).toFixed(1);
+    $("kpi-dly").textContent = (coord.total_delay_s != null ? coord.total_delay_s : 0).toFixed(1);
+    const dsProxy = plan.meta && plan.meta.kpis && plan.meta.kpis.adjacent_double_stop_proxy;
+    $("kpi-ds").textContent = dsProxy != null ? Number(dsProxy).toFixed(2) : "—";
+
+    const tb = $("tbl-nodes").querySelector("tbody");
+    tb.innerHTML = "";
+    nodes.forEach((n) => {
+      const tr = document.createElement("tr");
+      const offVal = getNodeOffset(n);
+      const phases = n.phase_stage_timing_list || [];
+      const phaseStr = phases.map((p) =>
+        escapeHtml(p.phase_stage_id || p.phaseStageId || "?") + "：" + (p.green_s || p.greenTime || 0).toFixed(0) + "秒"
+      ).join(" / ") || "—";
+      tr.innerHTML =
+        "<td>" +
+        escapeHtml(n.intersection_id) +
+        "</td><td>" +
+        (offVal != null ? Number(offVal).toFixed(1) : "—") +
+        "</td><td>" +
+        (n.coordinated_green_s != null ? n.coordinated_green_s.toFixed(1) : "—") +
+        "</td><td>" +
+        (n.green_ratio != null ? (100 * n.green_ratio).toFixed(1) + "%" : "—") +
+        "</td><td>" +
+        (n.webster_delay_s != null ? n.webster_delay_s.toFixed(1) : "—") +
+        "</td><td style='font-size:10px'>" + phaseStr + "</td>";
+      tb.appendChild(tr);
+    });
+
+    renderSpaceTime(lastPayload, coord);
+    renderOptimizationCompare(nodes);
+  }
+
+  function showResult(payload, envelope) {
+    lastPayload = payload;
+    lastPlan = cloneJson(envelope);
+    basePlan = cloneJson(envelope);
+    $("drag-status").textContent = "拖动图中绿灯条可手动调整相位差并实时预览";
+    refreshCurrentViews();
+  }
+
+  $("btn-reset-offsets").onclick = () => {
+    if (!basePlan) return;
+    lastPlan = cloneJson(basePlan);
+    $("drag-status").textContent = "已恢复到优化结果中的相位差";
+    refreshCurrentViews();
+  };
+
+  $("st-svg").addEventListener("pointerdown", (ev) => {
+    const target = ev.target.closest("[data-drag-node]");
+    if (!target || !lastPlan || !lastPlan.plan || !lastPlan.plan.coordination) return;
+    const coord = lastPlan.plan.coordination;
+    const nodes = coord.nodes || [];
+    const nodeIndex = Number(target.dataset.dragNode);
+    if (!Number.isFinite(nodeIndex) || !nodes[nodeIndex]) return;
+    const svg = $("st-svg");
+    const rect = svg.getBoundingClientRect();
+    const viewBox = svg.viewBox.baseVal;
+    const plotHeightPx = rect.height * ((440 - 42 - 34) / viewBox.height);
+    dragState = {
+      pointerId: ev.pointerId,
+      nodeIndex,
+      startClientY: ev.clientY,
+      startOffset: getNodeOffset(nodes[nodeIndex]),
+      cycle: coord.cycle_s,
+      totalTime: coord.cycle_s * 3,
+      plotHeightPx: Math.max(1, plotHeightPx)
+    };
+    svg.setPointerCapture(ev.pointerId);
+    $("drag-status").textContent = "正在拖动 " + nodes[nodeIndex].intersection_id + " 的绿灯条";
+    ev.preventDefault();
+  });
+
+  $("st-svg").addEventListener("pointermove", (ev) => {
+    if (!dragState || dragState.pointerId !== ev.pointerId || !lastPlan || !lastPlan.plan || !lastPlan.plan.coordination) return;
+    const coord = lastPlan.plan.coordination;
+    const nodes = coord.nodes || [];
+    const node = nodes[dragState.nodeIndex];
+    if (!node) return;
+    const dy = ev.clientY - dragState.startClientY;
+    const deltaT = -dy * dragState.totalTime / dragState.plotHeightPx;
+    setNodeOffset(node, dragState.startOffset + deltaT, dragState.cycle);
+    $("drag-status").textContent = node.intersection_id + " 相位差已调整为 " + getNodeOffset(node).toFixed(1) + " 秒";
+    refreshCurrentViews();
+  });
+
+  function finishDrag(ev) {
+    if (!dragState || dragState.pointerId !== ev.pointerId) return;
+    const coord = lastPlan && lastPlan.plan ? lastPlan.plan.coordination : null;
+    const node = coord && coord.nodes ? coord.nodes[dragState.nodeIndex] : null;
+    if (node) {
+      $("drag-status").textContent = node.intersection_id + " 相位差已固定为 " + getNodeOffset(node).toFixed(1) + " 秒";
+    }
+    dragState = null;
+  }
+
+  $("st-svg").addEventListener("pointerup", finishDrag);
+  $("st-svg").addEventListener("pointercancel", finishDrag);
+
+  $("btn-run").onclick = async () => {
+    const btn = $("btn-run");
+    btn.disabled = true;
+    try {
+      const payload = buildPayload();
+      const r = await fetch("/v1/planning/corridor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      showResult(payload, data);
+    } catch (e) {
+      $("err-panel").style.display = "block";
+      $("err-panel").textContent = "请求失败: " + (e && e.message ? e.message : String(e));
+      if (window.SignalControlUI) SignalControlUI.toast("干线协调请求失败，请检查参数或服务状态", "danger");
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  async function ping() {
+    const el = $("api-status");
+    try {
+      const r = await fetch("/health");
+      if (r.ok) {
+        el.textContent = "API 正常";
+        el.className = "ok";
+      } else throw new Error("bad status");
+    } catch {
+      el.textContent = "API 不可用";
+      el.className = "err";
+      if (window.SignalControlUI) SignalControlUI.toast("规划接口不可用，仍可编辑参数", "warn");
+    }
+  }
+  syncIntersectionEditors();
+  ping();
+})();
+  </script>
+</body>
+</html>

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>路口历史配时方案可视化</title>
+<style>
+  :root {
+    --bg: #0a1628;
+    --card: #0f2040;
+    --card2: #122448;
+    --border: #1e3a5f;
+    --accent: #00c8ff;
+    --accent2: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --period-active: #1e4a7a;
+    --period-hover: #173d6a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* ── Header ── */
+  .header { background: linear-gradient(90deg,#061020,#0f2a50); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+  .header-sub { color: var(--muted); font-size: 12px; }
+
+  /* ── Controls ── */
+  .controls { display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: var(--card); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .ctrl-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  select, input[type=date] {
+    background: #0a1e38; border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    outline: none; min-width: 200px;
+  }
+  select:focus, input[type=date]:focus { border-color: var(--accent); }
+  .badge { background: var(--accent); color: #000; font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+
+  /* ── Layout ── */
+  .layout { display: flex; height: calc(100vh - 117px); }
+  .sidebar { width: 220px; flex-shrink: 0; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; }
+  .main { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* ── Sidebar timeline ── */
+  .sidebar-title { padding: 12px 16px 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+  .period-item {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background .15s;
+  }
+  .period-item:hover { background: var(--period-hover); }
+  .period-item.active { background: var(--period-active); border-left: 3px solid var(--accent); }
+  .period-time { font-size: 13px; font-weight: 600; color: var(--accent); }
+  .period-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .period-cycle { display: inline-block; background: #1a3a60; color: var(--accent); font-size: 11px; padding: 1px 6px; border-radius: 4px; margin-top: 3px; }
+
+  /* ── Phase view ── */
+  .phase-view-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .phase-view-title { font-size: 16px; font-weight: 700; color: var(--accent); }
+  .phase-view-sub { font-size: 12px; color: var(--muted); }
+  .cycle-tag { background: #1e4060; color: var(--accent); padding: 2px 10px; border-radius: 12px; font-size: 12px; }
+
+  /* ── Phase cards ── */
+  .phase-cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .phase-card {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+    min-width: 150px;
+  }
+  .phase-card-label { font-size: 13px; font-weight: 700; color: var(--text); }
+  .phase-card-time { font-size: 22px; font-weight: 800; color: var(--accent); }
+  .phase-card-flow { color: var(--muted); font-size: 11px; line-height: 1.4; max-width: 150px; text-align: center; }
+  .phase-card canvas { border-radius: 6px; }
+
+  /* ── Timing table ── */
+  .timing-section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .timing-section-title { padding: 10px 16px; font-size: 12px; color: var(--muted); background: #0d1e36; border-bottom: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: #0d2040; color: var(--muted); font-size: 12px; padding: 10px 16px; text-align: center; border-bottom: 1px solid var(--border); font-weight: 500; }
+  tbody td { padding: 10px 16px; text-align: center; border-bottom: 1px solid #0f1e30; font-size: 13px; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #0f2540; }
+  .td-stage { color: var(--accent); font-weight: 700; }
+  .td-green { color: var(--accent2); font-weight: 600; }
+  .td-yellow { color: var(--yellow); font-weight: 600; }
+  .td-red { color: var(--red); font-weight: 600; }
+  .td-total { color: var(--text); font-weight: 600; }
+
+  /* ── Empty states ── */
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* ── Legend ── */
+  .legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+
+  /* ctrl_mode badge */
+  .mode-badge { font-size: 10px; background: #1a3a20; color: #4ade80; padding: 1px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚦 路口历史配时方案可视化</h1>
+  <span class="header-sub">基于 dwd_ctl_inter_period_plan_exec_his</span>
+</div>
+
+<div class="controls">
+  <span class="ctrl-label">路口</span>
+  <select id="selInter" onchange="onInterChange()">
+    <option value="">— 选择路口 —</option>
+  </select>
+
+  <span class="ctrl-label">日期</span>
+  <select id="selDate" onchange="onDateChange()" disabled>
+    <option value="">— 选择日期 —</option>
+  </select>
+
+  <span id="cycleBadge" style="display:none">
+    <span class="badge" id="cycleCount">0</span> 个时段
+  </span>
+</div>
+
+<div class="layout">
+  <!-- Sidebar: period timeline -->
+  <div class="sidebar">
+    <div class="sidebar-title">时段列表</div>
+    <div id="periodList"><div class="empty"><div class="empty-icon">📋</div>请先选择路口和日期</div></div>
+  </div>
+
+  <!-- Main: phase diagram + table -->
+  <div class="main" id="mainContent">
+    <div class="empty">
+      <div class="empty-icon">🔍</div>
+      <div>选择左侧时段查看配时方案详情</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let periodRows = [];
+let periods = [];
+const STAGE_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const CTRL_MODE_MAP = {
+  '21': '单点定时', '22': '单点感应', '23': '单点自适应',
+  '31': '线协调定时', '32': '线协调感应', '33': '线协调自适应',
+  '41': '区域协调', '51': '手动干预', '12': '全红', '13': '黄闪'
+};
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  const res = await fetch('/v1/timing/history/intersections');
+  const inters = await res.json();
+  const sel = document.getElementById('selInter');
+  inters.forEach(i => {
+    const opt = document.createElement('option');
+    opt.value = i.inter_id;
+    opt.text = `${i.name}（${i.inter_id}）`;
+    sel.appendChild(opt);
+  });
+}
+
+async function onInterChange() {
+  const interId = document.getElementById('selInter').value;
+  const dateEl = document.getElementById('selDate');
+  dateEl.innerHTML = '<option value="">— 选择日期 —</option>';
+  dateEl.disabled = true;
+  periodRows = []; periods = [];
+  document.getElementById('periodList').innerHTML = '<div class="empty"><div class="empty-icon">📋</div>请选择日期</div>';
+  document.getElementById('mainContent').innerHTML = '<div class="empty"><div class="empty-icon">🔍</div>选择左侧时段查看配时方案详情</div>';
+  document.getElementById('cycleBadge').style.display = 'none';
+
+  if (!interId) return;
+  const res = await fetch(`/v1/timing/history/dates?inter_id=${encodeURIComponent(interId)}`);
+  const dates = await res.json();
+  dates.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.date;
+    opt.text = `${d.date}（${d.count} 时段）`;
+    dateEl.appendChild(opt);
+  });
+  dateEl.disabled = false;
+}
+
+async function onDateChange() {
+  const interId = document.getElementById('selInter').value;
+  const date = document.getElementById('selDate').value;
+  if (!interId || !date) return;
+
+  const res = await fetch(`/v1/timing/history/periods?inter_id=${encodeURIComponent(interId)}&date=${encodeURIComponent(date)}`);
+  periodRows = await res.json();
+
+  document.getElementById('cycleCount').textContent = periodRows.length;
+  document.getElementById('cycleBadge').style.display = '';
+
+  buildPeriods();
+  renderPeriodList();
+  // Auto select first period
+  if (periods.length > 0) {
+    selectPeriod(0);
+  } else {
+    document.getElementById('mainContent').innerHTML = '<div class="empty"><div class="empty-icon">🔍</div>该日期暂无配时数据</div>';
+  }
+}
+
+// ── Build periods from database rows ───────────────────────────────────────
+function buildPeriods() {
+  periods = periodRows.map(p => ({
+    plan_no: p.plan_no,
+    ctrl_mode: p.ctrl_mode,
+    start_time: p.period_start_time,
+    end_time: p.period_end_time,
+    cycle_len_sec: p.cycle_len_sec,
+    stage_exec_json: p.stage_exec_json,
+    stage_flow_combo_json: p.stage_flow_combo_json,
+  }));
+}
+
+// ── Render sidebar ─────────────────────────────────────────────────────────
+function renderPeriodList() {
+  const el = document.getElementById('periodList');
+  if (!periods.length) {
+    el.innerHTML = '<div class="empty">暂无数据</div>';
+    return;
+  }
+  el.innerHTML = periods.map((p, i) => {
+    const startHM = p.start_time.slice(11, 16);
+    const endHM = p.end_time.slice(11, 16);
+    const mode = CTRL_MODE_MAP[String(p.ctrl_mode)] || `模式${p.ctrl_mode}`;
+    const stageCount = p.stage_exec_json ? p.stage_exec_json.length : 0;
+    return `<div class="period-item" id="period-${i}" onclick="selectPeriod(${i})">
+      <div class="period-time">${startHM} – ${endHM}</div>
+      <div class="period-meta">方案 ${p.plan_no} · ${mode}</div>
+      <div>
+        <span class="period-cycle">周期 ${p.cycle_len_sec}s</span>
+        <span class="period-cycle">${stageCount} 阶段</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Select period & render phase view ─────────────────────────────────────
+function selectPeriod(idx) {
+  document.querySelectorAll('.period-item').forEach(el => el.classList.remove('active'));
+  document.getElementById(`period-${idx}`).classList.add('active');
+  const p = periods[idx];
+  renderPhaseView(p);
+}
+
+function renderPhaseView(p) {
+  const startHM = p.start_time.slice(11, 16);
+  const endHM = p.end_time.slice(11, 16);
+  const mode = CTRL_MODE_MAP[String(p.ctrl_mode)] || `模式${p.ctrl_mode}`;
+  const stages = p.stage_exec_json || [];
+  const flowMap = buildFlowMap(p.stage_flow_combo_json || []);
+
+  // Phase cards
+  const cardsHtml = stages.map((s, i) => {
+    const label = STAGE_LABELS[i] || String(i + 1);
+    const canvasId = `phaseCanvas_${i}`;
+    const flows = flowMap[s.stage_no] || [];
+    return `<div class="phase-card">
+      <div class="phase-card-label">阶段 ${label}（${s.stage_no}）</div>
+      <div class="phase-card-time">${s.stage_exec_len_sec}s</div>
+      <canvas id="${canvasId}" width="150" height="150"></canvas>
+      <div class="phase-card-flow">${formatFlowText(flows)}</div>
+    </div>`;
+  }).join('');
+
+  // Timing table
+  const tableRows = stages.map((s, i) => {
+    const label = STAGE_LABELS[i] || String(i + 1);
+    return `<tr>
+      <td class="td-stage">${label}</td>
+      <td class="td-total">${s.stage_exec_len_sec}</td>
+      <td class="td-green">${s.green_exec_sec}</td>
+      <td class="td-yellow">${s.yellow_exec_sec}</td>
+      <td class="td-red">${s.all_red_exec_sec}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="phase-view-header">
+      <div class="phase-view-title">相位图</div>
+      <span class="cycle-tag">固定: ${p.cycle_len_sec}秒</span>
+      <div class="phase-view-sub">${startHM} – ${endHM} · 方案${p.plan_no} · <span class="mode-badge">${mode}</span></div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#12d6bd"></div>当前阶段放行车流</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>行人</div>
+    </div>
+
+    <div class="phase-cards">${cardsHtml}</div>
+
+    <div class="timing-section">
+      <div class="timing-section-title">配时信息</div>
+      <table>
+        <thead>
+          <tr>
+            <th>相位编号</th><th>相位时间（s）</th>
+            <th>绿灯时长（s）</th><th>黄灯时长（s）</th><th>全红时长（s）</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+  `;
+
+  // Draw canvases after DOM insertion
+  requestAnimationFrame(() => {
+    stages.forEach((s, i) => {
+      const canvas = document.getElementById(`phaseCanvas_${i}`);
+      if (canvas) drawIntersection(canvas, flowMap[s.stage_no] || []);
+    });
+  });
+}
+
+// ── Build flow map: stage_no → flow array ─────────────────────────────────
+function buildFlowMap(stageFlowComboJson) {
+  const map = {};
+  for (const item of stageFlowComboJson) {
+    map[item.stage_no] = item.flow_combo || [];
+  }
+  return map;
+}
+
+function formatFlowText(flows) {
+  if (!flows.length) return '暂无交通流';
+  const dirMap = {'0': '北', '2': '东', '4': '南', '6': '西'};
+  const typeMap = {'1': '直', '2': '左', '3': '右', '4': '掉头', '5': '行人', '9': '其他'};
+  return flows.map(f => {
+    const dir = f.f_dir8_name || dirMap[String(f.f_dir8_no)] || `方向${f.f_dir8_no}`;
+    const rawType = f.flow_type_name || typeMap[String(f.flow_type_no)] || `流向${f.flow_type_no}`;
+    const type = rawType
+      .replace(/^机动车/, '')
+      .replace(/^非机动车/, '非机')
+      .replace(/转$/, '');
+    return `${dir}${type}`;
+  }).join('、');
+}
+
+// ── Intersection Canvas Drawing ────────────────────────────────────────────
+// Reference-style phase diagram:
+//   北进口: upper-left, arrows point down toward the center.
+//   南进口: lower-right, arrows point up toward the center.
+//   东进口: right side, arrows point left toward the center.
+//   西进口: left side, arrows point right toward the center.
+// In the source data, f_dir8_no is the entrance direction:
+//   0 = 北进口, 4 = 南进口, 2 = 东进口, 6 = 西进口.
+function drawIntersection(canvas, flows) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const active = new Set();
+  for (const f of flows) active.add(`${f.f_dir8_no}_${f.flow_type_no}`);
+
+  ctx.fillStyle = '#073f5e';
+  ctx.fillRect(0, 0, W, H);
+  drawRoadBase(ctx, W, H);
+
+  const C = { active: '#12d6bd', ped: '#4ade80' };
+
+  function drawPath(points, color, width = 4.5) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+    ctx.stroke();
+  }
+
+  function arrowHead(x, y, angle, color, size = 13) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - size * Math.cos(angle - Math.PI / 6), y - size * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(x - size * Math.cos(angle + Math.PI / 6), y - size * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function marker(def) {
+    const paths = def.paths || [def.points];
+    paths.forEach(points => drawPath(points, C.active, def.width || 3.6));
+    const heads = def.heads || [{
+      point: paths[paths.length - 1][paths[paths.length - 1].length - 1],
+      angle: def.angle,
+      size: def.arrowSize || 10.5
+    }];
+    heads.forEach(head => arrowHead(head.point[0], head.point[1], head.angle, C.active, head.size || def.arrowSize || 10.5));
+  }
+
+  const UP = -Math.PI / 2;
+  const DOWN = Math.PI / 2;
+  const LEFT = Math.PI;
+  const RIGHT = 0;
+  const defs = {
+    '0_1': { points: [[64, 0], [64, 38]], angle: DOWN },
+    '0_2': { points: [[74, 0], [74, 29], [85, 40]], angle: 0.78 },
+    '0_3': { points: [[54, 0], [54, 28], [45, 40]], angle: 2.28 },
+    '4_1': { points: [[86, H], [86, 112]], angle: UP },
+    '4_2': { points: [[76, H], [76, 121], [64, 110]], angle: -2.36 },
+    '4_3': { points: [[96, H], [96, 122], [105, 110]], angle: -0.86 },
+    '2_1': { points: [[W, 62], [112, 62]], angle: LEFT },
+    '2_2': { points: [[W, 74], [123, 74], [112, 85]], angle: 2.36 },
+    '2_3': { points: [[W, 52], [123, 52], [111, 44]], angle: -2.55 },
+    '6_1': { points: [[0, 88], [38, 88]], angle: RIGHT },
+    '6_2': { points: [[0, 76], [27, 76], [38, 65]], angle: -0.78 },
+    '6_3': { points: [[0, 98], [27, 98], [39, 106]], angle: 0.58 },
+    '0_4': { points: [[88, 0], [88, 42], [99, 42], [99, 27]], angle: UP, width: 3.1, arrowSize: 8.5 },
+    '4_4': { points: [[62, H], [62, 108], [51, 108], [51, 123]], angle: DOWN, width: 3.1, arrowSize: 8.5 },
+    '2_4': { points: [[W, 86], [108, 86], [108, 97], [123, 97]], angle: RIGHT, width: 3.1, arrowSize: 8.5 },
+    '6_4': { points: [[0, 64], [42, 64], [42, 53], [27, 53]], angle: LEFT, width: 3.1, arrowSize: 8.5 }
+  };
+
+  const approachGeom = {
+    '0': { origin: [74, 0], f: [0, 1], r: [-1, 0] },
+    '4': { origin: [76, H], f: [0, -1], r: [1, 0] },
+    '2': { origin: [W, 74], f: [-1, 0], r: [0, 1] },
+    '6': { origin: [0, 76], f: [1, 0], r: [0, -1] }
+  };
+
+  function localPoint(g, point) {
+    const [x, y] = point;
+    return [
+      g.origin[0] + g.r[0] * x + g.f[0] * y,
+      g.origin[1] + g.r[1] * x + g.f[1] * y
+    ];
+  }
+
+  function localAngle(g, vector) {
+    const [x, y] = vector;
+    return Math.atan2(g.r[1] * x + g.f[1] * y, g.r[0] * x + g.f[0] * y);
+  }
+
+  function makeMixedDef(dir, turns) {
+    const g = approachGeom[dir];
+    const hasStraight = turns.has(1);
+    const hasLeft = turns.has(2);
+    const hasRight = turns.has(3);
+    const hasUturn = turns.has(4);
+    const paths = [];
+    const heads = [];
+    const addPath = (localPath, headVector, size = 9.5) => {
+      const path = localPath.map(point => localPoint(g, point));
+      paths.push(path);
+      heads.push({ point: path[path.length - 1], angle: localAngle(g, headVector), size });
+    };
+    const addStem = (localPath) => paths.push(localPath.map(point => localPoint(g, point)));
+
+    if (hasStraight) addPath([[0, 0], [0, 44]], [0, 1], 10.5);
+    else if (hasLeft || hasRight) addStem([[0, 0], [0, 30]]);
+    if (hasLeft) addPath([[0, 31], [18, 31]], [1, 0], 9);
+    if (hasRight) addPath([[0, 25], [-18, 25]], [-1, 0], 9);
+    if (hasUturn) addPath([[-14, 0], [-14, 38], [-28, 38], [-28, 22]], [0, -1], 8.5);
+    return { paths, heads, width: hasUturn ? 3.2 : 3.6 };
+  }
+
+  const mergedMixed = new Set();
+  ['0', '2', '4', '6'].forEach(dir => {
+    const turns = [1, 2, 3, 4].filter(type => active.has(`${dir}_${type}`));
+    if (turns.length < 3) return;
+    marker(makeMixedDef(dir, new Set(turns)));
+    turns.forEach(type => mergedMixed.add(`${dir}_${type}`));
+  });
+
+  Object.entries(defs).forEach(([key, def]) => {
+    if (active.has(key) && !mergedMixed.has(key)) marker(def);
+  });
+  if (active.has('0_5')) zebraCrossing(ctx, 38, 48, 90, 56, C.ped, false);
+  if (active.has('4_5')) zebraCrossing(ctx, 68, 94, 120, 102, C.ped, false);
+  if (active.has('2_5')) zebraCrossing(ctx, 98, 36, 106, 82, C.ped, true);
+  if (active.has('6_5')) zebraCrossing(ctx, 44, 76, 52, 118, C.ped, true);
+}
+
+function drawRoadBase(ctx, W, H) {
+  ctx.strokeStyle = 'rgba(226,232,240,.14)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(42, 0); ctx.lineTo(42, 42); ctx.lineTo(0, 42);
+  ctx.moveTo(108, 0); ctx.lineTo(108, 42); ctx.lineTo(W, 42);
+  ctx.moveTo(42, H); ctx.lineTo(42, 108); ctx.lineTo(0, 108);
+  ctx.moveTo(108, H); ctx.lineTo(108, 108); ctx.lineTo(W, 108);
+  ctx.stroke();
+}
+
+function zebraCrossing(ctx, x0, y0, x1, y1, color, vertical = false) {
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.6;
+  const stripeCount = 4;
+  if (!vertical) {
+    const w = x1 - x0;
+    const stripeW = w / (stripeCount * 2 - 1);
+    for (let i = 0; i < stripeCount; i++) {
+      ctx.fillRect(x0 + i * stripeW * 2, y0, stripeW, y1 - y0);
+    }
+  } else {
+    const h = y1 - y0;
+    const stripeH = h / (stripeCount * 2 - 1);
+    for (let i = 0; i < stripeCount; i++) {
+      ctx.fillRect(x0, y0 + i * stripeH * 2, x1 - x0, stripeH);
+    }
+  }
+  ctx.globalAlpha = 1.0;
+}
+
+// ── Start ──────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

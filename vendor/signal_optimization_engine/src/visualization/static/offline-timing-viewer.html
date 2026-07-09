@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>路口离线多时段配时方案可视化</title>
+<style>
+  :root {
+    --bg: #0a1628;
+    --card: #0f2040;
+    --card2: #122448;
+    --border: #1e3a5f;
+    --accent: #00c8ff;
+    --accent2: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --hover: #173d6a;
+    --active: #1e4a7a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; min-height: 100vh; }
+  .header { background: linear-gradient(90deg,#061020,#0f2a50); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+  .header-sub { color: var(--muted); font-size: 12px; }
+  .controls { display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: var(--card); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .ctrl-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  select {
+    background: #0a1e38; border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    outline: none; min-width: 240px;
+  }
+  select:focus { border-color: var(--accent); }
+  .badge { background: var(--accent); color: #00111f; font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+  .summary { display: flex; gap: 10px; flex-wrap: wrap; padding: 12px 24px; background: #0b1b32; border-bottom: 1px solid var(--border); }
+  .summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-width: 132px; }
+  .summary-label { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .summary-value { color: var(--accent); font-size: 17px; font-weight: 800; }
+  .layout { display: grid; grid-template-columns: 360px 1fr; gap: 0; height: calc(100vh - 154px); }
+  .sidebar { background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; }
+  .main { overflow-y: auto; padding: 18px 20px 28px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+  .panel-title { padding: 10px 14px; background: #0d1e36; color: var(--muted); border-bottom: 1px solid var(--border); font-size: 12px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  .panel-body { padding: 12px 14px; }
+  .day-plan-select { width: 100%; min-width: unset; }
+  .tabs { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--muted);
+    padding: 9px 14px; border-radius: 9px 9px 0 0; cursor: pointer; font-weight: 700;
+  }
+  .tab-btn:hover { color: var(--text); background: #10284a; }
+  .tab-btn.active { color: var(--accent); background: var(--card); border-color: var(--border); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+  .subtabs { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 14px 0; }
+  .subtab-btn {
+    border: 1px solid var(--border); background: #0a1e38; color: var(--muted);
+    padding: 5px 10px; border-radius: 999px; cursor: pointer; font-size: 12px;
+  }
+  .subtab-btn:hover, .subtab-btn.active { border-color: var(--accent); color: var(--accent); background: #10284a; }
+  .period-item { padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; }
+  .period-item:hover { background: var(--hover); }
+  .period-item.active { background: var(--active); border-left: 3px solid var(--accent); }
+  .period-time { font-size: 14px; font-weight: 800; color: var(--accent); }
+  .period-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .pill { display: inline-block; background: #1a3a60; color: var(--accent); font-size: 11px; padding: 1px 6px; border-radius: 4px; margin: 6px 5px 0 0; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: #0d2040; color: var(--muted); font-size: 12px; padding: 9px 10px; text-align: center; border-bottom: 1px solid var(--border); font-weight: 500; white-space: nowrap; }
+  tbody td { padding: 9px 10px; text-align: center; border-bottom: 1px solid #0f1e30; font-size: 13px; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #0f2540; }
+  .left { text-align: left; }
+  .td-stage, .td-plan { color: var(--accent); font-weight: 700; }
+  .td-green { color: var(--accent2); font-weight: 700; }
+  .td-yellow { color: var(--yellow); font-weight: 700; }
+  .td-red { color: var(--red); font-weight: 700; }
+  .empty { text-align: center; color: var(--muted); padding: 54px 20px; }
+  .empty-icon { font-size: 38px; margin-bottom: 12px; }
+  .phase-view-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .phase-view-title { font-size: 17px; font-weight: 800; color: var(--accent); }
+  .phase-view-sub { font-size: 12px; color: var(--muted); }
+  .cycle-tag { background: #1e4060; color: var(--accent); padding: 2px 10px; border-radius: 12px; font-size: 12px; }
+  .phase-cards { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+  .phase-card { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 160px; }
+  .phase-card-label { font-size: 13px; font-weight: 800; color: var(--text); text-align: center; }
+  .phase-card-time { font-size: 22px; font-weight: 800; color: var(--accent); }
+  .phase-card-ratio { color: var(--accent2); font-size: 12px; font-weight: 700; }
+  .phase-card canvas { border-radius: 6px; }
+  .legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mode-badge { font-size: 10px; background: #1a3a20; color: #4ade80; padding: 1px 6px; border-radius: 4px; }
+  .plan-hero { background: linear-gradient(135deg,#0f2a50,#10203c); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .plan-hero-title { color: var(--accent); font-size: 20px; font-weight: 900; margin-bottom: 8px; }
+  .plan-hero-meta { color: var(--muted); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 14px; }
+  .metric { background: rgba(10,30,56,.75); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+  .metric-label { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .metric-value { color: var(--text); font-size: 18px; font-weight: 900; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>路口离线多时段配时方案可视化</h1>
+  <span class="header-sub">调度表 / 日计划时段 / 配时方案阶段图</span>
+</div>
+
+<div class="controls">
+  <span class="ctrl-label">路口</span>
+  <select id="selInter" onchange="onInterChange()">
+    <option value="">— 选择路口 —</option>
+  </select>
+  <span id="loadState" class="ctrl-label"></span>
+</div>
+
+<div class="summary" id="summary">
+  <div class="summary-card"><div class="summary-label">路口</div><div class="summary-value">未选择</div></div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="panel" style="border-left:0;border-right:0;border-radius:0;margin-bottom:0">
+      <div class="panel-title">日计划</div>
+      <div class="panel-body">
+        <select id="selDayPlan" class="day-plan-select" onchange="onDayPlanChange()" disabled>
+          <option value="">— 选择日计划 —</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel" style="border-left:0;border-right:0;border-radius:0;margin-bottom:0">
+      <div class="panel-title">时段表 <span id="periodCount"></span></div>
+      <div id="periodList"><div class="empty"><div class="empty-icon">📋</div>请先选择路口</div></div>
+    </div>
+  </div>
+  <div class="main" id="mainContent">
+    <div class="empty">
+      <div class="empty-icon">🔍</div>
+      <div>选择路口后查看调度表和时段方案</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let data = null;
+let currentDayPlan = null;
+let currentPeriods = [];
+let currentMainTab = 'plan';
+let currentScheduleType = 'all';
+const STAGE_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const CTRL_MODE_MAP = {
+  '00': '撤销或恢复自主', '01': '本地手动',
+  '11': '全部关灯', '12': '全红', '13': '黄闪',
+  '21': '单点多时段定时', '22': '单点感应', '23': '单点自适应',
+  '31': '线协调定时', '32': '线协调感应', '33': '线协调自适应',
+  '41': '区域协调', '51': '手动干预'
+};
+const SCHEDULE_TYPE_MAP = {1: '特殊日调度', 2: '时间段周调度', 3: '周调度'};
+const WEEKDAY_MAP = {1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日'};
+
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function init() {
+  setLoadState('加载路口列表...');
+  const res = await fetch('/v1/timing/offline/intersections');
+  const inters = await res.json();
+  const sel = document.getElementById('selInter');
+  inters.forEach(i => {
+    const opt = document.createElement('option');
+    opt.value = i.inter_id;
+    opt.text = `${i.name}（${i.inter_id}） · ${i.day_plan_count}日计划/${i.plan_count}方案`;
+    sel.appendChild(opt);
+  });
+  setLoadState('');
+}
+
+function setLoadState(text) {
+  document.getElementById('loadState').textContent = text;
+}
+
+async function onInterChange() {
+  const interId = document.getElementById('selInter').value;
+  resetView();
+  if (!interId) return;
+
+  setLoadState('读取离线配置...');
+  const res = await fetch(`/v1/timing/offline?inter_id=${encodeURIComponent(interId)}`);
+  data = await res.json();
+  setLoadState('');
+  if (data.error) {
+    document.getElementById('mainContent').innerHTML = `<div class="empty">${esc(data.error)}</div>`;
+    return;
+  }
+
+  renderSummary();
+  renderDayPlanOptions();
+  renderMainShell();
+  switchMainTab('plan');
+  if (data.day_plans.length > 0) {
+    document.getElementById('selDayPlan').value = String(data.day_plans[0].day_plan_no);
+    onDayPlanChange();
+  }
+}
+
+function resetView() {
+  data = null;
+  currentDayPlan = null;
+  currentPeriods = [];
+  currentMainTab = 'plan';
+  currentScheduleType = 'all';
+  document.getElementById('selDayPlan').innerHTML = '<option value="">— 选择日计划 —</option>';
+  document.getElementById('selDayPlan').disabled = true;
+  document.getElementById('periodList').innerHTML = '<div class="empty"><div class="empty-icon">📋</div>请先选择路口</div>';
+  document.getElementById('periodCount').textContent = '';
+  document.getElementById('summary').innerHTML = '<div class="summary-card"><div class="summary-label">路口</div><div class="summary-value">未选择</div></div>';
+  document.getElementById('mainContent').innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div>选择路口后查看调度表和时段方案</div></div>';
+}
+
+function renderSummary() {
+  document.getElementById('summary').innerHTML = `
+    <div class="summary-card"><div class="summary-label">路口</div><div class="summary-value">${esc(data.name)}</div></div>
+    <div class="summary-card"><div class="summary-label">inter_id</div><div class="summary-value" style="font-size:14px">${esc(data.inter_id)}</div></div>
+    <div class="summary-card"><div class="summary-label">调度记录</div><div class="summary-value">${data.schedules.length}</div></div>
+    <div class="summary-card"><div class="summary-label">日计划</div><div class="summary-value">${data.day_plans.length}</div></div>
+    <div class="summary-card"><div class="summary-label">配时方案</div><div class="summary-value">${Object.keys(data.plans).length}</div></div>
+  `;
+}
+
+function renderDayPlanOptions() {
+  const sel = document.getElementById('selDayPlan');
+  sel.innerHTML = '<option value="">— 选择日计划 —</option>';
+  data.day_plans.forEach(dp => {
+    const opt = document.createElement('option');
+    opt.value = String(dp.day_plan_no);
+    opt.text = `${dp.day_plan_name}（${dp.day_plan_no}，${dp.periods.length}时段）`;
+    sel.appendChild(opt);
+  });
+  sel.disabled = false;
+}
+
+function renderMainShell() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-plan" onclick="switchMainTab('plan')">当前方案</button>
+      <button class="tab-btn" id="tab-schedule" onclick="switchMainTab('schedule')">调度表 <span class="badge">${data.schedules.length}</span></button>
+    </div>
+    <div id="pane-plan" class="tab-pane active">
+      <div id="periodPlanContent">
+        <div class="empty"><div class="empty-icon">🔍</div>选择左侧时段查看方案详情</div>
+      </div>
+    </div>
+    <div id="pane-schedule" class="tab-pane">
+      <div class="panel">
+        <div class="panel-title">调度表 <span>${data.schedules.length} 条</span></div>
+        ${renderScheduleTabs()}
+        <div id="scheduleTableContent" style="overflow-x:auto">${renderScheduleTable()}</div>
+      </div>
+    </div>
+  `;
+}
+
+function switchMainTab(tab) {
+  currentMainTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${tab}`)?.classList.add('active');
+  document.getElementById(`pane-${tab}`)?.classList.add('active');
+}
+
+function renderScheduleTabs() {
+  const types = [
+    ['all', '全部'],
+    [1, '特殊日'],
+    [2, '时间段周调度'],
+    [3, '周调度'],
+  ];
+  return `<div class="subtabs">${types.map(([value, label]) => {
+    const count = value === 'all'
+      ? data.schedules.length
+      : data.schedules.filter(s => Number(s.schedule_type_no) === Number(value)).length;
+    const active = String(currentScheduleType) === String(value) ? ' active' : '';
+    return `<button class="subtab-btn${active}" id="schedule-subtab-${value}" onclick="switchScheduleType('${value}')">${label} ${count}</button>`;
+  }).join('')}</div>`;
+}
+
+function switchScheduleType(type) {
+  currentScheduleType = type;
+  document.querySelectorAll('.subtab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(`schedule-subtab-${type}`)?.classList.add('active');
+  document.getElementById('scheduleTableContent').innerHTML = renderScheduleTable();
+}
+
+function renderScheduleTable() {
+  const schedules = currentScheduleType === 'all'
+    ? data.schedules
+    : data.schedules.filter(s => Number(s.schedule_type_no) === Number(currentScheduleType));
+  if (!schedules.length) return '<div class="empty">暂无该类型调度配置</div>';
+  const rows = schedules.map(s => {
+    const typeName = SCHEDULE_TYPE_MAP[s.schedule_type_no] || `类型${s.schedule_type_no}`;
+    const week = s.week_day_no ? WEEKDAY_MAP[s.week_day_no] : '-';
+    const days = [s.start_day || '', s.end_day || ''].filter(Boolean).join(' 至 ') || '-';
+    return `<tr>
+      <td class="td-stage">${esc(s.schedule_no)}</td>
+      <td class="left">${esc(s.schedule_name || '')}</td>
+      <td>${esc(typeName)}</td>
+      <td>${esc(s.priority_no ?? '-')}</td>
+      <td>${esc(days)}</td>
+      <td>${esc(week)}</td>
+      <td class="td-plan">日计划 ${esc(s.day_plan_no)}</td>
+    </tr>`;
+  }).join('');
+  return `<table>
+    <thead><tr><th>调度号</th><th>名称</th><th>类型</th><th>优先级</th><th>日期范围</th><th>星期</th><th>执行日计划</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function onDayPlanChange() {
+  const dayPlanNo = Number(document.getElementById('selDayPlan').value);
+  currentDayPlan = data.day_plans.find(dp => dp.day_plan_no === dayPlanNo) || null;
+  currentPeriods = currentDayPlan ? currentDayPlan.periods : [];
+  renderPeriodList();
+  if (currentPeriods.length > 0) selectPeriod(0);
+  else document.getElementById('periodPlanContent').innerHTML = '<div class="empty">该日计划暂无时段配置</div>';
+}
+
+function renderPeriodList() {
+  const el = document.getElementById('periodList');
+  document.getElementById('periodCount').textContent = currentDayPlan ? `${currentPeriods.length} 条` : '';
+  if (!currentDayPlan) {
+    el.innerHTML = '<div class="empty">请选择日计划</div>';
+    return;
+  }
+  if (!currentPeriods.length) {
+    el.innerHTML = '<div class="empty">暂无时段</div>';
+    return;
+  }
+  el.innerHTML = currentPeriods.map((p, i) => {
+    const mode = CTRL_MODE_MAP[String(p.ctrl_mode)] || `模式${p.ctrl_mode}`;
+    return `<div class="period-item" id="period-${i}" onclick="selectPeriod(${i})">
+      <div class="period-time">${esc(p.start_time)} - ${esc(p.end_time)}</div>
+      <div class="period-meta">方案 ${esc(p.plan_no)} · ${esc(mode)}</div>
+      <div>
+        <span class="pill">周期 ${esc(p.cycle_len_sec || '-')}s</span>
+        <span class="pill">${esc(p.plan_name || '未配置方案')}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectPeriod(idx) {
+  document.querySelectorAll('.period-item').forEach(el => el.classList.remove('active'));
+  const item = document.getElementById(`period-${idx}`);
+  if (item) item.classList.add('active');
+  renderPeriodPlan(currentPeriods[idx]);
+}
+
+function renderPeriodPlan(period) {
+  const plan = data.plans[String(period.plan_no)];
+  const mode = CTRL_MODE_MAP[String(period.ctrl_mode)] || `模式${period.ctrl_mode}`;
+  switchMainTab('plan');
+  if (!plan) {
+    document.getElementById('periodPlanContent').innerHTML = `<div class="empty">时段 ${esc(period.start_time)} - ${esc(period.end_time)} 引用的方案 ${esc(period.plan_no)} 不存在</div>`;
+    return;
+  }
+
+  const stages = plan.stages || [];
+  const cardsHtml = stages.map((s, i) => {
+    const label = STAGE_LABELS[i] || String(i + 1);
+    const canvasId = `phaseCanvas_${i}`;
+    const ratio = plan.cycle_len_sec ? (s.green_sec / plan.cycle_len_sec * 100).toFixed(1) : '0.0';
+    return `<div class="phase-card">
+      <div class="phase-card-label">阶段 ${label}（${esc(s.stage_no)}）</div>
+      <div class="phase-card-time">${esc(s.green_sec)}s</div>
+      <div class="phase-card-ratio">绿信比 ${ratio}%</div>
+      <canvas id="${canvasId}" width="150" height="150"></canvas>
+      <div class="period-meta">${esc(s.stage_name)}</div>
+    </div>`;
+  }).join('');
+
+  const rows = stages.map((s, i) => {
+    const label = STAGE_LABELS[i] || String(i + 1);
+    const ratio = plan.cycle_len_sec ? (s.green_sec / plan.cycle_len_sec * 100).toFixed(1) : '0.0';
+    return `<tr>
+      <td class="td-stage">${label}</td>
+      <td>${esc(s.stage_seq_no)}</td>
+      <td>${esc(s.stage_no)}</td>
+      <td class="left">${esc(s.stage_name)}</td>
+      <td>${esc(s.stage_total_sec)}</td>
+      <td class="td-green">${esc(s.green_sec)}</td>
+      <td class="td-green">${ratio}%</td>
+      <td class="td-yellow">${esc(s.yellow_sec)}</td>
+      <td class="td-red">${esc(s.all_red_sec)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('periodPlanContent').innerHTML = `
+    <div class="plan-hero">
+      <div class="plan-hero-title">${esc(plan.plan_name)}</div>
+      <div class="plan-hero-meta">
+        <span>${esc(currentDayPlan?.day_plan_name || '')}</span>
+        <span>${esc(period.start_time)} - ${esc(period.end_time)}</span>
+        <span><span class="mode-badge">${esc(mode)}</span></span>
+      </div>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-label">方案号</div><div class="metric-value">${esc(plan.plan_no)}</div></div>
+        <div class="metric"><div class="metric-label">周期</div><div class="metric-value">${esc(plan.cycle_len_sec)}s</div></div>
+        <div class="metric"><div class="metric-label">阶段数</div><div class="metric-value">${esc(stages.length)}</div></div>
+        <div class="metric"><div class="metric-label">协调阶段</div><div class="metric-value">${esc(plan.coord_stage_no || '-')}</div></div>
+        <div class="metric"><div class="metric-label">相位差</div><div class="metric-value">${esc(plan.offset_sec)}s</div></div>
+      </div>
+    </div>
+    <div class="phase-view-header">
+      <div class="phase-view-title">相位阶段图</div>
+      <div class="phase-view-sub">当前主页面聚焦展示所选时段执行方案</div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#12d6bd"></div>当前阶段放行车流</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>行人</div>
+    </div>
+    <div class="phase-cards">${cardsHtml || '<div class="empty">该方案暂无阶段配时</div>'}</div>
+    <div class="panel">
+      <div class="panel-title">阶段配时与绿信比 <span>${stages.length} 阶段</span></div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>相位</th><th>顺序</th><th>阶段号</th><th>阶段名称</th>
+              <th>阶段总时长(s)</th><th>绿灯(s)</th><th>绿信比</th><th>黄灯(s)</th><th>全红(s)</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  requestAnimationFrame(() => {
+    stages.forEach((s, i) => {
+      const canvas = document.getElementById(`phaseCanvas_${i}`);
+      if (canvas) drawIntersection(canvas, s.flow_combo || []);
+    });
+  });
+}
+
+function drawIntersection(canvas, flows) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const active = new Set();
+  for (const f of flows) active.add(`${f.f_dir8_no}_${f.flow_type_no}`);
+
+  ctx.fillStyle = '#073f5e';
+  ctx.fillRect(0, 0, W, H);
+  drawRoadBase(ctx, W, H);
+
+  const C = { active: '#12d6bd', ped: '#4ade80' };
+
+  function drawPath(points, color, width = 4.5) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+    ctx.stroke();
+  }
+
+  function arrowHead(x, y, angle, color, size = 13) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - size * Math.cos(angle - Math.PI / 6), y - size * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(x - size * Math.cos(angle + Math.PI / 6), y - size * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function marker(def) {
+    const paths = def.paths || [def.points];
+    paths.forEach(points => drawPath(points, C.active, def.width || 3.6));
+    const heads = def.heads || [{
+      point: paths[paths.length - 1][paths[paths.length - 1].length - 1],
+      angle: def.angle,
+      size: def.arrowSize || 10.5
+    }];
+    heads.forEach(head => arrowHead(head.point[0], head.point[1], head.angle, C.active, head.size || def.arrowSize || 10.5));
+  }
+
+  const UP = -Math.PI / 2;
+  const DOWN = Math.PI / 2;
+  const LEFT = Math.PI;
+  const RIGHT = 0;
+  const defs = {
+    '0_1': { points: [[64, 0], [64, 38]], angle: DOWN },
+    '0_2': { points: [[74, 0], [74, 29], [85, 40]], angle: 0.78 },
+    '0_3': { points: [[54, 0], [54, 28], [45, 40]], angle: 2.28 },
+    '4_1': { points: [[86, H], [86, 112]], angle: UP },
+    '4_2': { points: [[76, H], [76, 121], [64, 110]], angle: -2.36 },
+    '4_3': { points: [[96, H], [96, 122], [105, 110]], angle: -0.86 },
+    '2_1': { points: [[W, 62], [112, 62]], angle: LEFT },
+    '2_2': { points: [[W, 74], [123, 74], [112, 85]], angle: 2.36 },
+    '2_3': { points: [[W, 52], [123, 52], [111, 44]], angle: -2.55 },
+    '6_1': { points: [[0, 88], [38, 88]], angle: RIGHT },
+    '6_2': { points: [[0, 76], [27, 76], [38, 65]], angle: -0.78 },
+    '6_3': { points: [[0, 98], [27, 98], [39, 106]], angle: 0.58 },
+    '0_4': { points: [[88, 0], [88, 42], [99, 42], [99, 27]], angle: UP, width: 3.1, arrowSize: 8.5 },
+    '4_4': { points: [[62, H], [62, 108], [51, 108], [51, 123]], angle: DOWN, width: 3.1, arrowSize: 8.5 },
+    '2_4': { points: [[W, 86], [108, 86], [108, 97], [123, 97]], angle: RIGHT, width: 3.1, arrowSize: 8.5 },
+    '6_4': { points: [[0, 64], [42, 64], [42, 53], [27, 53]], angle: LEFT, width: 3.1, arrowSize: 8.5 }
+  };
+
+  const approachGeom = {
+    '0': { origin: [74, 0], f: [0, 1], r: [-1, 0] },
+    '4': { origin: [76, H], f: [0, -1], r: [1, 0] },
+    '2': { origin: [W, 74], f: [-1, 0], r: [0, 1] },
+    '6': { origin: [0, 76], f: [1, 0], r: [0, -1] }
+  };
+
+  function localPoint(g, point) {
+    const [x, y] = point;
+    return [
+      g.origin[0] + g.r[0] * x + g.f[0] * y,
+      g.origin[1] + g.r[1] * x + g.f[1] * y
+    ];
+  }
+
+  function localAngle(g, vector) {
+    const [x, y] = vector;
+    return Math.atan2(g.r[1] * x + g.f[1] * y, g.r[0] * x + g.f[0] * y);
+  }
+
+  function makeMixedDef(dir, turns) {
+    const g = approachGeom[dir];
+    const hasStraight = turns.has(1);
+    const hasLeft = turns.has(2);
+    const hasRight = turns.has(3);
+    const hasUturn = turns.has(4);
+    const paths = [];
+    const heads = [];
+    const addPath = (localPath, headVector, size = 9.5) => {
+      const path = localPath.map(point => localPoint(g, point));
+      paths.push(path);
+      heads.push({ point: path[path.length - 1], angle: localAngle(g, headVector), size });
+    };
+    const addStem = (localPath) => paths.push(localPath.map(point => localPoint(g, point)));
+
+    if (hasStraight) addPath([[0, 0], [0, 44]], [0, 1], 10.5);
+    else if (hasLeft || hasRight) addStem([[0, 0], [0, 30]]);
+    if (hasLeft) addPath([[0, 31], [18, 31]], [1, 0], 9);
+    if (hasRight) addPath([[0, 25], [-18, 25]], [-1, 0], 9);
+    if (hasUturn) addPath([[-14, 0], [-14, 38], [-28, 38], [-28, 22]], [0, -1], 8.5);
+    return { paths, heads, width: hasUturn ? 3.2 : 3.6 };
+  }
+
+  const mergedMixed = new Set();
+  ['0', '2', '4', '6'].forEach(dir => {
+    const turns = [1, 2, 3, 4].filter(type => active.has(`${dir}_${type}`));
+    if (turns.length < 3) return;
+    marker(makeMixedDef(dir, new Set(turns)));
+    turns.forEach(type => mergedMixed.add(`${dir}_${type}`));
+  });
+
+  Object.entries(defs).forEach(([key, def]) => {
+    if (active.has(key) && !mergedMixed.has(key)) marker(def);
+  });
+  if (active.has('0_5')) zebraCrossing(ctx, 38, 48, 90, 56, C.ped, false);
+  if (active.has('4_5')) zebraCrossing(ctx, 68, 94, 120, 102, C.ped, false);
+  if (active.has('2_5')) zebraCrossing(ctx, 98, 36, 106, 82, C.ped, true);
+  if (active.has('6_5')) zebraCrossing(ctx, 44, 76, 52, 118, C.ped, true);
+}
+
+function drawRoadBase(ctx, W, H) {
+  ctx.strokeStyle = 'rgba(226,232,240,.14)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(42, 0); ctx.lineTo(42, 42); ctx.lineTo(0, 42);
+  ctx.moveTo(108, 0); ctx.lineTo(108, 42); ctx.lineTo(W, 42);
+  ctx.moveTo(42, H); ctx.lineTo(42, 108); ctx.lineTo(0, 108);
+  ctx.moveTo(108, H); ctx.lineTo(108, 108); ctx.lineTo(W, 108);
+  ctx.stroke();
+}
+
+function zebraCrossing(ctx, x0, y0, x1, y1, color, vertical = false) {
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.6;
+  const stripeCount = 4;
+  if (!vertical) {
+    const w = x1 - x0;
+    const stripeW = w / (stripeCount * 2 - 1);
+    for (let i = 0; i < stripeCount; i++) ctx.fillRect(x0 + i * stripeW * 2, y0, stripeW, y1 - y0);
+  } else {
+    const h = y1 - y0;
+    const stripeH = h / (stripeCount * 2 - 1);
+    for (let i = 0; i < stripeCount; i++) ctx.fillRect(x0, y0 + i * stripeH * 2, x1 - x0, stripeH);
+  }
+  ctx.globalAlpha = 1.0;
+}
+
+init().catch(err => {
+  setLoadState('加载失败');
+  document.getElementById('mainContent').innerHTML = `<div class="empty">加载失败：${esc(err.message)}</div>`;
+});
+</script>
+</body>
+</html>
