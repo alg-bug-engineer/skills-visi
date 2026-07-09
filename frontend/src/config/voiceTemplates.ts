@@ -66,9 +66,10 @@ export function renderVoiceTemplate(template: string, slots: Record<string, stri
   return template.replace(/\{(\w+)\}/g, (_, key: string) => slots[key] ?? `{${key}}`)
 }
 
-/** 拼接完整播报：步骤名 + 目的 + 方法（不含核心结论）。 */
+/** 拼接完整播报：步骤名 + 目的 + 方法 + 结论（诊断幕起，结论来自快照）。 */
 export function composeVoiceAnnounce(def: VoiceTemplateDef, slots: Record<string, string>): string {
   const method = renderVoiceTemplate(def.methodTemplate, slots).trim()
-  const parts = [def.stepTitle, def.purpose.trim(), method].filter(Boolean)
+  const conclusion = (slots.conclusion ?? '').trim()
+  const parts = [def.stepTitle, def.purpose.trim(), method, conclusion].filter(Boolean)
   return `${parts.join('。')}。`
 }

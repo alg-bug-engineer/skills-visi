@@ -10,10 +10,10 @@ export function resetActVoiceKeys() {
   spokenKeys.clear()
 }
 
-export function voiceTextForAct(act: ActDef, _resp: RunResponse | null): string {
+export function voiceTextForAct(act: ActDef, resp: RunResponse | null): string {
   const def = VOICE_TEMPLATES[act.id]
   if (!def) return `${act.processTitle}。`
-  const slots = voiceSlotsForAct(act)
+  const slots = voiceSlotsForAct(act, resp)
   return composeVoiceAnnounce(def, slots)
 }
 

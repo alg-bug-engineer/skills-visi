@@ -17,7 +17,7 @@ describe('voice narration step sync', () => {
     localStorage.clear()
   })
 
-  it('maps each process act to template announce with purpose only', () => {
+  it('maps each process act to template announce with purpose and diagnosis conclusion', () => {
     const cue = voiceCueForAct(ACT_DEFS[0], 'run-1', fx)
     expect(cue?.text).toContain('诊断对象识别')
     expect(cue?.text).not.toContain('核心结论')
@@ -27,6 +27,10 @@ describe('voice narration step sync', () => {
     const locate = voiceCueForAct(ACT_DEFS[1], 'run-1', fx)
     expect(locate?.text).toContain('诊断对象定位')
     expect(locate?.text).not.toContain('已锁定')
+
+    const overflow = voiceCueForAct(ACT_DEFS[2], 'run-1', fx)
+    expect(overflow?.text).not.toContain('核心结论')
+    expect(overflow?.text).toContain(fx.phases?.diagnosis?.overflow_verification?.message ?? '')
   })
 
   it('shows a default-on speaker toggle beside map focus and clears voice when closed', async () => {

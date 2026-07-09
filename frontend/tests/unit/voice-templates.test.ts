@@ -15,7 +15,7 @@ describe('voice templates', () => {
     )
   })
 
-  it('composes purpose + method without conclusion', () => {
+  it('composes purpose + method without conclusion slot', () => {
     const act = ACT_DEFS[2]
     const def = VOICE_TEMPLATES[act.id]
     const slots = voiceSlotsForAct(act)
@@ -25,15 +25,23 @@ describe('voice templates', () => {
     expect(text).toContain('排队比')
   })
 
-  it('voiceTextForAct does not include conclusion or intersection details', () => {
+  it('voiceTextForAct omits conclusion before diagnosis act', () => {
     const text = voiceTextForAct(ACT_DEFS[0], fx)
     expect(text).not.toContain('核心结论')
     expect(text).toContain('诊断对象识别')
     const name = fx.diagnosis_ticket?.intersection_name
     if (name) expect(text).not.toContain(name)
+    expect(text).not.toMatch(/溢出风险|排队尚在/)
   })
 
-  it('healthy overflow act omits diagnostic conclusion in voice', () => {
+  it('voiceTextForAct includes diagnosis conclusion from act3 onward', () => {
+    const text = voiceTextForAct(ACT_DEFS[2], fx)
+    expect(text).not.toContain('核心结论')
+    expect(text).toContain('溢出证据核验')
+    expect(text).toContain(fx.phases?.diagnosis?.overflow_verification?.message ?? '')
+  })
+
+  it('healthy overflow act includes healthy conclusion in voice', () => {
     const healthyFx: RunResponse = {
       ...fx,
       phases: {
@@ -42,7 +50,8 @@ describe('voice templates', () => {
       },
     }
     const text = voiceTextForAct(ACT_DEFS[2], healthyFx)
-    expect(text).not.toContain('无溢出风险')
+    expect(text).not.toContain('核心结论')
+    expect(text).toContain('无溢出风险')
     expect(text).toContain('溢出证据核验')
   })
 })
