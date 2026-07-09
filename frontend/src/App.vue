@@ -12,20 +12,31 @@ import DownstreamTopologyInset from '@/panels/DownstreamTopologyInset.vue'
 import SkillSolidifyOverlay from '@/panels/SkillSolidifyOverlay.vue'
 import SkillBuildDrawer from '@/panels/SkillBuildDrawer.vue'
 import { sceneEvidencePolicy } from '@/map/sceneEvidencePolicy'
-import { resetActVoiceKeys, voiceCueForAct } from '@/services/voiceStepSync'
+import { buildVoiceCue, resetActVoiceKeys, voiceCueForAct } from '@/services/voiceStepSync'
+import { resetAbsorptionVoiceKeys } from '@/services/voiceAbsorptionSync'
+import { phaseReady } from '@/composables/useTimeline'
+import { useStepPauseKeyboard } from '@/composables/useStepPause'
 
 const store = usePresentationStore()
-const { status, dock, fullscreen, planMinimized, rollbackBanner, toast, currentAct, mapResetSeq } = storeToRefs(store)
+const { status, dock, fullscreen, planMinimized, rollbackBanner, toast, currentAct, mapResetSeq, stepPaused } =
+  storeToRefs(store)
 const voice = useVoiceNarration()
 const voiceEnabled = voice.enabled
 const voicePlaying = voice.playing
 const voiceError = voice.error
 
+useStepPauseKeyboard()
+
 store.setVoiceBarrier(voice.whenIdle)
 store.setVoiceInterrupt(voice.interrupt)
+store.setVoiceEnqueue((cue) => voice.enqueue(cue))
 
 const running = computed(() => status.value !== 'idle')
+/** 下游承接关系图谱卡片：暂时隐藏（保留组件与地图层逻辑）。 */
+const SHOW_DOWNSTREAM_TOPOLOGY_INSET = false
+
 const showTopologyInset = computed(() => {
+  if (!SHOW_DOWNSTREAM_TOPOLOGY_INSET) return false
   const scene = store.activeAct?.scene
   return running.value && !!scene && sceneEvidencePolicy(scene).downstreamTopology
 })
@@ -34,17 +45,43 @@ watch(toast, (v) => {
   if (v) window.setTimeout(() => store.clearToast(), 4200)
 })
 
+/** 进入 act 立即触发语音，与打字机并行；下一步仍等语音 barrier。 */
 watch(
   () => [currentAct.value, mapResetSeq.value] as const,
   ([idx, seq]) => {
     if (idx < 0) return
-    voice.enqueue(voiceCueForAct(store.acts[idx] ?? null, String(seq)))
+    voice.enqueue(voiceCueForAct(store.acts[idx] ?? null, String(seq), store.response))
   },
   { immediate: true },
 )
 
+/** 快照就绪后预合成后续 act 语音，降低进入步骤时的等待。 */
+watch(
+  () => [store.response, mapResetSeq.value, currentAct.value] as const,
+  ([resp, seq, cur]) => {
+    if (!resp || cur < 0) return
+    const runKey = String(seq)
+    const from = Math.max(0, cur)
+    const to = Math.min(store.acts.length - 1, cur + 3)
+    for (let i = from; i <= to; i++) {
+      const act = store.acts[i]
+      if (!phaseReady(resp, act.phase)) continue
+      voice.prefetch(buildVoiceCue(act, runKey, resp))
+    }
+  },
+  { immediate: true, deep: true },
+)
+
 watch(mapResetSeq, () => {
   resetActVoiceKeys()
+  resetAbsorptionVoiceKeys()
+  voice.interrupt()
+})
+
+onBeforeUnmount(() => {
+  store.setVoiceBarrier(null)
+  store.setVoiceInterrupt(null)
+  store.setVoiceEnqueue(null)
   voice.interrupt()
 })
 
@@ -53,12 +90,6 @@ function toggleVoice() {
   voice.setEnabled(next)
   if (!next) store.interruptVoice()
 }
-
-onBeforeUnmount(() => {
-  store.setVoiceBarrier(null)
-  store.setVoiceInterrupt(null)
-  voice.interrupt()
-})
 </script>
 
 <template>
@@ -139,6 +170,12 @@ onBeforeUnmount(() => {
 
     <Transition name="fade">
       <div v-if="toast" class="toast us-panel">{{ toast }}</div>
+    </Transition>
+
+    <Transition name="fade">
+      <div v-if="stepPaused && running" class="pause-toast us-panel" data-testid="step-pause-toast">
+        已暂停 · 空格继续
+      </div>
     </Transition>
 
     <footer
@@ -477,6 +514,22 @@ onBeforeUnmount(() => {
   color: var(--alarm-2);
   cursor: pointer;
   font-size: 16px;
+}
+.pause-toast {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 46;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.5);
+  background: rgba(28, 22, 4, 0.92);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  pointer-events: none;
 }
 .toast {
   position: absolute;

@@ -40,7 +40,7 @@ describe('ProcessPanel · 旁白缓存一致性（R2）', () => {
     expect(wrapper.text()).toContain('正在解析')
   })
 
-  it('折叠后再展开仍为多行旁白，不回退成 summaryFor 单行', async () => {
+  it('完成过的幕持续显示明细与证据卡，不自动折叠成单行', async () => {
     const store = usePresentationStore()
     store.applySnapshot(fx)
     store.autoPlay = false
@@ -54,14 +54,9 @@ describe('ProcessPanel · 旁白缓存一致性（R2）', () => {
     store.currentAct = 2
     await flushPromises()
 
-    // act0 此时默认折叠（index < currentAct - 1）→ 展开它
-    const vm = wrapper.vm as unknown as { toggleAct: (i: number) => void }
-    vm.toggleAct(0)
-    await flushPromises()
-
-    // 展开后应含 act0 的多行旁白关键字
+    // 已完成的 act0 不应被自动折叠，否则诊断任务工单会从右侧处置面板视觉上消失。
+    expect(wrapper.find('[data-act-index="0"]').classes()).not.toContain('collapsed')
     expect(wrapper.text()).toContain('正在解析')
-    const frozen = wrapper.findAll('[data-testid="process-narration-frozen"]')
-    expect(frozen.length).toBeGreaterThan(0)
+    expect(wrapper.findComponent({ name: 'DiagnosisTicketCard' }).isVisible()).toBe(true)
   })
 })

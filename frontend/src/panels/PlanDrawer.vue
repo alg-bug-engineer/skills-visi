@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import type { PlanCandidate } from '@/api/types'
-import { t } from '@/labels/enums'
+import { translatePlanId } from '@/labels/enums'
 import CoordinationDiagram from '@/panels/CoordinationDiagram.vue'
 import { productCopy } from '@/utils/productCopy'
 import PlanEvidencePanel from '@/panels/PlanEvidencePanel.vue'
@@ -61,7 +61,7 @@ async function onReject() {
         <p>{{ hasTiming ? '配时明细来自后端真实方案数据' : '后端未返回可绘制配时明细' }}</p>
       </div>
       <div class="drawer__hd-right">
-        <span v-if="recommendedId" class="rec">建议 {{ t('plan_id', recommendedId.split('_').slice(0, 2).join('_')) }}</span>
+        <span v-if="recommendedId" class="rec">建议 {{ translatePlanId(recommendedId) }}</span>
         <button
           type="button"
           class="min-btn"

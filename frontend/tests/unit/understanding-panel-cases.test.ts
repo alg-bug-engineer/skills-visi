@@ -115,6 +115,37 @@ describe('沉淀面板 · 案例库（行业/路口）', () => {
     expect(wrapper.text()).toContain('暂无路口沉淀案例')
   })
 
+  it('路口案例：英文 plan_id 与逐字 spatial_structure 展示为中文', async () => {
+    const s = usePresentationStore()
+    s.precip.loaded = true
+    s.precip.interCases = [
+      {
+        case_id: 'recommended_df0137044e4843db_downstream_protection',
+        category: 'recommended',
+        title: 'downstream_protection',
+        plan_id: 'downstream_protection',
+        inter_id: 'INT_B',
+        intersection_name: '解放东路与奥体中路路口',
+        time_period: 'morning_peak',
+        tags: {
+          problem_type: 'queue_spillover',
+          spatial_structure: '解, 放, 东, 路, 与, 奥, 体, 中, 路, 路, 口, 南, 向, 北, 直, 行, 方, 向',
+        },
+        lesson: '历史接受方案',
+      },
+    ]
+
+    const wrapper = mount(UnderstandingPanel)
+    await wrapper.find('[data-testid="case-library-tab"]').trigger('click')
+    await wrapper.find('[data-testid="case-subtab-intersection"]').trigger('click')
+
+    const text = wrapper.text()
+    expect(text).toContain('下游保护方案')
+    expect(text).not.toContain('downstream_protection')
+    expect(text).toContain('解放东路与奥体中路路口南向北直行方向')
+    expect(text).not.toMatch(/解,\s*放,\s*东/)
+  })
+
   it('路口案例：含固化技能的确认案例展示「下载技能包」入口', async () => {
     const s = usePresentationStore()
     s.precip.loaded = true

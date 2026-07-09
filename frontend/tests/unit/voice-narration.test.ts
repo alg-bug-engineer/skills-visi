@@ -5,6 +5,10 @@ import App from '@/App.vue'
 import { ACT_DEFS } from '@/composables/useTimeline'
 import { usePresentationStore } from '@/stores/presentation'
 import { resetActVoiceKeys, voiceCueForAct } from '@/services/voiceStepSync'
+import fixture from '@/mock/run_1_fixture.json'
+import type { RunResponse } from '@/api/types'
+
+const fx = fixture as unknown as RunResponse
 
 describe('voice narration step sync', () => {
   beforeEach(() => {
@@ -13,14 +17,16 @@ describe('voice narration step sync', () => {
     localStorage.clear()
   })
 
-  it('maps each process act to a short fixed announce cue and dedupes per run', () => {
-    const cue = voiceCueForAct(ACT_DEFS[0], 'run-1')
-    expect(cue?.text).toBe('诊断对象识别。')
+  it('maps each process act to template announce with purpose only', () => {
+    const cue = voiceCueForAct(ACT_DEFS[0], 'run-1', fx)
+    expect(cue?.text).toContain('诊断对象识别')
+    expect(cue?.text).not.toContain('核心结论')
     expect(cue?.phase).toBe('act1_ticket')
-    expect(voiceCueForAct(ACT_DEFS[0], 'run-1')).toBeNull()
+    expect(voiceCueForAct(ACT_DEFS[0], 'run-1', fx)).toBeNull()
 
-    const locate = voiceCueForAct(ACT_DEFS[1], 'run-1')
-    expect(locate?.text).toBe('诊断对象定位。')
+    const locate = voiceCueForAct(ACT_DEFS[1], 'run-1', fx)
+    expect(locate?.text).toContain('诊断对象定位')
+    expect(locate?.text).not.toContain('已锁定')
   })
 
   it('shows a default-on speaker toggle beside map focus and clears voice when closed', async () => {

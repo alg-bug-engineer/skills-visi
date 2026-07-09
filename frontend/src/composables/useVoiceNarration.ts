@@ -5,6 +5,11 @@ import { synthesizeVoiceWav } from '@/services/ttsClient'
 const STORAGE_KEY = 'voice-narration-enabled'
 const CUE_GAP_MS = 280
 
+interface CacheEntry {
+  text: string
+  promise: Promise<Blob>
+}
+
 function loadVoiceEnabled(): boolean {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored === null) {
@@ -23,10 +28,15 @@ export function useVoiceNarration() {
   const playing = ref(false)
   const error = ref<string | null>(null)
   const queue = shallowRef<VoiceCue[]>([])
+  const blobCache = new Map<string, CacheEntry>()
   let fallbackAudio: HTMLAudioElement | null = null
   let abortController: AbortController | null = null
   let drainPromise: Promise<void> | null = null
   let sessionEpoch = 0
+
+  function clearCache() {
+    blobCache.clear()
+  }
 
   function stopPlayback() {
     abortController?.abort()
@@ -44,6 +54,7 @@ export function useVoiceNarration() {
     queue.value = []
     stopPlayback()
     drainPromise = null
+    clearCache()
   }
 
   function setEnabled(value: boolean) {
@@ -57,9 +68,24 @@ export function useVoiceNarration() {
     setEnabled(!enabled.value)
   }
 
+  /** 提前合成音频，进入 act 时可直接播放。 */
+  function prefetch(cue: VoiceCue | null | undefined) {
+    if (!cue || !enabled.value) return
+    const hit = blobCache.get(cue.id)
+    if (hit?.text === cue.text) return
+    blobCache.set(cue.id, {
+      text: cue.text,
+      promise: synthesizeVoiceWav(cue.text, cue.id).catch((err) => {
+        blobCache.delete(cue.id)
+        throw err
+      }),
+    })
+  }
+
   function enqueue(cue: VoiceCue | null | undefined) {
     if (!cue || !enabled.value) return
     error.value = null
+    prefetch(cue)
     const rest = queue.value.filter((item) => item.stepIndex !== cue.stepIndex || item.phase !== cue.phase)
     queue.value = [...rest, cue]
     void ensureDrain()
@@ -71,11 +97,25 @@ export function useVoiceNarration() {
     return detail ? `语音播报不可用：${detail}` : '语音播报不可用，请检查 TTS 配置。'
   }
 
+  async function resolveBlob(cue: VoiceCue, signal: AbortSignal): Promise<Blob> {
+    const hit = blobCache.get(cue.id)
+    if (hit?.text === cue.text) {
+      try {
+        return await hit.promise
+      } catch {
+        /* fall through to live synth */
+      }
+    }
+    const promise = synthesizeVoiceWav(cue.text, cue.id, signal)
+    blobCache.set(cue.id, { text: cue.text, promise })
+    return promise
+  }
+
   async function playCue(cue: VoiceCue, epoch: number) {
     abortController = new AbortController()
     playing.value = true
     try {
-      const blob = await synthesizeVoiceWav(cue.text, cue.id, abortController.signal)
+      const blob = await resolveBlob(cue, abortController.signal)
       if (epoch !== sessionEpoch) return
       await new Promise<void>((resolve, reject) => {
         const url = URL.createObjectURL(blob)
@@ -148,8 +188,10 @@ export function useVoiceNarration() {
     error,
     setEnabled,
     toggleEnabled,
+    prefetch,
     enqueue,
     interrupt,
     whenIdle,
+    clearCache,
   }
 }

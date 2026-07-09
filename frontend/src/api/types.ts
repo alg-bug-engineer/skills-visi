@@ -324,6 +324,7 @@ export interface StrategyPhase {
     recommended?: string[]
     not_recommended?: string[]
     hard_constraints?: string[]
+    coordination_scope?: string
     trigger_exit_rules?: Record<string, unknown>
   }
   strategy_package?: string

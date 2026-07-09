@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import BaseCard from './BaseCard.vue'
 import { productCopy } from '@/utils/productCopy'
+import { t } from '@/labels/enums'
 
 const store = usePresentationStore()
 const s = computed(() => store.strategy?.strategy ?? null)
@@ -19,7 +20,7 @@ const hardConstraints = computed<string[]>(() => {
 
 <template>
   <BaseCard v-if="s" title="策略包" :act="7" tone="protected">
-    <p v-if="pkg" class="pkg">策略包：{{ productCopy(pkg) }}</p>
+    <p v-if="pkg" class="pkg">策略包：{{ t('strategy_package', pkg) }}</p>
 
     <ul class="strategy-list">
       <li v-for="(x, i) in s.recommended ?? []" :key="i">{{ productCopy(x) }}</li>

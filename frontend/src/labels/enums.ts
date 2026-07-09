@@ -108,6 +108,57 @@ const plan_id: Dict = {
   arterial_coordination: '干线联控方案',
 }
 
+const strategy_package: Dict = {
+  incremental_release: '目标路口小步释放',
+  downstream_protection: '下游保护',
+  arterial_coordination: '干线联控',
+  plan_dp: '干线联控',
+}
+
+const bottleneck_type: Dict = {
+  downstream_or_channelization: '下游或渠化受限',
+  local_capacity: '本路口通行能力不足',
+  downstream_blocked: '下游承接不足',
+}
+
+const release_guard: Dict = {
+  downstream_has_slack: '下游有承接余量',
+}
+
+const strategy_action: Dict = {
+  prevent_downstream_spillover: '防止下游外溢',
+  control_downstream_spillback: '控制下游回溢',
+  'prevent_downstream_spillback': '防止下游回溢',
+}
+
+const intensity: Dict = {
+  high: '高',
+  medium: '中',
+  low: '低',
+}
+
+const relation_direction: Dict = {
+  upstream: '上游来向',
+  downstream: '下游去向',
+}
+
+const coordination_type: Dict = {
+  upstream_coordination: '上游协调控制',
+}
+
+const trace_pattern: Dict = {
+  multi_corridor: '多干线汇入',
+}
+
+const field_label: Dict = {
+  current_cycle_s: '现状周期',
+  cycle_s: '优化周期',
+  phase_stage_timing_list: '相位阶段配时',
+  direction_intensity_list: '方向供需强度',
+  target_periods: '目标时段',
+  period_label: '时段标签',
+}
+
 const status: Dict = {
   valid: '有效',
   rejected: '否决',
@@ -138,6 +189,15 @@ const DICTS: Record<string, Dict> = {
   experience_type,
   scenario,
   plan_id,
+  strategy_package,
+  bottleneck_type,
+  release_guard,
+  strategy_action,
+  intensity,
+  relation_direction,
+  coordination_type,
+  trace_pattern,
+  field_label,
   status,
   category,
 }
@@ -158,10 +218,23 @@ export function labelAny(value: string | null | undefined): string {
   }
   return value
     .replace(/_/g, ' ')
+    .replace(/\bcorridor\b/gi, '干线')
     .replace(/\bqueue\b/gi, '排队')
     .replace(/\boverflow\b/gi, '溢出')
     .replace(/\bupstream\b/gi, '上游')
     .replace(/\bdownstream\b/gi, '下游')
+    .replace(/\bprotection\b/gi, '保护')
+    .replace(/\bincremental\b/gi, '小步')
+    .replace(/\brelease\b/gi, '释放')
+    .replace(/\bcoordination\b/gi, '协调')
+    .replace(/\bchannelization\b/gi, '渠化')
+    .replace(/\bspillback\b/gi, '回溢')
+    .replace(/\bspillover\b/gi, '外溢')
+    .replace(/\bmetering\b/gi, '控流')
+    .replace(/\bdissipation\b/gi, '消散')
+    .replace(/\barterial\b/gi, '干线')
+    .replace(/\bblocked\b/gi, '受阻')
+    .replace(/\bslack\b/gi, '余量')
     .replace(/\bsignal\b/gi, '信号')
     .replace(/\btiming\b/gi, '配时')
     .replace(/\bmanagement\b/gi, '管理')
@@ -171,6 +244,17 @@ export function labelAny(value: string | null | undefined): string {
     .replace(/\bevening\b/gi, '晚')
     .replace(/\brush\b/gi, '高峰')
     .replace(/\bhour\b/gi, '时段')
+    .replace(/\bor\b/gi, '或')
+    .replace(/\bmain\b/gi, '主干')
+    .replace(/\btarget\b/gi, '目标')
+    .replace(/\bgreen\b/gi, '绿灯')
+    .replace(/\bdelta\b/gi, '调整量')
+}
+
+/** 方案/策略编码 → 中文（完整 plan_id，不做截断）。 */
+export function translatePlanId(id: string | null | undefined): string {
+  if (id == null || id === '') return '—'
+  return labelAny(id)
 }
 
 /** 方向 + 转向 组合，如「东向西直行」。 */

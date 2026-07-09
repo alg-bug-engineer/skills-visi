@@ -4,6 +4,7 @@ import { usePresentationStore } from '@/stores/presentation'
 import { t, directionMovement } from '@/labels/enums'
 import { pct } from '@/utils/format'
 import { productCopy } from '@/utils/productCopy'
+import { ticketTimeLabel } from '@/utils/ticketCopy'
 import BaseCard from './BaseCard.vue'
 
 const store = usePresentationStore()
@@ -31,7 +32,7 @@ const constraintList = computed<string[]>(() => {
           <span v-if="tk.inter_id" class="id">{{ tk.inter_id }}</span>
         </span>
       </li>
-      <li><span class="k">时间</span><span class="v">{{ tk.time_range ?? '—' }}（{{ t('period', tk.period) }}）</span></li>
+      <li><span class="k">时间</span><span class="v">{{ ticketTimeLabel(tk) }}</span></li>
       <li><span class="k">方向转向</span><span class="v">{{ directionMovement(tk.direction, tk.movement) }}</span></li>
       <li><span class="k">问题</span><span class="v"><span class="tag tag--alarm">{{ t('problem_type', tk.problem_type) }}</span></span></li>
       <li><span class="k">诊断范围</span><span class="v">{{ t('diagnosis_scope', tk.diagnosis_scope) }}</span></li>

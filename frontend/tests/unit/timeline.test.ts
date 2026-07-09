@@ -29,6 +29,15 @@ describe('narrationFor', () => {
     }
   })
 
+  it('diagnosis acts include domain methodology lines', () => {
+    const overflow = ACT_DEFS.find((a) => a.id === 'act3_overflow')!
+    const text = narrationFor(overflow, fx).join('')
+    expect(text).toContain('排队比')
+    expect(text).toContain('饱和度')
+    const strategy = ACT_DEFS.find((a) => a.id === 'act7_strategy')!
+    expect(narrationFor(strategy, fx).join('')).toContain('干线联控')
+  })
+
   it('uses saturation_rate when saturation is absent', () => {
     const response = {
       phases: {

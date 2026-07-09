@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
 import { useTyping } from '@/composables/useTyping'
-import { summaryFor, type CardKey } from '@/composables/useTimeline'
+import { narrationFor, summaryFor, type CardKey } from '@/composables/useTimeline'
 import DiagnosisTicketCard from '@/cards/DiagnosisTicketCard.vue'
 import DataMetricsCard from '@/cards/DataMetricsCard.vue'
 import BottleneckCard from '@/cards/BottleneckCard.vue'
@@ -14,10 +14,15 @@ import GovernanceStrategyCard from '@/cards/GovernanceStrategyCard.vue'
 import HealthyConclusionCard from '@/cards/HealthyConclusionCard.vue'
 import ExperienceAbsorptionPanel from '@/panels/ExperienceAbsorptionPanel.vue'
 import { useExperienceAbsorption } from '@/composables/useExperienceAbsorption'
+import {
+  voiceCueForAbsorptionDone,
+  voiceCueForAbsorptionStage,
+  voiceCueForAbsorptionStart,
+} from '@/services/voiceAbsorptionSync'
 import { DEMO_TYPING_MS, actDwellMs } from '@/config/demoPacing'
 
 const store = usePresentationStore()
-const { acts, currentAct, revealedActs, solidifyPhase } = storeToRefs(store)
+const { acts, currentAct, revealedActs, solidifyPhase, stepPaused } = storeToRefs(store)
 
 const INSIGHT_CARDS: Record<string, unknown> = {
   ticket: DiagnosisTicketCard,
@@ -31,7 +36,7 @@ const INSIGHT_CARDS: Record<string, unknown> = {
 }
 
 const panelExpanded = ref(true)
-const manualExpanded = ref<Set<number>>(new Set())
+const manualCollapsed = ref<Set<number>>(new Set())
 type ProcessTab = 'closure' | 'solidify'
 const activeTab = ref<ProcessTab>('closure')
 
@@ -61,6 +66,25 @@ watch(
   },
 )
 
+function visibleLines(lines: string[]): string[] {
+  return lines.filter((line) => line.trim())
+}
+
+const absorptionRunKey = computed(() => `${store.mapResetSeq}:${store.skillResult?.skill_id ?? 'absorption'}`)
+
+function enqueueAbsorptionVoice(stageKey: string) {
+  const runKey = absorptionRunKey.value
+  if (stageKey === '__start__') {
+    store.enqueueVoice(voiceCueForAbsorptionStart(runKey))
+    return
+  }
+  if (stageKey === '__done__') {
+    store.enqueueVoice(voiceCueForAbsorptionDone(runKey))
+    return
+  }
+  store.enqueueVoice(voiceCueForAbsorptionStage(runKey, stageKey))
+}
+
 watch(
   () => [solidifyPhase.value, store.skillResult] as const,
   ([phase, result]) => {
@@ -70,35 +94,72 @@ watch(
         instant,
         skillId: result.skill_id,
         intersection: result.intersection ?? '',
-        onDone: () => store.setSolidifyPhase('building'),
+        onStart: () => enqueueAbsorptionVoice('__start__'),
+        onStageStart: (key) => enqueueAbsorptionVoice(key),
+        onDone: () => {
+          enqueueAbsorptionVoice('__done__')
+          store.setSolidifyPhase('building')
+        },
       })
     }
   },
   { immediate: true },
 )
 
-const lines = computed(() => store.activeNarration)
+const typingLines = ref<string[]>([])
+/** 仅 act 切换时更新旁白，避免 SSE 快照刷新导致同幕重复打字。 */
+const typingActKey = computed(() =>
+  currentAct.value >= 0 ? `${store.mapResetSeq}:${currentAct.value}` : '',
+)
+
+watch(
+  typingActKey,
+  (key) => {
+    if (!key) {
+      typingLines.value = []
+      return
+    }
+    const idx = currentAct.value
+    const act = store.acts[idx]
+    if (act) typingLines.value = narrationFor(act, store.response)
+  },
+  { immediate: true },
+)
 
 // 旁白缓存（需求17-R2）：某幕打字完成时冻结其已输出的多行旁白，
 // 折叠后再展开仍显示同一套过程旁白，消除“打字内容与展开结果不一致”的错觉。
 const narrationCache = ref<Record<number, string[]>>({})
+const timelineRef = ref<HTMLElement | null>(null)
 
-const { shown, done } = useTyping(lines, {
+/** 打字完成 + 语音 barrier + 可暂停幕间停留，再推进下一步。 */
+async function finishActAndAdvance(idx: number) {
+  await store.waitForStepResume()
+  if (store.currentAct !== idx) return
+  await store.waitForVoiceBarrier()
+  if (store.currentAct !== idx) return
+  await store.waitForStepResume()
+  if (store.currentAct !== idx) return
+  await store.pauseAwareSleep(actDwellMs(idx, instant))
+  if (store.currentAct !== idx) return
+  await store.waitForStepResume()
+  if (store.currentAct === idx) store.tryAdvance()
+}
+
+const { shown, done } = useTyping(typingLines, {
   instant,
   speed: DEMO_TYPING_MS,
+  restartKey: typingActKey,
+  paused: stepPaused,
   onDone: () => {
     const idx = store.currentAct
     if (idx < 0) return
-    narrationCache.value = { ...narrationCache.value, [idx]: [...lines.value] }
+    narrationCache.value = { ...narrationCache.value, [idx]: typingLines.value.filter((l) => l.trim()) }
     store.onActTyped(idx)
-    if (store.autoPlay) {
-      window.setTimeout(async () => {
-        await store.waitForVoiceBarrier()
-        if (store.currentAct === idx) store.tryAdvance()
-      }, actDwellMs(idx, instant))
-    }
+    if (store.autoPlay) void finishActAndAdvance(idx)
   },
 })
+
+const shownLines = computed(() => visibleLines(shown.value))
 
 function narrationOf(index: number): string[] {
   return narrationCache.value[index] ?? []
@@ -125,18 +186,16 @@ function actStatus(index: number): 'pending' | 'typing' | 'done' {
 }
 
 function isCollapsed(index: number): boolean {
-  if (manualExpanded.value.has(index)) return false
-  // 当前阶段与上一阶段保持展开，便于查看推理明细与证据卡
-  if (index >= currentAct.value - 1 && index <= currentAct.value) return false
-  return index < currentAct.value - 1
+  if (index === currentAct.value) return false
+  return manualCollapsed.value.has(index)
 }
 
 function toggleAct(index: number) {
   if (actStatus(index) === 'typing') return
-  const next = new Set(manualExpanded.value)
+  const next = new Set(manualCollapsed.value)
   if (next.has(index)) next.delete(index)
   else next.add(index)
-  manualExpanded.value = next
+  manualCollapsed.value = next
 }
 
 function cardKeyFor(index: number): CardKey | null {
@@ -161,13 +220,28 @@ function cardPropsFor(key: CardKey | null): Record<string, unknown> {
   return {}
 }
 
-watch(currentAct, (idx, prev) => {
-  if (prev != null && prev >= 0 && idx > prev + 1) {
-    const next = new Set(manualExpanded.value)
-    next.delete(prev)
-    manualExpanded.value = next
+watch(currentAct, (idx) => {
+  if (idx >= 0 && manualCollapsed.value.has(idx)) {
+    const next = new Set(manualCollapsed.value)
+    next.delete(idx)
+    manualCollapsed.value = next
   }
+  void scrollTimelineToActive()
 })
+
+watch(shown, () => {
+  void scrollTimelineToActive()
+})
+
+async function scrollTimelineToActive() {
+  await nextTick()
+  const root = timelineRef.value
+  if (!root || currentAct.value < 0) return
+  const active = root.querySelector<HTMLElement>(`[data-act-index="${currentAct.value}"]`)
+  if (typeof active?.scrollIntoView === 'function') {
+    active.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'nearest' })
+  }
+}
 </script>
 
 <template>
@@ -211,11 +285,12 @@ watch(currentAct, (idx, prev) => {
       <ExperienceAbsorptionPanel :state="absorption.state" />
     </div>
 
-    <ol v-else-if="panelExpanded" class="timeline" data-testid="reasoning-timeline">
+    <ol v-else-if="panelExpanded" ref="timelineRef" class="timeline" data-testid="reasoning-timeline">
       <li
         v-for="(act, i) in visibleActs"
         :key="act.id"
         class="step-item"
+        :data-act-index="act.index"
         :class="{
           active: i === currentAct && !done,
           done: actStatus(act.index) === 'done',
@@ -243,9 +318,9 @@ watch(currentAct, (idx, prev) => {
           <div v-show="!isCollapsed(act.index)" class="step-body">
             <!-- 进行中：流式子步骤 -->
             <div v-if="act.index === currentAct && !done" class="detail-lines" data-testid="process-typing">
-              <p v-for="(l, li) in shown" :key="li" class="detail-line">
+              <p v-for="(l, li) in shownLines" :key="li" class="detail-line">
                 <span class="check">✓</span>{{ l
-                }}<span v-if="li === shown.length - 1" class="caret-blink">▍</span>
+                }}<span v-if="li === shownLines.length - 1" class="caret-blink">▍</span>
               </p>
             </div>
 
@@ -256,7 +331,7 @@ watch(currentAct, (idx, prev) => {
                 class="detail-lines detail-lines--frozen"
                 data-testid="process-narration-frozen"
               >
-                <p v-for="(l, li) in narrationOf(act.index)" :key="li" class="detail-line">
+                <p v-for="(l, li) in visibleLines(narrationOf(act.index))" :key="li" class="detail-line">
                   <span class="check">✓</span>{{ l }}
                 </p>
               </div>

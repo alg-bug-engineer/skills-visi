@@ -1,4 +1,12 @@
 const API_BASE = '/api/v1'
+const TTS_TIMEOUT_MS = 12_000
+
+function synthAbortSignal(external?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(TTS_TIMEOUT_MS)
+  if (!external) return timeout
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([external, timeout])
+  return external
+}
 
 export async function synthesizeVoiceWav(
   text: string,
@@ -9,7 +17,7 @@ export async function synthesizeVoiceWav(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, cue_id: cueId }),
-    signal,
+    signal: synthAbortSignal(signal),
   })
   if (!res.ok) {
     const raw = await res.text()

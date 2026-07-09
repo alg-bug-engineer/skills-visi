@@ -16,6 +16,8 @@ export interface AbsorptionRunOptions {
   /** 可选：路口 / 技能 id（absorption 载荷不含，交由调用方透传）。 */
   skillId?: string
   intersection?: string
+  onStageStart?: (stageKey: string) => void
+  onStart?: () => void
   onDone?: () => void
 }
 
@@ -86,9 +88,13 @@ export function useExperienceAbsorption() {
     state.action = absorption.action
     if (opts.skillId) state.skillId = opts.skillId
     if (opts.intersection) state.intersection = opts.intersection
+    opts.onStart?.()
 
     if (instant) {
-      stages.forEach((stage, i) => applyStage(stage, i, total))
+      stages.forEach((stage, i) => {
+        opts.onStageStart?.(stage.key)
+        applyStage(stage, i, total)
+      })
       finalize(absorption)
       opts.onDone?.()
       return
@@ -96,7 +102,10 @@ export function useExperienceAbsorption() {
 
     let acc = 0
     stages.forEach((stage, i) => {
-      schedule(() => applyStage(stage, i, total), acc)
+      schedule(() => {
+        opts.onStageStart?.(stage.key)
+        applyStage(stage, i, total)
+      }, acc)
       acc += Math.min(Math.max(stage.duration_ms ?? 400, 0), cap)
     })
     schedule(() => {

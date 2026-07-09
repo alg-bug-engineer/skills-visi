@@ -14,6 +14,7 @@ import {
 } from '@/api/endpoints'
 import type { StreamController, StreamEvent } from '@/api/sse'
 import type { RunResponse, UserExperience, CaseCard, SkillSolidificationResult } from '@/api/types'
+import type { VoiceCue } from '@/types/voice'
 import { ACT_DEFS, narrationFor, phaseReady, type ActDef, type CardKey, type PhaseKey } from '@/composables/useTimeline'
 
 export type RunStatus = 'idle' | 'submitting' | 'running' | 'done' | 'error'
@@ -27,6 +28,9 @@ export type SolidifyPhase = 'idle' | 'prompt' | 'absorbing' | 'building' | 'comp
 let controller: StreamController | null = null
 let voiceBarrier: (() => Promise<void>) | null = null
 let voiceInterrupt: (() => void) | null = null
+let voiceEnqueue: ((cue: VoiceCue) => void) | null = null
+let stepResumeResolve: (() => void) | null = null
+const stepResumeWaiters: Array<() => void> = []
 
 const PHASE_LABEL: Record<PhaseKey, string> = {
   intent: '问题理解',
@@ -34,6 +38,15 @@ const PHASE_LABEL: Record<PhaseKey, string> = {
   cause: '成因分析',
   strategy: '策略生成',
   plan: '方案生成',
+}
+
+/** SSE skill phase → 用户可见阶段名（error 事件 phase 为 skill_id）。 */
+const SKILL_PHASE_LABEL: Record<string, string> = {
+  intent_understanding: '问题理解',
+  data_analysis_diagnosis: '指标诊断',
+  cause_analysis: '成因分析',
+  strategy_generation: '策略生成',
+  plan_generation: '方案生成',
 }
 
 interface State {
@@ -55,6 +68,8 @@ interface State {
   toast: string | null
   errorMsg: string | null
   autoPlay: boolean
+  /** 步骤间暂停：为 true 时阻塞 tryAdvance，不影响后端 SSE。 */
+  stepPaused: boolean
   mapResetSeq: number
   solidifyPhase: SolidifyPhase
   skillResult: SkillSolidificationResult | null
@@ -111,6 +126,7 @@ export const usePresentationStore = defineStore('presentation', {
     toast: null,
     errorMsg: null,
     autoPlay: true,
+    stepPaused: false,
     mapResetSeq: 0,
     solidifyPhase: 'idle',
     skillResult: null,
@@ -293,6 +309,10 @@ export const usePresentationStore = defineStore('presentation', {
       this.dock = 'running'
       this.signal = 'connecting'
       this.waiting = true
+      this.stepPaused = false
+      stepResumeResolve?.()
+      stepResumeResolve = null
+      stepResumeWaiters.length = 0
       this.computingPhase = 'intent'
 
       controller?.close()
@@ -325,8 +345,20 @@ export const usePresentationStore = defineStore('presentation', {
         this.status = 'error'
         this.signal = 'error'
         this.waiting = false
-        this.errorMsg = String((data.errors as string[])?.[0] ?? '流式执行失败')
-        this.toast = `推演在「${this.computingLabel || '某阶段'}」中断：${this.errorMsg}`
+        const skillPhase = String(data.phase ?? '')
+        const phaseLabel =
+          SKILL_PHASE_LABEL[skillPhase] || this.computingLabel || PHASE_LABEL[skillPhase as PhaseKey] || '某阶段'
+        const errors = (data.errors as string[]) ?? []
+        let msg = String(errors[0] ?? '流式执行失败')
+        if (msg.includes('护栏校验')) {
+          const details = (this.response?.plan?.candidates ?? [])
+            .flatMap((c) => c.validation_errors ?? [])
+            .filter(Boolean)
+            .slice(0, 2)
+          if (details.length) msg += `：${details.join('；')}`
+        }
+        this.errorMsg = msg
+        this.toast = `推演在「${phaseLabel}」中断：${msg}`
       }
     },
 
@@ -427,8 +459,50 @@ export const usePresentationStore = defineStore('presentation', {
     setVoiceInterrupt(fn: (() => void) | null) {
       voiceInterrupt = fn
     },
-    waitForVoiceBarrier(): Promise<void> {
-      return voiceBarrier ? voiceBarrier() : Promise.resolve()
+    setVoiceEnqueue(fn: ((cue: VoiceCue) => void) | null) {
+      voiceEnqueue = fn
+    },
+    enqueueVoice(cue: VoiceCue | null | undefined) {
+      if (cue) voiceEnqueue?.(cue)
+    },
+    /** 等待当前语音播完；超时后仍放行，避免 TTS 挂起阻塞右侧面板推进。 */
+    waitForVoiceBarrier(timeoutMs = 12_000): Promise<void> {
+      if (!voiceBarrier) return Promise.resolve()
+      return Promise.race([
+        voiceBarrier(),
+        new Promise<void>((resolve) => window.setTimeout(resolve, timeoutMs)),
+      ])
+    },
+    /** 步骤间暂停门控：暂停态下等待空格恢复后再推进。 */
+    waitForStepResume(): Promise<void> {
+      if (!this.stepPaused) return Promise.resolve()
+      return new Promise((resolve) => {
+        stepResumeWaiters.push(resolve)
+      })
+    },
+    /** 可暂停的等待（用于幕间停留）。 */
+    async pauseAwareSleep(ms: number) {
+      if (ms <= 0) {
+        await this.waitForStepResume()
+        return
+      }
+      const end = Date.now() + ms
+      while (Date.now() < end) {
+        await this.waitForStepResume()
+        const remaining = end - Date.now()
+        if (remaining <= 0) break
+        await new Promise<void>((r) => window.setTimeout(r, Math.min(50, remaining)))
+      }
+    },
+    toggleStepPause() {
+      if (this.stepPaused) {
+        this.stepPaused = false
+        stepResumeResolve?.()
+        stepResumeResolve = null
+        while (stepResumeWaiters.length) stepResumeWaiters.shift()?.()
+      } else {
+        this.stepPaused = true
+      }
     },
     interruptVoice() {
       voiceInterrupt?.()
@@ -561,6 +635,10 @@ export const usePresentationStore = defineStore('presentation', {
       this.skillResult = null
       this.pendingSolidifyPlanId = null
       this.planMinimized = false
+      this.stepPaused = false
+      stepResumeResolve?.()
+      stepResumeResolve = null
+      stepResumeWaiters.length = 0
       if (toInput) this.dock = 'input'
     },
   },

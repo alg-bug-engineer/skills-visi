@@ -40,6 +40,16 @@ def build_metrics_summary(diagnosis: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _spatial_structure_label(scope: Any) -> str:
+    if not scope:
+        return ""
+    if isinstance(scope, str):
+        return scope[:120]
+    if isinstance(scope, (list, tuple)):
+        return ", ".join(str(item) for item in scope if item)[:120]
+    return str(scope)[:120]
+
+
 def build_feedback_tags(
     *,
     diagnosis_ticket: dict[str, Any] | None,
@@ -56,7 +66,7 @@ def build_feedback_tags(
             if isinstance(strategy.get("recommended"), list) and strategy.get("recommended")
             else strategy.get("explanation", "")
         ),
-        "spatial_structure": ", ".join(ticket.get("diagnosis_scope") or [])[:120],
+        "spatial_structure": _spatial_structure_label(ticket.get("diagnosis_scope")),
         "problem_type": ticket.get("problem_type"),
     }
 

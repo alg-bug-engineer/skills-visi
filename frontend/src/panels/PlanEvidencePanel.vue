@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { t } from '@/labels/enums'
 import type { PlanCandidate, PlanTimingEvidence } from '@/api/types'
 import StageCards from '@/viz/StageCards.vue'
 import DirectionIntensityPanel from '@/viz/DirectionIntensityPanel.vue'
@@ -41,7 +42,9 @@ function delta(value?: number | null) {
       <strong>后端未返回可审计方案证据</strong>
       <span>{{ timing?.reason || '缺少现状配时、释放方向或供需强度字段，前端不补假数据。' }}</span>
       <ul v-if="timing?.missing_fields?.length" class="fallback-missing">
-        <li v-for="field in timing.missing_fields" :key="field">{{ field }}</li>
+        <li v-for="field in timing.missing_fields" :key="field">
+          {{ t('field_label', field.includes('.') ? field.split('.').pop()! : field) }}
+        </li>
       </ul>
     </div>
     <template v-else>

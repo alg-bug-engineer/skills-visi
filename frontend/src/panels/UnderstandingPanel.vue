@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
-import { t, labelAny, directionMovement } from '@/labels/enums'
+import { t, labelAny, directionMovement, translatePlanId } from '@/labels/enums'
 import type { PanelExperience, PanelInterCase } from '@/stores/presentation'
 import expertKnowledge from '@/data/expertKnowledge.json'
 
@@ -103,6 +103,31 @@ function dedupChips(chips: string[]): string[] {
   return [...new Set(chips.filter((c) => c && c !== '—'))]
 }
 
+/** 修复历史数据中 diagnosis_scope 被逐字 join 的脏标签。 */
+function normalizeSpatialStructure(v: unknown): string {
+  const raw = chipText(v).trim()
+  if (!raw) return ''
+  const parts = raw.split(/,\s*/).filter(Boolean)
+  if (parts.length > 3 && parts.every((p) => p.length <= 2)) {
+    return parts.join('')
+  }
+  return labelAny(raw)
+}
+
+function caseDisplayTitle(c: PanelInterCase): string {
+  const raw = c.title ?? c.plan_id ?? '案例'
+  return translatePlanId(chipText(raw))
+}
+
+function caseDisplayId(c: PanelInterCase): string {
+  if (c.plan_id) return translatePlanId(chipText(c.plan_id))
+  if (!c.case_id) return ''
+  const id = String(c.case_id)
+  if (!/^(recommended|risk)_/i.test(id)) return id
+  const tail = id.split('_').pop() ?? id
+  return translatePlanId(tail)
+}
+
 function expChips(e: PanelExperience): string[] {
   const tags = (e.tags ?? {}) as Record<string, unknown>
   const chips: string[] = []
@@ -125,7 +150,8 @@ function caseChips(c: PanelInterCase): string[] {
   if (c.time_period) chips.push(t('period', chipText(c.time_period)))
   if (tags.problem_type) chips.push(t('problem_type', chipText(tags.problem_type)))
   if (tags.strategy_applied) chips.push(labelAny(chipText(tags.strategy_applied)))
-  if (tags.spatial_structure) chips.push(labelAny(chipText(tags.spatial_structure)))
+  const spatial = normalizeSpatialStructure(tags.spatial_structure)
+  if (spatial) chips.push(spatial)
   return dedupChips(chips)
 }
 
@@ -382,7 +408,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
             data-testid="inter-case"
           >
             <header>
-              <span class="case-title">{{ c.title ?? '案例' }}</span>
+              <span class="case-title">{{ caseDisplayTitle(c) }}</span>
               <span
                 v-if="c.category"
                 class="case-cat"
@@ -391,7 +417,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
               >
             </header>
             <div v-if="c.fresh" class="fresh-badge" data-testid="case-fresh">本轮检索/新确认</div>
-            <p v-if="c.case_id" class="case-id">案例编号：{{ c.case_id }}</p>
+            <p v-if="c.case_id" class="case-id">案例编号：{{ caseDisplayId(c) }}</p>
             <div v-if="caseChips(c).length" class="chip-row">
               <span v-for="(chip, ci) in caseChips(c)" :key="ci" class="chip">{{ chip }}</span>
             </div>

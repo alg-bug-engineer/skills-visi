@@ -1,8 +1,15 @@
 import type { Metrics, RunResponse } from '@/api/types'
-import { directionMovement, t } from '@/labels/enums'
+import { directionMovement, t, translatePlanId } from '@/labels/enums'
 import { pct, ratio, meters } from '@/utils/format'
 import { productCopy } from '@/utils/productCopy'
+import { domainIntroFor } from '@/config/actDomainCopy'
 import { downstreamConclusion } from '@/utils/downstream'
+import {
+  ticketDirectionProblemLine,
+  ticketLocationLine,
+  ticketPrimaryConstraint,
+  ticketTimeLabel,
+} from '@/utils/ticketCopy'
 import type { EvidenceStage } from '@/map/sceneEvidencePolicy'
 
 function saturationOf(metrics: Metrics | undefined): number | null | undefined {
@@ -84,10 +91,10 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
     case 'act1_ticket':
       return lines(
         '正在解析口头描述，提取实体…',
-        `对象：${t('object_type', ticket?.object_type)}｜路口：${ticket?.intersection_name ?? '目标路口'}`,
-        `时间：${ticket?.time_range ?? '—'}（${t('period', ticket?.period)}）`,
-        `方向转向：${directionMovement(ticket?.direction, ticket?.movement)}｜问题：${t('problem_type', ticket?.problem_type)}`,
-        ticket?.constraints?.[0] && `关键约束：${ticket.constraints[0]}`,
+        ticketLocationLine(ticket),
+        `时段：${ticketTimeLabel(ticket)}`,
+        ticketDirectionProblemLine(ticket),
+        ticketPrimaryConstraint(ticket) && `关键约束：${ticketPrimaryConstraint(ticket)}`,
       )
     case 'act2_locate':
       return lines(
@@ -99,11 +106,11 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
       )
     case 'act3_overflow':
       return lines(
-        '拉取关键指标，排队比 = 排队长度 ÷ 进口道可容纳长度…',
-        `排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${pct(saturationOf(diag?.metrics))}｜绿灯利用率 ${pct(diag?.metrics?.green_utilization)}`,
+        ...domainIntroFor('act3_overflow'),
+        `指标研判：排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${pct(saturationOf(diag?.metrics))}｜绿灯利用率 ${pct(diag?.metrics?.green_utilization)}`,
         diag?.healthy
           ? '结论：各项指标均在正常区间，路口运行平稳、无溢出风险，无需干预'
-          : diag?.overflow_verification?.message,
+          : diag?.overflow_verification?.message && `结论：${diag.overflow_verification.message}`,
       )
     case 'act4_bottleneck': {
       const dd = diag?.downstream_diagnosis
@@ -114,7 +121,7 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         ? `｜剩余蓄车 ${meters(pd.remaining_storage_m)}`
         : ''
       return lines(
-        '核验下游承接能力：对比本路口与相邻下游信控节点指标…',
+        ...domainIntroFor('act4_bottleneck'),
         tm &&
           `本路口：饱和度 ${ratio(tm.saturation)}｜绿灯利用率 ${ratio(tm.green_utilization)}｜服务水平 ${tm.los ?? '—'}`,
         pd?.inter_name &&
@@ -124,29 +131,39 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
     }
     case 'act5_corridor':
       return lines(
-        '把诊断范围从单路口扩大到干线…',
-        `上游到达 ${meters(diag?.arterial_analysis?.upstream_arrival_flow_vph)}／放行强度分析中`,
-        diag?.arterial_analysis?.summary,
+        ...domainIntroFor('act5_corridor'),
+        diag?.arterial_analysis?.upstream_arrival_flow_vph != null &&
+          `上游到达流量 ${meters(diag.arterial_analysis.upstream_arrival_flow_vph)}，正在比对放行强度与干线瓶颈位置`,
+        diag?.arterial_analysis?.summary && `结论：${diag.arterial_analysis.summary}`,
       )
     case 'act6_cause':
       return lines(
-        '把实时指标与历史案例放在一起判断…',
+        ...domainIntroFor('act6_cause'),
         cause?.cause_analysis?.primary_cause && `主因：${cause.cause_analysis.primary_cause}`,
+        cause?.cause_ranking?.[0]?.cause &&
+          cause.cause_ranking[0].cause !== cause?.cause_analysis?.primary_cause &&
+          `辅因：${cause.cause_ranking[0].cause}`,
         cause?.case_cards?.matched_count != null &&
-          `匹配同类案例 ${cause.case_cards.matched_count} 个，高度相似 ${cause.case_cards.high_similarity_count ?? 0} 个`,
+          `案例校验：匹配同类案例 ${cause.case_cards.matched_count} 个，高度相似 ${cause.case_cards.high_similarity_count ?? 0} 个`,
+        cause?.cause_analysis?.narrative && `归因说明：${cause.cause_analysis.narrative}`,
       )
     case 'act7_strategy':
       return lines(
-        '将单点放行调整纳入干线联控约束…',
+        ...domainIntroFor('act7_strategy'),
+        strategy?.strategy_package && `策略包：${t('strategy_package', strategy.strategy_package)}`,
         strategy?.strategy?.principles?.[0] && `原则：${strategy.strategy.principles[0]}`,
         strategy?.strategy?.hard_constraints?.[0] && `红线：${strategy.strategy.hard_constraints[0]}`,
+        strategy?.strategy?.coordination_scope &&
+          `协调范围：${productCopy(strategy.strategy.coordination_scope)}`,
       )
     case 'act8_plan':
       return lines(
-        '把策略转成可执行方案，逐项完成安全校验…',
+        ...domainIntroFor('act8_plan'),
         plan?.recommendation?.recommended_plan_id &&
-          `推荐：${t('plan_id', plan.recommendation.recommended_plan_id.split('_').slice(0, 2).join('_'))}`,
-        plan?.all_guardrails_passed != null && `安全校验：${plan.all_guardrails_passed ? '全部通过' : '存在告警'}`,
+          `推荐方案：${translatePlanId(plan.recommendation.recommended_plan_id)}`,
+        plan?.all_guardrails_passed != null &&
+          `护栏校验：${plan.all_guardrails_passed ? '最小绿、周期与协调约束全部通过' : '存在未通过项，需人工复核'}`,
+        plan?.recommendation?.rationale && `推荐理由：${plan.recommendation.rationale}`,
       )
     case 'act9_feedback':
       return lines('记录本次处置结果，形成后续复用依据…', '请确认下发、退回修改或提交再生成。')
@@ -184,7 +201,7 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
       return productCopy(strategy?.strategy?.principles?.[0] ?? '策略推荐完成')
     case 'act8_plan':
       return plan?.recommendation?.recommended_plan_id
-        ? `推荐方案 ${t('plan_id', plan.recommendation.recommended_plan_id.split('_').slice(0, 2).join('_'))}`
+        ? `推荐方案 ${translatePlanId(plan.recommendation.recommended_plan_id)}`
         : '方案生成完成'
     case 'act9_feedback':
       return '等待方案确认或退回修改'

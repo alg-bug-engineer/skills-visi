@@ -80,7 +80,7 @@ describe('PlanEvidencePanel', () => {
     })
 
     expect(wrapper.text()).toContain('后端未返回可审计方案证据')
-    expect(wrapper.text()).toContain('timing.current_cycle_s')
+    expect(wrapper.text()).toContain('现状周期')
   })
 
   it('marks intensity over target as risk', () => {
