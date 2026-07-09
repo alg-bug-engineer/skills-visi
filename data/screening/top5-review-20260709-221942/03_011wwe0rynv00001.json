@@ -1,0 +1,390 @@
+{
+  "rank": 3,
+  "inter_id": "011wwe0rynv00001",
+  "alias": "二环东路×浆水泉西路",
+  "screen_type": "TYPE2_LINE",
+  "reason": "北进口直行→二环东路辅路，目标饱和 0.94、下游饱和 2.12",
+  "inter_name": "二环东路与浆水泉西路路口",
+  "basic": {
+    "inter_id": "011wwe0rynv00001",
+    "inter_name": "二环东路与浆水泉西路路口",
+    "is_signalized": 1,
+    "inter_type": "inter",
+    "inter_proto": 1,
+    "entr_cnt": null,
+    "entr_dir8": null,
+    "version_id": "20260501"
+  },
+  "approach_spacing": [
+    {
+      "eight_direction": 1,
+      "adjacent_inter_spacing_m": 321.93
+    },
+    {
+      "eight_direction": 4,
+      "adjacent_inter_spacing_m": 417.37
+    },
+    {
+      "eight_direction": 5,
+      "adjacent_inter_spacing_m": 300.26
+    }
+  ],
+  "table_coverage": {
+    "turn_saturation": 1728,
+    "inter_evaluation": 576,
+    "green_utilization": 1728,
+    "dwd_perf": 18412,
+    "turn_flow": 5306,
+    "plan_cfg": 7
+  },
+  "period_overflow": {
+    "morning_peak": {
+      "queue_max_m": 98.7,
+      "queue_mean_m": 11.17,
+      "spacing_mean_m": 339.49,
+      "overflow_max": 0.2365,
+      "overflow_mean": 0.0325,
+      "sample_rows": 747
+    },
+    "midday": {
+      "queue_max_m": 152.8,
+      "queue_mean_m": 8.13,
+      "spacing_mean_m": 338.37,
+      "overflow_max": 0.4746,
+      "overflow_mean": 0.0238,
+      "sample_rows": 2304
+    },
+    "evening_peak": {
+      "queue_max_m": 94.8,
+      "queue_mean_m": 12.98,
+      "spacing_mean_m": 340.45,
+      "overflow_max": 0.2945,
+      "overflow_mean": 0.0383,
+      "sample_rows": 697
+    },
+    "all_day": {
+      "queue_max_m": 152.8,
+      "queue_mean_m": 5.53,
+      "spacing_mean_m": 341.96,
+      "overflow_max": 0.4746,
+      "overflow_mean": 0.0162,
+      "sample_rows": 9417
+    }
+  },
+  "period_dws": {
+    "morning_peak": {
+      "turn_sat_max": 0.8721,
+      "turn_sat_mean": 0.319,
+      "inter_sat_max": 0.8721,
+      "inter_sat_mean": 0.4011,
+      "unbalance_max": 0.2945,
+      "unbalance_mean": 0.0602,
+      "green_util_max": 0.8721,
+      "green_util_mean": 0.3798,
+      "turn_sat_top": [
+        {
+          "eight_direction": 1,
+          "turn_dir_no": 1,
+          "sat_max": 0.8721,
+          "sat_mean": 0.375
+        },
+        {
+          "eight_direction": 1,
+          "turn_dir_no": 2,
+          "sat_max": 0.6039,
+          "sat_mean": 0.2873
+        },
+        {
+          "eight_direction": 5,
+          "turn_dir_no": 2,
+          "sat_max": 0.5065,
+          "sat_mean": 0.2946
+        }
+      ]
+    },
+    "midday": {
+      "turn_sat_max": 0.9455,
+      "turn_sat_mean": 0.5105,
+      "inter_sat_max": 0.9455,
+      "inter_sat_mean": 0.6095,
+      "unbalance_max": 0.2572,
+      "unbalance_mean": 0.0759,
+      "green_util_max": 0.9455,
+      "green_util_mean": 0.5445,
+      "turn_sat_top": [
+        {
+          "eight_direction": 1,
+          "turn_dir_no": 1,
+          "sat_max": 0.9455,
+          "sat_mean": 0.5598
+        },
+        {
+          "eight_direction": 5,
+          "turn_dir_no": 2,
+          "sat_max": 0.8,
+          "sat_mean": 0.4739
+        },
+        {
+          "eight_direction": 1,
+          "turn_dir_no": 2,
+          "sat_max": 0.7778,
+          "sat_mean": 0.4977
+        }
+      ]
+    },
+    "evening_peak": {
+      "turn_sat_max": 1.0656,
+      "turn_sat_mean": 0.5622,
+      "inter_sat_max": 1.0656,
+      "inter_sat_mean": 0.6972,
+      "unbalance_max": 0.3858,
+      "unbalance_mean": 0.145,
+      "green_util_max": 1.0656,
+      "green_util_mean": 0.5656,
+      "turn_sat_top": [
+        {
+          "eight_direction": 5,
+          "turn_dir_no": 2,
+          "sat_max": 1.0656,
+          "sat_mean": 0.6175
+        },
+        {
+          "eight_direction": 1,
+          "turn_dir_no": 2,
+          "sat_max": 0.9351,
+          "sat_mean": 0.6375
+        },
+        {
+          "eight_direction": 1,
+          "turn_dir_no": 1,
+          "sat_max": 0.6994,
+          "sat_mean": 0.4316
+        }
+      ]
+    },
+    "all_day": {
+      "turn_sat_max": 1.0656,
+      "turn_sat_mean": 0.3343,
+      "inter_sat_max": 1.0656,
+      "inter_sat_mean": 0.4478,
+      "unbalance_max": 0.3858,
+      "unbalance_mean": 0.1495,
+      "green_util_max": 1.2,
+      "green_util_mean": 0.6125,
+      "turn_sat_top": [
+        {
+          "eight_direction": 5,
+          "turn_dir_no": 2,
+          "sat_max": 1.0656,
+          "sat_mean": 0.2956
+        },
+        {
+          "eight_direction": 1,
+          "turn_dir_no": 1,
+          "sat_max": 0.9714,
+          "sat_mean": 0.3978
+        },
+        {
+          "eight_direction": 1,
+          "turn_dir_no": 2,
+          "sat_max": 0.9351,
+          "sat_mean": 0.3094
+        }
+      ]
+    }
+  },
+  "turn_overflow_evening_top": [
+    {
+      "eight_direction": 1,
+      "turn_dir_no": 2,
+      "spacing_m": 321.93,
+      "queue_max_m": 94.8,
+      "overflow_max": 0.2945,
+      "overflow_mean": 0.0735,
+      "sample_rows": 175
+    },
+    {
+      "eight_direction": 4,
+      "turn_dir_no": 2,
+      "spacing_m": 417.37,
+      "queue_max_m": 71.4,
+      "overflow_max": 0.1711,
+      "overflow_mean": 0.0319,
+      "sample_rows": 175
+    },
+    {
+      "eight_direction": 5,
+      "turn_dir_no": 1,
+      "spacing_m": 300.26,
+      "queue_max_m": 51.0,
+      "overflow_max": 0.1699,
+      "overflow_mean": 0.0219,
+      "sample_rows": 175
+    },
+    {
+      "eight_direction": 1,
+      "turn_dir_no": 1,
+      "spacing_m": 321.93,
+      "queue_max_m": 34.0,
+      "overflow_max": 0.1056,
+      "overflow_mean": 0.0258,
+      "sample_rows": 172
+    }
+  ],
+  "turn_overflow_all_top": [
+    {
+      "eight_direction": 1,
+      "turn_dir_no": 1,
+      "spacing_m": 321.93,
+      "queue_max_m": 152.8,
+      "overflow_max": 0.4746,
+      "overflow_mean": 0.0159,
+      "sample_rows": 2128
+    },
+    {
+      "eight_direction": 1,
+      "turn_dir_no": 2,
+      "spacing_m": 321.93,
+      "queue_max_m": 94.8,
+      "overflow_max": 0.2945,
+      "overflow_mean": 0.0289,
+      "sample_rows": 2143
+    },
+    {
+      "eight_direction": 4,
+      "turn_dir_no": 2,
+      "spacing_m": 417.37,
+      "queue_max_m": 98.7,
+      "overflow_max": 0.2365,
+      "overflow_mean": 0.0167,
+      "sample_rows": 2143
+    },
+    {
+      "eight_direction": 5,
+      "turn_dir_no": 1,
+      "spacing_m": 300.26,
+      "queue_max_m": 54.7,
+      "overflow_max": 0.1822,
+      "overflow_mean": 0.0099,
+      "sample_rows": 2132
+    },
+    {
+      "eight_direction": 4,
+      "turn_dir_no": 1,
+      "spacing_m": 417.37,
+      "queue_max_m": 0.0,
+      "overflow_max": 0.0,
+      "overflow_mean": 0.0,
+      "sample_rows": 420
+    },
+    {
+      "eight_direction": 5,
+      "turn_dir_no": 2,
+      "spacing_m": 300.26,
+      "queue_max_m": 0.0,
+      "overflow_max": 0.0,
+      "overflow_mean": 0.0,
+      "sample_rows": 451
+    }
+  ],
+  "signal_plans": [
+    {
+      "plan_no": 1,
+      "cycle_s": 175,
+      "offset_s": 80,
+      "coord_stage_no": 0,
+      "stage_count": 3,
+      "total_green_s": 163
+    },
+    {
+      "plan_no": 2,
+      "cycle_s": 160,
+      "offset_s": 30,
+      "coord_stage_no": 0,
+      "stage_count": 3,
+      "total_green_s": 148
+    },
+    {
+      "plan_no": 3,
+      "cycle_s": 170,
+      "offset_s": 0,
+      "coord_stage_no": 0,
+      "stage_count": 3,
+      "total_green_s": 158
+    },
+    {
+      "plan_no": 4,
+      "cycle_s": 120,
+      "offset_s": 19,
+      "coord_stage_no": 0,
+      "stage_count": 3,
+      "total_green_s": 108
+    },
+    {
+      "plan_no": 5,
+      "cycle_s": 140,
+      "offset_s": 12,
+      "coord_stage_no": 0,
+      "stage_count": 3,
+      "total_green_s": 128
+    },
+    {
+      "plan_no": 6,
+      "cycle_s": 80,
+      "offset_s": 21,
+      "coord_stage_no": 0,
+      "stage_count": 3,
+      "total_green_s": 71
+    },
+    {
+      "plan_no": 7,
+      "cycle_s": 120,
+      "offset_s": 19,
+      "coord_stage_no": 0,
+      "stage_count": 3,
+      "total_green_s": 108
+    }
+  ],
+  "corridors": {
+    "as_target": [
+      {
+        "target_inter_id": "011wwe0rynv00001",
+        "target_inter_name": "二环东路与浆水泉西路路口",
+        "movement": "北进口直行",
+        "entrance_dir8": 0,
+        "entrance_eight_direction": 1,
+        "turn_dir_no": 2,
+        "exit_dir8": 4,
+        "downstream_inter_id": "011wwe0rvxj00001",
+        "downstream_inter_name": "二环东路出口与二环东路辅路路口",
+        "receiving_eight_direction": 1,
+        "receiving_turn_dir_no": 2,
+        "period": "evening_peak",
+        "target_overflow_max_pm": 0.2945,
+        "target_overflow_mean_pm": 0.0735,
+        "target_overflow_max_all": 0.2945,
+        "target_sat_max_pm": 0.9351,
+        "target_green_util_max_pm": 0.9351,
+        "target_queue_max_m_pm": 94.8,
+        "downstream_overflow_max_pm": 0.1368,
+        "downstream_sat_max_pm": 2.1211,
+        "screen_type": "TYPE2_LINE",
+        "target_overflow_problem": false,
+        "target_sat_problem": true,
+        "target_high_demand": true,
+        "downstream_blocked": true,
+        "downstream_slack": false,
+        "has_downstream_dwd": true
+      }
+    ],
+    "as_downstream": []
+  },
+  "data_flags": [],
+  "manual_review": {
+    "screening_type_confirmed": null,
+    "overflow_threshold_credible": null,
+    "downstream_assessment_ok": null,
+    "recommended_action": null,
+    "reviewer_notes": ""
+  }
+}
