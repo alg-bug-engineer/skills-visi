@@ -87,7 +87,7 @@ export function flowKeysFromStage(stage: PhaseStageTiming): FlowKey[] {
   if (Array.isArray(combo) && combo.length) {
     return mergeFlowKeys(
       flowKeysFromFlowCombo(combo),
-      flowKeysFromPedDirs(stage.ped_dir_list ?? stage.pedDirList),
+      flowKeysFromPedDirs(pedDirsFromStage(stage)),
     )
   }
 
@@ -95,7 +95,7 @@ export function flowKeysFromStage(stage: PhaseStageTiming): FlowKey[] {
   if (Array.isArray(atoms) && atoms.length) {
     const fromAtoms = flowKeysFromStageAtoms(atoms)
     if (fromAtoms.length) {
-      return mergeFlowKeys(fromAtoms, flowKeysFromPedDirs(stage.ped_dir_list ?? stage.pedDirList))
+      return mergeFlowKeys(fromAtoms, flowKeysFromPedDirs(pedDirsFromStage(stage)))
     }
   }
 
@@ -145,6 +145,11 @@ export function directionIntensityRows(items: DirectionIntensity[] | undefined |
       intensity: item.intensity,
     }))
     .sort((a, b) => b.intensity - a.intensity)
+}
+
+function pedDirsFromStage(stage: PhaseStageTiming): unknown[] | undefined {
+  const raw = stage.ped_dir_list ?? stage.pedDirList
+  return Array.isArray(raw) ? raw : undefined
 }
 
 function flowKeysFromStageAtoms(atoms: unknown[]): FlowKey[] {
