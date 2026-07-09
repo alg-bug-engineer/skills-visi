@@ -47,5 +47,6 @@ def test_direction_intensity_list_labels_are_chinese():
     out = _OPT._build_optimization_meta(meta)
     labels = [row["label"] for row in out["direction_intensity_list"]]
     assert labels == ["北进口直行", "东进口直行"]
-    # 虚拟流量方向名也用中文，而非 d0_t2
-    assert out["data_quality"]["virtual_flow_movements"] == ["北进口直行"]
+    assert "historyVirtualFlowVph" not in out["direction_intensity_list"][0]
+    assert "has_virtual_flow" not in out["data_quality"]
+    assert "virtual_flow_movements" not in out["data_quality"]

@@ -45,16 +45,29 @@ def run_single_point_optimizer(
     diagnosis: dict[str, Any],
     strategy_instruction: dict[str, Any],
     constraints: dict[str, Any],
+    pg_raw: dict[str, Any] | None = None,
+    day_of_week: int | None = None,
 ) -> dict[str, Any]:
     if not engine_available():
         return {"ok": False, "reason": "signal_optimization_engine 不可用", "engine": "unavailable"}
 
+    from app.data.schedule_period_resolver import prepare_signal_for_ticket
+
+    signal_for_opt, timing_period = prepare_signal_for_ticket(
+        signal,
+        ticket,
+        pg_raw,
+        day_of_week=day_of_week,
+    )
+
     request = build_optimizer_request(
-        signal=signal,
+        signal=signal_for_opt,
         ticket=ticket,
         diagnosis=diagnosis,
         strategy_instruction=strategy_instruction,
         constraints=constraints,
+        pg_raw=pg_raw,
+        timing_period=timing_period,
     )
     try:
         optimize = get_optimize_intersection()
@@ -225,6 +238,7 @@ def _build_timing_evidence(
                 "green_delta_s": _diff_if_numbers(optimized_green, current_green),
                 "stage_delta_s": _diff_if_numbers(optimized_total, current_total),
                 "movements": [_normalize_movement_evidence(item) for item in movements if isinstance(item, dict)],
+                **_stage_visualization_fields(source),
             }
         )
 
@@ -241,11 +255,14 @@ def _build_timing_evidence(
         "cycle_s": cycle_s,
         "cycle_delta_s": _diff_if_numbers(cycle_s, current_cycle),
         "phase_stage_timing_list": stages,
-        "meta": _build_optimization_meta(meta),
+        "meta": _build_optimization_meta(meta, request.get("meta")),
     }
 
 
-def _build_optimization_meta(meta: dict[str, Any]) -> dict[str, Any]:
+def _build_optimization_meta(
+    meta: dict[str, Any],
+    period_meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     direction_list = meta.get("direction_intensity_list")
     if not isinstance(direction_list, list):
         direction_list = []
@@ -253,18 +270,17 @@ def _build_optimization_meta(meta: dict[str, Any]) -> dict[str, Any]:
     for item in direction_list:
         if not isinstance(item, dict):
             continue
-        enriched = dict(item)
+        enriched = {
+            key: value
+            for key, value in item.items()
+            if key != "historyVirtualFlowVph"
+        }
         enriched["label"] = _movement_cn_label(
             item.get("dir8No"), item.get("turnDirNo"), item.get("label")
         )
         normalized_direction.append(enriched)
     direction_list = normalized_direction
-    virtual_movements = [
-        item.get("label") or item.get("movementKey")
-        for item in direction_list
-        if isinstance(item, dict) and item.get("historyVirtualFlowVph") is not None
-    ]
-    return {
+    result: dict[str, Any] = {
         "solver": meta.get("solver"),
         "target_saturation": meta.get("target_saturation"),
         "max_phase_saturation": meta.get("max_phase_saturation"),
@@ -274,10 +290,38 @@ def _build_optimization_meta(meta: dict[str, Any]) -> dict[str, Any]:
         "data_quality": {
             "current_timing_source": "pg_signal_plan",
             "movement_source": "pg_turn_flow+pg_turn_saturation",
-            "has_virtual_flow": bool(virtual_movements),
-            "virtual_flow_movements": virtual_movements,
         },
     }
+    if isinstance(period_meta, dict):
+        for key in (
+            "target_periods",
+            "period_plan_no",
+            "period_label",
+            "period_match_method",
+        ):
+            if period_meta.get(key) is not None:
+                result[key] = period_meta[key]
+    return result
+
+
+def _stage_visualization_fields(source: dict[str, Any]) -> dict[str, Any]:
+    """保留阶段图绘制所需的 flow_combo / sourceStageAtoms（对齐参考项目）。"""
+    if not isinstance(source, dict):
+        return {}
+    out: dict[str, Any] = {}
+    atoms = source.get("source_stage_atoms") or source.get("sourceStageAtoms")
+    if isinstance(atoms, list) and atoms:
+        out["source_stage_atoms"] = atoms
+    combo = source.get("flow_combo") or source.get("flowCombo")
+    if isinstance(combo, list) and combo:
+        out["flow_combo"] = combo
+    ped_dirs = source.get("ped_dir_list") or source.get("pedDirList")
+    if isinstance(ped_dirs, list) and ped_dirs:
+        out["ped_dir_list"] = ped_dirs
+    display_name = source.get("phase_stage_name") or source.get("phaseStageName")
+    if display_name:
+        out["phase_stage_name"] = str(display_name)
+    return out
 
 
 def _normalize_movement_evidence(item: dict[str, Any]) -> dict[str, Any]:
@@ -296,7 +340,6 @@ def _normalize_movement_evidence(item: dict[str, Any]) -> dict[str, Any]:
         "saturation": item.get("saturation"),
         "flow_available": item.get("flow_available"),
         "source": item.get("source"),
-        "historyVirtualFlowVph": item.get("historyVirtualFlowVph"),
     }
 
 

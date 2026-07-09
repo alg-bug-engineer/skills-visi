@@ -44,6 +44,46 @@ describe('plan visualization helpers', () => {
     expect(flowKeysFromStage(stage)).toEqual(['0_1'])
   })
 
+  it('distinguishes overlap slice stages via flow_combo and source_stage_atoms', () => {
+    const parent = {
+      phase_stage_id: '3',
+      phase_stage_name: '北直、南直、东行人、西行人',
+      source_stage_atoms: ['北直', '南直', '东行人', '西行人'],
+      green_time_s: 57,
+      yellow_time_s: 3,
+      all_red_time_s: 2,
+    } as PhaseStageTiming
+    const slice = {
+      phase_stage_id: '4',
+      phase_stage_name: '北直、南直',
+      source_stage_atoms: ['北直', '南直'],
+      green_time_s: 8,
+      yellow_time_s: 3,
+      all_red_time_s: 2,
+    } as PhaseStageTiming
+
+    expect(flowKeysFromStage(parent)).toEqual(['0_1', '4_1', '2_5', '6_5'])
+    expect(flowKeysFromStage(slice)).toEqual(['0_1', '4_1'])
+  })
+
+  it('prefers flow_combo over incomplete movement bindings', () => {
+    const stage = {
+      phase_stage_id: '1',
+      phase_stage_name: '东直',
+      flow_combo: [
+        { f_dir8_no: 2, flow_type_no: 1, signal_atom: '东直左' },
+        { f_dir8_no: 2, flow_type_no: 2, signal_atom: '东直左' },
+        { f_dir8_no: 0, flow_type_no: 5, signal_atom: '北行人' },
+      ],
+      movements: [{ label: '东直', dir8No: 2, turnDirNo: 2 }],
+      green_time_s: 19,
+      yellow_time_s: 3,
+      all_red_time_s: 2,
+    } as PhaseStageTiming
+
+    expect(flowKeysFromStage(stage)).toEqual(['2_1', '2_2', '0_5'])
+  })
+
   it('parses optimizer movement keys with engine turnDirNo semantics', () => {
     const movements: StageMovement[] = [
       { movement_key: 'd0_t2', label: '北进口直行' },

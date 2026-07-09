@@ -392,6 +392,10 @@ export interface OptimizationMeta {
   target_saturation?: number | null
   max_phase_saturation?: number | null
   total_turn_flow_vph?: number | null
+  target_periods?: string[]
+  period_plan_no?: string | null
+  period_label?: string | null
+  period_match_method?: string | null
   direction_intensity_list?: DirectionIntensity[]
   notes?: string[]
   data_quality?: Record<string, unknown>

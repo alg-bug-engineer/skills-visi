@@ -83,14 +83,24 @@ export function flowKeysFromStageName(name: unknown): FlowKey[] {
 }
 
 export function flowKeysFromStage(stage: PhaseStageTiming): FlowKey[] {
+  const combo = stage.flow_combo ?? stage.flowCombo
+  if (Array.isArray(combo) && combo.length) {
+    return mergeFlowKeys(
+      flowKeysFromFlowCombo(combo),
+      flowKeysFromPedDirs(stage.ped_dir_list ?? stage.pedDirList),
+    )
+  }
+
+  const atoms = stage.source_stage_atoms ?? stage.sourceStageAtoms
+  if (Array.isArray(atoms) && atoms.length) {
+    const fromAtoms = flowKeysFromStageAtoms(atoms)
+    if (fromAtoms.length) {
+      return mergeFlowKeys(fromAtoms, flowKeysFromPedDirs(stage.ped_dir_list ?? stage.pedDirList))
+    }
+  }
+
   const keysFromMovements = flowKeysFromStageMovements(stage.movements)
   if (keysFromMovements.length) return keysFromMovements
-
-  const fromAtoms = stage.sourceStageAtoms ?? stage.source_stage_atoms
-  if (Array.isArray(fromAtoms)) {
-    const keys = flowKeysFromStageAtoms(fromAtoms)
-    if (keys.length) return keys
-  }
 
   const keysFromName = flowKeysFromStageName(stage.phase_stage_name)
   if (keysFromName.length) return keysFromName
@@ -146,12 +156,63 @@ function flowKeysFromStageAtoms(atoms: unknown[]): FlowKey[] {
   return out
 }
 
+function flowKeysFromFlowCombo(combo: unknown[]): FlowKey[] {
+  const out: FlowKey[] = []
+  for (const item of combo) {
+    if (!item || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    const dir = resolveFlowDir8No(row)
+    const flowType = Number(row.flow_type_no ?? row.flowTypeNo)
+    if (dir == null || !Number.isFinite(flowType)) continue
+    const key = `${dir}_${Math.trunc(flowType)}` as FlowKey
+    if (!out.includes(key)) out.push(key)
+  }
+  return out
+}
+
+function flowKeysFromPedDirs(pedDirs: unknown[] | undefined | null): FlowKey[] {
+  const out: FlowKey[] = []
+  for (const dir of pedDirs ?? []) {
+    const dir8 = canvasDir8(dir)
+    if (dir8 == null) continue
+    const key = `${dir8}_5` as FlowKey
+    if (!out.includes(key)) out.push(key)
+  }
+  return out
+}
+
+function mergeFlowKeys(...groups: FlowKey[][]): FlowKey[] {
+  const out: FlowKey[] = []
+  for (const group of groups) {
+    for (const key of group) {
+      if (key && !out.includes(key)) out.push(key)
+    }
+  }
+  return out
+}
+
+function resolveFlowDir8No(item: Record<string, unknown>): number | null {
+  const name = String(item.f_dir8_name ?? item.f_dir8Name ?? '').trim()
+  if (name && DIR_CN_TO_DIR8[name] != null) return DIR_CN_TO_DIR8[name]
+  const atom = String(item.signal_atom ?? item.signalAtom ?? '').trim()
+  for (const cn of DIR_CN_PREFIXES) {
+    if (atom.startsWith(cn)) return DIR_CN_TO_DIR8[cn]
+  }
+  return canvasDir8(item.f_dir8_no ?? item.dir8No)
+}
+
 function flowKeyFromStageAtom(atom: unknown): FlowKey | null {
   const text = String(atom ?? '').trim()
-  if (!text) return null
+  if (!text || /ring|barrier|环|搭接/i.test(text)) return null
   for (const dirName of DIR_CN_PREFIXES) {
     if (!text.startsWith(dirName)) continue
-    const flowType = flowTypeFromLabel(text.slice(dirName.length)) ?? 1
+    const tail = text.slice(dirName.length)
+    let flowType = 1
+    if (/人行道|人行横道|行人|出行|入行/.test(tail)) flowType = 5
+    else if (/掉/.test(tail)) flowType = 4
+    else if (/左/.test(tail)) flowType = 2
+    else if (/右/.test(tail)) flowType = 3
+    else flowType = flowTypeFromLabel(tail) ?? 1
     return `${DIR_CN_TO_DIR8[dirName]}_${flowType}`
   }
   return null

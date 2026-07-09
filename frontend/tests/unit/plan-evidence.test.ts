@@ -91,6 +91,15 @@ describe('PlanEvidencePanel', () => {
     expect(wrapper.find('[data-testid="intensity-row-risk"]').exists()).toBe(true)
   })
 
+  it('renders period label when meta includes target_periods', () => {
+    const candidate = candidateWithEvidence()
+    candidate.timing!.meta!.target_periods = ['07:00-09:00']
+    const wrapper = mount(PlanEvidencePanel, { props: { candidate } })
+    expect(wrapper.text()).toContain('时段 07:00–09:00')
+    expect(wrapper.text()).toContain('阶段形式')
+    expect(wrapper.text()).not.toContain('虚拟流量')
+  })
+
   it('filters right-turn rows from direction intensity visualization', () => {
     const candidate = candidateWithEvidence()
     candidate.timing?.meta?.direction_intensity_list?.push({

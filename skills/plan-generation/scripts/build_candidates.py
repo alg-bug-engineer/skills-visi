@@ -43,6 +43,8 @@ def build_plan_candidates(
     build_strategy_instruction,
     validate_plan_guardrails,
     run_single_point_optimizer=None,
+    pg_raw: dict[str, Any] | None = None,
+    day_of_week: int | None = None,
 ) -> tuple[list[dict[str, Any]], str | None]:
     diagnosis = diagnosis or {}
     direction = ticket.get("direction", "东向西")
@@ -89,6 +91,8 @@ def build_plan_candidates(
                 diagnosis=diagnosis,
                 strategy_instruction=strategy_instruction,
                 constraints=constraints,
+                pg_raw=pg_raw,
+                day_of_week=day_of_week,
             )
             if optimized.get("ok"):
                 adjusted["timing"] = optimized["timing"]

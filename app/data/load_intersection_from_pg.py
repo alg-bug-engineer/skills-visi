@@ -2417,10 +2417,17 @@ def _build_signal(
     signal_lane_mapping_rows: list[dict[str, Any]] | None = None,
     stage_cfg_rows: list[dict[str, Any]] | None = None,
     stage_motor_flow_rows: list[dict[str, Any]] | None = None,
+    *,
+    active_plan_no: Any = None,
 ) -> dict[str, Any]:
     if not plan_rows:
         return {}
     first = plan_rows[0]
+    if active_plan_no is not None:
+        for row in plan_rows:
+            if str(row.get("plan_no")) == str(active_plan_no):
+                first = row
+                break
     cycle = _as_float(first.get("cycle_len_sec"))
     release_by_stage = _release_movements_by_stage(signal_lane_mapping_rows or [])
     for source in (
@@ -2430,6 +2437,11 @@ def _build_signal(
         for stage, movements in source.items():
             if movements and not release_by_stage.get(stage):
                 release_by_stage[stage] = movements
+    stage_cfg_by_no = {
+        str(row.get("stage_no")): row
+        for row in (stage_cfg_rows or [])
+        if row.get("stage_no") is not None
+    }
     ordered_plan_rows = sorted(
         plan_rows,
         key=lambda item: (
@@ -2462,11 +2474,11 @@ def _build_signal(
     }
     min_green_profile = _build_min_green_profile(min_green_rows)
     schedule_count = len({r.get("schedule_no") for r in (schedule_rows or []) if r.get("schedule_no")})
-    active_plan_no = first.get("plan_no")
+    active_plan_no = str(active_plan_no if active_plan_no is not None else first.get("plan_no"))
     phase_stage_timing_list: list[dict[str, Any]] = []
     seen_stages: set[str] = set()
     for row in ordered_plan_rows:
-        if row.get("plan_no") != active_plan_no:
+        if str(row.get("plan_no")) != active_plan_no:
             continue
         stage_no = str(row.get("stage_no") or "")
         if not stage_no or stage_no in seen_stages:
@@ -2478,25 +2490,43 @@ def _build_signal(
         min_green = int(_as_float(row.get("min_green_sec") or 15))
         max_green = int(_as_float(row.get("max_green_sec") or green + 30))
         movement_key = release_by_stage.get(f"{active_plan_no}:{stage_no}") or release_by_stage.get(stage_no, "")
-        phase_stage_timing_list.append(
-            {
-                "phase_stage_id": stage_no,
-                "phase_stage_name": movement_key or f"阶段{stage_no}",
-                "greenTime": green,
-                "yellowTime": yellow,
-                "allRedTime": all_red,
-                "minGreenTime": min_green,
-                "maxGreenTime": max_green,
-                "movement_key": movement_key,
-            }
-        )
+        cfg_row = stage_cfg_by_no.get(stage_no)
+        display_name = _resolve_stage_display_name(cfg_row, movement_key, stage_no)
+        atoms = _stage_atoms_from_name((cfg_row or {}).get("stage_name") or display_name)
+        flow_combo = cfg_row.get("flow_combo_json") if isinstance((cfg_row or {}).get("flow_combo_json"), list) else None
+        ped_dirs = _ped_dirs_from_stage_cfg(cfg_row)
+        stage_entry: dict[str, Any] = {
+            "phase_stage_id": stage_no,
+            "phase_stage_name": display_name,
+            "greenTime": green,
+            "yellowTime": yellow,
+            "allRedTime": all_red,
+            "minGreenTime": min_green,
+            "maxGreenTime": max_green,
+            "movement_key": movement_key,
+        }
+        if atoms:
+            stage_entry["source_stage_atoms"] = atoms
+        if flow_combo:
+            stage_entry["flow_combo"] = flow_combo
+        if ped_dirs:
+            stage_entry["ped_dir_list"] = ped_dirs
+        phase_stage_timing_list.append(stage_entry)
+
+    from app.data.schedule_period_resolver import extract_schedule_periods
+
+    schedule_periods = extract_schedule_periods(schedule_rows)
 
     return {
         "current_cycle_s": cycle,
-        "plan_no": first.get("plan_no"),
+        "plan_no": active_plan_no,
         "plan_name": first.get("plan_name"),
         "offset_s": _as_float(first.get("offset_sec")),
-        "phase_sequence": [str(row.get("stage_no")) for row in ordered_plan_rows if row.get("plan_no") == active_plan_no],
+        "phase_sequence": [
+            str(row.get("stage_no"))
+            for row in ordered_plan_rows
+            if str(row.get("plan_no")) == active_plan_no
+        ],
         "phase_splits": phase_splits,
         "stage_detail": phases,
         "phase_stage_timing_list": phase_stage_timing_list,
@@ -2504,7 +2534,116 @@ def _build_signal(
         "min_green_s": min_green_profile.get("min_green_s"),
         "min_green_detail": min_green_profile.get("min_green_detail"),
         "time_plan_count": schedule_count or len({row.get("plan_no") for row in plan_rows}),
+        "schedule_periods": schedule_periods,
     }
+
+
+def rebuild_signal_for_period(
+    *,
+    plan_rows: list[dict[str, Any]],
+    schedule_rows: list[dict[str, Any]] | None,
+    min_green_rows: list[dict[str, Any]] | None,
+    signal_lane_mapping_rows: list[dict[str, Any]] | None,
+    stage_cfg_rows: list[dict[str, Any]] | None,
+    stage_motor_flow_rows: list[dict[str, Any]] | None,
+    flow_rows: list[dict[str, Any]] | None,
+    saturation_rows: list[dict[str, Any]] | None,
+    channel_rows: list[dict[str, Any]] | None,
+    period_plan_no: str,
+    step_index: int | None,
+    step_index_end: int | None,
+) -> dict[str, Any] | None:
+    """按 schedule 映射的 plan_no 重建 signal，并重绑目标时段 turn_flow。"""
+    if not plan_rows or not period_plan_no:
+        return None
+    filtered_flow = _filter_rows_by_step_range(flow_rows or [], step_index, step_index_end)
+    filtered_sat = _filter_rows_by_step_range(saturation_rows or [], step_index, step_index_end)
+    signal = _build_signal(
+        plan_rows,
+        schedule_rows,
+        min_green_rows,
+        signal_lane_mapping_rows,
+        stage_cfg_rows,
+        stage_motor_flow_rows,
+        active_plan_no=period_plan_no,
+    )
+    if not signal:
+        return None
+    from app.data.turn_flow_binding import bind_turn_flows_to_signal
+
+    period_label = None
+    if step_index is not None:
+        period_label = f"step:{step_index}-{step_index_end or step_index}"
+    bind_turn_flows_to_signal(
+        signal,
+        flow_rows=filtered_flow,
+        saturation_rows=filtered_sat,
+        signal_lane_mapping_rows=signal_lane_mapping_rows,
+        channel_rows=channel_rows,
+        stage_motor_flow_rows=stage_motor_flow_rows,
+        period=period_label,
+    )
+    return signal
+
+
+def _stage_atoms_from_name(name: Any) -> list[str]:
+    return [
+        part.strip()
+        for part in str(name or "").replace("，", "、").replace(",", "、").split("、")
+        if part.strip()
+    ]
+
+
+def _is_auto_generated_stage_name(name: Any) -> bool:
+    text = str(name or "")
+    markers = ("Ring-Barrier", "ring-barrier", "仿真", "拆分生成")
+    return any(marker in text for marker in markers)
+
+
+def _resolve_stage_display_name(
+    cfg_row: dict[str, Any] | None,
+    fallback_movement: str,
+    stage_no: str,
+) -> str:
+    if cfg_row:
+        text = str(cfg_row.get("stage_name") or "").strip()
+        if text and not _is_auto_generated_stage_name(text):
+            return text
+    if fallback_movement:
+        return str(fallback_movement)
+    return f"阶段{stage_no}"
+
+
+def _ped_dirs_from_stage_cfg(cfg_row: dict[str, Any] | None) -> list[int]:
+    if not cfg_row:
+        return []
+    combo = cfg_row.get("flow_combo_json")
+    if not isinstance(combo, list):
+        return []
+    ped_dirs: list[int] = []
+    for item in combo:
+        if not isinstance(item, dict):
+            continue
+        if int(_as_float(item.get("flow_type_no"))) != 5:
+            continue
+        dir8 = _to_int_dir8(item.get("f_dir8_no"))
+        if dir8 is not None:
+            ped_dirs.append(dir8)
+    return list(dict.fromkeys(ped_dirs))
+
+
+def _to_int_dir8(value: Any) -> int | None:
+    try:
+        if value is None or value == "":
+            return None
+        num = int(float(value))
+    except (TypeError, ValueError):
+        return None
+    if num == 8:
+        return 7
+    if 0 <= num <= 7:
+        return num
+    return None
 
 
 def _release_movements_by_stage(rows: list[dict[str, Any]]) -> dict[str, str]:

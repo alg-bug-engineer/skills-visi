@@ -9,6 +9,15 @@ const props = defineProps<{ candidate: PlanCandidate | null }>()
 const timing = computed<PlanTimingEvidence | null>(() => props.candidate?.timing ?? null)
 const stages = computed(() => timing.value?.phase_stage_timing_list ?? [])
 const intensity = computed(() => timing.value?.meta?.direction_intensity_list ?? [])
+const periodLabel = computed(() => {
+  const meta = timing.value?.meta
+  const periods = meta?.target_periods
+  if (Array.isArray(periods) && periods.length) {
+    return periods[0].replace('-', '–')
+  }
+  if (meta?.period_label) return String(meta.period_label)
+  return null
+})
 const evidenceComplete = computed(() => {
   if (!timing.value || timing.value.available === false) return false
   if (timing.value.current_cycle_s == null || timing.value.cycle_s == null) return false
@@ -39,7 +48,8 @@ function delta(value?: number | null) {
       <div class="banner">
         <div>
           <b>优化对比</b>
-          <span>现状 vs 优化方案</span>
+          <span v-if="periodLabel">时段 {{ periodLabel }}</span>
+          <span v-else>现状 vs 优化方案</span>
         </div>
         <p>
           <span class="old">{{ sec(timing?.current_cycle_s) }}</span>

@@ -104,6 +104,14 @@ def test_request_skips_unlocatable_movement():
     assert len(s1["phaseDirInfoDTOList"]) == 2
 
 
+def test_request_includes_resolved_target_periods_and_plan_no():
+    req = build_optimizer_request(**_base_args(_signal_with_binding()))
+    assert req["target_periods"] == ["18:00-18:30"]
+    assert req.get("planNo") == "1"
+    assert req.get("obj_intensity") is not None
+    assert req["meta"]["period_match_method"] is not None
+
+
 def test_request_legacy_signal_without_binding_has_no_placeholder_500():
     signal = {
         "inter_id": "TEST01",

@@ -115,6 +115,11 @@ class PlanGenerationSkill(BaseSkill):
             build_strategy_instruction=adjust_module.build_strategy_instruction,
             validate_plan_guardrails=guardrail_module.validate_plan_guardrails,
             run_single_point_optimizer=optimizer_module.run_single_point_optimizer,
+            pg_raw=context.task.get("pg_raw") if isinstance(context.task.get("pg_raw"), dict) else None,
+            day_of_week=(
+                (context.task.get("context") or {}).get("day_of_week")
+                or context.task.get("day_of_week")
+            ),
         )
 
         valid_candidates = [c for c in candidates if c.get("guardrail_pass")]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.data.schedule_period_resolver import resolve_timing_period
 from app.trace.topology import DIRECTION_MOVEMENT, resolve_dir8_turn
 
 
@@ -14,6 +15,8 @@ def build_optimizer_request(
     diagnosis: dict[str, Any],
     strategy_instruction: dict[str, Any],
     constraints: dict[str, Any],
+    pg_raw: dict[str, Any] | None = None,
+    timing_period: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     inter_id = str(signal.get("inter_id") or ticket.get("inter_id") or "UNKNOWN")
     phase_plan = _build_phase_plan(signal, inter_id)
@@ -42,14 +45,33 @@ def build_optimizer_request(
         **{k: v for k, v in constraints.items() if v is not None},
     }
 
+    resolved = timing_period or signal.get("timing_period")
+    if not isinstance(resolved, dict) or not resolved.get("target_periods"):
+        schedule_rows = (pg_raw or {}).get("schedule_cfg") or []
+        day_of_week = (pg_raw or {}).get("context_day_of_week")
+        resolved = resolve_timing_period(ticket, schedule_rows, day_of_week=day_of_week)
+    target_periods = list(resolved.get("target_periods") or [])
+    if not target_periods:
+        fallback = str(ticket.get("time_range") or "").strip()
+        if fallback:
+            target_periods = [fallback]
+
     return {
         "interId": inter_id,
+        "planNo": signal.get("plan_no"),
         "dir8No": dir8,
         "turnDirNo": turn,
+        "obj_intensity": strategy.get("target_saturation", target_saturation),
         "phasePlanOfTimeList": [phase_plan],
         "constraints": merged_constraints,
         "strategy_instruction": strategy,
-        "target_periods": [ticket.get("time_range")] if ticket.get("time_range") else [],
+        "target_periods": target_periods,
+        "meta": {
+            "target_periods": target_periods,
+            "period_plan_no": resolved.get("period_plan_no"),
+            "period_label": resolved.get("period_label"),
+            "period_match_method": resolved.get("match_method"),
+        },
     }
 
 
@@ -110,6 +132,12 @@ def _build_phase_plan(signal: dict[str, Any], inter_id: str) -> dict[str, Any]:
             phase_stage["max_green_s"] = max_green
         if green_bounds:
             phase_stage["greenBounds"] = green_bounds
+        if stage.get("source_stage_atoms"):
+            phase_stage["sourceStageAtoms"] = stage["source_stage_atoms"]
+        if stage.get("flow_combo"):
+            phase_stage["flow_combo"] = stage["flow_combo"]
+        if stage.get("ped_dir_list"):
+            phase_stage["pedDirList"] = stage["ped_dir_list"]
         phase_stages.append(phase_stage)
 
     return {

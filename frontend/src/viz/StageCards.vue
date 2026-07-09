@@ -18,6 +18,14 @@ function stageTotal(stage: PhaseStageTiming): number | null | undefined {
   return stage.optimized_timing?.stage_total_s ?? stage.green_time_s
 }
 
+function currentGreen(stage: PhaseStageTiming): number | null | undefined {
+  return stage.current_timing?.green_time_s
+}
+
+function optimizedGreen(stage: PhaseStageTiming): number | null | undefined {
+  return stage.optimized_timing?.green_time_s ?? stage.green_time_s
+}
+
 function flowLabel(stage: PhaseStageTiming): string {
   return formatFlowKeysText(flowKeysFromStage(stage))
 }
@@ -29,79 +37,150 @@ function hasFlow(stage: PhaseStageTiming): boolean {
 
 <template>
   <section class="stages">
-    <article v-for="(stage, i) in stages" :key="stage.phase_stage_id || i" class="card">
-      <h4 :title="stage.phase_stage_name">阶段 {{ i + 1 }}</h4>
-      <p class="stage-name">{{ stage.phase_stage_name || '未命名阶段' }}</p>
-      <div class="cmp">
-        <span class="old">{{ sec(stage.current_timing?.stage_total_s) }}</span>
-        <span>→</span>
-        <strong>{{ sec(stageTotal(stage)) }}</strong>
-        <b :class="{ up: (stage.stage_delta_s ?? 0) > 0, down: (stage.stage_delta_s ?? 0) < 0 }">{{ delta(stage.stage_delta_s) }}</b>
-      </div>
-      <StageMovementCanvas :stage="stage" />
-      <div v-if="hasFlow(stage)" class="flow-label">{{ flowLabel(stage) }}</div>
-      <div v-else class="missing">后端未返回释放方向证据</div>
-      <div class="meta">
-        <span>绿灯 {{ sec(stage.current_timing?.green_time_s) }} → {{ sec(stage.optimized_timing?.green_time_s ?? stage.green_time_s) }}</span>
-        <span>Δ绿灯 {{ delta(stage.green_delta_s) }}</span>
-        <span>最小/最大绿 {{ sec(stage.min_green_time_s) }} / {{ sec(stage.max_green_time_s) }}</span>
-        <span>饱和度 {{ pctText(stage.phase_saturation) }}</span>
-      </div>
-    </article>
+    <header class="stages-head">
+      <h4>阶段形式</h4>
+      <span class="hint">现状 → 优化（括号内为差值）</span>
+    </header>
+    <div class="cards">
+      <article v-for="(stage, i) in stages" :key="stage.phase_stage_id || i" class="card">
+        <div class="card-head">
+          <strong>阶段 {{ i + 1 }}</strong>
+          <span class="stage-total">
+            {{ sec(stage.current_timing?.stage_total_s) }}
+            →
+            {{ sec(stageTotal(stage)) }}
+            <em :class="{ up: (stage.stage_delta_s ?? 0) > 0, down: (stage.stage_delta_s ?? 0) < 0 }">
+              ({{ delta(stage.stage_delta_s) }})
+            </em>
+          </span>
+        </div>
+        <p class="stage-name">{{ stage.phase_stage_name || '未命名阶段' }}</p>
+        <div class="green-cmp">
+          <span class="label">绿灯</span>
+          <span class="old">{{ sec(currentGreen(stage)) }}</span>
+          <span class="arrow">→</span>
+          <span class="new">{{ sec(optimizedGreen(stage)) }}</span>
+          <span class="delta" :class="{ up: (stage.green_delta_s ?? 0) > 0, down: (stage.green_delta_s ?? 0) < 0 }">
+            {{ delta(stage.green_delta_s) }}
+          </span>
+        </div>
+        <StageMovementCanvas :stage="stage" />
+        <div v-if="hasFlow(stage)" class="flow-label">{{ flowLabel(stage) }}</div>
+        <div v-else class="missing">后端未返回释放方向证据</div>
+        <div class="meta">
+          <span>最小/最大绿 {{ sec(stage.min_green_time_s) }} / {{ sec(stage.max_green_time_s) }}</span>
+          <span>阶段饱和度 {{ pctText(stage.phase_saturation) }}</span>
+        </div>
+      </article>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .stages {
+  display: grid;
+  gap: 8px;
+}
+.stages-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.stages-head h4 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.hint {
+  color: var(--text-mute);
+  font-size: 11px;
+}
+.cards {
   display: flex;
   gap: 10px;
   overflow-x: auto;
   padding-bottom: 4px;
 }
 .card {
-  flex: 0 0 190px;
+  flex: 0 0 200px;
   padding: 10px;
   border: 1px solid rgba(138, 160, 180, 0.28);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.025);
 }
-h4 {
-  margin: 0;
-  text-align: center;
+.card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.card-head strong {
   color: var(--text);
   font-size: 13px;
 }
-.stage-name {
-  min-height: 32px;
-  margin: 3px 0 8px;
+.stage-total {
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 11px;
+}
+.stage-total em {
+  font-style: normal;
+  font-weight: 700;
+}
+.stage-total em.up {
+  color: var(--evidence);
+}
+.stage-total em.down {
+  color: var(--alarm);
+}
+.stage-name {
+  min-height: 28px;
+  margin: 0 0 8px;
+  color: var(--text-dim);
+  font-size: 11px;
   line-height: 1.35;
   text-align: center;
 }
-.cmp {
+.green-cmp {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 5px;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-bottom: 8px;
-  color: var(--text-dim);
+  padding: 6px 4px;
+  border-radius: 6px;
+  background: rgba(0, 229, 255, 0.06);
+}
+.green-cmp .label {
+  width: 100%;
+  text-align: center;
+  color: var(--text-mute);
+  font-size: 10px;
 }
 .old {
   text-decoration: line-through;
+  color: var(--text-dim);
+  font-size: 13px;
 }
-strong {
-  color: var(--protected);
-  font-size: 22px;
-}
-b {
+.arrow {
   color: var(--text-mute);
   font-size: 12px;
 }
-b.up {
+.new {
+  color: var(--protected);
+  font-size: 22px;
+  font-weight: 700;
+}
+.delta {
+  color: var(--text-mute);
+  font-size: 12px;
+  font-weight: 700;
+}
+.delta.up {
   color: var(--evidence);
 }
-b.down {
+.delta.down {
   color: var(--alarm);
 }
 .meta,
@@ -114,7 +193,7 @@ b.down {
   font-size: 11px;
 }
 .flow-label {
-  min-height: 30px;
+  min-height: 28px;
   align-items: center;
   color: var(--text-dim);
   line-height: 1.35;

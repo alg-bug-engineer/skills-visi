@@ -8,7 +8,6 @@ const props = defineProps<{ meta?: OptimizationMeta | null }>()
 const target = computed(() => props.meta?.target_saturation ?? 0.8)
 const rows = computed(() => directionIntensityRows(props.meta?.direction_intensity_list))
 const dataQuality = computed(() => props.meta?.data_quality ?? {})
-const hasVirtual = computed(() => rows.value.some((row) => row.historyVirtualFlowVph != null))
 
 function pct(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '—'
@@ -46,10 +45,7 @@ function targetLeft(value?: number | null) {
           :key="row.movementKey || row.label || String(row.dir8No) + '-' + String(row.turnDirNo)"
           :data-testid="(row.intensity ?? 0) > target ? 'intensity-row-risk' : 'intensity-row-ok'"
         >
-          <td>
-            {{ row.label || row.movementKey || '未知转向' }}
-            <span v-if="row.historyVirtualFlowVph != null" class="tag">虚拟流量</span>
-          </td>
+          <td>{{ row.label || row.movementKey || '未知转向' }}</td>
           <td>
             <div class="track">
               <div class="bar" :class="{ risk: (row.intensity ?? 0) > target }" :style="{ width: width(row.intensity) }" />
@@ -63,10 +59,6 @@ function targetLeft(value?: number | null) {
     <p class="foot">
       目标强度 I_obj = {{ pct(target) }}
       <span v-if="dataQuality.movement_source">｜{{ dataQuality.movement_source }}</span>
-      <span v-if="dataQuality.has_virtual_flow">｜含虚拟流量兜底</span>
-    </p>
-    <p v-if="hasVirtual" class="foot foot--note">
-      标注「虚拟流量」的转向：该时段缺实测流量，按现状放行时间比例估算的兜底流量参与配时（与最小绿对应流量取较大者），仅用于保底最小绿，不代表实测需求。
     </p>
   </section>
 </template>
@@ -127,11 +119,6 @@ th {
 .value.risk {
   color: var(--evidence);
 }
-.tag {
-  margin-left: 4px;
-  color: var(--evidence);
-  font-size: 10px;
-}
 .intro {
   margin: 0 0 8px;
   color: var(--text-dim);
@@ -147,9 +134,5 @@ th {
   margin: 7px 0 0;
   color: var(--text-mute);
   font-size: 11px;
-}
-.foot--note {
-  line-height: 1.5;
-  color: var(--text-dim);
 }
 </style>
