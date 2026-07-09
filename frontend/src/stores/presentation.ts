@@ -6,7 +6,11 @@ import {
   regeneratePlan,
   submitDecision,
   solidifySkill,
+  listExperiences,
+  listCases,
   DEMO_INPUT,
+  type StoredExperience,
+  type CaseItem,
 } from '@/api/endpoints'
 import type { StreamController, StreamEvent } from '@/api/sse'
 import type { RunResponse, UserExperience, CaseCard, SkillSolidificationResult } from '@/api/types'
@@ -55,7 +59,37 @@ interface State {
   solidifyPhase: SolidifyPhase
   skillResult: SkillSolidificationResult | null
   pendingSolidifyPlanId: string | null
+  precip: PrecipState
 }
+
+/** 历史沉淀（全量经验 + 路口确认/风险案例），独立于本轮推演。 */
+interface PrecipState {
+  loaded: boolean
+  loading: boolean
+  experiences: {
+    cognitive: StoredExperience[]
+    diagnostic: StoredExperience[]
+    solution: StoredExperience[]
+  }
+  interCases: CaseItem[]
+}
+
+/** 全量经验条目：历史沉淀 + 本轮新吸收标记。 */
+export interface PanelExperience extends StoredExperience {
+  fresh?: boolean
+}
+
+/** 全量路口案例条目：历史沉淀 + 本轮新确认标记。 */
+export interface PanelInterCase extends CaseItem {
+  fresh?: boolean
+}
+
+const EMPTY_PRECIP = (): PrecipState => ({
+  loaded: false,
+  loading: false,
+  experiences: { cognitive: [], diagnostic: [], solution: [] },
+  interCases: [],
+})
 
 export const usePresentationStore = defineStore('presentation', {
   state: (): State => ({
@@ -81,6 +115,7 @@ export const usePresentationStore = defineStore('presentation', {
     solidifyPhase: 'idle',
     skillResult: null,
     pendingSolidifyPlanId: null,
+    precip: EMPTY_PRECIP(),
   }),
 
   getters: {
@@ -146,6 +181,68 @@ export const usePresentationStore = defineStore('presentation', {
       }
       return merged
     },
+    /** 全量历史沉淀经验（按类型），本轮新吸收置顶并标记 fresh。 */
+    precipExperiencesByType(): {
+      cognitive: PanelExperience[]
+      diagnostic: PanelExperience[]
+      solution: PanelExperience[]
+    } {
+      const runMap = this.experiencesByType
+      const state = this.precip
+      const build = (type: 'cognitive' | 'diagnostic' | 'solution'): PanelExperience[] => {
+        const runItems = runMap[type] ?? []
+        const runKeys = new Set(runItems.map((e) => e.content))
+        const map = new Map<string, PanelExperience>()
+        for (const e of state.experiences[type] ?? []) {
+          if (!e.content) continue
+          if (!map.has(e.content)) map.set(e.content, { ...e, fresh: runKeys.has(e.content) })
+        }
+        for (const e of runItems) {
+          if (!e.content) continue
+          if (!map.has(e.content)) {
+            map.set(e.content, {
+              experience_type: type,
+              content: e.content,
+              source_span: e.source_span ?? null,
+              tags: e.tags,
+              fresh: true,
+            })
+          }
+        }
+        return [...map.values()].sort((a, b) => Number(!!b.fresh) - Number(!!a.fresh))
+      }
+      return {
+        cognitive: build('cognitive'),
+        diagnostic: build('diagnostic'),
+        solution: build('solution'),
+      }
+    },
+    /**
+     * 全量路口案例：本轮闭环检索到的相似案例（右侧「参考依据」跳转目标，置顶 fresh）
+     * + 历史全量确认/风险沉淀案例。按 case_id 去重。
+     */
+    precipInterCases(s): PanelInterCase[] {
+      const currentTrace = s.traceId
+      const seen = new Set<string>()
+      const out: PanelInterCase[] = []
+      // 本轮成因分析检索到的相似案例（使用环节的可视化，跳转定位目标）。
+      for (const c of this.existingCases) {
+        const key = c.case_id ?? c.title ?? ''
+        if (!key || seen.has(key)) continue
+        seen.add(key)
+        out.push({ ...(c as PanelInterCase), fresh: true })
+      }
+      // 历史全量沉淀（确认 + 风险）。
+      for (const c of s.precip.interCases) {
+        const key = c.case_id ?? `${c.inter_id ?? ''}:${c.title ?? ''}`
+        if (!key || seen.has(key)) continue
+        seen.add(key)
+        out.push({ ...c, fresh: !!currentTrace && c.trace_id === currentTrace })
+      }
+      return out.sort((a, b) => Number(!!b.fresh) - Number(!!a.fresh))
+    },
+    precipLoaded: (s) => s.precip.loaded,
+    precipLoading: (s) => s.precip.loading,
     experienceReady: (s) => phaseReady(s.response, 'intent'),
     casesReady: (s) => phaseReady(s.response, 'cause'),
     /** 健康核验：诊断判定路口无问题，闭环在溢出核验幕后正常收尾。 */
@@ -153,6 +250,38 @@ export const usePresentationStore = defineStore('presentation', {
   },
 
   actions: {
+    /**
+     * 拉取历史沉淀（全量经验 + 路口确认/风险案例），独立于本轮推演。
+     * 幂等：已加载则跳过，除非 force。网络失败静默降级为空，不打断闭环。
+     */
+    async loadPrecipitation(force = false) {
+      if (this.precip.loading) return
+      if (this.precip.loaded && !force) return
+      this.precip.loading = true
+      try {
+        const [expRes, caseRes] = await Promise.all([
+          listExperiences(),
+          listCases({ category: 'recommended', limit: 100 }),
+        ])
+        if (!isApiError(expRes)) {
+          const g = expRes.experiences ?? {}
+          this.precip.experiences = {
+            cognitive: g.cognitive ?? [],
+            diagnostic: g.diagnostic ?? [],
+            solution: g.solution ?? [],
+          }
+        }
+        // 路口案例：确认方案（recommended）+ 风险规避（risk）合并全量呈现。
+        const riskRes = await listCases({ category: 'risk', limit: 100 })
+        const recommended = !isApiError(caseRes) ? caseRes.cases ?? [] : []
+        const risk = !isApiError(riskRes) ? riskRes.cases ?? [] : []
+        this.precip.interCases = [...recommended, ...risk]
+        this.precip.loaded = true
+      } finally {
+        this.precip.loading = false
+      }
+    },
+
     /** 默认走流式；失败自动降级到单次 JSON。 */
     startRun(input?: string) {
       const userInput = (input ?? this.userInput).trim()
@@ -340,6 +469,8 @@ export const usePresentationStore = defineStore('presentation', {
       this.dock = 'running'
       this.planMinimized = false
       this.solidifyPhase = 'prompt'
+      // 新确认方案已沉淀到反馈库，刷新路口案例全量呈现。
+      void this.loadPrecipitation(true)
     },
 
     /** 暂不固化：直接返回主页（输入态），清理固化态。 */
@@ -382,6 +513,8 @@ export const usePresentationStore = defineStore('presentation', {
     finishSolidify() {
       this.solidifyPhase = 'idle'
       this.skillResult = null
+      // 技能已入库，刷新路口案例以出现下载入口。
+      void this.loadPrecipitation(true)
       this.reset(true)
       this.toast = '技能已固化并入库，已返回主页。'
     },

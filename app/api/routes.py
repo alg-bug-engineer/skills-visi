@@ -14,6 +14,7 @@ from app.runtime.pipeline_validation import PipelineValidationError, skills_from
 from app.services.agent_service import AgentService, validate_pipeline_request
 from app.services.cases_catalog_service import CasesCatalogService
 from app.services.case_library import CaseLibraryService
+from app.services.experience_library import ExperienceLibraryService
 from app.services.feedback_service import PlanFeedbackService
 from app.services.intersection_load_service import IntersectionLoadService
 from app.services.qwen_tts_service import get_tts_service
@@ -130,10 +131,22 @@ def get_intersection_load_service(settings: Settings = Depends(get_settings)) ->
     return IntersectionLoadService(settings)
 
 
+def get_experience_library_service(
+    settings: Settings = Depends(get_settings),
+) -> ExperienceLibraryService:
+    return ExperienceLibraryService(settings.user_experience_abs_path)
+
+
 def get_cases_catalog_service(settings: Settings = Depends(get_settings)) -> CasesCatalogService:
     return CasesCatalogService(
         CaseLibraryService(settings.case_library_abs_path),
         PlanFeedbackService(settings.feedback_log_abs_path),
+        skill_service=SkillSolidificationService(
+            settings.skills_output_abs_path,
+            pg_schema=settings.pg_schema,
+            pg_channel_table=settings.pg_channel_table,
+            pg_dim_inter_table=settings.pg_dim_inter_table,
+        ),
     )
 
 
@@ -261,6 +274,34 @@ async def regenerate_plan(
         restart_from=request.restart_from,
     )
     return build_public_run_response(result)
+
+
+@router.get("/agent/experiences")
+async def list_experiences(
+    experience_type: str | None = Query(
+        None, description="cognitive | diagnostic | solution，缺省返回全部并分组"
+    ),
+    library: ExperienceLibraryService = Depends(get_experience_library_service),
+) -> dict[str, Any]:
+    """全量沉淀经验呈现（非检索）：默认按类型分组返回所有已积累经验。"""
+    library.reload()
+    if experience_type:
+        items = library.list_all(experience_type=experience_type)
+        logger.info(
+            "list_experiences type=%s count=%d", experience_type, len(items)
+        )
+        return {"experiences": {experience_type: items}, "total": len(items)}
+
+    grouped = library.list_all_grouped()
+    total = sum(len(v) for v in grouped.values())
+    logger.info(
+        "list_experiences all cognitive=%d diagnostic=%d solution=%d total=%d",
+        len(grouped["cognitive"]),
+        len(grouped["diagnostic"]),
+        len(grouped["solution"]),
+        total,
+    )
+    return {"experiences": grouped, "total": total}
 
 
 @router.get("/agent/cases")

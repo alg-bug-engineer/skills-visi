@@ -179,11 +179,23 @@ export async function submitDecision(opts: DecisionOptions): Promise<Record<stri
   return postJSON('/agent/plan/decision', opts)
 }
 
+export interface CaseSkillRef {
+  skill_id?: string | null
+  download_url?: string | null
+  time_period_label?: string | null
+}
+
 export interface CaseItem {
   case_id?: string
   category?: string
   title?: string
   lesson?: string
+  inter_id?: string | null
+  intersection_name?: string | null
+  time_period?: string | null
+  recorded_at?: string | null
+  tags?: Record<string, unknown>
+  skill?: CaseSkillRef | null
   [k: string]: unknown
 }
 
@@ -197,13 +209,109 @@ export async function listCases(params: {
     await delay(200)
     return {
       cases: [
-        { case_id: 'demo-1', category: 'recommended', title: '干线联控成功案例', lesson: '上游控流+小步释放+下游保护' },
-        { case_id: 'demo-2', category: 'risk', title: '单点激进加绿失败', lesson: '下游继续外溢' },
+        {
+          case_id: 'demo-1',
+          category: 'recommended',
+          title: '干线联控成功案例',
+          lesson: '上游控流+小步释放+下游保护',
+          inter_id: 'demo_int_a',
+          intersection_name: '经十路与转山西路路口',
+          time_period: '早高峰',
+          tags: { strategy_applied: '干线联控', primary_cause: '下游受阻' },
+          skill: {
+            skill_id: 'skill-demo_int_a-早高峰',
+            download_url: '/api/v1/agent/skills/skill-demo_int_a-早高峰/download',
+          },
+        },
+        {
+          case_id: 'demo-2',
+          category: 'risk',
+          title: '单点激进加绿失败',
+          lesson: '下游继续外溢',
+          inter_id: 'demo_int_b',
+          intersection_name: '文化西路与舜华路交叉口',
+          time_period: '晚高峰',
+          tags: { strategy_applied: '单点加绿' },
+        },
       ],
       total: 2,
     }
   }
   return getJSON('/agent/cases', params)
+}
+
+/** 沉淀经验（认知/诊断/方案）全量呈现，非检索。 */
+export interface StoredExperience {
+  record_id?: string
+  recorded_at?: string | null
+  trace_id?: string | null
+  experience_type: string
+  content: string
+  source_span?: string | null
+  tags?: Record<string, unknown>
+  inter_id?: string | null
+  intersection_name?: string | null
+}
+
+export interface ExperiencesResponse {
+  experiences: {
+    cognitive?: StoredExperience[]
+    diagnostic?: StoredExperience[]
+    solution?: StoredExperience[]
+  }
+  total?: number
+}
+
+/** 拉取全量历史沉淀经验（默认按类型分组）。 */
+export async function listExperiences(
+  experienceType?: string,
+): Promise<ExperiencesResponse | ApiError> {
+  if (MOCK) {
+    await delay(150)
+    return {
+      experiences: {
+        cognitive: [
+          {
+            record_id: 'ue_demo_1',
+            experience_type: 'cognitive',
+            content: '经十路与转山西路路口早高峰东向西直行排队溢出到上游',
+            source_span: '早高峰东向西排队溢出',
+            inter_id: 'demo_int_a',
+            intersection_name: '经十路与转山西路路口',
+            tags: {
+              inter_id: 'demo_int_a',
+              intersection_name: '经十路与转山西路路口',
+              problem_type: '排队溢出',
+              time_period: '早高峰',
+              direction: '东向西',
+            },
+          },
+        ],
+        diagnostic: [
+          {
+            record_id: 'ue_demo_2',
+            experience_type: 'diagnostic',
+            content: '附近有小学放学家长接送导致短时高峰',
+            inter_id: 'demo_int_a',
+            intersection_name: '经十路与转山西路路口',
+            tags: { cause_dimension: 'event', related_poi: ['小学'] },
+          },
+        ],
+        solution: [
+          {
+            record_id: 'ue_demo_3',
+            experience_type: 'solution',
+            content: '优先避免下游继续外溢',
+            inter_id: 'demo_int_a',
+            intersection_name: '经十路与转山西路路口',
+            tags: { strategy_action: '防止溢出' },
+          },
+        ],
+      },
+      total: 3,
+    }
+  }
+  return getJSON('/agent/experiences', experienceType ? { experience_type: experienceType } : undefined)
 }
 
 export async function loadIntersection(body: Record<string, unknown>): Promise<Record<string, unknown> | ApiError> {

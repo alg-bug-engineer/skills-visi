@@ -2,8 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
-import { t } from '@/labels/enums'
-import { pct } from '@/utils/format'
+import { t, labelAny, directionMovement } from '@/labels/enums'
+import type { PanelExperience, PanelInterCase } from '@/stores/presentation'
 import expertKnowledge from '@/data/expertKnowledge.json'
 
 type PanelTab = 'experience' | 'cases'
@@ -40,9 +40,8 @@ interface IndustryScene {
 const scenes = expertKnowledge as IndustryScene[]
 
 // 代表案例 id 在多个方案/问题下会重复出现，若直接用 `industry-case-<id>` 作锚点会产生
-// 重复 DOM id（无效 HTML，且破坏 Task 8 的 getElementById 定位）。这里为每条案例
-// 计算一个唯一锚点：`industry-case-<sceneId>-<caseId>`，仅赋给该场景内首次出现者，
-// 保证 (sceneId, caseId) 首个出现处可被确定性定位。
+// 重复 DOM id（无效 HTML，且破坏跳转的 getElementById 定位）。这里为每条案例
+// 计算一个唯一锚点：`industry-case-<sceneId>-<caseId>`，仅赋给该场景内首次出现者。
 type DecoratedCase = IndustryCase & { anchorId?: string }
 type DecoratedScheme = Omit<IndustryScheme, 'cases'> & { cases: DecoratedCase[] }
 type DecoratedProblem = Omit<IndustryProblem, 'schemes'> & { schemes: DecoratedScheme[] }
@@ -67,26 +66,70 @@ const decoratedScenes: DecoratedScene[] = scenes.map((s) => {
 })
 
 const store = usePresentationStore()
-const { experiencesByType, existingCases, experienceReady, casesReady } = storeToRefs(store)
+const { precipExperiencesByType, precipInterCases, precipLoading } = storeToRefs(store)
 
 const activeTab = ref<PanelTab>('experience')
 const expSubTab = ref<ExpSubTab>('cognitive')
 const caseSubTab = ref<CaseSubTab>('industry')
 
 const expSubTabs: Array<{ key: ExpSubTab; label: string; hint: string }> = [
-  { key: 'cognitive', label: '认知经验', hint: '问题记录' },
-  { key: 'diagnostic', label: '诊断经验', hint: '成因先验' },
-  { key: 'solution', label: '方案经验', hint: '量化方案' },
+  { key: 'cognitive', label: '认知经验', hint: '吸收·画像' },
+  { key: 'diagnostic', label: '诊断经验', hint: '理解·成因' },
+  { key: 'solution', label: '方案经验', hint: '使用·处置' },
 ]
 
 const caseSubTabs: Array<{ key: CaseSubTab; label: string; hint: string }> = [
-  { key: 'industry', label: '行业案例', hint: '专家经验库' },
-  { key: 'intersection', label: '路口案例', hint: '相似检索' },
+  { key: 'industry', label: '行业案例', hint: '专家先验' },
+  { key: 'intersection', label: '路口案例', hint: '沉淀·确认' },
 ]
 
-const activeExpList = computed(() => experiencesByType.value[expSubTab.value])
+const activeExpList = computed(() => precipExperiencesByType.value[expSubTab.value])
 
-// —— 行业案例：搜索 + 折叠 ——
+const totalExperiences = computed(
+  () =>
+    precipExperiencesByType.value.cognitive.length +
+    precipExperiencesByType.value.diagnostic.length +
+    precipExperiencesByType.value.solution.length,
+)
+
+// —— 结构化标签 chips ——
+function chipText(v: unknown): string {
+  if (v == null) return ''
+  if (Array.isArray(v)) return v.map((x) => String(x)).filter(Boolean).join('/')
+  return String(v)
+}
+
+function dedupChips(chips: string[]): string[] {
+  return [...new Set(chips.filter((c) => c && c !== '—'))]
+}
+
+function expChips(e: PanelExperience): string[] {
+  const tags = (e.tags ?? {}) as Record<string, unknown>
+  const chips: string[] = []
+  const inter = e.intersection_name ?? tags.intersection_name
+  if (inter) chips.push(chipText(inter))
+  if (tags.problem_type) chips.push(t('problem_type', chipText(tags.problem_type)))
+  if (tags.time_period) chips.push(t('period', chipText(tags.time_period)))
+  const dm = directionMovement(chipText(tags.direction) || null, chipText(tags.movement) || null)
+  if (dm && dm !== '—') chips.push(dm)
+  if (tags.cause_dimension) chips.push(labelAny(chipText(tags.cause_dimension)))
+  if (tags.strategy_action) chips.push(labelAny(chipText(tags.strategy_action)))
+  if (Array.isArray(tags.related_poi) && tags.related_poi.length) chips.push(chipText(tags.related_poi))
+  return dedupChips(chips)
+}
+
+function caseChips(c: PanelInterCase): string[] {
+  const tags = (c.tags ?? {}) as Record<string, unknown>
+  const chips: string[] = []
+  if (c.intersection_name) chips.push(chipText(c.intersection_name))
+  if (c.time_period) chips.push(t('period', chipText(c.time_period)))
+  if (tags.problem_type) chips.push(t('problem_type', chipText(tags.problem_type)))
+  if (tags.strategy_applied) chips.push(labelAny(chipText(tags.strategy_applied)))
+  if (tags.spatial_structure) chips.push(labelAny(chipText(tags.spatial_structure)))
+  return dedupChips(chips)
+}
+
+// —— 行业案例：搜索 + 折叠（专家先验库的本地浏览，不属于闭环检索）——
 const industryQuery = ref('')
 const expandedScenes = ref<Set<string>>(new Set())
 
@@ -109,7 +152,6 @@ const filteredScenes = computed(() => {
   })
 })
 
-// 搜索时命中场景自动展开；否则按用户点开的集合。
 function isSceneOpen(sceneId: string): boolean {
   return searching.value || expandedScenes.value.has(sceneId)
 }
@@ -126,7 +168,7 @@ interface OpenCaseDetail {
 }
 
 /**
- * 案例库导航：切 tab（默认行业，兼容 CauseCard 无 detail 调用）→ 必要时展开目标场景
+ * 案例库导航：右侧闭环卡片「参考依据」点击 → 切 tab → 必要时展开目标场景
  * → nextTick 后滚动定位并短暂高亮。scrollIntoView 在 jsdom 缺失，做可选调用降级。
  */
 async function openCases(e?: Event) {
@@ -150,7 +192,11 @@ async function openCases(e?: Event) {
   window.setTimeout(() => el.classList.remove('nav-flash'), 1600)
 }
 
-onMounted(() => window.addEventListener('open-case-library', openCases as EventListener))
+onMounted(() => {
+  window.addEventListener('open-case-library', openCases as EventListener)
+  // 沉淀面板进入即呈现全量历史沉淀（不依赖本轮推演）。
+  void store.loadPrecipitation()
+})
 onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases as EventListener))
 </script>
 
@@ -158,7 +204,10 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   <aside class="understanding us-panel" data-testid="understanding-panel">
     <header class="understanding__hd">
       <span class="dot" />
-      <h2>理解面板</h2>
+      <div class="hd-text">
+        <h2>沉淀面板</h2>
+        <span class="hd-sub">吸收 · 理解 · 使用 · 沉淀</span>
+      </div>
     </header>
 
     <div class="tab-bar" role="tablist">
@@ -171,6 +220,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
         @click="activeTab = 'experience'"
       >
         经验库
+        <span v-if="totalExperiences" class="tab-count">{{ totalExperiences }}</span>
       </button>
       <button
         type="button"
@@ -184,7 +234,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
       </button>
     </div>
 
-    <!-- 经验库 -->
+    <!-- 经验库：全量历史沉淀 -->
     <div v-if="activeTab === 'experience'" class="tab-body">
       <div class="sub-tabs" role="tablist">
         <button
@@ -202,17 +252,27 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
         </button>
       </div>
 
-      <div v-if="!experienceReady" class="hint-row">待检索…问题理解完成后展示经验</div>
+      <div v-if="precipLoading && !activeExpList.length" class="hint-row">加载沉淀经验…</div>
       <div v-else-if="!activeExpList.length" class="hint-row">
-        暂无{{ expSubTabs.find((s) => s.key === expSubTab)?.label }}记录
+        暂无{{ expSubTabs.find((s) => s.key === expSubTab)?.label }}沉淀
       </div>
       <ul v-else class="exp-list">
-        <li v-for="(e, i) in activeExpList" :key="i" class="exp-item">
+        <li
+          v-for="(e, i) in activeExpList"
+          :key="e.record_id ?? i"
+          class="exp-item"
+          :class="{ fresh: e.fresh }"
+          data-testid="exp-item"
+        >
           <div class="exp-item-head">
             <span class="badge">{{ t('experience_type', e.experience_type) }}</span>
+            <span v-if="e.fresh" class="fresh-badge" data-testid="exp-fresh">本轮新吸收</span>
             <span v-if="e.source_span" class="src">{{ e.source_span }}</span>
           </div>
           <p class="exp-text">{{ e.content }}</p>
+          <div v-if="expChips(e).length" class="chip-row">
+            <span v-for="(chip, ci) in expChips(e)" :key="ci" class="chip">{{ chip }}</span>
+          </div>
         </li>
       </ul>
     </div>
@@ -235,7 +295,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
         </button>
       </div>
 
-      <!-- 行业案例：专家经验库全量结构化展示 + 搜索 -->
+      <!-- 行业案例：专家经验库全量结构化展示 + 本地浏览过滤 -->
       <template v-if="caseSubTab === 'industry'">
         <div class="industry-search">
           <input
@@ -243,7 +303,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
             type="search"
             class="industry-search-input"
             data-testid="industry-search"
-            placeholder="搜索场景 / 典型问题"
+            placeholder="浏览场景 / 典型问题"
           />
         </div>
         <div v-if="!filteredScenes.length" class="hint-row">未匹配到场景，试试其他关键词</div>
@@ -308,28 +368,47 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
         </ul>
       </template>
 
-      <!-- 路口案例：本次相似检索结果 -->
+      <!-- 路口案例：全量确认/风险沉淀方案 + 本轮检索到的相似案例（置顶） -->
       <template v-else>
-        <div v-if="!casesReady" class="hint-row">待检索…成因分析完成后展示相似案例</div>
-        <div v-else-if="!existingCases.length" class="hint-row">暂无高相似历史案例</div>
+        <div v-if="precipLoading && !precipInterCases.length" class="hint-row">加载路口沉淀案例…</div>
+        <div v-else-if="!precipInterCases.length" class="hint-row">暂无路口沉淀案例</div>
         <ul v-else class="case-list">
           <li
-            v-for="(c, i) in existingCases"
+            v-for="(c, i) in precipInterCases"
             :key="c.case_id ?? i"
             :id="'inter-case-' + (c.case_id ?? i)"
             class="case-item"
+            :class="{ fresh: c.fresh }"
             data-testid="inter-case"
           >
             <header>
               <span class="case-title">{{ c.title ?? '案例' }}</span>
-              <span v-if="c.similarity != null" class="case-sim">{{ pct(c.similarity, 0) }}</span>
+              <span
+                v-if="c.category"
+                class="case-cat"
+                :class="'cat-' + c.category"
+                >{{ t('category', c.category) }}</span
+              >
             </header>
+            <div v-if="c.fresh" class="fresh-badge" data-testid="case-fresh">本轮检索/新确认</div>
             <p v-if="c.case_id" class="case-id">案例编号：{{ c.case_id }}</p>
+            <div v-if="caseChips(c).length" class="chip-row">
+              <span v-for="(chip, ci) in caseChips(c)" :key="ci" class="chip">{{ chip }}</span>
+            </div>
             <p v-if="c.action || c.historical_action" class="case-line">
               措施：{{ c.action ?? c.historical_action }}
             </p>
             <p v-if="c.outcome" class="case-line">结果：{{ c.outcome }}</p>
             <p v-if="c.lesson" class="case-lesson">经验：{{ c.lesson }}</p>
+            <a
+              v-if="c.skill && c.skill.download_url"
+              class="skill-dl"
+              :href="c.skill.download_url"
+              data-testid="skill-download"
+              download
+            >
+              ⤓ 下载技能包
+            </a>
           </li>
         </ul>
       </template>
@@ -347,16 +426,26 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
 .understanding__hd {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 12px 14px;
   flex: 0 0 auto;
   border-bottom: 1px solid var(--panel-border);
+}
+.hd-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .understanding__hd h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 15px;
   letter-spacing: 3px;
+}
+.hd-sub {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
 }
 .dot {
   width: 8px;
@@ -462,11 +551,17 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--panel-border);
 }
+.exp-item.fresh,
+.case-item.fresh {
+  border-color: var(--primary);
+  background: var(--primary-dim);
+}
 .exp-item-head {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 .badge {
   font-size: 10px;
@@ -475,6 +570,16 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   background: var(--primary-dim);
   color: var(--primary);
   font-weight: 600;
+}
+.fresh-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(0, 229, 255, 0.22);
+  color: var(--primary);
+  font-weight: 600;
+  margin: 2px 0;
+  align-self: flex-start;
 }
 .src {
   font-size: 10px;
@@ -486,10 +591,26 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   line-height: 1.5;
   color: var(--text-dim);
 }
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+.chip {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+  color: var(--text-mute);
+  line-height: 1.4;
+}
 .case-item header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 8px;
   margin-bottom: 4px;
 }
 .case-title {
@@ -497,9 +618,18 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   font-weight: 600;
   color: var(--text);
 }
-.case-sim {
-  font-size: 11px;
+.case-cat {
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 600;
+  background: var(--primary-dim);
   color: var(--primary);
+}
+.case-cat.cat-risk {
+  background: var(--evidence-dim);
+  color: var(--evidence-2);
 }
 .case-line {
   margin: 3px 0;
@@ -517,6 +647,24 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   font-size: 10.5px;
   color: var(--text-mute);
   letter-spacing: 0.5px;
+}
+.skill-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--primary-dim);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.16s ease;
+}
+.skill-dl:hover {
+  background: rgba(0, 229, 255, 0.22);
 }
 
 /* —— 行业案例 —— */

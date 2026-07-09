@@ -165,11 +165,16 @@ class PlanFeedbackService:
         scored.sort(key=lambda item: item[0], reverse=True)
         results: list[dict[str, Any]] = []
         for score, record in scored[:limit]:
+            ticket = record.get("diagnosis_ticket") or {}
             results.append(
                 {
                     "trace_id": record.get("trace_id"),
                     "plan_id": record.get("plan_id"),
                     "decision": record.get("decision"),
+                    "inter_id": record.get("inter_id") or ticket.get("inter_id"),
+                    "intersection_name": ticket.get("intersection_name"),
+                    "time_period": ticket.get("period") or ticket.get("time_range"),
+                    "recorded_at": record.get("recorded_at"),
                     "tags": record.get("tags") or {},
                     "fingerprint": record.get("fingerprint") or {},
                     "plan_snapshot": record.get("plan_snapshot"),
@@ -194,10 +199,15 @@ class PlanFeedbackService:
             fp = record.get("fingerprint") or {}
             if problem_type and fp.get("problem_type") != problem_type:
                 continue
+            ticket = record.get("diagnosis_ticket") or {}
             results.append(
                 {
                     "trace_id": record.get("trace_id"),
                     "plan_id": record.get("plan_id"),
+                    "inter_id": record.get("inter_id") or ticket.get("inter_id"),
+                    "intersection_name": ticket.get("intersection_name"),
+                    "time_period": ticket.get("period") or ticket.get("time_range"),
+                    "recorded_at": record.get("recorded_at"),
                     "rejection_reason": record.get("rejection_reason"),
                     "tags": record.get("tags") or {},
                     "plan_snapshot": record.get("plan_snapshot"),

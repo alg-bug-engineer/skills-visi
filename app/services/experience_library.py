@@ -200,3 +200,64 @@ class ExperienceLibraryService:
 
     def count(self) -> int:
         return len(self._load())
+
+    def list_all(
+        self,
+        experience_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """全量返回历史沉淀经验（非检索/非打分）。
+
+        - 按 `recorded_at` 倒序（最新在前）；
+        - 读时按内容指纹去重（容错历史重复行）；
+        - 每条补齐 `inter_id/intersection_name`（优先 tags，回退 ticket 快照），
+          便于前端按路口标签绑定与展示。
+        """
+        # 延迟导入避免模块级循环；experience_service 不反向依赖本模块。
+        from app.services.experience_service import experience_signature
+
+        records = list(self._load())
+        records.sort(key=lambda r: str(r.get("recorded_at") or ""), reverse=True)
+
+        seen: set[str] = set()
+        results: list[dict[str, Any]] = []
+        for record in records:
+            if experience_type and record.get("experience_type") != experience_type:
+                continue
+            signature = experience_signature(record)
+            if signature in seen:
+                continue
+            seen.add(signature)
+
+            tags = record.get("tags") or {}
+            snapshot = record.get("diagnosis_ticket_snapshot") or {}
+            inter_id = tags.get("inter_id") or snapshot.get("inter_id")
+            intersection_name = tags.get("intersection_name") or snapshot.get(
+                "intersection_name"
+            )
+            results.append(
+                {
+                    "record_id": record.get("record_id"),
+                    "recorded_at": record.get("recorded_at"),
+                    "trace_id": record.get("trace_id"),
+                    "experience_type": record.get("experience_type"),
+                    "content": record.get("content"),
+                    "source_span": record.get("source_span"),
+                    "tags": tags,
+                    "inter_id": inter_id,
+                    "intersection_name": intersection_name,
+                }
+            )
+        return results
+
+    def list_all_grouped(self) -> dict[str, list[dict[str, Any]]]:
+        """按经验类型分组的全量沉淀。"""
+        grouped: dict[str, list[dict[str, Any]]] = {
+            "cognitive": [],
+            "diagnostic": [],
+            "solution": [],
+        }
+        for item in self.list_all():
+            bucket = grouped.get(str(item.get("experience_type")))
+            if bucket is not None:
+                bucket.append(item)
+        return grouped

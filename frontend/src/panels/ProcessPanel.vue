@@ -300,7 +300,7 @@ watch(currentAct, (idx, prev) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 14px 12px;
+  padding: 12px 10px;
   overflow: hidden;
   border-radius: 8px;
   border-color: rgba(118, 177, 222, 0.26);
@@ -466,12 +466,13 @@ watch(currentAct, (idx, prev) => {
   color: var(--protected);
 }
 .step-body {
-  padding: 4px 0 8px 16px;
+  padding: 2px 0 6px;
 }
 .detail-lines {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
+  padding-left: 6px;
 }
 .detail-lines--frozen .detail-line {
   color: var(--text-dim);
@@ -493,7 +494,7 @@ watch(currentAct, (idx, prev) => {
 }
 .step-summary {
   margin: 0;
-  padding: 6px 10px;
+  padding: 5px 8px;
   font-size: 12px;
   line-height: 1.55;
   color: var(--text-dim);
@@ -503,17 +504,17 @@ watch(currentAct, (idx, prev) => {
 }
 .collapsed-summary {
   margin-top: 2px;
-  padding-left: 16px;
+  padding-left: 6px;
   border-left: none;
   background: transparent;
   font-size: 11.5px;
   color: var(--text-mute);
 }
 .evidence-slot {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .evidence-slot :deep(.card) {
   margin: 0;

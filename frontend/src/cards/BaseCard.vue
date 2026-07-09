@@ -15,7 +15,7 @@ defineProps<{ title: string; tone?: 'primary' | 'alarm' | 'evidence' | 'protecte
 
 <style scoped>
 .card {
-  padding: 14px;
+  padding: 10px 12px;
   border-radius: 0;
   border: 1px solid rgba(146, 161, 181, 0.45);
   background: rgba(8, 16, 29, 0.76);
@@ -25,7 +25,7 @@ defineProps<{ title: string; tone?: 'primary' | 'alarm' | 'evidence' | 'protecte
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .card__hd h3 {
   margin: 0;

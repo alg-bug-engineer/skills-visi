@@ -120,16 +120,16 @@ function openIntersection(caseId: string) {
 <style scoped>
 .pts {
   margin: 0;
-  padding-left: 16px;
+  padding-left: 1.15em;
 }
 .pts li {
   font-size: 12px;
   line-height: 1.45;
   color: var(--text-dim);
-  margin: 4px 0;
+  margin: 3px 0;
 }
 .hard {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .hard__hd {
   font-size: 11px;
@@ -150,8 +150,8 @@ function openIntersection(caseId: string) {
   border: 1px solid rgba(255, 80, 80, 0.4);
 }
 .refs {
-  margin-top: 12px;
-  padding-top: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid rgba(146, 161, 181, 0.25);
 }
 .refs__hd {
