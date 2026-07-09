@@ -11,21 +11,27 @@ function isEditableTarget(el: EventTarget | null): boolean {
 }
 
 /**
- * 空格键切换步骤间暂停（仅前端推进，不影响后端 SSE）。
- * 运行态且焦点不在输入框时生效。
+ * 空格键切换步骤间暂停（仅阻塞幕切换，不打断当前幕打字/语音/地图）。
+ * 演示已开始（currentAct≥0）且非空闲/提交态时生效；技能阶段报错不打断暂停。
  */
 export function useStepPauseKeyboard() {
   const store = usePresentationStore()
-  const { status } = storeToRefs(store)
+  const { status, currentAct } = storeToRefs(store)
+
+  function canPause(): boolean {
+    if (status.value === 'idle' || status.value === 'submitting') return false
+    return currentAct.value >= 0
+  }
 
   function onKeydown(e: KeyboardEvent) {
     if (e.code !== 'Space' && e.key !== ' ') return
-    if (status.value === 'idle' || status.value === 'error') return
+    if (!canPause()) return
     if (isEditableTarget(e.target)) return
     e.preventDefault()
+    e.stopPropagation()
     store.toggleStepPause()
   }
 
-  onMounted(() => window.addEventListener('keydown', onKeydown))
-  onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+  onMounted(() => window.addEventListener('keydown', onKeydown, true))
+  onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 }

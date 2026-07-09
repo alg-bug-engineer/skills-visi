@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { ref, nextTick } from 'vue'
 import { useTyping } from '@/composables/useTyping'
 
@@ -24,5 +24,35 @@ describe('useTyping · restartKey', () => {
     key.value = 'act-1'
     await nextTick()
     expect(doneCount).toBe(2)
+  })
+})
+
+describe('useTyping · paused', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('paused=true 时暂停逐字输出', async () => {
+    const lines = ref(['ab'])
+    const paused = ref(false)
+    let finished = false
+
+    const { shown, done } = useTyping(lines, {
+      speed: 20,
+      paused,
+      onDone: () => {
+        finished = true
+      },
+    })
+
+    await vi.advanceTimersByTimeAsync(25)
+    expect(shown.value[0]).toBe('a')
+    paused.value = true
+    await vi.advanceTimersByTimeAsync(100)
+    expect(shown.value[0]).toBe('a')
+    paused.value = false
+    await vi.advanceTimersByTimeAsync(100)
+    expect(shown.value[0]).toBe('ab')
+    expect(done.value).toBe(true)
+    expect(finished).toBe(true)
   })
 })

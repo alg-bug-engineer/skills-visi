@@ -68,8 +68,10 @@ interface State {
   toast: string | null
   errorMsg: string | null
   autoPlay: boolean
-  /** 步骤间暂停：为 true 时阻塞 tryAdvance，不影响后端 SSE。 */
+  /** 步骤间暂停：为 true 时阻塞幕切换（tryAdvance / resumeIfReady），不打断当前幕打字/语音/地图。 */
   stepPaused: boolean
+  /** 幕末推进因暂停被推迟，恢复后需补一次 tryAdvance。 */
+  stepAdvancePending: boolean
   mapResetSeq: number
   solidifyPhase: SolidifyPhase
   skillResult: SkillSolidificationResult | null
@@ -127,6 +129,7 @@ export const usePresentationStore = defineStore('presentation', {
     errorMsg: null,
     autoPlay: true,
     stepPaused: false,
+    stepAdvancePending: false,
     mapResetSeq: 0,
     solidifyPhase: 'idle',
     skillResult: null,
@@ -310,6 +313,7 @@ export const usePresentationStore = defineStore('presentation', {
       this.signal = 'connecting'
       this.waiting = true
       this.stepPaused = false
+      this.stepAdvancePending = false
       stepResumeResolve?.()
       stepResumeResolve = null
       stepResumeWaiters.length = 0
@@ -342,9 +346,6 @@ export const usePresentationStore = defineStore('presentation', {
         this.signal = 'open'
         this.resumeIfReady()
       } else if (ev.event === 'error') {
-        this.status = 'error'
-        this.signal = 'error'
-        this.waiting = false
         const skillPhase = String(data.phase ?? '')
         const phaseLabel =
           SKILL_PHASE_LABEL[skillPhase] || this.computingLabel || PHASE_LABEL[skillPhase as PhaseKey] || '某阶段'
@@ -357,6 +358,14 @@ export const usePresentationStore = defineStore('presentation', {
             .slice(0, 2)
           if (details.length) msg += `：${details.join('；')}`
         }
+        this.waiting = false
+        // 演示幕已开始：技能阶段失败仅记日志，不弹 toast、不改运行态，避免打断汇报节奏。
+        if (this.currentAct >= 0) {
+          console.warn(`[stream] ${phaseLabel} 未完成：${msg}`)
+          return
+        }
+        this.status = 'error'
+        this.signal = 'error'
         this.errorMsg = msg
         this.toast = `推演在「${phaseLabel}」中断：${msg}`
       }
@@ -377,6 +386,7 @@ export const usePresentationStore = defineStore('presentation', {
         }
         return
       }
+      if (this.stepPaused) return
       if (this.waiting && this.currentAct < this.lastActIndex) {
         const next = this.acts[this.currentAct + 1]
         if (next && phaseReady(this.response, next.phase)) {
@@ -423,6 +433,11 @@ export const usePresentationStore = defineStore('presentation', {
 
     /** 打字完成后请求推进：下一阶段 phase 未就绪则进入等待态。 */
     tryAdvance() {
+      if (this.stepPaused) {
+        this.stepAdvancePending = true
+        return
+      }
+      this.stepAdvancePending = false
       if (this.currentAct >= this.lastActIndex) {
         this.status = 'done'
         return
@@ -500,6 +515,8 @@ export const usePresentationStore = defineStore('presentation', {
         stepResumeResolve?.()
         stepResumeResolve = null
         while (stepResumeWaiters.length) stepResumeWaiters.shift()?.()
+        if (this.stepAdvancePending) this.tryAdvance()
+        this.resumeIfReady()
       } else {
         this.stepPaused = true
       }
@@ -636,6 +653,7 @@ export const usePresentationStore = defineStore('presentation', {
       this.pendingSolidifyPlanId = null
       this.planMinimized = false
       this.stepPaused = false
+      this.stepAdvancePending = false
       stepResumeResolve?.()
       stepResumeResolve = null
       stepResumeWaiters.length = 0

@@ -48,4 +48,63 @@ describe('presentation store · 步骤间暂停', () => {
     s.reset()
     expect(s.stepPaused).toBe(false)
   })
+
+  it('暂停态下 resumeIfReady 不推进 waiting 幕，恢复后继续', () => {
+    const s = usePresentationStore()
+    s.mode = 'stream'
+    s.applySnapshot({
+      trace_id: 't',
+      completed: null,
+      pipeline_complete: false,
+      diagnosis_ticket: null,
+      phases: { intent: {}, diagnosis: {} } as never,
+      plan: null,
+      phase_results: [],
+    })
+    s.currentAct = 1
+    s.waiting = true
+    s.computingPhase = 'diagnosis'
+    s.stepPaused = true
+    s.resumeIfReady()
+    expect(s.currentAct).toBe(1)
+    s.toggleStepPause()
+    expect(s.currentAct).toBe(2)
+    expect(s.waiting).toBe(false)
+  })
+
+  it('tryAdvance 在暂停态下推迟推进，恢复后补执行', () => {
+    const s = usePresentationStore()
+    s.mode = 'batch'
+    s.applySnapshot({
+      trace_id: 't',
+      completed: null,
+      pipeline_complete: false,
+      diagnosis_ticket: null,
+      phases: { intent: {} } as never,
+      plan: null,
+      phase_results: [],
+    })
+    s.currentAct = 0
+    s.stepPaused = true
+    s.tryAdvance()
+    expect(s.currentAct).toBe(0)
+    expect(s.stepAdvancePending).toBe(true)
+    s.toggleStepPause()
+    expect(s.currentAct).toBe(1)
+    expect(s.stepAdvancePending).toBe(false)
+  })
+
+  it('流式技能 error 在演示进行中不弹 toast，保持 running', () => {
+    const s = usePresentationStore()
+    s.status = 'running'
+    s.currentAct = 3
+    s.onStreamEvent({
+      event: 'error',
+      data: { phase: 'plan_generation', errors: ['所有候选方案未通过护栏校验'] },
+    })
+    expect(s.status).toBe('running')
+    expect(s.toast).toBeNull()
+    expect(s.errorMsg).toBeNull()
+    expect(s.signal).not.toBe('error')
+  })
 })

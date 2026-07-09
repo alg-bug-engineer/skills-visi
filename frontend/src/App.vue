@@ -174,7 +174,7 @@ function toggleVoice() {
 
     <Transition name="fade">
       <div v-if="stepPaused && running" class="pause-toast us-panel" data-testid="step-pause-toast">
-        已暂停 · 空格继续
+        已暂停 · 当前幕结束后停止 · 空格继续
       </div>
     </Transition>
 

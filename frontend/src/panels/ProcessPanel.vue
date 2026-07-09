@@ -22,7 +22,7 @@ import {
 import { DEMO_TYPING_MS, actDwellMs } from '@/config/demoPacing'
 
 const store = usePresentationStore()
-const { acts, currentAct, revealedActs, solidifyPhase, stepPaused } = storeToRefs(store)
+const { acts, currentAct, revealedActs, solidifyPhase } = storeToRefs(store)
 
 const INSIGHT_CARDS: Record<string, unknown> = {
   ticket: DiagnosisTicketCard,
@@ -131,25 +131,25 @@ watch(
 const narrationCache = ref<Record<number, string[]>>({})
 const timelineRef = ref<HTMLElement | null>(null)
 
-/** 打字完成 + 语音 barrier + 可暂停幕间停留，再推进下一步。 */
+/** 当前幕收尾：语音与幕间停留不受暂停打断；仅在切入下一幕前等待恢复。 */
 async function finishActAndAdvance(idx: number) {
-  await store.waitForStepResume()
   if (store.currentAct !== idx) return
   await store.waitForVoiceBarrier()
   if (store.currentAct !== idx) return
-  await store.waitForStepResume()
-  if (store.currentAct !== idx) return
   await store.pauseAwareSleep(actDwellMs(idx, instant))
   if (store.currentAct !== idx) return
-  await store.waitForStepResume()
-  if (store.currentAct === idx) store.tryAdvance()
+  while (store.currentAct === idx) {
+    await store.waitForStepResume()
+    if (store.currentAct !== idx) return
+    store.tryAdvance()
+    if (!store.stepAdvancePending) break
+  }
 }
 
 const { shown, done } = useTyping(typingLines, {
   instant,
   speed: DEMO_TYPING_MS,
   restartKey: typingActKey,
-  paused: stepPaused,
   onDone: () => {
     const idx = store.currentAct
     if (idx < 0) return

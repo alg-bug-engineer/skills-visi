@@ -47,4 +47,29 @@ describe('ProcessPanel · autoPlay act 推进', () => {
     expect(store.currentAct).toBeGreaterThan(0)
     vi.useRealTimers()
   })
+
+  it('步骤暂停不打断当前幕打字，仅在幕末阻塞切入下一幕', async () => {
+    Object.defineProperty(navigator, 'webdriver', { value: false, configurable: true })
+    vi.useFakeTimers()
+    const store = usePresentationStore()
+    store.applySnapshot(fx)
+    store.autoPlay = true
+    store.currentAct = 0
+    store.setVoiceBarrier(() => Promise.resolve())
+
+    mount(ProcessPanel)
+    await flushPromises()
+
+    store.stepPaused = true
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+    expect(store.currentAct).toBe(0)
+
+    store.toggleStepPause()
+    await vi.advanceTimersByTimeAsync(12_000)
+    await flushPromises()
+    expect(store.currentAct).toBeGreaterThan(0)
+    vi.useRealTimers()
+    Object.defineProperty(navigator, 'webdriver', { value: true, configurable: true })
+  })
 })
