@@ -1,5 +1,5 @@
 {
-  "trace_id": "997a885aacd241f9",
+  "trace_id": "c4b71b97655f4ef9",
   "completed": false,
   "pipeline_complete": true,
   "diagnosis_ticket": {
@@ -7,63 +7,35 @@
     "intersection_name": "坤顺路与奥体西路路口",
     "intersection_name_candidates": [
       "坤顺路与奥体西路路口",
-      "奥体西路与坤顺路路口"
+      "奥体西路与坤顺路路口",
+      "坤顺路奥体西路",
+      "奥体西路坤顺路"
     ],
     "time_range": "17:00-19:00",
     "period": "晚高峰",
     "direction": "北向南",
     "movement": "直行",
     "problem_type": "过饱和",
-    "constraints": {
-      "downstream_capacity_check": "南解放东路方向需评估下游承接能力",
-      "control_strategy": "点控经验，北进口相位局部加绿",
-      "evaluation_scope": "南北对放相位两个出口一起评估"
-    },
-    "diagnosis_scope": "intersection_local",
-    "governance_goal": "缓解北进口直行和左转积压，优化信号配时",
+    "constraints": [],
+    "diagnosis_scope": "单点",
+    "governance_goal": "缓解北进口过饱和及路口积压",
     "user_experiences": [
       {
         "experience_type": "cognitive",
-        "content": "北进口直行和左转过饱和、路口积压，东进口直行也偏高",
-        "source_span": "北进口直行和左转过饱和、路口积压，东进口直行也偏高",
+        "content": "晚高峰17:00-19:00北进口过饱和、路口积压",
+        "source_span": "晚高峰十七点到十九点，北进口过饱和、路口积压",
         "tags": {
           "problem_type": "过饱和",
-          "affected_movements": [
-            "北进口直行",
-            "北进口左转",
-            "东进口直行"
-          ]
-        }
-      },
-      {
-        "experience_type": "cognitive",
-        "content": "南向北进安成街方向和东向西下游还有余量",
-        "source_span": "南向北进安成街方向和东向西下游还有余量",
-        "tags": {
-          "capacity_status": "有余量",
-          "related_poi": [
-            "安成街"
-          ]
-        }
-      },
-      {
-        "experience_type": "diagnostic",
-        "content": "北进口直行往南解放东路方向要先看下游能不能接住",
-        "source_span": "北进口直行往南解放东路方向要先看下游能不能接住",
-        "tags": {
-          "cause_dimension": "下游通行能力",
-          "related_poi": [
-            "南解放东路"
-          ]
+          "time_period": "晚高峰"
         }
       },
       {
         "experience_type": "solution",
-        "content": "按点控经验在本路口做北进口相位局部加绿，南北对放相位两个出口一起评估",
-        "source_span": "按点控经验在本路口做北进口相位局部加绿，南北对放相位两个出口一起评估",
+        "content": "按点控经验在本路口做北进口相位局部优化",
+        "source_span": "按点控经验在本路口做北进口相位局部优化",
         "tags": {
-          "strategy_action": "局部加绿",
-          "control_mode": "点控"
+          "strategy_action": "相位局部优化",
+          "cause_dimension": "信号配时"
         }
       }
     ],
@@ -88,63 +60,35 @@
         "intersection_name": "坤顺路与奥体西路路口",
         "intersection_name_candidates": [
           "坤顺路与奥体西路路口",
-          "奥体西路与坤顺路路口"
+          "奥体西路与坤顺路路口",
+          "坤顺路奥体西路",
+          "奥体西路坤顺路"
         ],
         "time_range": "17:00-19:00",
         "period": "晚高峰",
         "direction": "北向南",
         "movement": "直行",
         "problem_type": "过饱和",
-        "constraints": {
-          "downstream_capacity_check": "南解放东路方向需评估下游承接能力",
-          "control_strategy": "点控经验，北进口相位局部加绿",
-          "evaluation_scope": "南北对放相位两个出口一起评估"
-        },
-        "diagnosis_scope": "intersection_local",
-        "governance_goal": "缓解北进口直行和左转积压，优化信号配时",
+        "constraints": [],
+        "diagnosis_scope": "单点",
+        "governance_goal": "缓解北进口过饱和及路口积压",
         "user_experiences": [
           {
             "experience_type": "cognitive",
-            "content": "北进口直行和左转过饱和、路口积压，东进口直行也偏高",
-            "source_span": "北进口直行和左转过饱和、路口积压，东进口直行也偏高",
+            "content": "晚高峰17:00-19:00北进口过饱和、路口积压",
+            "source_span": "晚高峰十七点到十九点，北进口过饱和、路口积压",
             "tags": {
               "problem_type": "过饱和",
-              "affected_movements": [
-                "北进口直行",
-                "北进口左转",
-                "东进口直行"
-              ]
-            }
-          },
-          {
-            "experience_type": "cognitive",
-            "content": "南向北进安成街方向和东向西下游还有余量",
-            "source_span": "南向北进安成街方向和东向西下游还有余量",
-            "tags": {
-              "capacity_status": "有余量",
-              "related_poi": [
-                "安成街"
-              ]
-            }
-          },
-          {
-            "experience_type": "diagnostic",
-            "content": "北进口直行往南解放东路方向要先看下游能不能接住",
-            "source_span": "北进口直行往南解放东路方向要先看下游能不能接住",
-            "tags": {
-              "cause_dimension": "下游通行能力",
-              "related_poi": [
-                "南解放东路"
-              ]
+              "time_period": "晚高峰"
             }
           },
           {
             "experience_type": "solution",
-            "content": "按点控经验在本路口做北进口相位局部加绿，南北对放相位两个出口一起评估",
-            "source_span": "按点控经验在本路口做北进口相位局部加绿，南北对放相位两个出口一起评估",
+            "content": "按点控经验在本路口做北进口相位局部优化",
+            "source_span": "按点控经验在本路口做北进口相位局部优化",
             "tags": {
-              "strategy_action": "局部加绿",
-              "control_mode": "点控"
+              "strategy_action": "相位局部优化",
+              "cause_dimension": "信号配时"
             }
           }
         ],
@@ -165,13 +109,13 @@
       "user_experiences": [
         {
           "experience_type": "cognitive",
-          "content": "北进口直行和左转过饱和、路口积压，东进口直行也偏高",
-          "source_span": "北进口直行和左转过饱和、路口积压，东进口直行也偏高",
+          "content": "晚高峰17:00-19:00北进口过饱和、路口积压",
+          "source_span": "晚高峰十七点到十九点，北进口过饱和、路口积压",
           "tags": {
             "inter_id": "011wwe28fty00001",
             "intersection_name": "坤顺路与奥体西路路口",
             "problem_type": "过饱和",
-            "time_period": null,
+            "time_period": "晚高峰",
             "direction": "北向南",
             "movement": "直行",
             "spatial_structure": null,
@@ -182,84 +126,14 @@
             "related_poi": [],
             "target_phase": null,
             "adjustment_direction": null,
-            "constraints": {
-              "downstream_capacity_check": "南解放东路方向需评估下游承接能力",
-              "control_strategy": "点控经验，北进口相位局部加绿",
-              "evaluation_scope": "南北对放相位两个出口一起评估"
-            },
-            "confidence": null,
-            "affected_movements": [
-              "北进口直行",
-              "北进口左转",
-              "东进口直行"
-            ]
-          }
-        },
-        {
-          "experience_type": "cognitive",
-          "content": "南向北进安成街方向和东向西下游还有余量",
-          "source_span": "南向北进安成街方向和东向西下游还有余量",
-          "tags": {
-            "inter_id": "011wwe28fty00001",
-            "intersection_name": "坤顺路与奥体西路路口",
-            "problem_type": "过饱和",
-            "time_period": null,
-            "direction": "北向南",
-            "movement": "直行",
-            "spatial_structure": null,
-            "severity": null,
-            "cause_dimension": null,
-            "cause_keywords": [],
-            "strategy_action": null,
-            "related_poi": [
-              "安成街"
-            ],
-            "target_phase": null,
-            "adjustment_direction": null,
-            "constraints": {
-              "downstream_capacity_check": "南解放东路方向需评估下游承接能力",
-              "control_strategy": "点控经验，北进口相位局部加绿",
-              "evaluation_scope": "南北对放相位两个出口一起评估"
-            },
-            "confidence": null,
-            "capacity_status": "有余量"
-          }
-        },
-        {
-          "experience_type": "diagnostic",
-          "content": "北进口直行往南解放东路方向要先看下游能不能接住",
-          "source_span": "北进口直行往南解放东路方向要先看下游能不能接住",
-          "tags": {
-            "inter_id": "011wwe28fty00001",
-            "intersection_name": "坤顺路与奥体西路路口",
-            "problem_type": "过饱和",
-            "time_period": null,
-            "direction": "北向南",
-            "movement": "直行",
-            "spatial_structure": null,
-            "severity": null,
-            "cause_dimension": "下游通行能力",
-            "cause_keywords": [
-              "下游"
-            ],
-            "strategy_action": null,
-            "related_poi": [
-              "南解放东路"
-            ],
-            "target_phase": null,
-            "adjustment_direction": null,
-            "constraints": {
-              "downstream_capacity_check": "南解放东路方向需评估下游承接能力",
-              "control_strategy": "点控经验，北进口相位局部加绿",
-              "evaluation_scope": "南北对放相位两个出口一起评估"
-            },
+            "constraints": [],
             "confidence": null
           }
         },
         {
           "experience_type": "solution",
-          "content": "按点控经验在本路口做北进口相位局部加绿，南北对放相位两个出口一起评估",
-          "source_span": "按点控经验在本路口做北进口相位局部加绿，南北对放相位两个出口一起评估",
+          "content": "按点控经验在本路口做北进口相位局部优化",
+          "source_span": "按点控经验在本路口做北进口相位局部优化",
           "tags": {
             "inter_id": "011wwe28fty00001",
             "intersection_name": "坤顺路与奥体西路路口",
@@ -269,19 +143,14 @@
             "movement": "直行",
             "spatial_structure": null,
             "severity": null,
-            "cause_dimension": null,
+            "cause_dimension": "信号配时",
             "cause_keywords": [],
-            "strategy_action": "局部加绿",
+            "strategy_action": "相位局部优化",
             "related_poi": [],
             "target_phase": null,
             "adjustment_direction": null,
-            "constraints": {
-              "downstream_capacity_check": "南解放东路方向需评估下游承接能力",
-              "control_strategy": "点控经验，北进口相位局部加绿",
-              "evaluation_scope": "南北对放相位两个出口一起评估"
-            },
-            "confidence": null,
-            "control_mode": "点控"
+            "constraints": [],
+            "confidence": null
           }
         }
       ],
@@ -338,7 +207,13 @@
         ],
         "upstream_nodes": [],
         "downstream_nodes": [],
-        "main_path": "上游来车 → 坤顺路与奥体西路路口 → 下游承接节点"
+        "main_path": "上游来车 → 坤顺路与奥体西路路口 → 下游承接节点",
+        "axis_roads": {
+          "ew_road": "东",
+          "ns_road": "北",
+          "available": true,
+          "source": "channelization"
+        }
       }
     },
     "diagnosis": {
@@ -443,9 +318,9 @@
         "basis": "基于同时段饱和度与月度同时段流量规律（flow_correlate）派生，非实测统计"
       },
       "downstream_metrics": {
-        "queue_ratio": 0.0,
-        "saturation": 0.0,
-        "green_utilization": 0.4137
+        "queue_ratio": null,
+        "saturation": null,
+        "green_utilization": null
       },
       "upstream_metrics": {
         "arrival_intensity": "high",
@@ -534,36 +409,36 @@
               "lat": 36.663092,
               "receiving_dir8": 4,
               "receiving_label": "南进口直行",
-              "metrics_available": true,
-              "metrics_reason": null,
+              "metrics_available": false,
+              "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）",
               "metrics": {
-                "avg_delay_s": 0.0,
-                "saturation": 0.0,
-                "saturation_rate": 0.0,
-                "avg_queue_m": 0.0,
-                "max_queue_m": 0.0,
-                "queue_storage_ratio_max": 0.0,
-                "spillback_risk_max": 0.0,
-                "level_of_service": "A",
-                "green_utilization": 0.4137,
-                "stop_count": 0.0,
+                "avg_delay_s": null,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": null,
+                "max_queue_m": null,
+                "queue_storage_ratio_max": null,
+                "spillback_risk_max": null,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
                 "time_series_trend": null
               },
               "by_turn": [
                 {
                   "label": "直行",
-                  "turn_saturation": 0.0,
-                  "green_utilization": 0.4137,
-                  "flow_vph": 0.0,
-                  "queue_ratio": 0.0
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": null,
+                  "queue_ratio": null
                 }
               ],
               "overflow_verification": {
-                "verified": true,
-                "risk_level": "low",
-                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+                "verified": false,
+                "risk_level": "unknown",
+                "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
               },
-              "remaining_storage_m": 200.0
+              "remaining_storage_m": null
             },
             "capacity": {
               "can_release": true,
@@ -579,33 +454,72 @@
           {
             "inter_id": "011wwe28fmc00001",
             "inter_name": "奥体西路与解放东路路口",
-            "role": "downstream",
+            "role": "adjacent_peer",
             "lng": 117.111368,
             "lat": 36.663092,
             "receiving_dir8": 4,
-            "receiving_label": "南进口直行",
+            "receiving_label": null,
+            "metrics_available": false,
+            "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）",
+            "metrics": {
+              "avg_delay_s": null,
+              "saturation": null,
+              "saturation_rate": null,
+              "avg_queue_m": null,
+              "max_queue_m": null,
+              "queue_storage_ratio_max": null,
+              "spillback_risk_max": null,
+              "level_of_service": null,
+              "green_utilization": null,
+              "stop_count": null,
+              "time_series_trend": null
+            },
+            "by_turn": [
+              {
+                "label": "直行",
+                "turn_saturation": null,
+                "green_utilization": null,
+                "flow_vph": null,
+                "queue_ratio": null
+              }
+            ],
+            "overflow_verification": {
+              "verified": false,
+              "risk_level": "unknown",
+              "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
+            },
+            "remaining_storage_m": null
+          },
+          {
+            "inter_id": "011wwe28gm900001",
+            "inter_name": "安成街与奥体西路路口",
+            "role": "adjacent_peer",
+            "lng": 117.111028,
+            "lat": 36.668467,
+            "receiving_dir8": 0,
+            "receiving_label": null,
             "metrics_available": true,
             "metrics_reason": null,
             "metrics": {
-              "avg_delay_s": 0.0,
+              "avg_delay_s": 20.02,
               "saturation": 0.0,
               "saturation_rate": 0.0,
-              "avg_queue_m": 0.0,
-              "max_queue_m": 0.0,
-              "queue_storage_ratio_max": 0.0,
-              "spillback_risk_max": 0.0,
+              "avg_queue_m": 113.0,
+              "max_queue_m": 113.0,
+              "queue_storage_ratio_max": 0.3169,
+              "spillback_risk_max": 0.3169,
               "level_of_service": "A",
-              "green_utilization": 0.4137,
-              "stop_count": 0.0,
+              "green_utilization": 0.3381,
+              "stop_count": 0.49,
               "time_series_trend": null
             },
             "by_turn": [
               {
                 "label": "直行",
                 "turn_saturation": 0.0,
-                "green_utilization": 0.4137,
+                "green_utilization": 0.3381,
                 "flow_vph": 0.0,
-                "queue_ratio": 0.0
+                "queue_ratio": 0.3169
               }
             ],
             "overflow_verification": {
@@ -613,17 +527,85 @@
               "risk_level": "low",
               "message": "排队尚在进口道可容纳范围内，溢出风险较低"
             },
-            "remaining_storage_m": 200.0,
-            "capacity": {
-              "can_release": true,
-              "blocked": false,
-              "reasons": [],
-              "release_guard": "downstream_has_slack"
+            "remaining_storage_m": 243.63
+          },
+          {
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
+            "role": "adjacent_peer",
+            "lng": 117.114783,
+            "lat": 36.665241,
+            "receiving_dir8": 2,
+            "receiving_label": null,
+            "metrics_available": true,
+            "metrics_reason": null,
+            "metrics": {
+              "avg_delay_s": 8.89,
+              "saturation": 0.8,
+              "saturation_rate": 0.8,
+              "avg_queue_m": 117.0,
+              "max_queue_m": 117.0,
+              "queue_storage_ratio_max": 0.8593,
+              "spillback_risk_max": 0.8593,
+              "level_of_service": "C",
+              "green_utilization": 0.0,
+              "stop_count": 0.31,
+              "time_series_trend": null
             },
-            "linked_movements": [
-              "北进口直行"
+            "by_turn": [
+              {
+                "label": "直行",
+                "turn_saturation": 0.8,
+                "green_utilization": 0.0,
+                "flow_vph": 661.92,
+                "queue_ratio": 0.8593
+              }
             ],
-            "share_pct": 87.7
+            "overflow_verification": {
+              "verified": true,
+              "risk_level": "warning",
+              "message": "排队接近进口道空间边界，进入溢出预警状态"
+            },
+            "remaining_storage_m": 19.159999999999997
+          },
+          {
+            "inter_id": "011wwe28fsv00001",
+            "inter_name": "坤顺路与无名道路路口",
+            "role": "adjacent_peer",
+            "lng": 117.109866,
+            "lat": 36.665144,
+            "receiving_dir8": 6,
+            "receiving_label": null,
+            "metrics_available": true,
+            "metrics_reason": null,
+            "metrics": {
+              "avg_delay_s": 5.34,
+              "saturation": 0.2628,
+              "saturation_rate": 0.2628,
+              "avg_queue_m": 83.0,
+              "max_queue_m": 83.0,
+              "queue_storage_ratio_max": 0.7449,
+              "spillback_risk_max": 0.7449,
+              "level_of_service": "A",
+              "green_utilization": 0.3651,
+              "stop_count": 0.21,
+              "time_series_trend": null
+            },
+            "by_turn": [
+              {
+                "label": "直行",
+                "turn_saturation": 0.2628,
+                "green_utilization": 0.3651,
+                "flow_vph": 268.8,
+                "queue_ratio": 0.7449
+              }
+            ],
+            "overflow_verification": {
+              "verified": true,
+              "risk_level": "low",
+              "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+            },
+            "remaining_storage_m": 28.430000000000007
           }
         ],
         "governance": {
@@ -680,36 +662,36 @@
               "lat": 36.663092,
               "receiving_dir8": 4,
               "receiving_label": "南进口直行",
-              "metrics_available": true,
-              "metrics_reason": null,
+              "metrics_available": false,
+              "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）",
               "metrics": {
-                "avg_delay_s": 0.0,
-                "saturation": 0.0,
-                "saturation_rate": 0.0,
-                "avg_queue_m": 0.0,
-                "max_queue_m": 0.0,
-                "queue_storage_ratio_max": 0.0,
-                "spillback_risk_max": 0.0,
-                "level_of_service": "A",
-                "green_utilization": 0.4137,
-                "stop_count": 0.0,
+                "avg_delay_s": null,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": null,
+                "max_queue_m": null,
+                "queue_storage_ratio_max": null,
+                "spillback_risk_max": null,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
                 "time_series_trend": null
               },
               "by_turn": [
                 {
                   "label": "直行",
-                  "turn_saturation": 0.0,
-                  "green_utilization": 0.4137,
-                  "flow_vph": 0.0,
-                  "queue_ratio": 0.0
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": null,
+                  "queue_ratio": null
                 }
               ],
               "overflow_verification": {
-                "verified": true,
-                "risk_level": "low",
-                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+                "verified": false,
+                "risk_level": "unknown",
+                "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
               },
-              "remaining_storage_m": 200.0,
+              "remaining_storage_m": null,
               "capacity": {
                 "can_release": true,
                 "blocked": false,
@@ -839,7 +821,7 @@
         "upstream_arrival_flow_vph": 2376.96,
         "upstream_release_intensity_vph": 2258.112,
         "target_remaining_storage_m": 32.68000000000001,
-        "downstream_remaining_storage_m": 200.0,
+        "downstream_remaining_storage_m": 19.159999999999997,
         "phase_offset_match": "上游相位差 -2s",
         "need_upstream_metering": false,
         "need_downstream_dissipation_first": false,
@@ -915,34 +897,29 @@
           "inter_id": "011wwe28fmc00001",
           "inter_name": "奥体西路与解放东路路口",
           "metrics": {
-            "avg_delay_s": 0.0,
-            "saturation": 0.0,
-            "saturation_rate": 0.0,
-            "avg_queue_m": 0.0,
-            "max_queue_m": 0.0,
-            "queue_storage_ratio_max": 0.0,
-            "spillback_risk_max": 0.0,
-            "level_of_service": "A",
-            "green_utilization": 0.4137,
-            "stop_count": 0.0,
+            "avg_delay_s": null,
+            "saturation": null,
+            "saturation_rate": null,
+            "avg_queue_m": null,
+            "max_queue_m": null,
+            "queue_storage_ratio_max": null,
+            "spillback_risk_max": null,
+            "level_of_service": null,
+            "green_utilization": null,
+            "stop_count": null,
             "time_series_trend": null
           },
           "by_turn": [
             {
               "label": "直行",
-              "turn_saturation": 0.0,
-              "green_utilization": 0.4137,
-              "flow_vph": 0.0,
-              "queue_ratio": 0.0
+              "turn_saturation": null,
+              "green_utilization": null,
+              "flow_vph": null,
+              "queue_ratio": null
             }
           ],
-          "remaining_storage_m": 200.0,
-          "capacity": {
-            "can_release": true,
-            "blocked": false,
-            "reasons": [],
-            "release_guard": "downstream_has_slack"
-          }
+          "remaining_storage_m": null,
+          "capacity": {}
         },
         "judgment_criteria": {
           "target_queue_high": true,
@@ -1026,11 +1003,11 @@
               "relation_direction": "upstream",
               "length_m": 357.20596345608806,
               "metrics": {
-                "saturation": 0.5901,
-                "green_utilization": 0.5901,
+                "saturation": 1.5446,
+                "green_utilization": 1.5446,
                 "queue_m": null,
-                "flow_vph": 504.0,
-                "capacity": 621.9
+                "flow_vph": 840.0,
+                "capacity": 644.5
               }
             },
             {
@@ -1080,7 +1057,7 @@
               "relation_direction": "downstream",
               "length_m": 356.6269625058311,
               "metrics": {
-                "saturation": null,
+                "saturation": 1.5446,
                 "green_utilization": null,
                 "queue_m": null,
                 "flow_vph": null,
@@ -1122,11 +1099,11 @@
               "relation_direction": "upstream",
               "length_m": 195.67832814223536,
               "metrics": {
-                "saturation": 0.2389,
-                "green_utilization": 0.5882,
+                "saturation": 0.9666,
+                "green_utilization": 0.9666,
                 "queue_m": null,
-                "flow_vph": 48.0,
-                "capacity": 294.2
+                "flow_vph": 228.0,
+                "capacity": 578.5
               }
             },
             {
@@ -1168,7 +1145,7 @@
               "relation_direction": "downstream",
               "length_m": 306.0310313686895,
               "metrics": {
-                "saturation": null,
+                "saturation": 0.9666,
                 "green_utilization": null,
                 "queue_m": null,
                 "flow_vph": null,
@@ -1206,11 +1183,11 @@
               "relation_direction": "upstream",
               "length_m": 215.70296606737492,
               "metrics": {
-                "saturation": 0.2083,
-                "green_utilization": 0.6306,
+                "saturation": 1.0128,
+                "green_utilization": 1.0128,
                 "queue_m": null,
-                "flow_vph": 864.0,
-                "capacity": 653.0
+                "flow_vph": 1260.0,
+                "capacity": 713.0
               }
             },
             {
@@ -1240,7 +1217,7 @@
               "relation_direction": "downstream",
               "length_m": 215.6772119307912,
               "metrics": {
-                "saturation": null,
+                "saturation": 1.0128,
                 "green_utilization": null,
                 "queue_m": null,
                 "flow_vph": null,
@@ -1278,11 +1255,11 @@
               "relation_direction": "upstream",
               "length_m": 112.76401213264575,
               "metrics": {
-                "saturation": 0.1493,
-                "green_utilization": 0.4762,
+                "saturation": 0.5857,
+                "green_utilization": 0.5857,
                 "queue_m": null,
-                "flow_vph": 96.0,
-                "capacity": 306.0
+                "flow_vph": 216.0,
+                "capacity": 581.8
               }
             },
             {
@@ -1316,7 +1293,7 @@
               "relation_direction": "downstream",
               "length_m": 111.4284403260683,
               "metrics": {
-                "saturation": null,
+                "saturation": 0.5857,
                 "green_utilization": null,
                 "queue_m": null,
                 "flow_vph": null,
@@ -1383,34 +1360,119 @@
               "lng": 117.111368,
               "lat": 36.663092,
               "metrics": {
-                "avg_delay_s": 0.0,
+                "avg_delay_s": null,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": null,
+                "max_queue_m": null,
+                "queue_storage_ratio_max": null,
+                "spillback_risk_max": null,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": null,
+                  "queue_ratio": null
+                }
+              ],
+              "remaining_storage_m": null,
+              "capacity": null
+            },
+            {
+              "inter_id": "011wwe28gm900001",
+              "inter_name": "安成街与奥体西路路口",
+              "lng": 117.111028,
+              "lat": 36.668467,
+              "metrics": {
+                "avg_delay_s": 20.02,
                 "saturation": 0.0,
                 "saturation_rate": 0.0,
-                "avg_queue_m": 0.0,
-                "max_queue_m": 0.0,
-                "queue_storage_ratio_max": 0.0,
-                "spillback_risk_max": 0.0,
+                "avg_queue_m": 113.0,
+                "max_queue_m": 113.0,
+                "queue_storage_ratio_max": 0.3169,
+                "spillback_risk_max": 0.3169,
                 "level_of_service": "A",
-                "green_utilization": 0.4137,
-                "stop_count": 0.0,
+                "green_utilization": 0.3381,
+                "stop_count": 0.49,
                 "time_series_trend": null
               },
               "by_turn": [
                 {
                   "label": "直行",
                   "turn_saturation": 0.0,
-                  "green_utilization": 0.4137,
+                  "green_utilization": 0.3381,
                   "flow_vph": 0.0,
-                  "queue_ratio": 0.0
+                  "queue_ratio": 0.3169
                 }
               ],
-              "remaining_storage_m": 200.0,
-              "capacity": {
-                "can_release": true,
-                "blocked": false,
-                "reasons": [],
-                "release_guard": "downstream_has_slack"
-              }
+              "remaining_storage_m": 243.63,
+              "capacity": null
+            },
+            {
+              "inter_id": "011wwe2948q00001",
+              "inter_name": "坤顺路与礼耕路路口",
+              "lng": 117.114783,
+              "lat": 36.665241,
+              "metrics": {
+                "avg_delay_s": 8.89,
+                "saturation": 0.8,
+                "saturation_rate": 0.8,
+                "avg_queue_m": 117.0,
+                "max_queue_m": 117.0,
+                "queue_storage_ratio_max": 0.8593,
+                "spillback_risk_max": 0.8593,
+                "level_of_service": "C",
+                "green_utilization": 0.0,
+                "stop_count": 0.31,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": 0.8,
+                  "green_utilization": 0.0,
+                  "flow_vph": 661.92,
+                  "queue_ratio": 0.8593
+                }
+              ],
+              "remaining_storage_m": 19.159999999999997,
+              "capacity": null
+            },
+            {
+              "inter_id": "011wwe28fsv00001",
+              "inter_name": "坤顺路与无名道路路口",
+              "lng": 117.109866,
+              "lat": 36.665144,
+              "metrics": {
+                "avg_delay_s": 5.34,
+                "saturation": 0.2628,
+                "saturation_rate": 0.2628,
+                "avg_queue_m": 83.0,
+                "max_queue_m": 83.0,
+                "queue_storage_ratio_max": 0.7449,
+                "spillback_risk_max": 0.7449,
+                "level_of_service": "A",
+                "green_utilization": 0.3651,
+                "stop_count": 0.21,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": 0.2628,
+                  "green_utilization": 0.3651,
+                  "flow_vph": 268.8,
+                  "queue_ratio": 0.7449
+                }
+              ],
+              "remaining_storage_m": 28.430000000000007,
+              "capacity": null
             }
           ],
           "hud": {
@@ -1513,7 +1575,7 @@
               },
               {
                 "label": "下游剩余空间(m)",
-                "value": "200.0"
+                "value": "19.159999999999997"
               },
               {
                 "label": "相位差匹配",
@@ -4298,6 +4360,91 @@
               }
             ]
           }
+        },
+        "diagnosis_compare": {
+          "action": "map_scene",
+          "phase": "diagnosis_compare",
+          "available": true,
+          "reason": null,
+          "comparison_label": "本路口 vs 主要下游",
+          "target": {
+            "inter_id": "011wwe28fty00001",
+            "inter_name": "坤顺路与奥体西路路口",
+            "lng": 117.11126,
+            "lat": 36.665179,
+            "role": "target",
+            "direction": "北向南",
+            "movement": "直行",
+            "metrics": {
+              "queue_ratio": 0.833,
+              "saturation": 1.5446,
+              "green_utilization": 0.6807
+            }
+          },
+          "downstream": {
+            "inter_id": "011wwe28fmc00001",
+            "inter_name": "奥体西路与解放东路路口",
+            "lng": 117.111368,
+            "lat": 36.663092,
+            "role": "primary_downstream",
+            "metrics": {
+              "queue_ratio": null,
+              "saturation": null,
+              "green_utilization": null
+            },
+            "remaining_storage_m": null
+          }
+        },
+        "cause_spatial": {
+          "action": "map_scene",
+          "phase": "cause_spatial",
+          "available": true,
+          "reason": null,
+          "primary_cause": "交通需求压力",
+          "annotations": [
+            {
+              "kind": "approach",
+              "label": "北向南直行进口",
+              "lng": 117.11126,
+              "lat": 36.665179,
+              "color": "#ff5050"
+            },
+            {
+              "kind": "downstream",
+              "label": "奥体西路与解放东路路口",
+              "inter_id": "011wwe28fmc00001",
+              "lng": 117.111368,
+              "lat": 36.663092,
+              "color": "#38bdf8"
+            },
+            {
+              "kind": "case_ref",
+              "case_id": "A",
+              "label": "相似案例 A",
+              "lng": 117.11126,
+              "lat": 36.665179,
+              "color": "#6dffb5",
+              "offset": true
+            },
+            {
+              "kind": "case_ref",
+              "case_id": "B",
+              "label": "相似案例 B",
+              "lng": 117.11126,
+              "lat": 36.665179,
+              "color": "#6dffb5",
+              "offset": true
+            },
+            {
+              "kind": "case_ref",
+              "case_id": "C",
+              "label": "相似案例 C",
+              "lng": 117.11126,
+              "lat": 36.665179,
+              "color": "#6dffb5",
+              "offset": true
+            }
+          ]
         }
       },
       "overflow_verification": {
@@ -4600,18 +4747,8 @@
               ]
             ],
             "path_source": "link_geom",
-            "queue_length_m": 0.0,
-            "storage_length_m": 200.0,
-            "volume_vph": 0.0,
-            "capacity_vph": 4477.89,
-            "saturation": 0.0,
-            "saturation_rate": 0.0,
-            "green_utilization": 0.4137,
-            "stop_count": 0.0,
-            "avg_delay_s": 0.0,
-            "metrics_available": true,
-            "metrics_source": "pg_adjacent",
-            "metrics_receiving_direction": "南向北"
+            "metrics_available": false,
+            "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）"
           }
         ],
         "geometry_source": "dim_link_info.geom",
@@ -4627,16 +4764,20 @@
           "信号控制不当"
         ],
         "optimizable_points": [
-          "优化北进口直行相位配时",
-          "评估上游安成街与奥体西路路口协调控制"
+          "优化北直行绿灯时长以匹配饱和度1.5446",
+          "调整相位差缓解排队比0.833压力",
+          "结合下游复合瓶颈特征实施联动控制"
         ],
         "data_gaps": [
+          "downstream_queue_ratio",
+          "downstream_saturation",
+          "similar_cases_brief",
           "车道流量数据不足",
           "投诉台账数据不足",
           "现场调研数据不足",
           "强吸引点上下文标签数据不足"
         ],
-        "narrative": "主因为交通需求压力，北直行饱和度达1.5446，排队比0.833。次因为信号控制不当，服务不平衡指数0.3803。建议优化北直行配时并联动上游路口。",
+        "narrative": "主因交通需求压力致饱和度1.5446、排队比0.833；次因信号控制不当，失衡指数0.3803。下游数据缺失，需核实复合瓶颈。建议优化配时并联动上下游，历史案例该指标缺失。",
         "cause_ranking": [
           {
             "rank": 1,
@@ -4647,6 +4788,26 @@
             "rank": 2,
             "cause": "信号控制不当",
             "role": "次因"
+          },
+          {
+            "rank": 3,
+            "cause": "通行供给不足",
+            "role": "诱因"
+          },
+          {
+            "rank": 4,
+            "cause": "交通秩序干扰",
+            "role": "诱因"
+          },
+          {
+            "rank": 5,
+            "cause": "事件与阻塞",
+            "role": "诱因"
+          },
+          {
+            "rank": 6,
+            "cause": "协调联动不足",
+            "role": "诱因"
           }
         ]
       },
@@ -4726,13 +4887,194 @@
           "rank": 2,
           "cause": "信号控制不当",
           "role": "次因"
+        },
+        {
+          "rank": 3,
+          "cause": "通行供给不足",
+          "role": "诱因"
+        },
+        {
+          "rank": 4,
+          "cause": "交通秩序干扰",
+          "role": "诱因"
+        },
+        {
+          "rank": 5,
+          "cause": "事件与阻塞",
+          "role": "诱因"
+        },
+        {
+          "rank": 6,
+          "cause": "协调联动不足",
+          "role": "诱因"
         }
       ],
-      "similar_cases": [],
+      "similar_cases": [
+        {
+          "score": 4.5,
+          "scene": "河北省唐山市路北区北新道-卫国路交叉口，为东西向主干道北新道（双向10车道）与南北向主干道卫国路（双向4车道）交汇的主-主路口，地处八方商业圈东侧，紧邻爱琴海商圈与八方商场，日均车流量大，早晚高峰受商圈停车进出流强烈干扰，属典型“商圈+主干道”复合型拥堵节点。",
+          "diagnosis": "该路口存在双重结构性拥堵：一是北进口双向6车道在早高峰南、北向车流严重过饱和，排队车辆多次循环未清空，常溢出至上游路口，导致中央区域存车堆积、秩序混乱；二是西进口受爱琴海商圈国安街停车场进出口及八方商场停车场出入口双重挤压，早高峰西向东直行车辆排队过长，引发回溢，致使北向南车流无法汇入，西进口右转、北进口直行、东进口左转均受阻；南出口西侧因停车场进出流干扰，车流从路段中部即开始回溢至本路口，形成“",
+          "solution": "①实施分时段可变导向车道：北进口设置2条可变车道——第2车道（早高峰7:20–9:00固定为直行，晚高峰17:30–19:30改为直左）、第4车道（晚高峰17:30–19:30由直行变为右转）；西进口第2车道早高峰（7:20–9:00）由左转调整为直行；②开展区域协调控制：对北新道、卫国路沿线共8个路口实施分时段绿波协同，优先疏导上下游车流，抑制回溢；③精细化信号配时重构：维持原有绿波周期不变前提",
+          "effect": "北进口每个绿灯周期直行车通行量提升12–17辆，总通行效率提升约30%；西进口每个绿灯周期直行车通行量提升24–30辆，总通行效率提升约40%；高峰时段车流回溢现象基本消除，北进口与西进口排队长度显著缩短（图13、图14），路口中央存车减少、通行秩序明显改善，安全隐患同步降低。"
+        },
+        {
+          "score": 4.5,
+          "scene": "广西北海市北海大道（西藏路路口至南珠大道路口）段，全长8.1km，为市区核心东西向主干道，双向8车道，配备非机动车专用辅道及智能信号机；沿线共11个路口，与四川路、北京路、广东路、上海路等主干道相交，日常通勤车流密集，工作日以东往西进城为主，节假日呈现明显潮汐特征（上午西往东出城、下午东往西回城），全天除晚平峰和夜间外均处于高负荷运行状态。",
+          "diagnosis": "该路段存在多重结构性与运行性问题：一是早晚高峰东西向车流饱和，北京路等关键路口出现持续过饱和，车辆平均排队长度超120米，部分时段排队溢出至上游路口；二是路段内含5个人行横道（4处无信号灯、1处感应式），叠加客运车辆随意停靠、岔口车辆无序进出等干扰，导致上海路至四川路段通行速度波动剧烈，实测平均车速仅32–38 km/h，远低于设计时速；三是原有配时未统一周期且缺乏协调，11个路口周期差异达8–1",
+          "solution": "①实施“关键节点先行+全段周期统合”策略：优先对北京路、广东路两个高压力路口（毗邻学校与商圈）开展单点配时优化，确定公共周期为140秒，并将其余9个路口配时全部适配该周期；②采用阶梯式绿波设计：上海路—四川路段按40 km/h（平峰）/45 km/h（高峰）设定协调时距，其余路段按50 km/h设计，同步延长绿灯时间3–5秒以补偿干扰延误；③分时段差异化协调：工作日晚高峰实行“进城红波截流+出城绿",
+          "effect": "工作日平峰东往西行程时间由24分05秒降至10分33秒，通行效率提升56%；工作日晚高峰西往东行程时间由23分10秒降至14分22秒，通行效率提升38%，停车次数由平均7.2次降至仅1次；节假日平峰西往东行程时间由12分50秒降至6分25秒，效率提升50%；全线东西向平均停车次数由9次降至1.8次，"
+        },
+        {
+          "score": 4.0,
+          "scene": "西安市地铁8号线延平门站占道施工区域，施工围挡位于沣惠南路与科技路交叉口。沣惠南路为城南重要通勤干道，科技路为高新区东西向主干道，流量长期过饱和；与东侧唐延路与科技路路口间距近，南口需封闭施工10个月，属商业核心区占道施工交通组织场景。",
+          "diagnosis": "南口10个月封闭施工叠加节点本身过饱和，通行能力大幅下降；慢行出行需求旺盛，人车交织秩序混乱；周边停车资源紧缺，静态交通影响动态交通；相邻路口间距近易排队溢出，施工期间组织条件限制多、管控难度大，拥堵加剧风险高。",
+          "solution": "实施“五化”治理：新建交通导改路，空间利用最大化；增设加强型交通警示设施，组织精细化；远端分流、近端疏导，分流精准化；多元化施工期交通宣传引导；警企联动加强疏导，秩序管理有序化，充分调动路网剩余资源并做足预案。",
+          "effect": "施工后沣惠南路高峰小时流量由3420辆降至2959辆，同比下降13.48%，拥堵未明显加剧；北向南排队长度减少10.2%，早高峰持续时长缩短20%，周边路网分流效果显著。"
+        }
+      ],
       "case_cards": {
-        "matched_count": 0,
-        "high_similarity_count": 0,
-        "cards": []
+        "matched_count": 780,
+        "high_similarity_count": 58,
+        "cards": [
+          {
+            "case_id": "A",
+            "title": "河北省唐山市路北区北新道-卫国路交叉口，为东西向主干道北新道（双向10车道）与南北向主干道卫国路（双向4车道）交汇的主-主路口，地处八方商业圈东侧，紧邻爱琴海商",
+            "similarity_points": [
+              "晚高峰短时段",
+              "目标方向排队高",
+              "上游来车冲击"
+            ],
+            "similarity_dimensions": [
+              {
+                "key": "problem",
+                "label": "问题形态：过饱和"
+              },
+              {
+                "key": "晚高峰",
+                "label": "同时段：晚高峰"
+              },
+              {
+                "key": "早高峰",
+                "label": "同时段：早高峰"
+              },
+              {
+                "key": "上游",
+                "label": "空间：上游来车"
+              },
+              {
+                "key": "排队",
+                "label": "指标：排队积压"
+              }
+            ],
+            "transferable_actions": [
+              "上下游协调配时",
+              "干线绿波协调"
+            ],
+            "caveats": [
+              "需核对本路口配时结构与下游拓扑",
+              "历史方案仅作参考，须结合实时指标"
+            ],
+            "help_summary": "可借鉴处置路径：北进口每个绿灯周期直行车通行量提升12–17辆，总通行效率提升约30%；西进口每个绿灯周期直行车通行量提升24–30辆，总通行效率提升约40%；高峰时段车流回溢",
+            "similarity_tier": "high",
+            "historical_action": "①实施分时段可变导向车道：北进口设置2条可变车道——第2车道（早高峰7:20–9:00固定为直行，晚高峰17:30–19:30改为直左）、第4车道（晚高峰17:30–19:30由直行变为右转）；西进口第2车道早高峰（7:20–9:00）由左",
+            "outcome": "北进口每个绿灯周期直行车通行量提升12–17辆，总通行效率提升约30%；西进口每个绿灯周期直行车通行量提升24–30辆，总通行效率提升约40%；高峰时段车流回溢现象基本消除，北进口与西进口排队长度显著缩短（图13、图14），路口中央存车减少",
+            "lesson": "北进口每个绿灯周期直行车通行量提升12–17辆，总通行效率提升约30%；西进口每个绿灯周期直行车通行量提升24–30辆，总通行效率提升约40%；高峰时段车流回溢现象基本消除，北进口与西进口排队长度显著缩短（图13、图14），路口中央存车减少",
+            "case_type": "recommended",
+            "score": 5.0
+          },
+          {
+            "case_id": "B",
+            "title": "广西北海市北海大道（西藏路路口至南珠大道路口）段，全长8.1km，为市区核心东西向主干道，双向8车道，配备非机动车专用辅道及智能信号机；沿线共11个路口，与四川",
+            "similarity_points": [
+              "晚高峰短时段",
+              "目标方向排队高",
+              "上游来车冲击",
+              "绿灯利用率高"
+            ],
+            "similarity_dimensions": [
+              {
+                "key": "problem",
+                "label": "问题形态：过饱和"
+              },
+              {
+                "key": "晚高峰",
+                "label": "同时段：晚高峰"
+              },
+              {
+                "key": "上游",
+                "label": "空间：上游来车"
+              },
+              {
+                "key": "排队",
+                "label": "指标：排队积压"
+              },
+              {
+                "key": "饱和",
+                "label": "指标：饱和偏高"
+              }
+            ],
+            "transferable_actions": [
+              "上游截流节奏控制",
+              "上下游协调配时",
+              "干线绿波协调"
+            ],
+            "caveats": [
+              "下游承接不足时不宜单点照搬加绿",
+              "需核对本路口转向结构与相位方案"
+            ],
+            "help_summary": "提示下游约束与防溢流做法，避免重复单点加压",
+            "similarity_tier": "high",
+            "historical_action": "①实施“关键节点先行+全段周期统合”策略：优先对北京路、广东路两个高压力路口（毗邻学校与商圈）开展单点配时优化，确定公共周期为140秒，并将其余9个路口配时全部适配该周期；②采用阶梯式绿波设计：上海路—四川路段按40 km/h（平峰）/45",
+            "outcome": "工作日平峰东往西行程时间由24分05秒降至10分33秒，通行效率提升56%；工作日晚高峰西往东行程时间由23分10秒降至14分22秒，通行效率提升38%，停车次数由平均7.2次降至仅1次；节假日平峰西往东行程时间由12分50秒降至6分25秒",
+            "lesson": "下游接不住时，不宜单点激进放行",
+            "case_type": "risk",
+            "score": 4.5
+          },
+          {
+            "case_id": "C",
+            "title": "重庆市两江新区人和大道（连接金山大道、金开大道、民安大道、黄山大道、泰山大道，全长1.6公里），为金山居住片区、人和居住片区及重庆南北交通转换的核心主干道，承担",
+            "similarity_points": [
+              "目标方向排队高"
+            ],
+            "similarity_dimensions": [
+              {
+                "key": "problem",
+                "label": "问题形态：过饱和"
+              },
+              {
+                "key": "排队",
+                "label": "指标：排队积压"
+              },
+              {
+                "key": "饱和",
+                "label": "指标：饱和偏高"
+              },
+              {
+                "key": "measure",
+                "label": "措施：历史治理方案可对照"
+              },
+              {
+                "key": "tier",
+                "label": "匹配：高度相似"
+              }
+            ],
+            "transferable_actions": [
+              "上游截流节奏控制",
+              "上下游协调配时"
+            ],
+            "caveats": [
+              "需核对本路口配时结构与下游拓扑",
+              "历史方案仅作参考，须结合实时指标"
+            ],
+            "help_summary": "可借鉴处置路径：2019年11月相较9月，早高峰流量增长7.02%（11396pcu/h vs 10648pcu/h）、晚高峰增长8.53%（10279pcu/h vs 947",
+            "similarity_tier": "high",
+            "historical_action": "实施“互联网+”区域交通信号协调控制系统，依托重庆攸亮平台接入高德实时交通大数据，构建四层闭环控制逻辑：①设置溢出控制（应用于金山大道-镜泊西路、人和B匝道，阈值为排队长度≥路段长4/5）；②设置失衡控制（应用于金山大道-镜泊西路、人和场口",
+            "outcome": "2019年11月相较9月，早高峰流量增长7.02%（11396pcu/h vs 10648pcu/h）、晚高峰增长8.53%（10279pcu/h vs 9471pcu/h）前提下，早高峰平均车速提升12.29%（28.92km/h vs ",
+            "lesson": "2019年11月相较9月，早高峰流量增长7.02%（11396pcu/h vs 10648pcu/h）、晚高峰增长8.53%（10279pcu/h vs 9471pcu/h）前提下，早高峰平均车速提升12.29%（28.92km/h vs ",
+            "case_type": "recommended",
+            "score": 4.5
+          }
+        ]
       },
       "user_experience_refs": [
         {
@@ -4799,6 +5141,37 @@
           "score": 5.5
         },
         {
+          "record_id": "ue_20260710_2a2ee6fb",
+          "trace_id": "099f1f9b4c2c4ab5",
+          "experience_type": "diagnostic",
+          "content": "北进口直行往南解放东路方向要先看下游能不能接住",
+          "tags": {
+            "inter_id": "011wwe28fty00001",
+            "intersection_name": "坤顺路与奥体西路路口",
+            "problem_type": "过饱和",
+            "time_period": null,
+            "direction": "北向南",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": "下游承载能力",
+            "cause_keywords": [
+              "下游"
+            ],
+            "strategy_action": null,
+            "related_poi": "解放东路",
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [
+              "南向北进安成街方向有余量",
+              "东向西下游有余量",
+              "北进口直行往南解放东路方向需评估下游承接能力"
+            ],
+            "confidence": null
+          },
+          "score": 5.5
+        },
+        {
           "record_id": "ue_20260709_5910b441",
           "trace_id": "a9bb601d9ba3410b",
           "experience_type": "diagnostic",
@@ -4860,15 +5233,36 @@
         "target_queue_ratio": 0.833,
         "target_saturation": 1.5446,
         "target_green_utilization": 0.6807,
-        "downstream_queue_ratio": 0.0,
-        "downstream_saturation": 0.0,
+        "downstream_queue_ratio": null,
+        "downstream_saturation": null,
         "downstream_intersections": [
           {
             "inter_id": "011wwe28fmc00001",
             "inter_name": "奥体西路与解放东路路口",
-            "queue_ratio": 0.0,
+            "queue_ratio": null,
+            "saturation": null,
+            "blocked": null
+          },
+          {
+            "inter_id": "011wwe28gm900001",
+            "inter_name": "安成街与奥体西路路口",
+            "queue_ratio": 0.3169,
             "saturation": 0.0,
-            "blocked": false
+            "blocked": null
+          },
+          {
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
+            "queue_ratio": 0.8593,
+            "saturation": 0.8,
+            "blocked": null
+          },
+          {
+            "inter_id": "011wwe28fsv00001",
+            "inter_name": "坤顺路与无名道路路口",
+            "queue_ratio": 0.7449,
+            "saturation": 0.2628,
+            "blocked": null
           }
         ],
         "upstream_entry_traces": [
@@ -4969,24 +5363,29 @@
     "strategy": {
       "strategy": {
         "principles": [
-          "防溢流优先原则：以北进口直行饱和度1.54及高排队比为约束，首要目标是防止车辆溢出至上游路口或干扰横向交通。",
-          "供需平衡与局部再分配：鉴于主因为需求压力（0.8分），策略核心在于通过相位内部时间资源的重新分配来缓解瓶颈，而非单纯增加总绿灯时长。",
-          "上下游协同评估：虽然下游当前可承接，但需持续监控南解放东路方向的承接能力，避免治理措施导致拥堵向下游转移。"
+          "防溢流优先原则：在饱和度严重过饱和（>1.5）且存在复合瓶颈特征时，信号控制的首要目标是防止排队溢出至上游交叉口或阻塞横向交通，而非单纯追求本路口通行量最大化。",
+          "供需匹配与截流原则：针对下游数据缺失及复合瓶颈风险，采取保守的流量调节策略，通过控制驶入率来匹配下游不确定的消散能力，避免将拥堵转移至下游节点。",
+          "时空资源均衡原则：在无法简单增加绿灯时长的约束下，通过优化相位差和绿信比分配，平滑车流到达波峰，减少因信号切换造成的启停损失和排队堆积。",
+          "数据驱动的安全边界原则：在下游关键指标（排队比、饱和度）缺失的情况下，策略生成必须预留安全冗余，禁止基于假设进行激进优化，直至数据补全或现场核实。"
         ],
         "not_recommended": [
-          "单点激进加绿：不建议仅针对北进口直行相位进行大幅度的绿灯时间延长，因为这可能压缩其他方向通行权，加剧服务不平衡指数（当前0.3803），且无法解决根本的需求过载问题。",
-          "忽视数据缺失的盲目优化：在车道流量、投诉台账及现场调研数据不足的情况下，不进行基于精确微观仿真的大幅度配时重构。",
-          "孤立点控：不推荐完全脱离上游安成街与奥体西路路口协调控制的独立优化，以免引发新的干线冲突。"
+          "单点激进增加北直行绿灯时长：当前饱和度已达1.5446，属于严重过饱和状态。在下游为复合瓶颈且数据缺失的情况下，盲目增加绿灯会导致更多车辆涌入下游瓶颈区，极易引发下游排队回溢，导致本路口出口道被堵死，形成区域性死锁。",
+          "仅依赖历史案例进行配时调整：分析显示历史案例中关键指标缺失，且当前路网拓扑与需求特征可能已发生变化，直接套用历史经验缺乏可靠性。",
+          "忽视相位差的孤立优化：在排队比高达0.833的压力下，若不协调上下游相位差，单纯调整本路口绿信比无法解决车队离散与集结的矛盾，甚至可能加剧路段停车次数。",
+          "在未核实下游承载力前实施联动控制：虽然建议联动，但在下游数据空白时强行实施紧密联动可能导致“同步拥堵”，应先以本地防溢流为主，待数据明确后再升级为干线协调。"
         ],
         "recommended": [
-          "北进口相位局部微调与再分配：在北进口直行相位内，结合南北对放相位整体评估，适度调整绿灯起始时间与黄灯/全红时间，以最大化清空效率，同时保留必要的横向交通间隙。",
-          "联动上游协调控制评估：启动对上游安成街与奥体西路路口的协调性评估，尝试通过上游信号灯的“蓄车”或“放行”节奏调整，平滑到达本路口的车流峰值，降低瞬时饱和度。",
-          "动态监测与反馈机制：建立基于实时排队长度和溢出风险的动态监控机制，一旦检测到溢出风险（spillback risk），立即触发保护性策略，如缩短周期或强制清空。"
+          "实施防溢流截流控制策略：适当压缩北直行绿灯时长或设置最大绿灯限制，主动降低驶入下游瓶颈区的流量速率，确保本路口出口道始终保留足够的蓄车空间，防止排队溢出干扰横向交通。",
+          "优化相位差以缓解排队压力：基于当前0.833的排队比，调整与上游交叉口的相位差，使上游车流到达本路口时刚好处于绿灯启亮或队列消散阶段，减少二次排队和启动损失。",
+          "开展下游瓶颈实地核查与数据补全：立即安排现场调研或部署临时检测器，获取下游排队比、饱和度及复合瓶颈的具体成因，为后续精准治理提供数据支撑。",
+          "建立动态反馈调节机制：在数据缺失期，采用小步长、高频次的微调策略，密切监测出口道排队长度与下游路口状态，一旦发现溢流征兆立即触发降级保护方案。",
+          "评估局部再分配可行性：在不增加总周期时长的前提下，重新分配各相位绿信比，将部分非关键相位的绿灯时间转移至北直行，但需严格控制转移幅度，确保不超过下游瞬时消散能力。"
         ],
         "hard_constraints": [
-          "北进口直行饱和度不得进一步恶化，排队比需控制在安全阈值内。",
-          "任何配时调整必须保证南北对放相位的整体协调性，不得造成单向过度倾斜。",
-          "必须确保下游南解放东路方向的通行能力不被突破，防止拥堵转移。",
+          "严禁在下游数据未核实前将北直行绿灯时长调整至超过当前值的120%。",
+          "必须保证本路口北出口道排队长度在任何时段均不超过出口道长度的80%，预留20%作为防溢流安全缓冲区。",
+          "所有配时调整方案必须包含溢流检测与自动降级逻辑，当检测到出口道排队触及安全阈值时，自动切换至最小绿灯或红灯保护模式。",
+          "在下游复合瓶颈性质未明确前，禁止实施跨路口的紧密绿波协调，仅允许进行松耦合的相位差微调。",
           "各相位最小绿不得低于 14s（含黄灯全红、行人过街清空）",
           "单相位绿灯不得超过 60s（最大绿上限）",
           "信号周期不得超过 90s（最大周期约束）"
@@ -5002,12 +5401,13 @@
         "trigger_exit_rules": {
           "rollback_condition": "下游排队比持续上升或目标方向绿灯利用率异常下降时回滚",
           "rules": [
-            "若实施后北进口排队长度超过物理存储容量的90%，立即退出当前策略并启动紧急清空模式。",
-            "若东西向平均延误增加超过20%或出现严重溢出迹象，立即回滚配时方案。",
-            "若上游协调控制导致本路口到达率波动剧烈（变异系数>0.5），暂停联动策略，回归独立点控。"
+            "当下游排队比、饱和度等关键数据补全且连续7天稳定可靠时，可退出防溢流优先模式，转入基于数据的精准优化模式。",
+            "当北直行饱和度连续5个周期低于1.2且排队比低于0.6时，表明需求压力显著缓解，可逐步放宽截流限制。",
+            "当现场调研确认下游复合瓶颈已通过工程改造或管理措施消除，且实测消散能力满足当前需求时，可解除单点加绿禁令。",
+            "当投诉台账或现场反馈显示当前防溢流策略导致上游路口严重拥堵或公众满意度显著下降时，需重新评估策略阈值并进行适应性调整。"
           ]
         },
-        "explanation": "当前路口面临严重的交通需求压力（饱和度1.5446）与服务不平衡（0.3803）。单点激进加绿虽能短暂缓解北直行排队，但会严重挤压东西向或其他相位的时间资源，可能导致横向交通瘫痪或新的溢出点产生，且无法应对持续的高需求输入。因此，采取‘防溢流优先’的保守策略，通过局部再分配提升现有绿灯时间的利用效率，并联合上游路口进行流量整形，是更稳健的治理路径。同时，由于存在显著的数据缺口，应避免高风险的大幅度参数变更。",
+        "explanation": "当前路口北直行饱和度高达1.5446，远超通行能力极限，且排队比0.833表明排队压力巨大。核心矛盾在于‘高需求’与‘下游不确定承载力’之间的冲突。由于下游被判定为复合瓶颈且关键数据缺失，无法确认其是否具备承接增量车流的能力。若此时单点激进增加绿灯，虽能短暂提升本路口放行效率，但极大概率导致车辆在下游瓶颈处积压并回溢至本路口出口道，造成‘进得来、出不去’的死锁局面，反而降低整体路网运行效率。因此，策略必须从‘追求通行量’转向‘防止系统崩溃’，优先通过截流和相位差优化来维持系统稳定性，同时尽快补全数据以解除不确定性约束。",
         "narrative": null,
         "source": "hybrid"
       },
@@ -5041,14 +5441,17 @@
         }
       },
       "case_references": {
-        "failure_lesson": null,
-        "success_lesson": null,
-        "matched_count": 0
+        "failure_lesson": "单点加绿后下游排队继续增长",
+        "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+        "matched_count": 3
       },
       "reference_basis": {
         "industry_scene": "一般路口优化",
         "intersection_case_ids": [
-          "011wwe28fty00001"
+          "011wwe28fty00001",
+          "A",
+          "B",
+          "C"
         ]
       },
       "control_scope_map": {
@@ -5079,10 +5482,198 @@
             "inter_name": "奥体西路与解放东路路口",
             "lng": 117.111368,
             "lat": 36.663092,
-            "blocked": false
+            "blocked": null
+          },
+          {
+            "inter_id": "011wwe28gm900001",
+            "inter_name": "安成街与奥体西路路口",
+            "lng": 117.111028,
+            "lat": 36.668467,
+            "blocked": null
+          },
+          {
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
+            "lng": 117.114783,
+            "lat": 36.665241,
+            "blocked": null
+          },
+          {
+            "inter_id": "011wwe28fsv00001",
+            "inter_name": "坤顺路与无名道路路口",
+            "lng": 117.109866,
+            "lat": 36.665144,
+            "blocked": null
+          }
+        ],
+        "coordination_paths": [
+          {
+            "inter_id": "011wwe28gm900001",
+            "inter_name": "安成街与奥体西路路口",
+            "path": [
+              [
+                117.110932,
+                36.668436
+              ],
+              [
+                117.111018,
+                36.667685
+              ],
+              [
+                117.111018,
+                36.667621
+              ],
+              [
+                117.111034,
+                36.667396
+              ],
+              [
+                117.111034,
+                36.667369
+              ],
+              [
+                117.111055,
+                36.667079
+              ],
+              [
+                117.111098,
+                36.666317
+              ],
+              [
+                117.111098,
+                36.666285
+              ],
+              [
+                117.111157,
+                36.665223
+              ]
+            ],
+            "role": "upstream_inflow"
           }
         ],
         "risk_boundary": "controlled_release"
+      },
+      "experience_contrast": {
+        "available": true,
+        "reason": null,
+        "items": [
+          {
+            "dimension": "策略选择",
+            "without_experience": {
+              "summary": "仅依赖实时指标评分 → 小步释放方案",
+              "source": "package_scores"
+            },
+            "with_experience": {
+              "summary": "小步释放方案（参考 5 条经验/案例）",
+              "refs": [
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260709_0816084b",
+                  "trace_id": "a9bb601d9ba3410b",
+                  "label": "下游安成街和礼耕路方向还能吃下流量"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260710_2ce1d694",
+                  "trace_id": "997a885aacd241f9",
+                  "label": "北进口直行往南解放东路方向要先看下游能不能接住"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260710_2a2ee6fb",
+                  "trace_id": "099f1f9b4c2c4ab5",
+                  "label": "北进口直行往南解放东路方向要先看下游能不能接住"
+                },
+                {
+                  "type": "case",
+                  "case_id": "A",
+                  "label": "河北省唐山市路北区北新道-卫国路交叉口，为东西向主干道北新道（双向10车道）与南北向主干道卫国路（双向4车道）交汇的主-主路口，地处八方商业圈东侧，紧邻爱琴海商"
+                },
+                {
+                  "type": "case",
+                  "case_id": "B",
+                  "label": "广西北海市北海大道（西藏路路口至南珠大道路口）段，全长8.1km，为市区核心东西向主干道，双向8车道，配备非机动车专用辅道及智能信号机；沿线共11个路口，与四川"
+                }
+              ],
+              "source": "strategy_generation"
+            }
+          },
+          {
+            "dimension": "成因判断",
+            "without_experience": {
+              "summary": "demand",
+              "source": "cause_scores"
+            },
+            "with_experience": {
+              "summary": "交通需求压力",
+              "refs": [
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260709_0816084b",
+                  "trace_id": "a9bb601d9ba3410b",
+                  "label": "下游安成街和礼耕路方向还能吃下流量"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260710_2ce1d694",
+                  "trace_id": "997a885aacd241f9",
+                  "label": "北进口直行往南解放东路方向要先看下游能不能接住"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260710_2a2ee6fb",
+                  "trace_id": "099f1f9b4c2c4ab5",
+                  "label": "北进口直行往南解放东路方向要先看下游能不能接住"
+                }
+              ],
+              "source": "cause_analysis"
+            }
+          },
+          {
+            "dimension": "治理护栏",
+            "without_experience": {
+              "summary": "量化护栏 3 项（PG 配时真源）",
+              "source": "quantitative_constraints"
+            },
+            "with_experience": {
+              "summary": "护栏 7 条（含用户约束 2 条）",
+              "refs": [
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260709_0816084b",
+                  "trace_id": "a9bb601d9ba3410b",
+                  "label": "下游安成街和礼耕路方向还能吃下流量"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260710_2ce1d694",
+                  "trace_id": "997a885aacd241f9",
+                  "label": "北进口直行往南解放东路方向要先看下游能不能接住"
+                }
+              ],
+              "source": "strategy.hard_constraints"
+            }
+          },
+          {
+            "dimension": "下游承接",
+            "without_experience": {
+              "summary": "仅看目标路口排队/饱和度指标",
+              "source": "diagnosis.metrics"
+            },
+            "with_experience": {
+              "summary": "复合瓶颈",
+              "refs": [
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260709_0816084b",
+                  "trace_id": "a9bb601d9ba3410b",
+                  "label": "下游安成街和礼耕路方向还能吃下流量"
+                }
+              ],
+              "source": "downstream_diagnosis"
+            }
+          }
+        ]
       }
     },
     "plan": {
@@ -5093,17 +5684,17 @@
           "status": "rejected",
           "scenario": "奥体西路与解放东路路口承接不足，目标路口不宜继续强放",
           "case_basis": {
-            "failure_lesson": null,
-            "success_lesson": null,
-            "matched_count": 0
+            "failure_lesson": "单点加绿后下游排队继续增长",
+            "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+            "matched_count": 3
           },
           "timing": {
             "available": true,
             "reason": null,
             "missing_fields": [],
-            "current_cycle_s": 60,
+            "current_cycle_s": 164,
             "cycle_s": 123,
-            "cycle_delta_s": 63,
+            "cycle_delta_s": -41,
             "phase_stage_timing_list": [
               {
                 "phase_stage_id": "3",
@@ -5130,10 +5721,10 @@
                   "green_time_s": 54,
                   "yellow_time_s": 3,
                   "all_red_time_s": 3,
-                  "stage_total_s": 60
+                  "stage_total_s": 60.0
                 },
                 "green_delta_s": -10,
-                "stage_delta_s": -10,
+                "stage_delta_s": -10.0,
                 "movements": [
                   {
                     "movement_key": "d0_t2",
@@ -5254,10 +5845,10 @@
                   "green_time_s": 23,
                   "yellow_time_s": 3,
                   "all_red_time_s": 2,
-                  "stage_total_s": 28
+                  "stage_total_s": 28.0
                 },
                 "green_delta_s": -14,
-                "stage_delta_s": -14,
+                "stage_delta_s": -14.0,
                 "movements": [
                   {
                     "movement_key": "d4_t1",
@@ -5346,10 +5937,10 @@
                   "green_time_s": 30,
                   "yellow_time_s": 3,
                   "all_red_time_s": 2,
-                  "stage_total_s": 35
+                  "stage_total_s": 35.0
                 },
                 "green_delta_s": -17,
-                "stage_delta_s": -17,
+                "stage_delta_s": -17.0,
                 "movements": [
                   {
                     "movement_key": "d2_t2",
@@ -5620,17 +6211,17 @@
           "status": "rejected",
           "scenario": "下游仍有部分承接空间，北向南排队较高",
           "case_basis": {
-            "failure_lesson": null,
-            "success_lesson": null,
-            "matched_count": 0
+            "failure_lesson": "单点加绿后下游排队继续增长",
+            "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+            "matched_count": 3
           },
           "timing": {
             "available": true,
             "reason": null,
             "missing_fields": [],
-            "current_cycle_s": 60,
+            "current_cycle_s": 164,
             "cycle_s": 123,
-            "cycle_delta_s": 63,
+            "cycle_delta_s": -41,
             "phase_stage_timing_list": [
               {
                 "phase_stage_id": "3",
@@ -5657,10 +6248,10 @@
                   "green_time_s": 54,
                   "yellow_time_s": 3,
                   "all_red_time_s": 3,
-                  "stage_total_s": 60
+                  "stage_total_s": 60.0
                 },
                 "green_delta_s": -10,
-                "stage_delta_s": -10,
+                "stage_delta_s": -10.0,
                 "movements": [
                   {
                     "movement_key": "d0_t2",
@@ -5781,10 +6372,10 @@
                   "green_time_s": 23,
                   "yellow_time_s": 3,
                   "all_red_time_s": 2,
-                  "stage_total_s": 28
+                  "stage_total_s": 28.0
                 },
                 "green_delta_s": -14,
-                "stage_delta_s": -14,
+                "stage_delta_s": -14.0,
                 "movements": [
                   {
                     "movement_key": "d4_t1",
@@ -5873,10 +6464,10 @@
                   "green_time_s": 30,
                   "yellow_time_s": 3,
                   "all_red_time_s": 2,
-                  "stage_total_s": 35
+                  "stage_total_s": 35.0
                 },
                 "green_delta_s": -17,
-                "stage_delta_s": -17,
+                "stage_delta_s": -17.0,
                 "movements": [
                   {
                     "movement_key": "d2_t2",
@@ -6147,17 +6738,17 @@
           "status": "rejected",
           "scenario": "奥体西路与解放东路路口接不住，上游持续来车，目标路口接近溢出",
           "case_basis": {
-            "failure_lesson": null,
-            "success_lesson": null,
-            "matched_count": 0
+            "failure_lesson": "单点加绿后下游排队继续增长",
+            "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+            "matched_count": 3
           },
           "timing": {
             "available": true,
             "reason": null,
             "missing_fields": [],
-            "current_cycle_s": 60,
+            "current_cycle_s": 164,
             "cycle_s": 123,
-            "cycle_delta_s": 63,
+            "cycle_delta_s": -41,
             "phase_stage_timing_list": [
               {
                 "phase_stage_id": "3",
@@ -6184,10 +6775,10 @@
                   "green_time_s": 54,
                   "yellow_time_s": 3,
                   "all_red_time_s": 3,
-                  "stage_total_s": 60
+                  "stage_total_s": 60.0
                 },
                 "green_delta_s": -10,
-                "stage_delta_s": -10,
+                "stage_delta_s": -10.0,
                 "movements": [
                   {
                     "movement_key": "d0_t2",
@@ -6308,10 +6899,10 @@
                   "green_time_s": 23,
                   "yellow_time_s": 3,
                   "all_red_time_s": 2,
-                  "stage_total_s": 28
+                  "stage_total_s": 28.0
                 },
                 "green_delta_s": -14,
-                "stage_delta_s": -14,
+                "stage_delta_s": -14.0,
                 "movements": [
                   {
                     "movement_key": "d4_t1",
@@ -6400,10 +6991,10 @@
                   "green_time_s": 30,
                   "yellow_time_s": 3,
                   "all_red_time_s": 2,
-                  "stage_total_s": 35
+                  "stage_total_s": 35.0
                 },
                 "green_delta_s": -17,
-                "stage_delta_s": -17,
+                "stage_delta_s": -17.0,
                 "movements": [
                   {
                     "movement_key": "d2_t2",
@@ -6681,17 +7272,17 @@
         "status": "rejected",
         "scenario": "奥体西路与解放东路路口承接不足，目标路口不宜继续强放",
         "case_basis": {
-          "failure_lesson": null,
-          "success_lesson": null,
-          "matched_count": 0
+          "failure_lesson": "单点加绿后下游排队继续增长",
+          "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+          "matched_count": 3
         },
         "timing": {
           "available": true,
           "reason": null,
           "missing_fields": [],
-          "current_cycle_s": 60,
+          "current_cycle_s": 164,
           "cycle_s": 123,
-          "cycle_delta_s": 63,
+          "cycle_delta_s": -41,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "3",
@@ -6718,10 +7309,10 @@
                 "green_time_s": 54,
                 "yellow_time_s": 3,
                 "all_red_time_s": 3,
-                "stage_total_s": 60
+                "stage_total_s": 60.0
               },
               "green_delta_s": -10,
-              "stage_delta_s": -10,
+              "stage_delta_s": -10.0,
               "movements": [
                 {
                   "movement_key": "d0_t2",
@@ -6842,10 +7433,10 @@
                 "green_time_s": 23,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 28
+                "stage_total_s": 28.0
               },
               "green_delta_s": -14,
-              "stage_delta_s": -14,
+              "stage_delta_s": -14.0,
               "movements": [
                 {
                   "movement_key": "d4_t1",
@@ -6934,10 +7525,10 @@
                 "green_time_s": 30,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 35
+                "stage_total_s": 35.0
               },
               "green_delta_s": -17,
-              "stage_delta_s": -17,
+              "stage_delta_s": -17.0,
               "movements": [
                 {
                   "movement_key": "d2_t2",
@@ -7208,17 +7799,17 @@
         "status": "rejected",
         "scenario": "下游仍有部分承接空间，北向南排队较高",
         "case_basis": {
-          "failure_lesson": null,
-          "success_lesson": null,
-          "matched_count": 0
+          "failure_lesson": "单点加绿后下游排队继续增长",
+          "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+          "matched_count": 3
         },
         "timing": {
           "available": true,
           "reason": null,
           "missing_fields": [],
-          "current_cycle_s": 60,
+          "current_cycle_s": 164,
           "cycle_s": 123,
-          "cycle_delta_s": 63,
+          "cycle_delta_s": -41,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "3",
@@ -7245,10 +7836,10 @@
                 "green_time_s": 54,
                 "yellow_time_s": 3,
                 "all_red_time_s": 3,
-                "stage_total_s": 60
+                "stage_total_s": 60.0
               },
               "green_delta_s": -10,
-              "stage_delta_s": -10,
+              "stage_delta_s": -10.0,
               "movements": [
                 {
                   "movement_key": "d0_t2",
@@ -7369,10 +7960,10 @@
                 "green_time_s": 23,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 28
+                "stage_total_s": 28.0
               },
               "green_delta_s": -14,
-              "stage_delta_s": -14,
+              "stage_delta_s": -14.0,
               "movements": [
                 {
                   "movement_key": "d4_t1",
@@ -7461,10 +8052,10 @@
                 "green_time_s": 30,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 35
+                "stage_total_s": 35.0
               },
               "green_delta_s": -17,
-              "stage_delta_s": -17,
+              "stage_delta_s": -17.0,
               "movements": [
                 {
                   "movement_key": "d2_t2",
@@ -7735,17 +8326,17 @@
         "status": "rejected",
         "scenario": "奥体西路与解放东路路口接不住，上游持续来车，目标路口接近溢出",
         "case_basis": {
-          "failure_lesson": null,
-          "success_lesson": null,
-          "matched_count": 0
+          "failure_lesson": "单点加绿后下游排队继续增长",
+          "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+          "matched_count": 3
         },
         "timing": {
           "available": true,
           "reason": null,
           "missing_fields": [],
-          "current_cycle_s": 60,
+          "current_cycle_s": 164,
           "cycle_s": 123,
-          "cycle_delta_s": 63,
+          "cycle_delta_s": -41,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "3",
@@ -7772,10 +8363,10 @@
                 "green_time_s": 54,
                 "yellow_time_s": 3,
                 "all_red_time_s": 3,
-                "stage_total_s": 60
+                "stage_total_s": 60.0
               },
               "green_delta_s": -10,
-              "stage_delta_s": -10,
+              "stage_delta_s": -10.0,
               "movements": [
                 {
                   "movement_key": "d0_t2",
@@ -7896,10 +8487,10 @@
                 "green_time_s": 23,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 28
+                "stage_total_s": 28.0
               },
               "green_delta_s": -14,
-              "stage_delta_s": -14,
+              "stage_delta_s": -14.0,
               "movements": [
                 {
                   "movement_key": "d4_t1",
@@ -7988,10 +8579,10 @@
                 "green_time_s": 30,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 35
+                "stage_total_s": 35.0
               },
               "green_delta_s": -17,
-              "stage_delta_s": -17,
+              "stage_delta_s": -17.0,
               "movements": [
                 {
                   "movement_key": "d2_t2",
@@ -8269,31 +8860,31 @@
     {
       "phase": "intent_understanding",
       "success": true,
-      "duration_ms": 11316.09,
+      "duration_ms": 12535.6,
       "errors": []
     },
     {
       "phase": "data_analysis_diagnosis",
       "success": true,
-      "duration_ms": 6610.98,
+      "duration_ms": 12758.01,
       "errors": []
     },
     {
       "phase": "cause_analysis",
       "success": true,
-      "duration_ms": 6003.09,
+      "duration_ms": 9408.39,
       "errors": []
     },
     {
       "phase": "strategy_generation",
       "success": true,
-      "duration_ms": 23023.06,
+      "duration_ms": 24001.34,
       "errors": []
     },
     {
       "phase": "plan_generation",
       "success": false,
-      "duration_ms": 8971.67,
+      "duration_ms": 5994.72,
       "errors": [
         "所有候选方案未通过护栏校验"
       ]

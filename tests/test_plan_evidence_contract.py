@@ -124,9 +124,9 @@ def test_build_timing_evidence_contains_current_optimized_movements_and_meta():
     )
 
     assert timing["available"] is True
-    assert timing["current_cycle_s"] == 130
-    assert timing["cycle_s"] == 98
-    assert timing["cycle_delta_s"] == -32
+    assert timing["current_cycle_s"] == 65
+    assert timing["cycle_s"] == 41
+    assert timing["cycle_delta_s"] == -24
     stage = timing["phase_stage_timing_list"][0]
     assert stage["current_timing"]["green_time_s"] == 60
     assert stage["optimized_timing"]["green_time_s"] == 36
@@ -137,6 +137,41 @@ def test_build_timing_evidence_contains_current_optimized_movements_and_meta():
     assert stage["movements"][0]["source"] == "pg_turn_flow"
     assert timing["meta"]["direction_intensity_list"]
     assert timing["meta"]["data_quality"]["current_timing_source"] == "pg_signal_plan"
+
+
+def test_build_timing_evidence_reconciles_cycle_from_stage_totals():
+    mod = _load("skills/plan-generation/scripts/run_single_point_optimizer.py")
+    build = mod._build_timing_evidence
+    timing = build(
+        signal={"current_cycle_s": 60, "inter_id": "demo"},
+        request={
+            "phasePlanOfTimeList": [
+                {
+                    "phaseStageInfoList": [
+                        {
+                            "phaseStageId": "1",
+                            "currentTiming": {"greenSec": 64, "yellowSec": 3, "allRedSec": 3, "stageTotalSec": 70},
+                            "phaseDirInfoDTOList": [{"movementKey": "d0_t2", "label": "北直", "dir8No": 0, "turnDirNo": 2}],
+                        },
+                        {
+                            "phaseStageId": "2",
+                            "currentTiming": {"greenSec": 36, "yellowSec": 3, "allRedSec": 3, "stageTotalSec": 42},
+                            "phaseDirInfoDTOList": [{"movementKey": "d0_t1", "label": "北左", "dir8No": 0, "turnDirNo": 1}],
+                        },
+                    ]
+                }
+            ]
+        },
+        cycle_s=123,
+        timing_list=[
+            {"phase_stage_id": "1", "green_time_s": 54, "yellow_time_s": 3, "all_red_time_s": 3},
+            {"phase_stage_id": "2", "green_time_s": 28, "yellow_time_s": 3, "all_red_time_s": 3},
+        ],
+        meta={"direction_intensity_list": [{"dir8No": 0, "turnDirNo": 1, "label": "北左"}]},
+    )
+    assert timing["current_cycle_s"] == 112
+    assert timing["cycle_s"] == 94
+    assert timing["cycle_delta_s"] == -18
 
 
 def test_build_timing_evidence_marks_missing_fields_unavailable():

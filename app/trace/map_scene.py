@@ -85,7 +85,48 @@ def _link_geometry_index(raw: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return links
 
 
+def collect_map_adjacent_peer_hints(pg_raw: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Collect exit-link adjacent intersections for map topology metrics enrichment."""
+    raw = pg_raw or {}
+    channel_by_link = {
+        str(row.get("link_id") or ""): row for row in raw.get("channelization") or [] if row.get("link_id")
+    }
+    hints: dict[str, dict[str, Any]] = {}
+    for row in raw.get("trace_geometry") or []:
+        if str(row.get("relation_direction") or "").lower() != "downstream":
+            continue
+        inter_id = str(row.get("adjacent_inter_id") or "")
+        if not inter_id:
+            continue
+        link_id = str(row.get("link_id") or "")
+        channel = channel_by_link.get(link_id) or {}
+        receiving_dir8: int | None = None
+        for source in (channel, row):
+            try:
+                receiving_dir8 = int(source.get("dir8_code"))
+                break
+            except (TypeError, ValueError):
+                continue
+        hints[inter_id] = {
+            "inter_id": inter_id,
+            "inter_name": row.get("adjacent_inter_name"),
+            "lng": row.get("adjacent_lng"),
+            "lat": row.get("adjacent_lat"),
+            "receiving_dir8": receiving_dir8,
+        }
+    return list(hints.values())
+
+
+def _strip_approach(dir8_label: Any) -> str | None:
+    text = str(dir8_label or "").strip()
+    for suffix in ("进口", "出口"):
+        if text.endswith(suffix):
+            return text[: -len(suffix)] or None
+    return text or None
+
+
 def _metric_by_link(raw: dict[str, Any], key: str) -> dict[str, float]:
+    """Aggregate turn-level rows to link_id; same link multi-turn takes max (align by_approach)."""
     out: dict[str, float] = {}
     for row in raw.get(key) or []:
         link_id = str(row.get("link_id") or "")
@@ -102,10 +143,25 @@ def _metric_by_link(raw: dict[str, Any], key: str) -> dict[str, float]:
             if row.get(metric_key) is None:
                 continue
             try:
-                out[link_id] = float(row[metric_key])
-                break
+                value = float(row[metric_key])
             except (TypeError, ValueError):
                 continue
+            out[link_id] = max(out.get(link_id, value), value)
+            break
+    return out
+
+
+def _saturation_by_approach(raw: dict[str, Any]) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for row in raw.get("turn_saturation") or []:
+        approach = _strip_approach(row.get("dir8_label"))
+        if not approach:
+            continue
+        try:
+            value = float(row["turn_saturation"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        out[approach] = max(out.get(approach, value), value)
     return out
 
 
@@ -636,6 +692,7 @@ def build_channelization_map_scene(
 
     geometries = _link_geometry_index(raw)
     saturation = _metric_by_link(raw, "turn_saturation")
+    saturation_by_approach = _saturation_by_approach(raw)
     green = _metric_by_link(raw, "green_utilization")
     queue_max = _metric_by_link(raw, "turn_perf")
     flow = _metric_by_link(raw, "turn_flow")
@@ -648,6 +705,13 @@ def build_channelization_map_scene(
         path = geometry.get("path") or []
         if len(path) < 2:
             continue
+        link_sat = saturation.get(link_id)
+        approach = _strip_approach(row.get("dir8_label"))
+        approach_sat = saturation_by_approach.get(approach) if approach else None
+        if link_sat is not None and approach_sat is not None:
+            link_sat = max(link_sat, approach_sat)
+        elif approach_sat is not None:
+            link_sat = approach_sat
         links.append(
             {
                 "link_id": link_id,
@@ -667,7 +731,7 @@ def build_channelization_map_scene(
                 "relation_direction": geometry.get("relation_direction"),
                 "length_m": geometry.get("length_m"),
                 "metrics": {
-                    "saturation": saturation.get(link_id),
+                    "saturation": link_sat,
                     "green_utilization": green.get(link_id),
                     "queue_m": queue_max.get(link_id),
                     "flow_vph": flow.get(link_id),

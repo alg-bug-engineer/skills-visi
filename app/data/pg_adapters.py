@@ -297,6 +297,23 @@ _ADJ_METRIC_FIELDS = (
 )
 
 
+def _pg_metrics_has_dynamic_data(pg_metrics: dict[str, Any] | None) -> bool:
+    """PG 聚合指标是否含真实动态运行数据（非仅缺省 0 / 静态渠化）。"""
+    if not pg_metrics:
+        return False
+    if pg_metrics.get("has_dynamic_metrics") is False:
+        return False
+    if pg_metrics.get("has_dynamic_metrics") is True:
+        return True
+    if pg_metrics.get("turn_saturation_detail") or pg_metrics.get("turn_flow_detail"):
+        return True
+    if float(pg_metrics.get("volume_vph") or pg_metrics.get("volume") or 0) > 0:
+        return True
+    if float(pg_metrics.get("queue_length_m") or pg_metrics.get("queue_m") or 0) > 0:
+        return True
+    return False
+
+
 def enrich_downstream_metrics(
     topology: dict[str, Any],
     *,
@@ -334,6 +351,10 @@ def enrich_downstream_metrics(
             node["metrics_available"] = False
             node["metrics_reason"] = "下游路口 PG 指标缺失"
             continue
+        if not _pg_metrics_has_dynamic_data(pg_metrics):
+            node["metrics_available"] = False
+            node["metrics_reason"] = "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）"
+            continue
         adj_ticket = {
             "direction": direction or "东向西",
             "movement": "直行",
@@ -346,6 +367,120 @@ def enrich_downstream_metrics(
         node["metrics_source"] = "pg_adjacent"
         node["metrics_receiving_direction"] = direction
     return topology
+
+
+def build_adjacent_metrics_loader(ticket: dict[str, Any]):
+    """Return ``load_pg_metrics(inter_id)`` when PG is configured; else ``None``."""
+    try:
+        from app.config import get_settings
+        from app.data.load_intersection_from_pg import load_intersection_metrics_only
+    except Exception:
+        return None
+
+    settings = get_settings()
+    if not settings.pg_dsn:
+        return None
+
+    day_of_week = parse_day_of_week(ticket)
+    time_hhmm = parse_time_hhmm(ticket.get("time_range"))
+    time_range = ticket.get("time_range")
+
+    def _load(inter_id: str) -> dict[str, Any] | None:
+        loaded = load_intersection_metrics_only(
+            inter_id=str(inter_id),
+            day_of_week=day_of_week,
+            time_hhmm=time_hhmm,
+            time_range=time_range,
+        )
+        if not loaded.get("ok"):
+            return None
+        return loaded.get("metrics") or None
+
+    return _load
+
+
+def _adjacent_profile_has_metrics(profile: dict[str, Any]) -> bool:
+    if profile.get("metrics_available") is False:
+        return False
+    if profile.get("metrics_available") is True:
+        return True
+    metrics = profile.get("metrics") or {}
+    for key in ("saturation", "saturation_rate", "queue_storage_ratio_max", "green_utilization"):
+        val = metrics.get(key)
+        if val is None:
+            continue
+        try:
+            if float(val) > 0:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def enrich_downstream_trace_adjacent_peers(
+    downstream_trace: dict[str, Any],
+    *,
+    peer_hints: list[dict[str, Any]],
+    load_pg_metrics: Any,
+) -> dict[str, Any]:
+    """Enrich map ``adjacent_intersections`` for all channelization exit peers (not only flow_correlate hop)."""
+    from app.trace.intersection_profile import build_intersection_profile
+
+    merged: dict[str, dict[str, Any]] = {}
+    for item in downstream_trace.get("adjacent_intersections") or []:
+        inter_id = str(item.get("inter_id") or "")
+        if inter_id:
+            merged[inter_id] = dict(item)
+
+    for hint in peer_hints:
+        inter_id = str(hint.get("inter_id") or "")
+        if not inter_id:
+            continue
+        existing = merged.get(inter_id)
+        if existing and _adjacent_profile_has_metrics(existing):
+            continue
+
+        receiving_dir8 = hint.get("receiving_dir8")
+        direction = _direction_for_dir8(receiving_dir8) or "东向西"
+        node: dict[str, Any] = {
+            "inter_id": inter_id,
+            "inter_name": hint.get("inter_name") or (existing or {}).get("inter_name"),
+            "lng": hint.get("lng") if hint.get("lng") is not None else (existing or {}).get("lng"),
+            "lat": hint.get("lat") if hint.get("lat") is not None else (existing or {}).get("lat"),
+            "receiving_dir8": receiving_dir8,
+            "role": "adjacent_peer",
+        }
+        try:
+            pg_metrics = load_pg_metrics(inter_id)
+        except Exception as exc:  # noqa: BLE001
+            node["metrics_available"] = False
+            node["metrics_reason"] = f"相邻路口指标加载失败：{exc}"
+            merged[inter_id] = build_intersection_profile(node)
+            continue
+
+        if not pg_metrics:
+            node["metrics_available"] = False
+            node["metrics_reason"] = "相邻路口 PG 指标缺失"
+            merged[inter_id] = build_intersection_profile(node)
+            continue
+
+        if not _pg_metrics_has_dynamic_data(pg_metrics):
+            node["metrics_available"] = False
+            node["metrics_reason"] = "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）"
+            merged[inter_id] = build_intersection_profile(node)
+            continue
+
+        adj_ticket = {"direction": direction, "movement": "直行"}
+        metrics = metrics_for_diagnosis(pg_metrics, adj_ticket)
+        for field in _ADJ_METRIC_FIELDS:
+            if metrics.get(field) is not None:
+                node[field] = metrics[field]
+        node["metrics_available"] = True
+        node["metrics_source"] = "pg_adjacent_peer"
+        merged[inter_id] = build_intersection_profile(node)
+
+    downstream_trace["adjacent_intersections"] = list(merged.values())
+    return downstream_trace
 
 
 def merge_pg_task_into_context(task: dict[str, Any], pg_task: dict[str, Any]) -> None:

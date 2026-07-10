@@ -238,6 +238,37 @@ def test_channelization_map_scene_joins_real_link_geometry():
     assert scene["links"][1]["adjacent_inter_name"] == "下游路口"
 
 
+def test_channelization_map_scene_saturation_uses_max_per_link_and_approach():
+    raw = {
+        "channelization": [
+            {
+                "link_id": "L_N",
+                "link_role": "entrance",
+                "dir8_code": "1",
+                "dir8_label": "北进口",
+                "lane_info": "B|C",
+            }
+        ],
+        "trace_geometry": [
+            {
+                "link_id": "L_N",
+                "geom_wkt": "LINESTRING(117.11 36.66, 117.11 36.65)",
+            }
+        ],
+        "turn_saturation": [
+            {"link_id": "L_N", "dir8_label": "北进口", "turn_saturation": 0.59},
+            {"link_id": "L_N", "dir8_label": "北进口", "turn_saturation": 1.54},
+            {"link_id": "L_OTHER", "dir8_label": "北进口", "turn_saturation": 0.2},
+        ],
+    }
+    scene = build_channelization_map_scene(
+        pg_raw=raw,
+        target_profile={"inter_id": "T", "inter_name": "目标", "lng": 117.11, "lat": 36.65},
+    )
+    assert scene["available"] is True
+    assert scene["links"][0]["metrics"]["saturation"] == 1.54
+
+
 def test_channelization_map_scene_requires_real_geometry():
     scene = build_channelization_map_scene(
         pg_raw={"channelization": [{"link_id": "L_IN", "link_role": "entrance"}], "trace_geometry": []},

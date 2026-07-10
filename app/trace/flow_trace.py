@@ -117,9 +117,12 @@ def build_arterial_analysis(
     downstream_nodes = downstream_trace.get("adjacent_intersections") or []
     downstream_remaining = None
     if downstream_nodes:
-        downstream_remaining = min(
-            n.get("remaining_storage_m", 0) for n in downstream_nodes
-        )
+        remainings = [
+            float(n["remaining_storage_m"])
+            for n in downstream_nodes
+            if n.get("remaining_storage_m") is not None
+        ]
+        downstream_remaining = min(remainings) if remainings else None
 
     upstream_release = topology.get("upstream_release_intensity_vph")
     upstream_arrival = topology.get("upstream_arrival_flow_vph")

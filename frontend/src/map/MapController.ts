@@ -183,14 +183,21 @@ export class MapController {
         break
       }
       case 'trace':
-      case 'corridor':
-      case 'control': {
+      case 'corridor': {
         if (!target) break
-        // 从渠化级(≈18) 丝滑连贯过渡到干线级(17)，允许受控降 zoom（单次动画）
-        const z = scene.zoom ?? ARTERIAL_ZOOM
+        // 溯源/干线：允许相对当前镜头受控降 zoom，但不低于 ARTERIAL_ZOOM
+        const z = Math.max(scene.zoom ?? ARTERIAL_ZOOM, ARTERIAL_ZOOM)
         const dur = Math.abs(this.currentZoom - z) > 1 ? 1000 : 800
         await smoothPullback(this.map, target, z, dur)
         panToVisualCenter(this.map, target)
+        this.currentZoom = z
+        break
+      }
+      case 'control': {
+        if (!target) break
+        // 治理/控制：从干线级丝滑回到渠化详情级，便于观察控制范围叠加
+        const z = clampZoomUp(this.currentZoom, scene.zoom ?? CHANNELIZATION_ZOOM)
+        await drillToIntersection(this.map, target, z)
         this.currentZoom = z
         break
       }
@@ -288,9 +295,6 @@ export class MapController {
           })
     if (legacySniff.available && legacySniff.intersections?.length) {
       this.traceLayer.renderSniffScene(legacySniff)
-      if (!this.userInteracted && this.traceLayer.overlays().length) {
-        this.map.setFitView?.(this.traceLayer.overlays(), false, [70, 360, 150, 360])
-      }
       return
     }
 

@@ -179,6 +179,32 @@ def _normalize_optimizer_stages(plan: dict[str, Any]) -> list[dict[str, Any]]:
     return normalized
 
 
+def _sum_if_numbers(*values: Any) -> float | None:
+    nums = [_number_or_none(v) for v in values]
+    if any(n is None for n in nums):
+        return None
+    return float(sum(nums))  # type: ignore[arg-type]
+
+
+def _sum_stage_totals(stages: list[dict[str, Any]], timing_key: str) -> float | None:
+    total = 0.0
+    count = 0
+    for stage in stages:
+        block = stage.get(timing_key) if isinstance(stage.get(timing_key), dict) else {}
+        stage_total = _number_or_none(block.get("stage_total_s"))
+        if stage_total is None:
+            stage_total = _sum_if_numbers(
+                block.get("green_time_s"),
+                block.get("yellow_time_s"),
+                block.get("all_red_time_s"),
+            )
+        if stage_total is None:
+            continue
+        total += float(stage_total)
+        count += 1
+    return total if count else None
+
+
 def _build_timing_evidence(
     *,
     signal: dict[str, Any],
@@ -246,6 +272,25 @@ def _build_timing_evidence(
         missing_fields.append("timing.current_cycle_s")
     if not meta.get("direction_intensity_list"):
         missing_fields.append("timing.meta.direction_intensity_list")
+
+    # PG signal.current_cycle_s 常与阶段绿+黄+全红之和脱节；展示口径以阶段加总为准，避免「60→123 +63」与全阶段减绿冲突。
+    current_from_stages = _sum_stage_totals(stages, "current_timing")
+    optimized_from_stages = _sum_stage_totals(stages, "optimized_timing")
+    if current_from_stages is not None:
+        if current_cycle is None or abs(float(current_cycle) - current_from_stages) > 2:
+            current_cycle = (
+                int(current_from_stages)
+                if float(current_from_stages).is_integer()
+                else round(current_from_stages, 1)
+            )
+    if optimized_from_stages is not None:
+        opt_cycle = (
+            int(optimized_from_stages)
+            if float(optimized_from_stages).is_integer()
+            else round(optimized_from_stages, 1)
+        )
+        if cycle_s is None or abs(float(cycle_s) - float(optimized_from_stages)) > 2:
+            cycle_s = opt_cycle
 
     return {
         "available": not missing_fields,
@@ -351,12 +396,6 @@ def _number_or_none(value: Any) -> int | float | None:
     except (TypeError, ValueError):
         return None
     return int(number) if number.is_integer() else number
-
-
-def _sum_if_numbers(*values: int | float | None) -> int | float | None:
-    if any(value is None for value in values):
-        return None
-    return sum(values)  # type: ignore[arg-type]
 
 
 def _diff_if_numbers(left: int | float | None, right: int | float | None) -> int | float | None:

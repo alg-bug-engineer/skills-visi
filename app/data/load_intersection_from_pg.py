@@ -162,6 +162,23 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _rows_have_positive(rows: list[dict[str, Any]] | None, *field_names: str) -> bool:
+    """Return True when any row carries a positive numeric value for one of the fields."""
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        for field in field_names:
+            val = row.get(field)
+            if val is None or val == "":
+                continue
+            try:
+                if float(val) > 0:
+                    return True
+            except (TypeError, ValueError):
+                continue
+    return False
+
+
 def _step_index_from_hhmm(hhmm: str) -> int:
     """Convert HH:MM to 5-minute step_index (0-287)."""
     parts = hhmm.strip().split(":")
@@ -1513,7 +1530,16 @@ def load_intersection_metrics_only(
         channel_rows=channel_rows,
         lane_flow_rows=lane_flow_rows,
     )
-    return {"ok": True, "metrics": metrics, "inter_id": resolved_id}
+    has_dynamic_metrics = (
+        _rows_have_positive(eval_rows, "delay_s", "avg_delay_s", "queue_ratio")
+        or _rows_have_positive(sat_rows, "turn_saturation", "lane_saturation")
+        or _rows_have_positive(flow_rows, "turn_flow_total", "turn_flow", "flow_vph")
+        or _rows_have_positive(perf_rows, "queue_len_max", "queue_len_avg", "delay_s")
+    )
+    # 仅绿灯利用率不足以支撑下游承接判断（缺饱和度/排队/流量）。
+    if isinstance(metrics, dict):
+        metrics["has_dynamic_metrics"] = has_dynamic_metrics
+    return {"ok": True, "metrics": metrics, "inter_id": resolved_id, "has_dynamic_metrics": has_dynamic_metrics}
 
 
 def build_task_from_pg(task_or_inter_id: Any = None, **kwargs: Any) -> dict[str, Any]:

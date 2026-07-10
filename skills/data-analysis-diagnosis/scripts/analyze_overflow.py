@@ -21,6 +21,7 @@ from app.trace.map_scene import (
     build_downstream_map_scene,
     build_flow_map_scene,
     build_flow_trace_links_sniff_map_scene,
+    collect_map_adjacent_peer_hints,
 )
 from app.trace.topology import resolve_dir8_turn
 
@@ -308,6 +309,19 @@ def analyze_overflow(
             dir8_code=dir8_code,
             turn_dir_no=turn_dir_no,
         )
+        if downstream_trace.get("available") and pg_raw:
+            from app.data.pg_adapters import (
+                build_adjacent_metrics_loader,
+                enrich_downstream_trace_adjacent_peers,
+            )
+
+            adjacent_loader = build_adjacent_metrics_loader(ticket)
+            if adjacent_loader:
+                enrich_downstream_trace_adjacent_peers(
+                    downstream_trace,
+                    peer_hints=collect_map_adjacent_peer_hints(pg_raw),
+                    load_pg_metrics=adjacent_loader,
+                )
         flow_trace = build_flow_trace(
             topology=topology,
             dir8_code=dir8_code,

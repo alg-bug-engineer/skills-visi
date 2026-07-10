@@ -1,8 +1,12 @@
 """需求 20·R6 / BUG-004：PG 下游相邻节点注入真实运行指标，杜绝饱和度/排队恒为 0。"""
 
-from app.data.pg_adapters import enrich_downstream_metrics
+from app.data.pg_adapters import (
+    enrich_downstream_metrics,
+    enrich_downstream_trace_adjacent_peers,
+)
 from app.trace.downstream_trace import build_downstream_trace
 from app.trace.intersection_profile import build_intersection_profile
+from app.trace.map_scene import collect_map_adjacent_peer_hints
 
 
 def _topology_with_downstream():
@@ -31,6 +35,7 @@ def _fake_pg_metrics(_inter_id):
         "volume": 1500.0,
         "capacity": 1400.0,
         "green_utilization": 0.9,
+        "has_dynamic_metrics": True,
     }
 
 
@@ -77,3 +82,56 @@ def test_missing_pg_metrics_degrades_without_fake_zero():
     assert profile["metrics"]["saturation"] is None
     assert profile["metrics"]["queue_storage_ratio_max"] is None
     assert profile["overflow_verification"]["risk_level"] == "unknown"
+
+
+def test_enrich_map_adjacent_peers_adds_missing_exit_neighbors():
+    pg_raw = {
+        "trace_geometry": [
+            {
+                "link_id": "L_E1",
+                "relation_direction": "downstream",
+                "adjacent_inter_id": "PEER_A",
+                "adjacent_inter_name": "礼耕路路口",
+                "adjacent_lng": 117.12,
+                "adjacent_lat": 36.65,
+                "dir8_code": "3",
+            },
+            {
+                "link_id": "L_E2",
+                "relation_direction": "downstream",
+                "adjacent_inter_id": "PEER_B",
+                "adjacent_inter_name": "解放东路路口",
+                "adjacent_lng": 117.11,
+                "adjacent_lat": 36.64,
+                "dir8_code": "5",
+            },
+        ],
+        "channelization": [
+            {"link_id": "L_E1", "link_role": "exit", "dir8_code": "3", "dir8_label": "东出口"},
+            {"link_id": "L_E2", "link_role": "exit", "dir8_code": "5", "dir8_label": "南出口"},
+        ],
+    }
+    hints = collect_map_adjacent_peer_hints(pg_raw)
+    assert {h["inter_id"] for h in hints} == {"PEER_A", "PEER_B"}
+
+    downstream_trace = {
+        "available": True,
+        "adjacent_intersections": [],
+        "turn_traces": [],
+    }
+
+    def _loader(inter_id: str):
+        if inter_id == "PEER_A":
+            return {"saturation": 0.72, "queue_m": 40.0, "storage_m": 120.0, "volume": 900.0, "capacity": 1200.0, "has_dynamic_metrics": True}
+        return None
+
+    enrich_downstream_trace_adjacent_peers(
+        downstream_trace,
+        peer_hints=hints,
+        load_pg_metrics=_loader,
+    )
+    by_id = {item["inter_id"]: item for item in downstream_trace["adjacent_intersections"]}
+    assert by_id["PEER_A"]["metrics"]["saturation"] == 0.75
+    assert by_id["PEER_A"]["metrics_available"] is True
+    assert by_id["PEER_B"]["metrics_available"] is False
+    assert by_id["PEER_B"]["metrics"]["saturation"] is None
