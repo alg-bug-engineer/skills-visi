@@ -7,6 +7,7 @@ docs/gd-js20.md
 /analysis/
 data/user_experience.jsonl
 data/plan_feedback.jsonl
+data/knowledge_qa.jsonl
 data/skills/
 /assets/
 # Python
