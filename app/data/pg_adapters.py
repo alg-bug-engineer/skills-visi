@@ -162,6 +162,96 @@ def _match_coverage(
     return None
 
 
+def _downstream_correlate_trace_type(turn_dir_no: int) -> str:
+    """Align with map_scene._scene_trace_type for outgoing corridors."""
+    return "UPSTREAM" if int(turn_dir_no) == 2 else "DOWNSTREAM"
+
+
+def _best_downstream_correlate_shares(
+    correlate_rows: list[dict[str, Any]], dir8_code: int, turn_dir_no: int
+) -> dict[str, float]:
+    trace_type = _downstream_correlate_trace_type(turn_dir_no)
+    best: dict[str, float] = {}
+    for row in correlate_rows or []:
+        try:
+            if int(row.get("f_dir8_no")) != int(dir8_code):
+                continue
+            if int(row.get("turn_dir_no")) != int(turn_dir_no):
+                continue
+            if str(row.get("trace_type") or "").upper() != trace_type:
+                continue
+            cor_id = str(row.get("cor_inter_id") or "")
+            if not cor_id:
+                continue
+            share = float(row.get("flow_share_ratio") or row.get("share_pct") or 0)
+        except (TypeError, ValueError):
+            continue
+        best[cor_id] = max(best.get(cor_id, 0.0), share)
+    return {cor_id: round(share, 2) for cor_id, share in best.items()}
+
+
+def _append_downstream_from_correlate_exit_links(
+    *,
+    downstream_nodes: list[dict[str, Any]],
+    seen_down: set[str],
+    geom_rows: list[dict[str, Any]],
+    correlate_rows: list[dict[str, Any]],
+    coverage: dict[tuple[str, str], float],
+    dir8_code: int,
+    turn_dir_no: int,
+    target_lng: float | None,
+    target_lat: float | None,
+    max_nodes: int = 3,
+) -> None:
+    """When compass exit_dir8 misses real exit links, bind downstream via flow_correlate + exit geom."""
+    if downstream_nodes:
+        return
+    shares = _best_downstream_correlate_shares(correlate_rows, dir8_code, turn_dir_no)
+    if not shares:
+        return
+    preferred_trace = _downstream_correlate_trace_type(turn_dir_no)
+    exit_by_adj: dict[str, list[dict[str, Any]]] = {}
+    for row in geom_rows:
+        if str(row.get("relation_direction") or "").lower() != "downstream":
+            continue
+        adj_id = str(row.get("adjacent_inter_id") or "")
+        if adj_id:
+            exit_by_adj.setdefault(adj_id, []).append(row)
+
+    for cor_id, correlate_share in sorted(shares.items(), key=lambda item: -item[1]):
+        if len(downstream_nodes) >= max_nodes:
+            break
+        if cor_id in seen_down:
+            continue
+        candidates = exit_by_adj.get(cor_id)
+        if not candidates:
+            continue
+        row = max(candidates, key=lambda item: float(item.get("length_m") or 0))
+        try:
+            link_dir8 = int(row.get("dir8_code"))
+        except (TypeError, ValueError):
+            link_dir8 = None
+        seen_down.add(cor_id)
+        path = parse_linestring_wkt(row.get("geom_wkt"))
+        oriented = orient_path(path, target_lng, target_lat, row.get("adjacent_lng"), row.get("adjacent_lat"))
+        share = _match_coverage(coverage, preferred_trace, cor_id) or correlate_share
+        downstream_nodes.append(
+            {
+                "inter_id": cor_id or None,
+                "inter_name": row.get("adjacent_inter_name") or "下游信控节点",
+                "role": "downstream",
+                "lng": row.get("adjacent_lng"),
+                "lat": row.get("adjacent_lat"),
+                "share_pct": share,
+                "link_id": row.get("link_id"),
+                "receiving_dir8": link_dir8,
+                "receiving_label": movement_label(link_dir8, 2) if link_dir8 is not None else None,
+                "path": oriented,
+                "path_source": "link_geom" if len(oriented) >= 2 else "correlate_exit",
+            }
+        )
+
+
 def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dict[str, Any]) -> dict[str, Any]:
     """基于真实路网几何（dim_link_info.geom）构建上下游一跳拓扑。
 
@@ -245,6 +335,18 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
                     "path_source": "link_geom" if len(oriented) >= 2 else "none",
                 }
             )
+
+    _append_downstream_from_correlate_exit_links(
+        downstream_nodes=downstream_nodes,
+        seen_down=seen_down,
+        geom_rows=geom_rows,
+        correlate_rows=correlate_rows,
+        coverage=coverage,
+        dir8_code=dir8_code,
+        turn_dir_no=turn_dir_no,
+        target_lng=target_lng,
+        target_lat=target_lat,
+    )
 
     # 主来向占比降序（真实值优先），无占比排后
     upstream_nodes.sort(

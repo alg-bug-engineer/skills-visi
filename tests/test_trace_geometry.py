@@ -725,3 +725,52 @@ def test_topology_no_synthesis_when_geometry_missing():
     assert topo["upstream_nodes"] == []
     assert topo["downstream_nodes"] == []
     assert topo["geometry_source"] == "unavailable"
+
+
+def test_topology_left_turn_falls_back_to_correlate_exit_link():
+    """北进口左转：compass exit_dir8 无匹配出口时，用 flow_correlate + 真实 exit link 绑定下游。"""
+    raw = _demo_raw()
+    raw["trace_geometry"] = [
+        {
+            "link_id": "N_IN",
+            "dir8_code": "0",
+            "relation_direction": "upstream",
+            "adjacent_inter_id": "UP_N",
+            "adjacent_inter_name": "上游北口",
+            "adjacent_lng": 117.12,
+            "adjacent_lat": 36.665,
+            "geom_wkt": "LINESTRING(117.12 36.665, 117.12 36.663)",
+            "length_m": 200,
+        },
+        {
+            "link_id": "W_OUT",
+            "dir8_code": "6",
+            "relation_direction": "downstream",
+            "adjacent_inter_id": "DOWN_W",
+            "adjacent_inter_name": "西向下一口",
+            "adjacent_lng": 117.118,
+            "adjacent_lat": 36.663,
+            "geom_wkt": "LINESTRING(117.12 36.663, 117.118 36.663)",
+            "length_m": 180,
+        },
+    ]
+    raw["flow_correlate"] = [
+        {
+            "f_dir8_no": 0,
+            "turn_dir_no": 1,
+            "trace_type": "DOWNSTREAM",
+            "cor_inter_id": "DOWN_W",
+            "cor_inter_name": "西向下一口",
+            "flow_share_ratio": 88.5,
+        },
+    ]
+    topo = topology_from_pg_raw(
+        raw,
+        {"direction": "北向南", "movement": "左转", "intersection_name": "目标"},
+        raw["inter"],
+    )
+    assert len(topo["downstream_nodes"]) == 1
+    down = topo["downstream_nodes"][0]
+    assert down["inter_id"] == "DOWN_W"
+    assert down["receiving_dir8"] == 6
+    assert down["share_pct"] == 88.5

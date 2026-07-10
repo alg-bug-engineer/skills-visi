@@ -193,5 +193,12 @@ function fmtPct(v: number | null | undefined): string {
 
 function formatNodeMetrics(metrics: DownstreamTopologyMetrics | undefined): string {
   if (!metrics) return '指标暂无'
-  return `排队 ${fmtPct(metrics.queueRatio)} · 饱和 ${fmtPct(metrics.saturation)}`
+  const parts: string[] = []
+  if (metrics.queueRatio != null && metrics.queueRatio > 0) {
+    parts.push(`排队 ${fmtPct(metrics.queueRatio)}`)
+  }
+  if (metrics.saturation != null && metrics.saturation > 0) {
+    parts.push(`饱和 ${fmtPct(metrics.saturation)}`)
+  }
+  return parts.length ? parts.join(' · ') : '指标暂无'
 }

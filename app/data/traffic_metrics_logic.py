@@ -358,7 +358,7 @@ def _ranks(values: list[float]) -> list[float]:
 DEFAULT_PERIOD_WINDOWS: dict[str, tuple[str, str]] = {
     "早高峰": ("07:00", "09:00"),
     "白平峰": ("10:00", "16:00"),
-    "晚高峰": ("17:00", "19:00"),
+    "晚高峰": ("16:00", "19:00"),
 }
 
 TURN_DIR_AGGREGATE_LABELS = {0: "方向聚合"}

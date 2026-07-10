@@ -114,7 +114,7 @@ class QwenClient:
             hour = int(time_match.group(1))
             if 7 <= hour < 10:
                 period = "早高峰"
-            elif 17 <= hour < 20:
+            elif 16 <= hour < 20:
                 period = "晚高峰"
             else:
                 period = "平峰"

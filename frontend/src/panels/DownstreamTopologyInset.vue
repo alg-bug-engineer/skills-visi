@@ -86,8 +86,8 @@ const hotCount = computed(() => topology.value.nodes.filter((n) => n.highlighted
 function satText(metrics: DownstreamTopologyMetrics | undefined): string | null {
   if (!metrics) return null
   const parts: string[] = []
-  if (metrics.queueRatio != null) parts.push(`排队比 ${ratio(metrics.queueRatio)}`)
-  if (metrics.saturation != null) parts.push(`饱和 ${ratio(metrics.saturation)}`)
+  if (metrics.queueRatio != null && metrics.queueRatio > 0) parts.push(`排队比 ${ratio(metrics.queueRatio)}`)
+  if (metrics.saturation != null && metrics.saturation > 0) parts.push(`饱和 ${ratio(metrics.saturation)}`)
   return parts.length ? parts.join(' · ') : null
 }
 </script>

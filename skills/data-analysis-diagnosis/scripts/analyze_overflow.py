@@ -372,12 +372,7 @@ def analyze_overflow(
         downstream_saturation=downstream_metrics_raw.get("saturation_rate", 0),
     )
 
-    if topology and downstream_trace.get("available"):
-        downstream_diagnosis = build_downstream_diagnosis(
-            target_profile=target_profile,
-            downstream_trace=downstream_trace,
-            bottleneck=bottleneck,
-        )
+    if topology:
         center = None
         if target_profile.get("lng") is not None and target_profile.get("lat") is not None:
             center = (float(target_profile["lng"]), float(target_profile["lat"]))
@@ -387,17 +382,6 @@ def analyze_overflow(
                 target_profile=target_profile,
                 center=center,
             ),
-            "downstream_trace_map": build_downstream_map_scene(
-                downstream_trace=downstream_trace,
-                target_profile=target_profile,
-                center=center,
-            ),
-            "arterial_analysis": build_flow_map_scene(
-                flow_trace=flow_trace,
-                arterial_analysis=arterial_analysis,
-                center=center,
-                coordination=coordination,
-            ),
             "flow_trace_links_sniff_map": build_flow_trace_links_sniff_map_scene(
                 pg_raw=pg_raw,
                 topology=topology,
@@ -406,6 +390,23 @@ def analyze_overflow(
                 movement=movement,
             ),
         }
+        if downstream_trace.get("available"):
+            downstream_diagnosis = build_downstream_diagnosis(
+                target_profile=target_profile,
+                downstream_trace=downstream_trace,
+                bottleneck=bottleneck,
+            )
+            map_scenes["downstream_trace_map"] = build_downstream_map_scene(
+                downstream_trace=downstream_trace,
+                target_profile=target_profile,
+                center=center,
+            )
+            map_scenes["arterial_analysis"] = build_flow_map_scene(
+                flow_trace=flow_trace,
+                arterial_analysis=arterial_analysis,
+                center=center,
+                coordination=coordination,
+            )
 
     by_approach = build_by_approach(pg_raw or {})
     by_movement = build_by_movement(pg_raw or {})
