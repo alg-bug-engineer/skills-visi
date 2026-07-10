@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,7 @@ class CauseAnalysisSkill(BaseSkill):
         llm: QwenClient = deps["llm"]
         case_service = deps.get("case_service")
         evidence_module = _load_script_module("build_evidence.py")
+        context_module = _load_script_module("build_llm_cause_context.py")
 
         score_module = _load_script_module("score_cause_dimensions.py")
 
@@ -61,13 +63,20 @@ class CauseAnalysisSkill(BaseSkill):
                 limit=5,
             )
 
+        evidence_summary = evidence_module.build_evidence(diagnosis)
+        llm_context = context_module.build_llm_cause_context(
+            diagnosis,
+            cause_scores,
+            ticket,
+            similar_cases,
+            user_experience_refs,
+            evidence_summary,
+        )
+
         prompt = (
-            f"诊断工单: {ticket}\n"
-            f"指标分析: {diagnosis}\n"
-            f"确定性成因评分: {cause_scores}\n"
-            f"相似案例: {similar_cases[:2]}\n"
-            f"用户诊断经验: {user_experience_refs[:2]}\n"
-            "请结合指标与 cause_scores 判断主因，并说明历史案例佐证。"
+            "请基于下列结构化事实判断主因，并说明历史案例佐证。"
+            "数值引用必须与小数口径一致，禁止百分比。\n"
+            f"{json.dumps(llm_context, ensure_ascii=False, indent=2)}"
         )
         llm_result = await llm.chat(
             system_prompt=self.load_resource("system"),
@@ -97,7 +106,7 @@ class CauseAnalysisSkill(BaseSkill):
             "similar_cases": similar_cases,
             "case_cards": case_cards,
             "user_experience_refs": user_experience_refs,
-            "evidence_summary": evidence_module.build_evidence(diagnosis),
+            "evidence_summary": evidence_summary,
             "arterial_coordination_needed": evidence_module.needs_arterial_coordination(diagnosis),
         }
         logger.info(

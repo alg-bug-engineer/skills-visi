@@ -4,14 +4,41 @@ import type { ApiError, HealthResponse, RunResponse, SkillSolidificationResult }
 import fixture from '@/mock/run_1_fixture.json'
 import healthyFixture from '@/mock/run_healthy_fixture.json'
 import skillSolidifyFixture from '@/mock/skill_solidify_fixture.json'
+import caseManifest from '@/mock/cases/manifest.json'
 
 const MOCK = import.meta.env.VITE_MOCK === '1'
 
-/** 演示句默认输入（数据齐全 Case 1：解放东路-奥体中路，目标口与下游口 12 维度全通）。 */
-export const DEMO_INPUT =
-  '解放东路与奥体中路路口，早高峰，北向南拥堵排队'
+/** 点/线优化典型 Case 清单（display_name 可在 manifest.json 手改）。 */
+export type MockCaseEntry = {
+  id: string
+  code: string
+  label: string
+  display_name: string
+  inter_id: string
+  intersection_name: string
+  opt_type: string
+  fixture: string
+  query: string
+}
 
-/** 数据齐全 Case 2：经十路辅路-洪山路，目标口与下游口 12 维度全通。 */
+export const MOCK_CASES = (caseManifest as { cases: MockCaseEntry[] }).cases ?? []
+
+const caseFixtureByName = import.meta.glob('../mock/cases/*_fixture.json', {
+  eager: true,
+  import: 'default',
+}) as Record<string, RunResponse>
+
+function loadCaseFixture(fixtureName: string): RunResponse | null {
+  const key = Object.keys(caseFixtureByName).find((k) => k.endsWith(`/${fixtureName}`))
+  return key ? caseFixtureByName[key] : null
+}
+
+/** 演示句默认输入：manifest 默认 Case 的 query。 */
+export const DEMO_INPUT = MOCK_CASES.find((c) => c.id === (caseManifest as { default_case_id?: string }).default_case_id)?.query
+  ?? MOCK_CASES[0]?.query
+  ?? '解放东路与奥体中路路口，早高峰，北向南拥堵排队'
+
+/** @deprecated 保留兼容；新 Case 见 MOCK_CASES */
 export const DEMO_INPUT_CASE2 =
   '经十路辅路与洪山路路口，早上八点二十五到八点四十五，西向东直行排队严重出现溢出，协调下游经十路与转山西路路口快速疏导消排。'
 
@@ -19,12 +46,27 @@ export const DEMO_INPUT_CASE2 =
 export const DEMO_INPUT_HEALTHY =
   '核验经十路与转山西路路口晚高峰运行是否正常，是否需要干预。'
 
-/** 依据输入选择 MOCK 场景：命中健康核验关键词走健康 fixture（仅 intent+诊断）。 */
+/** 依据输入选择 MOCK 场景：典型 Case fixture → 健康 → 默认 run_1。 */
 function pickScenario(userInput: string): { data: RunResponse; phaseCount: number } {
-  const healthy = /健康|体检|是否正常|运行正常|无问题|无需干预/.test(userInput)
-  return healthy
-    ? { data: healthyFixture as unknown as RunResponse, phaseCount: 2 }
-    : { data: fixture as unknown as RunResponse, phaseCount: 5 }
+  const text = userInput.trim()
+  const healthy = /健康|体检|是否正常|运行正常|无问题|无需干预/.test(text)
+  if (healthy) {
+    return { data: healthyFixture as unknown as RunResponse, phaseCount: 2 }
+  }
+  for (const c of MOCK_CASES) {
+    const matched =
+      text === c.query
+      || text.includes(c.inter_id)
+      || text.includes(c.intersection_name)
+      || text.includes(c.label)
+    if (matched) {
+      const loaded = loadCaseFixture(c.fixture)
+      if (loaded) {
+        return { data: loaded, phaseCount: 5 }
+      }
+    }
+  }
+  return { data: fixture as unknown as RunResponse, phaseCount: 5 }
 }
 
 function delay(ms: number) {

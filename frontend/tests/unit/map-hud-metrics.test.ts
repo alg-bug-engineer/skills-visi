@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildHudMetrics } from '@/map/mapMarkers'
+import { buildHudMetrics, buildMetricMarkers } from '@/map/mapMarkers'
 import type { RunResponse } from '@/api/types'
 
 function snap(metrics: Record<string, unknown>): RunResponse {
@@ -47,5 +47,18 @@ describe('buildHudMetrics (左上角运行数据 HUD)', () => {
     const items = buildHudMetrics(snap({ queue_ratio: 0.18 }))
     expect(items.some((m) => m.label === '方向失衡')).toBe(false)
     expect(items.some((m) => m.label === '进口道长度')).toBe(false)
+  })
+})
+
+describe('buildMetricMarkers (地图方向气泡)', () => {
+  it('renders direction saturation as decimal, consistent with HUD', () => {
+    const resp = snap({ saturation: 0.87, queue_ratio: 0.18 }) as RunResponse & {
+      diagnosis_ticket: { direction: string }
+    }
+    resp.diagnosis_ticket = { direction: '东' } as RunResponse['diagnosis_ticket']
+    const markers = buildMetricMarkers(resp, [117.0, 36.65])
+    const sat = markers.find((m) => m.title.includes('饱和'))
+    expect(sat?.value).toBe('0.87')
+    expect(sat?.value.includes('%')).toBe(false)
   })
 })

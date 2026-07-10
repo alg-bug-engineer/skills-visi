@@ -2,16 +2,15 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePresentationStore } from '@/stores/presentation'
-import { DEMO_INPUT, DEMO_INPUT_CASE2, DEMO_INPUT_HEALTHY } from '@/api/endpoints'
+import { DEMO_INPUT_HEALTHY, MOCK_CASES, type MockCaseEntry } from '@/api/endpoints'
 import PlanDrawer from './PlanDrawer.vue'
 
 const store = usePresentationStore()
 const { dock, userInput, acts, currentAct, signal, status } = storeToRefs(store)
 
-const examples = [
-  DEMO_INPUT,
-  DEMO_INPUT_CASE2,
-  DEMO_INPUT_HEALTHY,
+const examples: Array<{ label: string; query: string }> = [
+  ...MOCK_CASES.map((c: MockCaseEntry) => ({ label: c.display_name, query: c.query })),
+  { label: '健康核验', query: DEMO_INPUT_HEALTHY },
 ]
 
 const progress = computed(() => {
@@ -43,7 +42,15 @@ const signalText = computed(
         </button>
       </div>
       <div class="chips">
-        <button v-for="(e, i) in examples" :key="i" class="chip" @click="userInput = e">{{ e }}</button>
+        <button
+          v-for="(e, i) in examples"
+          :key="i"
+          class="chip"
+          :title="e.query"
+          @click="userInput = e.query"
+        >
+          {{ e.label }}
+        </button>
       </div>
     </div>
 

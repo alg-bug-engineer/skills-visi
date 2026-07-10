@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "description": "点/线优化典型输入 Case；fixture 由 scripts/capture_typical_point_line_fixtures.py --live 采集。display_name 可手改作为前端默认展示名。",
+  "default_case_id": "case_a",
+  "cases": [
+    {
+      "id": "case_a",
+      "code": "A",
+      "label": "坤顺路×奥体西路",
+      "display_name": "Case A · 坤顺路×奥体西路（点优化）",
+      "inter_id": "011wwe28fty00001",
+      "intersection_name": "坤顺路与奥体西路路口",
+      "opt_type": "TYPE1_POINT",
+      "fixture": "case_a_fixture.json",
+      "query": "坤顺路与奥体西路路口，晚高峰十七点到十九点，北进口直行和左转过饱和、路口积压，东进口直行也偏高；南向北进安成街方向和东向西下游还有余量，但北进口直行往南解放东路方向要先看下游能不能接住，按点控经验在本路口做北进口相位局部加绿，南北对放相位两个出口一起评估。"
+    },
+    {
+      "id": "case_b",
+      "code": "B",
+      "label": "二环东路×浆水泉西路",
+      "display_name": "Case B · 二环东路×浆水泉西路（线优化）",
+      "inter_id": "011wwe0rynv00001",
+      "intersection_name": "二环东路与浆水泉西路路口",
+      "opt_type": "TYPE2_LINE",
+      "fixture": "case_b_fixture.json",
+      "query": "二环东路与浆水泉西路路口，晚高峰十七点到十九点，北进口直行排队往上顶，下游二环东路辅路路口饱和度高早就承接不住，本路口不能再简单加绿，按线控经验做上游截流并和下游辅路路口协调配时防溢流。"
+    },
+    {
+      "id": "case_d",
+      "code": "D",
+      "label": "解放东路×奥体中路",
+      "display_name": "Case D · 解放东路×奥体中路（线优化）",
+      "inter_id": "011wwe294k300001",
+      "intersection_name": "解放东路与奥体中路路口",
+      "opt_type": "TYPE2_LINE",
+      "fixture": "case_d_fixture.json",
+      "query": "解放东路与奥体中路路口，早高峰七点半到八点五十，北进口直行和左转过饱和、北侧坤顺路与奥体中路路口来车压力大，本路口积压严重，按线优化经验做防溢流和相位协调，南向北直行另须盯下游坤顺路与奥体中路路口别往南顶回溢流。"
+    }
+  ]
+}

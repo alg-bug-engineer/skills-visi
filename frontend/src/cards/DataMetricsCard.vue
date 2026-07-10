@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
-import { pct, ratio, meters, num, ratioTone } from '@/utils/format'
+import { ratio, meters, num, ratioTone } from '@/utils/format'
 import { productCopy } from '@/utils/productCopy'
 import { t } from '@/labels/enums'
 import BaseCard from './BaseCard.vue'
@@ -187,7 +187,7 @@ const dimensionNote = computed(() => {
         <div class="cell"><span class="v us-mono">{{ meters(m.storage_length_m) }}</span><span class="k">蓄车长度</span></div>
         <div class="cell"><span class="v us-mono">{{ ratio(saturation) }}</span><span class="k">饱和度</span></div>
         <div class="cell" :class="`tone-${guTone}`">
-          <span class="v us-mono">{{ pct(m.green_utilization) }}</span><span class="k">绿灯利用率</span>
+          <span class="v us-mono">{{ ratio(m.green_utilization) }}</span><span class="k">绿灯利用率</span>
         </div>
         <div class="cell"><span class="v us-mono">{{ num(m.stop_count, 2) }}</span><span class="k">停车次数</span></div>
         <div class="cell"><span class="v us-mono">{{ num(m.avg_delay_s, 1) }}s</span><span class="k">平均延误</span></div>

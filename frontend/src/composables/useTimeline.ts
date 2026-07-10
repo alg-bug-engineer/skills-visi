@@ -107,7 +107,7 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
     case 'act3_overflow':
       return lines(
         ...domainIntroFor('act3_overflow'),
-        `指标研判：排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${pct(saturationOf(diag?.metrics))}｜绿灯利用率 ${pct(diag?.metrics?.green_utilization)}`,
+        `指标研判：排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${ratio(saturationOf(diag?.metrics))}｜绿灯利用率 ${ratio(diag?.metrics?.green_utilization)}`,
         diag?.healthy
           ? '结论：各项指标均在正常区间，路口运行平稳、无溢出风险，无需干预'
           : diag?.overflow_verification?.message && `结论：${diag.overflow_verification.message}`,
@@ -189,7 +189,7 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
         : '空间定位完成'
     case 'act3_overflow':
       if (diag?.healthy) return '运行平稳，无溢出风险，无需干预'
-      return productCopy(diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${pct(saturationOf(diag?.metrics))}`)
+      return productCopy(diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${ratio(saturationOf(diag?.metrics))}`)
     case 'act4_bottleneck':
       return productCopy(downstreamConclusion(diag?.downstream_diagnosis))
     case 'act5_corridor':

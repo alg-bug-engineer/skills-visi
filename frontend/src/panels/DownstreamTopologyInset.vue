@@ -4,7 +4,7 @@ import { usePresentationStore } from '@/stores/presentation'
 import { buildDownstreamTopology, type DownstreamTopologyMetrics } from '@/map/downstreamTopologyLayer'
 import { sceneEvidencePolicy } from '@/map/sceneEvidencePolicy'
 import type { LngLat } from '@/map/channelizationGeometry'
-import { pct } from '@/utils/format'
+import { ratio } from '@/utils/format'
 import { productCopy } from '@/utils/productCopy'
 
 const store = usePresentationStore()
@@ -86,8 +86,8 @@ const hotCount = computed(() => topology.value.nodes.filter((n) => n.highlighted
 function satText(metrics: DownstreamTopologyMetrics | undefined): string | null {
   if (!metrics) return null
   const parts: string[] = []
-  if (metrics.queueRatio != null) parts.push(`排队 ${pct(metrics.queueRatio)}`)
-  if (metrics.saturation != null) parts.push(`饱和 ${pct(metrics.saturation)}`)
+  if (metrics.queueRatio != null) parts.push(`排队比 ${ratio(metrics.queueRatio)}`)
+  if (metrics.saturation != null) parts.push(`饱和 ${ratio(metrics.saturation)}`)
   return parts.length ? parts.join(' · ') : null
 }
 </script>

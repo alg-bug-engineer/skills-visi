@@ -2,3 +2,10 @@
 字段：primary_cause, secondary_causes, optimizable_points, data_gaps, narrative, cause_ranking。
 cause_ranking 为数组，每项含 rank, cause, role（主因/次因/诱因）。
 仅输出 JSON。
+
+硬性规则（违反则视为错误输出）：
+1. saturation、green_utilization、queue_ratio 在输入中均为小数（如 0.87、1.05），不是百分比；narrative 中禁止写成「87%」「利用率 57%」等，必须原样引用小数或写「饱和度 0.87」。
+2. narrative 与 primary_cause 中出现的任何数值，必须来自输入 JSON 的 metrics_authoritative、evidence_summary 或 cause_scores，禁止编造、换算、四舍五入后改写，禁止混用其它字段（例如把饱和度写成绿灯利用率）。
+3. 某指标为 null 时，叙述写「该指标缺失」而非猜测。
+4. 主因排序以 cause_scores.ranked_dimensions 为准；你只负责文字归纳，不得推翻评分顺序。
+5. 勿复述冗长原始表；narrative 控制在 120 字以内，聚焦主因与可优化点。

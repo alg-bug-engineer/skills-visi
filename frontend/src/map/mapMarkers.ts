@@ -1,5 +1,5 @@
 import type { Metrics, RunResponse } from '@/api/types'
-import { pct, ratio } from '@/utils/format'
+import { ratio } from '@/utils/format'
 
 export type HudMetric = { label: string; value: string; severity: 'high' | 'medium' | 'low' }
 
@@ -93,7 +93,7 @@ export function buildMetricMarkers(
       position: offset,
       kind: 'metric',
       title: `${dir}向饱和`,
-      value: pct(saturation),
+      value: ratio(saturation),
       severity: sevFromSaturation(saturation),
     })
   }

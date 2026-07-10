@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
-import { ratio, pct } from '@/utils/format'
+import { ratio } from '@/utils/format'
 import BaseCard from './BaseCard.vue'
 
 const store = usePresentationStore()
@@ -19,7 +19,7 @@ const saturation = computed(() => metrics.value?.saturation ?? metrics.value?.sa
     <ul class="grid" data-testid="healthy-metrics">
       <li><span>排队比</span><b class="ok">{{ ratio(metrics?.queue_ratio) }}</b></li>
       <li><span>饱和度</span><b class="ok">{{ ratio(saturation) }}</b></li>
-      <li><span>绿灯利用率</span><b>{{ pct(metrics?.green_utilization) }}</b></li>
+      <li><span>绿灯利用率</span><b>{{ ratio(metrics?.green_utilization) }}</b></li>
       <li><span>服务水平</span><b class="ok">{{ metrics?.los ?? '—' }}</b></li>
     </ul>
 
