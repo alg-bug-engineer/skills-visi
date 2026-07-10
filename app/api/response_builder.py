@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.trace.axis_roads import build_axis_roads
+
 PHASE_ARTIFACT_KEYS: dict[str, str] = {
     "intent_understanding": "intent",
     "data_analysis_diagnosis": "diagnosis",
@@ -13,6 +15,27 @@ PHASE_ARTIFACT_KEYS: dict[str, str] = {
 }
 
 
+def _enrich_intent_spatial_scene(phases: dict[str, Any]) -> None:
+    intent = phases.get("intent")
+    if not isinstance(intent, dict):
+        return
+    scene = intent.get("spatial_scene")
+    if not isinstance(scene, dict):
+        return
+    diagnosis = phases.get("diagnosis") if isinstance(phases.get("diagnosis"), dict) else {}
+    map_scenes = diagnosis.get("map_scenes") if isinstance(diagnosis.get("map_scenes"), dict) else {}
+    ch = map_scenes.get("channelization_map") if isinstance(map_scenes.get("channelization_map"), dict) else {}
+    links = ch.get("links") if isinstance(ch.get("links"), list) else []
+    inter_name = (scene.get("target") or {}).get("inter_name") or intent.get("diagnosis_ticket", {}).get(
+        "intersection_name"
+    )
+    axis = build_axis_roads(intersection_name=inter_name, link_rows=links)
+    if axis.get("available"):
+        scene["axis_roads"] = axis
+        intent["spatial_scene"] = scene
+        phases["intent"] = intent
+
+
 def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
     artifacts = result.get("artifacts") or {}
     phases = {
@@ -20,6 +43,7 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
         for skill_key, public_key in PHASE_ARTIFACT_KEYS.items()
         if skill_key in artifacts
     }
+    _enrich_intent_spatial_scene(phases)
 
     plan_artifact = artifacts.get("plan_generation") or {}
     plan_block: dict[str, Any] | None = None

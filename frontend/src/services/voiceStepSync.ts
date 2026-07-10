@@ -2,6 +2,7 @@ import type { RunResponse } from '@/api/types'
 import type { ActDef } from '@/composables/useTimeline'
 import { composeVoiceAnnounce, VOICE_TEMPLATES } from '@/config/voiceTemplates'
 import { voiceConclusionOnly, voiceSlotsForAct } from '@/services/voiceSlotFillers'
+import { voiceSpatialCognition } from '@/services/voiceSpatialCognition'
 import type { VoiceCue } from '@/types/voice'
 
 const spokenKeys = new Set<string>()
@@ -14,7 +15,12 @@ export function voiceTextForAct(act: ActDef, resp: RunResponse | null): string {
   const def = VOICE_TEMPLATES[act.id]
   if (!def) return `${act.processTitle}。`
   const slots = voiceSlotsForAct(act, resp)
-  return composeVoiceAnnounce(def, slots, { conclusionOnly: voiceConclusionOnly(act) })
+  let text = composeVoiceAnnounce(def, slots, { conclusionOnly: voiceConclusionOnly(act) })
+  if (act.id === 'act2_locate') {
+    const cognition = voiceSpatialCognition(resp)
+    if (cognition) text = `${cognition}。${text}`
+  }
+  return text
 }
 
 /** 构建语音 cue（不占用去重位，供预合成使用）。 */

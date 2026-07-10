@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import BaseCard from './BaseCard.vue'
 import { productCopy } from '@/utils/productCopy'
+import type { CaseCard } from '@/api/types'
 
 const store = usePresentationStore()
 const cause = computed(() => store.cause ?? null)
@@ -13,14 +14,26 @@ const cards = computed(() => cause.value?.case_cards?.cards ?? [])
 const matched = computed(() => cause.value?.case_cards?.matched_count ?? 0)
 const highSim = computed(() => cause.value?.case_cards?.high_similarity_count ?? 0)
 const narrative = computed(() => productCopy(cause.value?.cause_analysis?.narrative ?? cause.value?.cause_analysis?.primary_cause ?? ''))
-const caseIds = computed<string[]>(() =>
-  cards.value.map((c) => c.case_id).filter((id): id is string => !!id),
-)
+const selectedId = ref<string | null>(null)
+
+const selectedCard = computed(() => cards.value.find((c) => c.case_id === selectedId.value) ?? null)
 
 function roleTone(role?: string) {
   if (role?.includes('主')) return 'alarm'
   if (role?.includes('次')) return 'evidence'
   return 'primary'
+}
+
+function tierLabel(tier?: string) {
+  if (tier === 'high') return '高度相似'
+  if (tier === 'matched') return '一般匹配'
+  return ''
+}
+
+function selectCase(card: CaseCard) {
+  const id = card.case_id
+  if (!id) return
+  selectedId.value = selectedId.value === id ? null : id
 }
 
 function openCase(caseId: string) {
@@ -48,24 +61,81 @@ function openCase(caseId: string) {
 
     <p v-if="narrative" class="narrative">{{ narrative }}</p>
 
-    <div class="cases" v-if="caseIds.length">
+    <div class="cases" v-if="cards.length">
       <div class="cases__hd">
         <span>相似案例检索</span>
-        <span class="mute">命中 {{ matched }} · 高相似 {{ highSim }}</span>
+        <span
+          class="mute"
+          title="命中数=关键词匹配案例总数；高相似=评分≥3 的条目；下方展示评分最高的 3 条代表案例"
+        >
+          命中 {{ matched }} · 高相似 {{ highSim }}
+        </span>
       </div>
-      <p class="cases__sub">从高相似案例中选取 {{ caseIds.length }} 例代表案例，点击编号查看详情</p>
+      <p class="cases__sub">从高相似案例中选取 {{ cards.length }} 例代表案例，点击编号展开相似维度与借鉴说明</p>
       <div class="case-ids" data-testid="case-carousel">
         <button
-          v-for="id in caseIds"
-          :key="id"
+          v-for="card in cards"
+          :key="card.case_id"
           type="button"
           class="case-id-chip us-mono"
+          :class="{ active: selectedId === card.case_id }"
           data-testid="case-id-chip"
-          @click="openCase(id)"
+          @click="selectCase(card)"
         >
-          {{ id }}
+          {{ card.case_id }}
+          <span v-if="tierLabel(card.similarity_tier)" class="tier">{{ tierLabel(card.similarity_tier) }}</span>
         </button>
       </div>
+
+      <article v-if="selectedCard" class="case-detail" data-testid="case-detail">
+        <header class="case-detail__hd">
+          <strong>{{ selectedCard.case_id }}</strong>
+          <span v-if="selectedCard.title" class="case-detail__title">{{ selectedCard.title }}</span>
+        </header>
+
+        <p v-if="selectedCard.help_summary" class="help" data-testid="case-help">
+          {{ selectedCard.help_summary }}
+        </p>
+
+        <section v-if="selectedCard.similarity_dimensions?.length" class="block">
+          <h4>为何相似</h4>
+          <ul class="dim-list" data-testid="case-dimensions">
+            <li v-for="(d, i) in selectedCard.similarity_dimensions" :key="`${d.key}-${i}`">
+              {{ d.label }}
+            </li>
+          </ul>
+        </section>
+        <section v-else-if="selectedCard.similarity_points?.length" class="block">
+          <h4>为何相似</h4>
+          <ul class="dim-list" data-testid="case-dimensions">
+            <li v-for="(p, i) in selectedCard.similarity_points" :key="i">{{ p }}</li>
+          </ul>
+        </section>
+
+        <section v-if="selectedCard.transferable_actions?.length" class="block">
+          <h4>可借鉴</h4>
+          <ul class="action-list" data-testid="case-transferable">
+            <li v-for="(a, i) in selectedCard.transferable_actions" :key="i">{{ a }}</li>
+          </ul>
+        </section>
+
+        <section v-if="selectedCard.caveats?.length" class="block">
+          <h4>不宜直接套用</h4>
+          <ul class="caveat-list" data-testid="case-caveats">
+            <li v-for="(c, i) in selectedCard.caveats" :key="i">{{ c }}</li>
+          </ul>
+        </section>
+
+        <button
+          v-if="selectedCard.case_id"
+          type="button"
+          class="link-btn"
+          data-testid="case-open-library"
+          @click="openCase(selectedCard.case_id!)"
+        >
+          在沉淀面板查看完整条目 →
+        </button>
+      </article>
     </div>
     <p v-else class="empty">暂无高相似历史案例（数据暂缺）</p>
   </BaseCard>
@@ -135,6 +205,7 @@ function openCase(caseId: string) {
 .cases__hd .mute {
   color: var(--text-mute);
   font-size: 11px;
+  cursor: help;
 }
 .cases__sub {
   margin: 0 0 8px;
@@ -156,10 +227,76 @@ function openCase(caseId: string) {
   font-size: 11.5px;
   cursor: pointer;
   transition: all 0.16s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.case-id-chip.active {
+  background: var(--primary);
+  color: var(--bg, #04101c);
 }
 .case-id-chip:hover {
   background: var(--primary);
   color: var(--bg, #04101c);
+}
+.tier {
+  font-size: 9px;
+  opacity: 0.85;
+}
+.case-detail {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+.case-detail__hd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.case-detail__title {
+  font-size: 11px;
+  color: var(--text-mute);
+  line-height: 1.4;
+}
+.help {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.block {
+  margin-bottom: 8px;
+}
+.block h4 {
+  margin: 0 0 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.dim-list,
+.action-list,
+.caveat-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.caveat-list {
+  color: var(--alarm);
+}
+.link-btn {
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 11px;
+  cursor: pointer;
 }
 .empty {
   margin: 0;

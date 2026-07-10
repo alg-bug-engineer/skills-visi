@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.trace.axis_roads import build_axis_roads
+
 
 RECOGNITION_STEPS = [
     ("intersection_match", "路口匹配完成"),
@@ -92,4 +94,5 @@ def build_spatial_scene(
         "upstream_nodes": upstream_nodes,
         "downstream_nodes": downstream_nodes,
         "main_path": f"上游来车 → {ticket.get('intersection_name')} → 下游承接节点",
+        "axis_roads": build_axis_roads(intersection_name=ticket.get("intersection_name")),
     }

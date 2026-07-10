@@ -72,6 +72,12 @@ export interface SpatialScene {
   upstream_nodes: SpatialNode[]
   downstream_nodes: SpatialNode[]
   main_path?: string | null
+  axis_roads?: {
+    ew_road?: string | null
+    ns_road?: string | null
+    available?: boolean
+    source?: string
+  }
 }
 
 export interface SpatialObjects {
@@ -286,10 +292,17 @@ export interface CaseCard {
   title?: string
   similarity?: number | null
   similarity_points?: string[]
+  similarity_dimensions?: Array<{ key?: string; label?: string }>
+  transferable_actions?: string[]
+  caveats?: string[]
+  help_summary?: string
+  similarity_tier?: 'high' | 'matched' | string
   action?: string
   historical_action?: string
   outcome?: string
   lesson?: string
+  case_type?: string
+  score?: number
   [k: string]: unknown
 }
 
