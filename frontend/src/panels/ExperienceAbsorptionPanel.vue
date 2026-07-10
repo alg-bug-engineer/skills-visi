@@ -52,6 +52,33 @@ watch(
       <p v-else class="placeholder">等待吸收追踪…</p>
     </div>
 
+    <div v-if="state.valueSnapshot?.contrast_items?.length" class="contrast-block" data-testid="absorption-contrast">
+      <h3 class="value-block__title">经验对照 · 无经验基线 vs 吸收后</h3>
+      <article v-for="(item, i) in state.valueSnapshot.contrast_items" :key="i" class="contrast-item">
+        <h4>{{ item.dimension }}</h4>
+        <div class="contrast-cols">
+          <div class="contrast-col">
+            <span class="contrast-tag">无经验</span>
+            <p>{{ productCopy(item.without_experience?.summary) }}</p>
+          </div>
+          <div class="contrast-col contrast-col--with">
+            <span class="contrast-tag">有经验</span>
+            <p>{{ productCopy(item.with_experience?.summary) }}</p>
+            <div v-if="item.with_experience?.refs?.length" class="ref-chips">
+              <span
+                v-for="ref in item.with_experience.refs"
+                :key="ref.record_id ?? ref.case_id ?? ref.label"
+                class="ref-chip"
+                :title="ref.type"
+              >
+                {{ ref.label ?? ref.record_id ?? ref.case_id }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+
     <div v-if="state.valueSnapshot?.why_rows?.length" class="value-block">
       <h3 class="value-block__title">价值前后对照</h3>
       <table class="value-table" data-testid="absorption-value-table">
@@ -218,5 +245,52 @@ watch(
   margin: 0;
   font-size: 12px;
   color: var(--text-mute);
+}
+.contrast-block {
+  flex: 0 0 auto;
+  margin-top: 10px;
+}
+.contrast-item {
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+.contrast-item h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: var(--primary);
+}
+.contrast-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.contrast-col p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.contrast-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-mute);
+}
+.contrast-col--with .contrast-tag {
+  color: var(--evidence);
+}
+.ref-chips {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ref-chip {
+  padding: 1px 6px;
+  font-size: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--primary);
+  color: var(--primary);
 }
 </style>

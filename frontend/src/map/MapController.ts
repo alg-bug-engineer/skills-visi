@@ -147,6 +147,9 @@ export class MapController {
 
     if (policy.downstreamTopology) this.drawDownstreamTopology(resp, target)
     if (policy.metricMarkers && target) this.drawMetricMarkers(resp, target)
+    if (policy.diagnosisCompare) this.drawDiagnosisCompare(resp)
+    if (policy.causeAnnotation) this.drawCauseAnnotations(resp)
+    if (policy.planPreview) this.drawPlanPreview(resp, target)
   }
 
   /** 连贯运镜：城市→路口→车道 单调下钻(→18)；干线/控制 平滑抬升(→17)。 */
@@ -341,6 +344,94 @@ export class MapController {
       const lng = (p as any).lng
       const lat = (p as any).lat
       if (hasCoord(lng, lat)) this.add(this.pulseMarker([lng, lat], '#6dffb5', '下游保护'))
+    }
+    for (const edge of (csm as any)?.coordination_paths ?? []) {
+      const path = validPath(edge.path)
+      if (path.length >= 2) {
+        this.add(
+          new this.AMap.Polyline({
+            path,
+            strokeColor: '#f5a623',
+            strokeWeight: 4,
+            strokeOpacity: 0.75,
+            strokeStyle: 'dashed',
+            showDir: true,
+          }),
+        )
+      }
+    }
+  }
+
+  /** act3–4：本路口 vs 主要下游双节点对比。 */
+  private drawDiagnosisCompare(resp: RunResponse | null) {
+    const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.diagnosis_compare
+    if (!scene?.available) return
+    for (const node of [scene.target, scene.downstream]) {
+      if (!node || !hasCoord(node.lng, node.lat)) continue
+      const color = node.role === 'target' ? '#ff5050' : '#38bdf8'
+      const metrics = node.metrics ?? {}
+      const label =
+        node.role === 'target'
+          ? `本路口·排队${metrics.queue_ratio ?? '—'}`
+          : `下游·饱和${metrics.saturation ?? '—'}`
+      this.add(this.pulseMarker([node.lng, node.lat], color, label))
+    }
+  }
+
+  /** act6：主因关联空间对象 + 案例轻量标记。 */
+  private drawCauseAnnotations(resp: RunResponse | null) {
+    const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.cause_spatial
+    if (!scene?.available) return
+    const reduced =
+      typeof window !== 'undefined' &&
+      !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    for (const ann of scene.annotations ?? []) {
+      if (!hasCoord(ann.lng, ann.lat)) continue
+      const color = ann.color ?? '#00e5ff'
+      const label = ann.label ?? ann.case_id ?? '标注'
+      this.add(this.pulseMarker([ann.lng, ann.lat], color, label))
+      if (!reduced && ann.kind === 'downstream' && ann.inter_id) {
+        const target = resp?.diagnosis_ticket
+        if (target && hasCoord(target.lng, target.lat)) {
+          this.add(
+            new this.AMap.Polyline({
+              path: [
+                [target.lng as number, target.lat as number],
+                [ann.lng, ann.lat],
+              ],
+              strokeColor: color,
+              strokeWeight: 2,
+              strokeOpacity: 0.5,
+              strokeStyle: 'dotted',
+            }),
+          )
+        }
+      }
+    }
+  }
+
+  /** act8：配时变化预览标签（静态，无动画）。 */
+  private drawPlanPreview(resp: RunResponse | null, target: [number, number] | null) {
+    const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.plan_preview
+    if (!scene?.available) return
+    const center = scene.center && hasCoord(scene.center[0], scene.center[1]) ? scene.center : target
+    if (!center) return
+    const changes = scene.phase_changes ?? []
+    const summary = changes
+      .slice(0, 2)
+      .map((c: any) => `${c.phase_stage_name ?? c.label}:${c.green_delta_s > 0 ? '+' : ''}${c.green_delta_s}s`)
+      .join(' ')
+    const label = summary || scene.plan_name || '配时预览'
+    this.add(this.pulseMarker(center as [number, number], '#6dffb5', label))
+    if (scene.cycle_delta_s != null) {
+      this.add(
+        new this.AMap.Marker({
+          position: center,
+          content: `<div class="us-badge" style="margin-top:28px;color:#6dffb5;font-size:10px">周期${scene.cycle_delta_s > 0 ? '+' : ''}${scene.cycle_delta_s}s</div>`,
+          offset: new this.AMap.Pixel(-20, 0),
+          anchor: 'top-center',
+        }),
+      )
     }
   }
 

@@ -34,6 +34,33 @@ export type ValueSnapshot = {
   what: { title: string; bullets: string[] }
   why_rows: ValueRow[]
   delta_rows: string[]
+  contrast_items?: ExperienceContrastItem[]
+}
+
+export type ExperienceContrastRef = {
+  type?: string
+  record_id?: string
+  trace_id?: string
+  case_id?: string
+  label?: string
+}
+
+export type ExperienceContrastSide = {
+  summary?: string
+  source?: string
+  refs?: ExperienceContrastRef[]
+}
+
+export type ExperienceContrastItem = {
+  dimension?: string
+  without_experience?: ExperienceContrastSide
+  with_experience?: ExperienceContrastSide
+}
+
+export type ExperienceContrast = {
+  available?: boolean
+  reason?: string | null
+  items?: ExperienceContrastItem[]
 }
 
 /** 吸收终端 trace 行：一阶段一行，含独白与证据 chips。 */

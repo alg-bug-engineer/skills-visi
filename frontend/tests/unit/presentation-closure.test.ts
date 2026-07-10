@@ -88,6 +88,15 @@ describe('presentation closure semantics', () => {
     expect(topology.downstreamTopology).toBe(true)
     expect(topology.trace).toBe(true)
     expect(topology.metricMarkers).toBe(false)
+
+    const cause = sceneEvidencePolicy(act('act6_cause').scene, { showMetrics: true })
+    expect(cause.trace).toBe(false)
+    expect(cause.causeAnnotation).toBe(true)
+    expect(cause.downstreamTopology).toBe(true)
+
+    const plan = sceneEvidencePolicy(act('act8_plan').scene, { showMetrics: true })
+    expect(plan.planPreview).toBe(true)
+    expect(plan.diagnosisCompare).toBe(false)
   })
 
   it('keeps frontend process copy in production terminology', () => {

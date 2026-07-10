@@ -173,6 +173,9 @@ def derive_context(
     source_utterance_summary = _clean("；".join(spans)) or governance_goal
 
     strat = _extract_strategy(strategy)
+    experience_contrast = None
+    if isinstance(strategy, dict):
+        experience_contrast = strategy.get("experience_contrast")
     principles = _as_str_list(strat.get("principles"))
     recommended = _as_str_list(strat.get("recommended"))
     hard_constraints = _as_str_list(strat.get("hard_constraints"))
@@ -244,6 +247,7 @@ def derive_context(
         "issue_codes": issue_codes,
         "match_keywords": match_keywords,
         "constraint_intent": constraint_intent,
+        "experience_contrast": experience_contrast,
     }
 
 
@@ -622,6 +626,25 @@ def build_absorption(
         },
     ]
 
+    contrast = ctx.get("experience_contrast")
+    contrast_items: list[dict[str, Any]] = []
+    if isinstance(contrast, dict) and contrast.get("available") and contrast.get("items"):
+        contrast_items = list(contrast.get("items") or [])
+        for item in contrast_items[:2]:
+            dim = item.get("dimension") or "对照"
+            without = (item.get("without_experience") or {}).get("summary")
+            with_exp = (item.get("with_experience") or {}).get("summary")
+            if without and with_exp:
+                why_rows.insert(
+                    0,
+                    {
+                        "key": f"contrast_{dim}",
+                        "label": str(dim),
+                        "before": str(without),
+                        "after": str(with_exp),
+                    },
+                )
+
     return {
         "action": _ACTION_ABSORPTION.get(action, action),
         "stages": stages,
@@ -629,6 +652,7 @@ def build_absorption(
             "what": {"title": f"固化技能 {skill_id}", "bullets": what_bullets},
             "why_rows": why_rows,
             "delta_rows": [],
+            "contrast_items": contrast_items,
         },
     }
 

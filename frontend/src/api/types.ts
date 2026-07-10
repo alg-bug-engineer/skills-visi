@@ -331,6 +331,26 @@ export interface ReferenceBasis {
   intersection_case_ids: string[]
 }
 
+export interface ExperienceContrastRef {
+  type?: string
+  record_id?: string
+  trace_id?: string
+  case_id?: string
+  label?: string
+}
+
+export interface ExperienceContrastItem {
+  dimension?: string
+  without_experience?: { summary?: string; source?: string; refs?: ExperienceContrastRef[] }
+  with_experience?: { summary?: string; source?: string; refs?: ExperienceContrastRef[] }
+}
+
+export interface ExperienceContrast {
+  available?: boolean
+  reason?: string | null
+  items?: ExperienceContrastItem[]
+}
+
 export interface StrategyPhase {
   strategy?: {
     principles?: string[]
@@ -347,7 +367,9 @@ export interface StrategyPhase {
     target_intersection?: { inter_id?: string; inter_name?: string; lng?: number; lat?: number }
     upstream_metering_points?: Array<Record<string, unknown>>
     downstream_protection_nodes?: Array<Record<string, unknown>>
+    coordination_paths?: Array<{ path?: [number, number][]; inter_name?: string; role?: string }>
   }
+  experience_contrast?: ExperienceContrast
   case_references?: Record<string, unknown>
   [k: string]: unknown
 }

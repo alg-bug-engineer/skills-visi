@@ -13,6 +13,7 @@ interface SceneEntry {
 const store = usePresentationStore()
 const strategy = computed(() => store.strategy?.strategy ?? null)
 const refBasis = computed(() => store.strategy?.reference_basis ?? null)
+const experienceContrast = computed(() => store.strategy?.experience_contrast ?? null)
 
 /** 治理建议要点：原则优先，回落到推荐项，去重后取前 3 条。 */
 const points = computed<string[]>(() => {
@@ -52,7 +53,11 @@ const hasRefChips = computed(
 
 /** 仅当策略或参考依据任一存在才渲染整卡（缺失不显示）。 */
 const hasAny = computed(
-  () => points.value.length > 0 || hardConstraints.value.length > 0 || hasRefChips.value,
+  () =>
+    points.value.length > 0 ||
+    hardConstraints.value.length > 0 ||
+    hasRefChips.value ||
+    (experienceContrast.value?.available && (experienceContrast.value.items?.length ?? 0) > 0),
 )
 
 function openIndustry() {
@@ -88,6 +93,15 @@ function openIntersection(caseId: string) {
       <div class="hard__tags">
         <span v-for="(c, i) in hardConstraints" :key="i" class="tag">{{ productCopy(c) }}</span>
       </div>
+    </div>
+
+    <div v-if="experienceContrast?.available && experienceContrast.items?.length" class="contrast" data-testid="strategy-experience-contrast">
+      <span class="refs__hd">经验对照</span>
+      <article v-for="(item, i) in experienceContrast.items.slice(0, 2)" :key="i" class="contrast-row">
+        <strong>{{ item.dimension }}</strong>
+        <p class="contrast-muted">无经验：{{ productCopy(item.without_experience?.summary) }}</p>
+        <p>有经验：{{ productCopy(item.with_experience?.summary) }}</p>
+      </article>
     </div>
 
     <div v-if="hasRefChips" class="refs">
@@ -178,5 +192,26 @@ function openIntersection(caseId: string) {
 .chip:hover {
   background: var(--primary);
   color: var(--bg, #04101c);
+}
+.contrast {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(146, 161, 181, 0.25);
+}
+.contrast-row {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.contrast-row strong {
+  display: block;
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.contrast-muted {
+  margin: 0;
+  color: var(--text-mute);
 }
 </style>

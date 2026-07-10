@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.trace.axis_roads import build_axis_roads
+from app.trace.act_map_enrichment import enrich_map_scenes
 
 PHASE_ARTIFACT_KEYS: dict[str, str] = {
     "intent_understanding": "intent",
@@ -59,6 +60,12 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
             "optimizer_engine": plan_artifact.get("optimizer_engine"),
             "all_guardrails_passed": plan_artifact.get("all_guardrails_passed"),
         }
+
+    enrich_map_scenes(
+        ticket=result.get("diagnosis_ticket") if isinstance(result.get("diagnosis_ticket"), dict) else {},
+        phases=phases,
+        plan_block=plan_block,
+    )
 
     phase_results = [
         {

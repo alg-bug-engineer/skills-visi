@@ -36,6 +36,20 @@ def build_control_scope_map(diagnosis: dict[str, Any], ticket: dict[str, Any]) -
     if ticket.get("lng") is not None and ticket.get("lat") is not None:
         center = [float(ticket["lng"]), float(ticket["lat"])]
 
+    coordination_paths: list[dict[str, Any]] = []
+    for trace in flow_trace.get("entry_traces") or []:
+        path = trace.get("path")
+        if not isinstance(path, list) or len(path) < 2:
+            continue
+        coordination_paths.append(
+            {
+                "inter_id": trace.get("upstream_inter_id"),
+                "inter_name": trace.get("upstream_inter_name"),
+                "path": path,
+                "role": "upstream_inflow",
+            }
+        )
+
     return {
         "action": "map_scene",
         "phase": "strategy_control_scope",
@@ -49,5 +63,6 @@ def build_control_scope_map(diagnosis: dict[str, Any], ticket: dict[str, Any]) -
         },
         "upstream_metering_points": upstream_points,
         "downstream_protection_nodes": downstream_nodes,
+        "coordination_paths": coordination_paths,
         "risk_boundary": "downstream_blocked" if blocked else "controlled_release",
     }

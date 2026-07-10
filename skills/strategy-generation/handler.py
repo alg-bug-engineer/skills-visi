@@ -27,6 +27,7 @@ class StrategyGenerationSkill(BaseSkill):
         profile_module = _load_script_module("build_strategy_profile.py")
         scope_module = _load_script_module("build_control_scope.py")
         package_module = _load_script_module("select_package.py")
+        contrast_module = _load_script_module("build_experience_contrast.py")
 
         cause = context.artifacts.get("cause_analysis", {})
         diagnosis = context.artifacts.get("data_analysis_diagnosis", {})
@@ -75,6 +76,16 @@ class StrategyGenerationSkill(BaseSkill):
                 cause, ticket, strategy_package=profile["strategy_package"]
             ),
             "control_scope_map": scope_module.build_control_scope_map(diagnosis, ticket),
+            "experience_contrast": contrast_module.build_experience_contrast(
+                cause=cause,
+                diagnosis=diagnosis,
+                strategy={
+                    "strategy_package": profile["strategy_package"],
+                    "package_scores": profile["package_scores"],
+                    "strategy": profile["strategy"],
+                },
+                ticket=ticket,
+            ),
         }
         logger.info(
             "策略生成完成 trace_id=%s package=%s",
