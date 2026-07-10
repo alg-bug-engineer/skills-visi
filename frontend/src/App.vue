@@ -8,10 +8,8 @@ import UnderstandingPanel from '@/panels/UnderstandingPanel.vue'
 import RunningDataPanel from '@/panels/RunningDataPanel.vue'
 import ProcessPanel from '@/panels/ProcessPanel.vue'
 import BottomDock from '@/panels/BottomDock.vue'
-import DownstreamTopologyInset from '@/panels/DownstreamTopologyInset.vue'
 import SkillSolidifyOverlay from '@/panels/SkillSolidifyOverlay.vue'
 import SkillBuildDrawer from '@/panels/SkillBuildDrawer.vue'
-import { sceneEvidencePolicy } from '@/map/sceneEvidencePolicy'
 import { buildVoiceCue, resetActVoiceKeys, voiceCueForAct } from '@/services/voiceStepSync'
 import { resetAbsorptionVoiceKeys } from '@/services/voiceAbsorptionSync'
 import { phaseReady } from '@/composables/useTimeline'
@@ -32,14 +30,6 @@ store.setVoiceInterrupt(voice.interrupt)
 store.setVoiceEnqueue((cue) => voice.enqueue(cue))
 
 const running = computed(() => status.value !== 'idle')
-/** 下游承接关系图谱卡片：暂时隐藏（保留组件与地图层逻辑）。 */
-const SHOW_DOWNSTREAM_TOPOLOGY_INSET = false
-
-const showTopologyInset = computed(() => {
-  if (!SHOW_DOWNSTREAM_TOPOLOGY_INSET) return false
-  const scene = store.activeAct?.scene
-  return running.value && !!scene && sceneEvidencePolicy(scene).downstreamTopology
-})
 
 watch(toast, (v) => {
   if (v) window.setTimeout(() => store.clearToast(), 4200)
@@ -153,12 +143,6 @@ function toggleVoice() {
       <aside v-show="running && !fullscreen" class="rail rail--right">
         <ProcessPanel />
       </aside>
-    </Transition>
-
-    <Transition name="fade">
-      <div v-show="showTopologyInset && !fullscreen" class="topology-slot">
-        <DownstreamTopologyInset />
-      </div>
     </Transition>
 
     <Transition name="slide-up">
@@ -414,19 +398,6 @@ function toggleVoice() {
 .left-stack__running {
   flex: 0 1 42%;
   min-height: 160px;
-}
-.topology-slot {
-  position: absolute;
-  left: calc(var(--insight-w) + 32px);
-  right: calc(var(--process-w) + 32px);
-  bottom: 88px;
-  z-index: 20;
-  display: flex;
-  justify-content: flex-start;
-  pointer-events: none;
-}
-.topology-slot > * {
-  pointer-events: auto;
 }
 .dock-slot {
   position: absolute;

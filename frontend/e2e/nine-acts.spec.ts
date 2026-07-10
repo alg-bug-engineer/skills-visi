@@ -91,3 +91,18 @@ test.describe('九幕演示 · 布局与遮挡', () => {
     await page.screenshot({ path: `${SHOTS}/05-home-after-accept.png` })
   })
 })
+
+test.describe('健康核验路径', () => {
+  test('无问题路口：诊断后收尾，展示健康结论，不进入方案抽屉', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('.composer__row textarea').fill('核验该路口晚高峰运行是否正常，是否需要干预')
+    await page.getByRole('button', { name: '开始推演' }).click()
+
+    await expect(page.getByTestId('process-panel')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('healthy-conclusion-card')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText('路口运行平稳，无需干预')).toBeVisible()
+    await expect(page.getByTestId('healthy-done')).toBeVisible({ timeout: 20_000 })
+    await page.screenshot({ path: `${SHOTS}/03-healthy.png`, fullPage: false })
+    await expect(page.getByTestId('plan-drawer')).toHaveCount(0)
+  })
+})

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useExperienceAbsorption } from '@/composables/useExperienceAbsorption'
 import { useSkillBuildProcess, type SkillBuildMeta } from '@/composables/useSkillBuildProcess'
 import type { SkillBuildFileNode } from '@/types/skillBuild'
 import type { SkillSolidificationResult } from '@/api/types'
@@ -21,6 +22,69 @@ function flatten(nodes: SkillBuildFileNode[]): SkillBuildFileNode[] {
   return nodes.flatMap((n) => [n, ...(n.children ? flatten(n.children) : [])])
 }
 
+describe('useExperienceAbsorption (instant)', () => {
+  it('consumes all 6 stages and reaches terminal state synchronously', () => {
+    const { state, start } = useExperienceAbsorption()
+    start(result.absorption, { instant: true })
+
+    expect(state.lines).toHaveLength(6)
+    expect(state.currentStage).toBe('done')
+    expect(state.progress).toBe(100)
+    expect(state.action).toBe('CREATE')
+    expect(state.valueSnapshot).not.toBeNull()
+    expect(state.valueSnapshot?.why_rows).toHaveLength(3)
+    expect(state.lines[0].monologue.length).toBeGreaterThan(0)
+    expect(state.lines[0].chips.length).toBeGreaterThan(0)
+  })
+
+  it('invokes onDone once terminal', () => {
+    const onDone = vi.fn()
+    const { start } = useExperienceAbsorption()
+    start(result.absorption, { instant: true, onDone })
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useExperienceAbsorption (timed driver)', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('progresses through stages over time and finishes', () => {
+    vi.useFakeTimers()
+    const onDone = vi.fn()
+    const { state, start } = useExperienceAbsorption()
+    start(result.absorption, { instant: false, onDone })
+
+    expect(state.currentStage).not.toBe('done')
+
+    vi.advanceTimersByTime(200)
+    expect(state.lines.length).toBeGreaterThan(0)
+    expect(state.progress).toBeGreaterThan(0)
+
+    vi.advanceTimersByTime(10_000)
+    expect(state.currentStage).toBe('done')
+    expect(state.progress).toBe(100)
+    expect(state.lines).toHaveLength(6)
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
+  it('reset cancels pending timers (advancing after reset is inert)', () => {
+    vi.useFakeTimers()
+    const { state, start, reset } = useExperienceAbsorption()
+    start(result.absorption, { instant: false })
+
+    vi.advanceTimersByTime(300)
+    reset()
+
+    expect(state.currentStage).toBe('idle')
+    expect(state.lines).toHaveLength(0)
+
+    vi.advanceTimersByTime(10_000)
+    expect(state.currentStage).toBe('idle')
+    expect(state.lines).toHaveLength(0)
+    expect(state.progress).toBe(0)
+  })
+})
+
 describe('useSkillBuildProcess (instant)', () => {
   it('reaches completed state with full file tree and contents', () => {
     const { state, start } = useSkillBuildProcess()
@@ -36,23 +100,19 @@ describe('useSkillBuildProcess (instant)', () => {
     expect(paths).toContain('SKILL.md')
     expect(paths).toContain('reference.md')
     expect(paths).toContain('skill.meta.json')
-    // scripts 目录节点 + 其下脚本文件
     const scriptsDir = flat.find((n) => n.path === 'scripts')
     expect(scriptsDir?.type).toBe('directory')
     expect(paths).toContain('scripts/fetch_traffic_data.sql')
 
     expect(state.fileContents['SKILL.md']?.length ?? 0).toBeGreaterThan(0)
     expect(state.fileContents['scripts/fetch_traffic_data.sql']?.length ?? 0).toBeGreaterThan(0)
-    // 所有阶段点亮完成
     expect(state.stages).toHaveLength(result.build.stages.length)
     expect(state.stages.every((s) => s.status === 'done')).toBe(true)
   })
 })
 
 describe('useSkillBuildProcess (timed driver)', () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
+  afterEach(() => vi.useRealTimers())
 
   it('progresses through stages/files over time and finishes', () => {
     vi.useFakeTimers()

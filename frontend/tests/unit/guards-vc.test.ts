@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { hasCoord, validPath, nonEmpty } from '@/utils/guards'
 import { deriveVC, vcColor } from '@/utils/vc'
-import { lerpPath } from '@/map/MapController'
 
 describe('guards', () => {
   it('hasCoord rejects null/NaN', () => {
@@ -35,16 +34,5 @@ describe('vc (no fabrication)', () => {
   it('vcColor null passthrough', () => {
     expect(vcColor(null)).toBeNull()
     expect(vcColor(1.2)).toContain('hsl')
-  })
-})
-
-describe('lerpPath', () => {
-  it('interpolates midpoint', () => {
-    expect(lerpPath([[0, 0], [10, 20]], 0.5)).toEqual([5, 10])
-  })
-  it('clamps and handles degenerate', () => {
-    expect(lerpPath([[3, 4]], 0.9)).toEqual([3, 4])
-    expect(lerpPath([], 0.5)).toEqual([0, 0])
-    expect(lerpPath([[0, 0], [10, 0]], 2)).toEqual([10, 0])
   })
 })

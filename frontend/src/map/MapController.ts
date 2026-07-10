@@ -75,6 +75,11 @@ export class MapController {
     this.userInteracted = true
   }
 
+  /** 当前地图 zoom（供调试指示器读取）。 */
+  getZoom(): number {
+    return this.map.getZoom?.() ?? this.currentZoom
+  }
+
   private async withProgrammatic(fn: () => Promise<void> | void) {
     this.programmatic++
     try {

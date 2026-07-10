@@ -1,6 +1,6 @@
 import type { Metrics, RunResponse } from '@/api/types'
 import { directionMovement, t, translatePlanId } from '@/labels/enums'
-import { pct, ratio, meters } from '@/utils/format'
+import { ratio, meters } from '@/utils/format'
 import { productCopy } from '@/utils/productCopy'
 import { domainIntroFor } from '@/config/actDomainCopy'
 import { downstreamConclusion } from '@/utils/downstream'

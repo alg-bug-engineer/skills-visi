@@ -38,10 +38,6 @@ export const DEMO_INPUT = MOCK_CASES.find((c) => c.id === (caseManifest as { def
   ?? MOCK_CASES[0]?.query
   ?? '解放东路与奥体中路路口，早高峰，北向南拥堵排队'
 
-/** @deprecated 保留兼容；新 Case 见 MOCK_CASES */
-export const DEMO_INPUT_CASE2 =
-  '经十路辅路与洪山路路口，早上八点二十五到八点四十五，西向东直行排队严重出现溢出，协调下游经十路与转山西路路口快速疏导消排。'
-
 /** 健康核验演示句：无问题路口，闭环在诊断后正常收尾。 */
 export const DEMO_INPUT_HEALTHY =
   '核验经十路与转山西路路口晚高峰运行是否正常，是否需要干预。'

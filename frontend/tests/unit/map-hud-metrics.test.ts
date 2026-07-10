@@ -52,10 +52,8 @@ describe('buildHudMetrics (左上角运行数据 HUD)', () => {
 
 describe('buildMetricMarkers (地图方向气泡)', () => {
   it('renders direction saturation as decimal, consistent with HUD', () => {
-    const resp = snap({ saturation: 0.87, queue_ratio: 0.18 }) as RunResponse & {
-      diagnosis_ticket: { direction: string }
-    }
-    resp.diagnosis_ticket = { direction: '东' } as RunResponse['diagnosis_ticket']
+    const resp = snap({ saturation: 0.87, queue_ratio: 0.18 }) as RunResponse
+    resp.diagnosis_ticket = { ...(resp.diagnosis_ticket ?? {}), direction: '东' } as RunResponse['diagnosis_ticket']
     const markers = buildMetricMarkers(resp, [117.0, 36.65])
     const sat = markers.find((m) => m.title.includes('饱和'))
     expect(sat?.value).toBe('0.87')

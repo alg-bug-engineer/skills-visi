@@ -125,6 +125,18 @@ PYTHONPATH=. .venv/bin/python scripts/capture_frontend_mock.py --live "转山西
 | 8 | 方案决策（相位图/时距图/比选） | `PlanDrawer` | 路口 |
 | 9 | 接受 / 拒绝再生成 | `PlanDrawer` 页脚 | 干线 |
 
+## 语音播报模板
+
+固定播报文案集中在 `src/config/voiceTemplates.json`，便于核对与修改：
+
+- 各幕 `stepTitle` / `purpose` / `methodTemplate`（固定部分）
+- `{method}`：方法词槽，取值见同文件 `methods[actId]`
+- `{conclusion}`：结论词槽，运行时从诊断快照填充，不可写死在 JSON
+- `compose`：`full` | `conclusionOnly` | `titleOnly` 控制拼接方式
+- `absorption`：经验吸收阶段的固定播报
+
+改 JSON 后重新 `npm run dev` 或 `npm run build` 即可生效。合成逻辑见 `src/config/voiceTemplates.ts`。
+
 ## 测试
 
 ```bash

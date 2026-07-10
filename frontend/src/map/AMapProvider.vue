@@ -11,9 +11,14 @@ const store = usePresentationStore()
 const el = ref<HTMLDivElement | null>(null)
 const controller = shallowRef<MapController | null>(null)
 const loadError = ref<string | null>(null)
+const mapZoom = ref(11)
 provideAMap(controller)
 
 let mapInstance: any = null
+
+function syncMapZoom() {
+  mapZoom.value = controller.value?.getZoom() ?? mapInstance?.getZoom?.() ?? mapZoom.value
+}
 
 const showHud = computed(
   () => store.currentAct >= 2 && phaseReady(store.response, 'diagnosis'),
@@ -43,6 +48,9 @@ onMounted(async () => {
       showLabel: true,
     })
     controller.value = new MapController(AMap, mapInstance)
+    syncMapZoom()
+    mapInstance.on?.('zoomchange', syncMapZoom)
+    mapInstance.on?.('zoomend', syncMapZoom)
   } catch (e) {
     loadError.value = '高德地图加载失败：' + String(e)
   }
@@ -64,6 +72,7 @@ watch(
       showMetrics,
       replayCamera: true,
     })
+    syncMapZoom()
   },
 )
 
@@ -95,6 +104,9 @@ watch(
 <template>
   <div class="amap-root">
     <div ref="el" class="amap-canvas" />
+    <div v-if="!loadError" class="zoom-debug" data-testid="zoom-indicator">
+      zoom {{ mapZoom.toFixed(1) }}
+    </div>
     <Transition name="fade">
       <div v-if="showHud && hudMetrics.length" class="map-hud us-panel" data-testid="map-hud">
         <div class="map-hud__title">{{ hudTitle }}</div>
@@ -126,6 +138,21 @@ watch(
 .amap-canvas {
   position: absolute;
   inset: 0;
+}
+.zoom-debug {
+  position: absolute;
+  top: 58px;
+  left: 16px;
+  z-index: 19;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(142, 203, 255, 0.28);
+  background: rgba(2, 8, 16, 0.72);
+  color: rgba(180, 210, 240, 0.88);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  pointer-events: none;
 }
 .map-hud {
   position: absolute;

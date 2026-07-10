@@ -1,7 +1,7 @@
 import type { RunResponse } from '@/api/types'
 import type { ActDef } from '@/composables/useTimeline'
 import { composeVoiceAnnounce, VOICE_TEMPLATES } from '@/config/voiceTemplates'
-import { voiceConclusionOnly, voiceSlotsForAct } from '@/services/voiceSlotFillers'
+import { voiceConclusionOnly, voiceSlotsForAct, voiceTitleOnly } from '@/services/voiceSlotFillers'
 import { voiceSpatialCognition } from '@/services/voiceSpatialCognition'
 import type { VoiceCue } from '@/types/voice'
 
@@ -15,7 +15,10 @@ export function voiceTextForAct(act: ActDef, resp: RunResponse | null): string {
   const def = VOICE_TEMPLATES[act.id]
   if (!def) return `${act.processTitle}。`
   const slots = voiceSlotsForAct(act, resp)
-  let text = composeVoiceAnnounce(def, slots, { conclusionOnly: voiceConclusionOnly(act) })
+  let text = composeVoiceAnnounce(def, slots, {
+    conclusionOnly: voiceConclusionOnly(act),
+    titleOnly: voiceTitleOnly(act),
+  })
   if (act.id === 'act2_locate') {
     const cognition = voiceSpatialCognition(resp)
     if (cognition) text = `${cognition}。${text}`

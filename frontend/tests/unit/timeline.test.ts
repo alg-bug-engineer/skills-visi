@@ -67,8 +67,8 @@ describe('narrationFor', () => {
     const act = ACT_DEFS.find((item) => item.id === 'act3_overflow')
     expect(act).toBeTruthy()
 
-    expect(narrationFor(act!, response).join('')).toContain('88.0%')
-    expect(summaryFor(act!, response)).toContain('88.0%')
+    expect(narrationFor(act!, response).join('')).toContain('0.88')
+    expect(summaryFor(act!, response)).toContain('0.88')
   })
 })
 

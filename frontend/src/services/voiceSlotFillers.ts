@@ -1,23 +1,20 @@
 import type { RunResponse } from '@/api/types'
 import type { ActDef } from '@/composables/useTimeline'
 import { summaryFor } from '@/composables/useTimeline'
-import { voiceMethodFor } from '@/config/actDomainCopy'
+import {
+  voiceComposeMode,
+  voiceMethodFor,
+  voiceUsesConclusion,
+} from '@/config/voiceTemplates'
 import { productCopy } from '@/utils/productCopy'
 import { downstreamConclusion } from '@/utils/downstream'
 
-/** 仅诊断至归因幕播报本步结论（策略/配时/确认不追加）。 */
-const VOICE_CONCLUSION_ACT_IDS = new Set([
-  'act3_overflow',
-  'act4_bottleneck',
-  'act5_corridor',
-  'act6_cause',
-])
-
-/** 仅播报步骤名 + 结论，省略目的与方法说明。 */
-const VOICE_CONCLUSION_ONLY_ACT_IDS = new Set(['act4_bottleneck'])
-
 export function voiceConclusionOnly(act: ActDef): boolean {
-  return VOICE_CONCLUSION_ONLY_ACT_IDS.has(act.id)
+  return voiceComposeMode(act.id) === 'conclusionOnly'
+}
+
+export function voiceTitleOnly(act: ActDef): boolean {
+  return voiceComposeMode(act.id) === 'titleOnly'
 }
 
 /** 禁止 TTS 读出「核心结论」标签，并去掉冗余「结论：」前缀。 */
@@ -53,7 +50,7 @@ export function voiceSlotsForAct(act: ActDef, resp: RunResponse | null = null): 
     const method = voiceMethodFor(act.id)
     if (method) slots.method = method
   }
-  if (VOICE_CONCLUSION_ACT_IDS.has(act.id) && resp) {
+  if (voiceUsesConclusion(act.id) && resp) {
     const conclusion = voiceConclusionFor(act, resp)
     if (conclusion) slots.conclusion = conclusion
   }

@@ -36,6 +36,8 @@ sequenceDiagram
 - 只有当右侧的 **理解过程栏 (Process Panel)** 对应的步骤完成打印（触发 `onStepComplete` 事件）时，才调用 `revealInsightsForProcessStep` 将对应的证据卡状态从 `hidden` 变更为 `revealed`，并在左侧 **推理证据栏 (Insight Stack)** 渲染卡片。
 - 一旦卡片揭示，它会处于常驻显示状态（Sticky），不会因为用户点击切换步骤而消失，从而使专家能够纵览所有已验证的历史诊断证据。
 
+> 地图镜头 zoom / pitch 推进规则见 **[camera_movement.md](./camera_movement.md)**。
+
 ---
 
 ## 二、 高德地图 (AMap) 交互与流量溯源控制流

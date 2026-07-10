@@ -73,3 +73,42 @@ describe('ProcessPanel · autoPlay act 推进', () => {
     Object.defineProperty(navigator, 'webdriver', { value: true, configurable: true })
   })
 })
+
+describe('ProcessPanel · 旁白缓存一致性', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('已完成幕展开时显示冻结旁白全文（多行），与打字内容一致', async () => {
+    const store = usePresentationStore()
+    store.applySnapshot(fx)
+    store.autoPlay = false
+    store.currentAct = 0
+
+    const wrapper = mount(ProcessPanel)
+    await flushPromises()
+
+    store.currentAct = 1
+    await flushPromises()
+
+    const frozen = wrapper.findAll('[data-testid="process-narration-frozen"]')
+    expect(frozen.length).toBeGreaterThan(0)
+    expect(wrapper.text()).toContain('正在解析')
+  })
+
+  it('完成过的幕持续显示明细与证据卡，不自动折叠成单行', async () => {
+    const store = usePresentationStore()
+    store.applySnapshot(fx)
+    store.autoPlay = false
+    store.currentAct = 0
+    const wrapper = mount(ProcessPanel)
+    await flushPromises()
+
+    store.currentAct = 1
+    await flushPromises()
+    store.currentAct = 2
+    await flushPromises()
+
+    expect(wrapper.find('[data-act-index="0"]').classes()).not.toContain('collapsed')
+    expect(wrapper.text()).toContain('正在解析')
+    expect(wrapper.findComponent({ name: 'DiagnosisTicketCard' }).isVisible()).toBe(true)
+  })
+})
