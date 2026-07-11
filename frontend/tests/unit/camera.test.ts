@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { clampZoomUp, drillSteps } from '@/map/amapUtils'
+import {
+  boundsFromPoints,
+  bearingFromDirectionLabel,
+  clampZoomUp,
+  drillSteps,
+  offsetLngLatByMeters,
+} from '@/map/amapUtils'
 import { lerpPath } from '@/map/MapController'
+import { findArmForDirection } from '@/map/channelizationGeometry'
 
 describe('drillSteps (coherent monotonic drill, no flicker)', () => {
   it('city → intersection: 11 → 16 ascends through anchors', () => {
@@ -45,5 +52,43 @@ describe('lerpPath (retained for regression)', () => {
     expect(lerpPath([[0, 0], [10, 0]], 0.5)).toEqual([5, 0])
     expect(lerpPath([[0, 0], [10, 0]], 2)).toEqual([10, 0])
     expect(lerpPath([], 0.5)).toEqual([0, 0])
+  })
+})
+
+describe('boundsFromPoints', () => {
+  it('computes sw/ne envelope', () => {
+    const b = boundsFromPoints([[117, 36], [117.01, 36.01], [117.005, 35.995]])
+    expect(b?.sw).toEqual([117, 35.995])
+    expect(b?.ne).toEqual([117.01, 36.01])
+  })
+
+  it('returns null for empty', () => {
+    expect(boundsFromPoints([])).toBeNull()
+  })
+})
+
+describe('bearingFromDirectionLabel', () => {
+  it('maps cardinal directions', () => {
+    expect(bearingFromDirectionLabel('东')).toBe(90)
+    expect(bearingFromDirectionLabel('西')).toBe(270)
+    expect(bearingFromDirectionLabel('西向东')).toBe(90)
+  })
+})
+
+describe('offsetLngLatByMeters', () => {
+  it('offsets northward', () => {
+    const [lng, lat] = offsetLngLatByMeters([117, 36], 0, 1000)
+    expect(lat).toBeGreaterThan(36)
+    expect(lng).toBeCloseTo(117, 3)
+  })
+})
+
+describe('findArmForDirection', () => {
+  it('matches dir8_label on inLink', () => {
+    const arm = findArmForDirection(
+      [{ angle: 90, inLink: { dir8_label: '东', link_role: 'entrance' }, outLink: null }],
+      '东',
+    )
+    expect(arm?.inLink?.dir8_label).toBe('东')
   })
 })

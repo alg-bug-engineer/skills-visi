@@ -139,6 +139,38 @@ export function gatherArms(links: ChannelLink[]): ChannelArm[] {
   return arms
 }
 
+/** 按 ticket 方位匹配进口 arm（dir8_label 或角度差 < 25°）。 */
+export function findArmForDirection(arms: ChannelArm[], direction: string | null | undefined): ChannelArm | null {
+  const label = String(direction ?? '').trim()
+  if (!label) return null
+  for (const arm of arms) {
+    const dir8 = String(arm.inLink?.dir8_label ?? arm.inLink?.dir4_label ?? '')
+    if (dir8 && label.split('').some((ch) => dir8.includes(ch))) return arm
+  }
+  const bearing = (() => {
+    if (label.includes('东') && label.includes('南')) return 135
+    if (label.includes('东') && label.includes('北')) return 45
+    if (label.includes('西') && label.includes('南')) return 225
+    if (label.includes('西') && label.includes('北')) return 315
+    if (label.includes('东')) return 90
+    if (label.includes('西')) return 270
+    if (label.includes('南')) return 180
+    if (label.includes('北')) return 0
+    return null
+  })()
+  if (bearing == null) return null
+  let best: ChannelArm | null = null
+  let bestDiff = 999
+  for (const arm of arms) {
+    const d = angleDiff(arm.angle, bearing)
+    if (d < bestDiff) {
+      bestDiff = d
+      best = arm
+    }
+  }
+  return bestDiff < 25 ? best : null
+}
+
 export function calcBoxR(arms: ChannelArm[]): number {
   let r = 18
   for (const arm of arms) {

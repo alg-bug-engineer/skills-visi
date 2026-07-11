@@ -423,6 +423,18 @@ watch(
   margin-top: 1px;
   color: rgba(225, 238, 252, 0.88);
 }
+:global(.channel-approach-badge) {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--c, #ff5050);
+  background: rgba(2, 8, 16, 0.92);
+  color: var(--c, #ff5050);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c) 50%, transparent);
+  animation: marker-pop 0.35s ease-out;
+}
 :global(.map-marker) {
   padding: 6px 10px;
   border-radius: 8px;

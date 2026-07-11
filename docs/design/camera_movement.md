@@ -82,8 +82,20 @@ store.mapResetSeq 变化（重置）
 
 ### 4. pitch
 
-- 每幕切换时 `map.setPitch(scene.pitch ?? 0)`，在运镜前设置俯仰角。
+- 每幕切换时 `lerpPitch` 分步插值至 `scene.pitch`（`|Δpitch| > 5` 时），避免硬切。
 - 溯源 / 反馈幕 pitch 50°，呈现 3D 干线走廊视角。
+
+### 5. fitBounds（需求 29）
+
+- **act4 下游对比**：`diagnosis_compare` 目标 + 主要下游双节点 fitBounds，`maxZoom 17.8`。
+- **act5 溯源**：收集 sniff 路口中心 + entry/turn traces 坐标 fitBounds，`maxZoom 17`。
+- **act7 控制范围**：控流点 + 保护点 + 协调路径端点 fitBounds，`maxZoom 17.5`。
+- fitBounds 后仍 `panToVisualCenter(-120)` 校正侧栏占位。
+
+### 6. micro-dolly（需求 29）
+
+- **act3 / act6**：下钻至 18 后，沿 `ticket.direction` bearing 反方向偏移 ≈42m，zoom +0.35（上限 18.5），突出问题进口。
+- 渠化层同步 `highlightApproach(direction, movement)` 高亮对应 arm。
 
 ---
 

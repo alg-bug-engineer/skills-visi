@@ -8,6 +8,7 @@ import {
   MOVE_COLOR,
   arrowSvg,
   calcBoxR,
+  findArmForDirection,
   gatherArms,
   laneColor,
   laneLabel,
@@ -58,6 +59,7 @@ export class ChannelizationLayer {
   private boxR: number
   private base: Array<{ lod: 'L0' | 'L1' | 'L2'; o: Overlay }> = []
   private labels: Overlay[] = []
+  private highlights: Overlay[] = []
   private currentLevel: string | null = null
 
   constructor(amap: AMapNS, map: AMapMap, scene: ChannelizationScene) {
@@ -348,13 +350,61 @@ export class ChannelizationLayer {
       if (showL2) marker.show?.()
       else marker.hide?.()
     }
+    for (const h of this.highlights) {
+      if (showL2) h.show?.()
+      else h.hide?.()
+    }
+  }
+
+  /** 高亮问题进口 arm（act3/6/8），与 ticket.direction 对齐。 */
+  highlightApproach(direction?: string | null, movement?: string | null) {
+    const arm = findArmForDirection(this.arms, direction)
+    if (!arm?.inLink) return
+    const b = arm.angle
+    const inLanes = parseLaneInfo(arm.inLink)
+    const nIn = inLanes.length
+    if (nIn === 0) return
+    const u0 = this.boxR
+    const u1 = this.boxR + ARM_LEN
+    const wIn = nIn * LANE_W
+    const mov = String(movement ?? '直行')
+    const path = this.rect(arm, u0 - 2, u1 + 4, -wIn - MEDIAN_W - 1.2, MEDIAN_W + 1.2)
+
+    this.highlights.push(
+      new this.amap.Polygon({
+        path,
+        strokeColor: '#ff5050',
+        strokeWeight: 3,
+        strokeOpacity: 0.95,
+        fillColor: '#ff5050',
+        fillOpacity: 0.12,
+        bubble: true,
+        zIndex: 48,
+      }),
+    )
+    this.map.add(this.highlights[this.highlights.length - 1])
+
+    const labelPos = this.ll(u0 + ARM_LEN * 0.35, -wIn / 2, b)
+    this.highlights.push(
+      new this.amap.Marker({
+        position: labelPos,
+        content:
+          `<div class="channel-approach-badge" style="--c:#ff5050">` +
+          `${arm.inLink.dir8_label ?? direction ?? '进口'} · ${mov}</div>`,
+        offset: new this.amap.Pixel(0, -8),
+        bubble: true,
+        zIndex: 66,
+      }),
+    )
+    this.map.add(this.highlights[this.highlights.length - 1])
   }
 
   dispose() {
-    const overlays = [...this.base.map((item) => item.o), ...this.labels]
+    const overlays = [...this.base.map((item) => item.o), ...this.labels, ...this.highlights]
     if (overlays.length) this.map.remove(overlays)
     this.base = []
     this.labels = []
+    this.highlights = []
     this.currentLevel = null
   }
 }

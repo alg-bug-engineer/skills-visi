@@ -5,7 +5,11 @@ import { buildMetricMarkers, markerHtml } from './mapMarkers'
 import {
   clampZoomUp,
   drillToIntersection,
+  fitBoundsForPoints,
   flyTo,
+  bearingFromDirectionLabel,
+  lerpPitch,
+  microDollyToApproach,
   panToVisualCenter,
   smoothPullback,
 } from './amapUtils'
@@ -126,7 +130,7 @@ export class MapController {
       ticket && hasCoord(ticket.lng, ticket.lat) ? [ticket.lng as number, ticket.lat as number] : null
 
     if (replayCamera && !this.userInteracted) {
-      await this.withProgrammatic(() => this.moveCamera(scene, target))
+      await this.withProgrammatic(() => this.moveCamera(scene, target, resp))
     }
 
     if (token !== this.sceneToken) return
@@ -157,10 +161,21 @@ export class MapController {
     if (policy.planPreview) this.drawPlanPreview(resp, target)
   }
 
-  /** 连贯运镜：城市→路口→车道 单调下钻(→18)；干线/控制 平滑抬升(→17)。 */
-  private async moveCamera(scene: ActMapScene, target: [number, number] | null) {
+  /** 连贯运镜：城市→路口→车道 单调下钻；多节点 fitBounds；进口 micro-dolly。 */
+  private async moveCamera(
+    scene: ActMapScene,
+    target: [number, number] | null,
+    resp: RunResponse | null,
+  ) {
+    const stage = scene.evidence ?? scene.kind
+    const pitchTarget = scene.pitch ?? 0
     try {
-      this.map.setPitch?.(scene.pitch ?? 0)
+      const currentPitch = this.map.getPitch?.() ?? 0
+      if (Math.abs(currentPitch - pitchTarget) > 5) {
+        await lerpPitch(this.map, currentPitch, pitchTarget, 550)
+      } else {
+        this.map.setPitch?.(pitchTarget)
+      }
     } catch {
       /* ignore */
     }
@@ -181,32 +196,101 @@ export class MapController {
       }
       case 'lane': {
         if (!target) break
-        // 连贯下钻到渠化详情级（≥18），只放大不回退
         const z = clampZoomUp(this.currentZoom, scene.zoom ?? CHANNELIZATION_ZOOM)
         await drillToIntersection(this.map, target, z)
         this.currentZoom = z
+        if (stage === 'downstream_topology') {
+          const pts = this.collectDiagnosisComparePoints(resp)
+          if (pts.length >= 2) {
+            await fitBoundsForPoints(this.map, pts, { maxZoom: 17.8, duration: 900, AMap: this.AMap })
+            this.currentZoom = this.map.getZoom?.() ?? this.currentZoom
+            break
+          }
+        }
+        const bearing = bearingFromDirectionLabel(resp?.diagnosis_ticket?.direction)
+        if (bearing != null && (stage === 'overflow_validation' || stage === 'cause_annotation')) {
+          this.currentZoom = await microDollyToApproach(this.map, target, bearing, this.currentZoom)
+        }
         break
       }
       case 'trace':
       case 'corridor': {
         if (!target) break
-        // 溯源/干线：允许相对当前镜头受控降 zoom，但不低于 ARTERIAL_ZOOM
-        const z = Math.max(scene.zoom ?? ARTERIAL_ZOOM, ARTERIAL_ZOOM)
-        const dur = Math.abs(this.currentZoom - z) > 1 ? 1000 : 800
-        await smoothPullback(this.map, target, z, dur)
-        panToVisualCenter(this.map, target)
-        this.currentZoom = z
+        const tracePts = this.collectTraceBoundsPoints(resp, target)
+        if (tracePts.length >= 2) {
+          await fitBoundsForPoints(this.map, tracePts, {
+            maxZoom: scene.zoom ?? ARTERIAL_ZOOM,
+            duration: 1000,
+            AMap: this.AMap,
+          })
+          this.currentZoom = this.map.getZoom?.() ?? this.currentZoom
+        } else {
+          const z = Math.max(scene.zoom ?? ARTERIAL_ZOOM, ARTERIAL_ZOOM)
+          const dur = Math.abs(this.currentZoom - z) > 1 ? 1000 : 800
+          await smoothPullback(this.map, target, z, dur)
+          panToVisualCenter(this.map, target)
+          this.currentZoom = z
+        }
         break
       }
       case 'control': {
         if (!target) break
-        // 治理/控制：从干线级丝滑回到渠化详情级，便于观察控制范围叠加
-        const z = clampZoomUp(this.currentZoom, scene.zoom ?? CHANNELIZATION_ZOOM)
-        await drillToIntersection(this.map, target, z)
-        this.currentZoom = z
+        const ctrlPts = this.collectControlScopePoints(resp, target)
+        if (ctrlPts.length >= 2) {
+          await fitBoundsForPoints(this.map, ctrlPts, { maxZoom: 17.5, duration: 900, AMap: this.AMap })
+          this.currentZoom = this.map.getZoom?.() ?? this.currentZoom
+        } else {
+          const z = clampZoomUp(this.currentZoom, scene.zoom ?? CHANNELIZATION_ZOOM)
+          await drillToIntersection(this.map, target, z)
+          this.currentZoom = z
+        }
         break
       }
     }
+  }
+
+  private collectDiagnosisComparePoints(resp: RunResponse | null): [number, number][] {
+    const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.diagnosis_compare
+    if (!scene?.available) return []
+    const pts: [number, number][] = []
+    for (const node of [scene.target, scene.downstream]) {
+      if (node && hasCoord(node.lng, node.lat)) pts.push([node.lng, node.lat])
+    }
+    return pts
+  }
+
+  private collectTraceBoundsPoints(resp: RunResponse | null, target: [number, number]): [number, number][] {
+    const pts: [number, number][] = [target]
+    const scenes = resp?.phases?.diagnosis?.map_scenes ?? {}
+    const sniff = (scenes as any).flow_trace_links_sniff_map
+    for (const inter of sniff?.intersections ?? []) {
+      const c = inter?.center
+      if (Array.isArray(c) && c.length >= 2 && hasCoord(c[0], c[1])) pts.push([c[0], c[1]])
+    }
+    for (const t of resp?.phases?.diagnosis?.flow_trace?.entry_traces ?? []) {
+      if (hasCoord(t.upstream_lng, t.upstream_lat)) pts.push([t.upstream_lng as number, t.upstream_lat as number])
+    }
+    for (const t of (scenes as any).downstream_trace_map?.turn_traces ?? []) {
+      if (hasCoord(t.lon, t.lat)) pts.push([t.lon, t.lat])
+    }
+    return pts
+  }
+
+  private collectControlScopePoints(resp: RunResponse | null, target: [number, number]): [number, number][] {
+    const csm = resp?.phases?.strategy?.control_scope_map
+    const pts: [number, number][] = [target]
+    const center = csm?.center
+    if (Array.isArray(center) && hasCoord(center[0], center[1])) pts.push(center as [number, number])
+    for (const p of csm?.upstream_metering_points ?? []) {
+      if (hasCoord((p as any).lng, (p as any).lat)) pts.push([(p as any).lng, (p as any).lat])
+    }
+    for (const p of csm?.downstream_protection_nodes ?? []) {
+      if (hasCoord((p as any).lng, (p as any).lat)) pts.push([(p as any).lng, (p as any).lat])
+    }
+    for (const edge of (csm as any)?.coordination_paths ?? []) {
+      for (const pt of validPath(edge.path)) pts.push(pt)
+    }
+    return pts
   }
 
   private drawMetricMarkers(resp: RunResponse | null, center: [number, number]) {
@@ -329,6 +413,8 @@ export class MapController {
       center: (scene.center ?? target) as [number, number],
     })
     this.channelizationLayer.render()
+    const ticket = resp?.diagnosis_ticket
+    this.channelizationLayer.highlightApproach(ticket?.direction, ticket?.movement)
   }
 
   /** 目标路口一跳下游十字拓扑：所有真实出口 link 下游节点 + 问题转向高亮。 */
@@ -343,16 +429,63 @@ export class MapController {
   private drawControlScope(resp: RunResponse | null, target: [number, number] | null) {
     const csm = resp?.phases?.strategy?.control_scope_map
     const center = csm?.center && hasCoord(csm.center[0], csm.center[1]) ? (csm.center as [number, number]) : target
-    if (center) this.add(this.pulseMarker(center, '#00e5ff', '小步释放'))
+    if (center) {
+      this.add(
+        new this.AMap.Marker({
+          position: center,
+          content: markerHtml({
+            position: center,
+            kind: 'metric',
+            title: '目标路口',
+            value: '小步释放',
+            severity: 'low',
+          }),
+          offset: new this.AMap.Pixel(-40, -28),
+          anchor: 'center',
+        }),
+      )
+    }
     for (const p of csm?.upstream_metering_points ?? []) {
       const lng = (p as any).lng
       const lat = (p as any).lat
-      if (hasCoord(lng, lat)) this.add(this.pulseMarker([lng, lat], '#ff5050', '控流闸口'))
+      if (hasCoord(lng, lat)) {
+        const pos: [number, number] = [lng, lat]
+        this.add(
+          new this.AMap.Marker({
+            position: pos,
+            content: markerHtml({
+              position: pos,
+              kind: 'alert',
+              title: '控流闸口',
+              value: (p as any).label ?? '上游控流',
+              severity: 'high',
+            }),
+            offset: new this.AMap.Pixel(-40, -28),
+            anchor: 'center',
+          }),
+        )
+      }
     }
     for (const p of csm?.downstream_protection_nodes ?? []) {
       const lng = (p as any).lng
       const lat = (p as any).lat
-      if (hasCoord(lng, lat)) this.add(this.pulseMarker([lng, lat], '#6dffb5', '下游保护'))
+      if (hasCoord(lng, lat)) {
+        const pos: [number, number] = [lng, lat]
+        this.add(
+          new this.AMap.Marker({
+            position: pos,
+            content: markerHtml({
+              position: pos,
+              kind: 'evidence',
+              title: '下游保护',
+              value: (p as any).label ?? '保护节点',
+              severity: 'medium',
+            }),
+            offset: new this.AMap.Pixel(-40, -28),
+            anchor: 'center',
+          }),
+        )
+      }
     }
     for (const edge of (csm as any)?.coordination_paths ?? []) {
       const path = validPath(edge.path)
@@ -361,44 +494,111 @@ export class MapController {
           new this.AMap.Polyline({
             path,
             strokeColor: '#f5a623',
-            strokeWeight: 4,
-            strokeOpacity: 0.75,
+            strokeWeight: 2,
+            strokeOpacity: 0.25,
+            strokeStyle: 'solid',
+            showDir: true,
+            zIndex: 60,
+          }),
+        )
+        this.add(
+          new this.AMap.Polyline({
+            path,
+            strokeColor: '#ffcf7a',
+            strokeWeight: 5,
+            strokeOpacity: 0.82,
             strokeStyle: 'dashed',
             showDir: true,
+            zIndex: 62,
           }),
         )
       }
     }
   }
 
-  /** act3–4：本路口 vs 主要下游双节点对比。 */
+  /** act3–4：本路口 vs 主要下游双节点对比（callout + 连线）。 */
   private drawDiagnosisCompare(resp: RunResponse | null) {
     const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.diagnosis_compare
     if (!scene?.available) return
-    for (const node of [scene.target, scene.downstream]) {
+    const nodes = [scene.target, scene.downstream].filter(Boolean)
+    const positions: [number, number][] = []
+    for (const node of nodes) {
       if (!node || !hasCoord(node.lng, node.lat)) continue
+      const pos: [number, number] = [node.lng, node.lat]
+      positions.push(pos)
       const color = node.role === 'target' ? '#ff5050' : '#38bdf8'
       const metrics = node.metrics ?? {}
-      const label =
+      const title = node.role === 'target' ? '本路口' : '主要下游'
+      const value =
         node.role === 'target'
-          ? `本路口·排队${metrics.queue_ratio ?? '—'}`
-          : `下游·饱和${metrics.saturation ?? '—'}`
-      this.add(this.pulseMarker([node.lng, node.lat], color, label))
+          ? `排队 ${metrics.queue_ratio ?? '—'}`
+          : `饱和 ${metrics.saturation ?? '—'}`
+      this.add(
+        new this.AMap.Marker({
+          position: pos,
+          content: markerHtml({
+            position: pos,
+            kind: node.role === 'target' ? 'alert' : 'metric',
+            title,
+            value,
+            subtitle: node.inter_name ?? '',
+            severity: node.role === 'target' ? 'high' : 'medium',
+          }),
+          offset: new this.AMap.Pixel(-40, -32),
+          anchor: 'center',
+        }),
+      )
+      this.add(this.pulseMarker(pos, color, node.inter_name ?? title))
+    }
+    if (positions.length >= 2) {
+      this.add(
+        new this.AMap.Polyline({
+          path: positions,
+          strokeColor: '#f5a623',
+          strokeWeight: 3,
+          strokeOpacity: 0.65,
+          strokeStyle: 'dashed',
+          showDir: true,
+        }),
+      )
     }
   }
 
-  /** act6：主因关联空间对象 + 案例轻量标记。 */
+  /** act6：主因关联空间对象 + 案例轻量标记（分散 layout）。 */
   private drawCauseAnnotations(resp: RunResponse | null) {
     const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.cause_spatial
     if (!scene?.available) return
     const reduced =
       typeof window !== 'undefined' &&
       !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    let caseIndex = 0
     for (const ann of scene.annotations ?? []) {
       if (!hasCoord(ann.lng, ann.lat)) continue
       const color = ann.color ?? '#00e5ff'
+      let lng = ann.lng as number
+      let lat = ann.lat as number
+      if (ann.kind === 'case_ref' || ann.offset) {
+        const angle = (caseIndex * 72 * Math.PI) / 180
+        lng += Math.cos(angle) * 0.00035
+        lat += Math.sin(angle) * 0.00035
+        caseIndex += 1
+      }
+      const pos: [number, number] = [lng, lat]
       const label = ann.label ?? ann.case_id ?? '标注'
-      this.add(this.pulseMarker([ann.lng, ann.lat], color, label))
+      this.add(
+        new this.AMap.Marker({
+          position: pos,
+          content: markerHtml({
+            position: pos,
+            kind: ann.kind === 'case_ref' ? 'evidence' : 'metric',
+            title: ann.kind === 'approach' ? '问题进口' : ann.kind === 'downstream' ? '下游' : '案例',
+            value: label,
+            severity: ann.kind === 'approach' ? 'high' : 'medium',
+          }),
+          offset: new this.AMap.Pixel(-36, -28),
+          anchor: 'center',
+        }),
+      )
       if (!reduced && ann.kind === 'downstream' && ann.inter_id) {
         const target = resp?.diagnosis_ticket
         if (target && hasCoord(target.lng, target.lat)) {
@@ -406,11 +606,11 @@ export class MapController {
             new this.AMap.Polyline({
               path: [
                 [target.lng as number, target.lat as number],
-                [ann.lng, ann.lat],
+                pos,
               ],
               strokeColor: color,
-              strokeWeight: 2,
-              strokeOpacity: 0.5,
+              strokeWeight: 3,
+              strokeOpacity: 0.55,
               strokeStyle: 'dotted',
             }),
           )
