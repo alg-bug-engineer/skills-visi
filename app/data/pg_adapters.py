@@ -7,6 +7,7 @@ from typing import Any
 
 from app.trace.geometry import orient_path, parse_linestring_wkt, parse_point_wkt
 from app.trace.topology import (
+    DIR8_ENTRY,
     DIRECTION_MOVEMENT,
     TURN_LABEL,
     exit_dir8_for_turn,
@@ -60,9 +61,42 @@ def parse_time_step_range(time_range: str | None) -> tuple[int | None, int | Non
     return lo, hi
 
 
-# Case A（坤顺路×奥体西路）：下游承接排队按接收进口道方向筛选 + queue_len_avg 均值。
-# 其他路口保持整路口 queue_m（max）原逻辑。
+# Case A 集合保留兼容；目标指标一律按 movement 绑定（需求 34 G1/G2）。
 CASE_A_APPROACH_QUEUE_TARGET_IDS = frozenset({"011wwe28fty00001"})
+
+
+def _storage_for_dir8(
+    *,
+    dir8: int,
+    scope: dict[str, Any] | None,
+) -> tuple[float | None, dict[str, Any]]:
+    """按目标进口 dir8 取库容，禁止借用其他进口间距。"""
+    evidence: dict[str, Any] = {
+        "storage_direction": DIR8_ENTRY.get(int(dir8)),
+        "storage_source": None,
+        "scope": "approach_storage",
+        "available": False,
+    }
+    for item in (scope or {}).get("adjacent_inter_spacing_detail") or []:
+        if not isinstance(item, dict):
+            continue
+        item_dir = _row_dir8(item)
+        if item_dir is None or int(item_dir) != int(dir8):
+            continue
+        spacing = _as_float_or_none(item.get("spacing_m") or item.get("length_m") or item.get("storage_m"))
+        if spacing is None or spacing <= 0:
+            continue
+        evidence.update(
+            {
+                "available": True,
+                "storage_source": "adjacent_inter_spacing_detail",
+                "spacing_version_id": item.get("version_id") or item.get("link_id"),
+                "link_id": item.get("link_id"),
+            }
+        )
+        return float(spacing), evidence
+    evidence["reason"] = "no_matching_approach_storage"
+    return None, evidence
 
 
 def metrics_for_diagnosis(
@@ -70,10 +104,12 @@ def metrics_for_diagnosis(
     ticket: dict[str, Any],
     *,
     approach_queue_avg: bool = False,
+    scope: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     direction = ticket.get("direction", "东向西")
     movement = ticket.get("movement", "直行")
     dir8, turn = resolve_dir8_turn(direction, movement)
+    movement_key = f"d{dir8}_t{turn}"
 
     target_sat = _pick_row_metric(
         pg_metrics.get("turn_saturation_detail") or [],
@@ -83,7 +119,7 @@ def metrics_for_diagnosis(
     )
     if target_sat is None:
         target_sat = _pick_movement_metric(pg_metrics.get("movement_saturation") or {}, dir8, turn)
-    saturation = float(target_sat if target_sat is not None else pg_metrics.get("saturation") or 0)
+    saturation = float(target_sat) if target_sat is not None else None
 
     target_flow = _pick_row_metric(
         pg_metrics.get("turn_flow_detail") or [],
@@ -93,40 +129,61 @@ def metrics_for_diagnosis(
     )
     if target_flow is None:
         target_flow = _pick_movement_metric(pg_metrics.get("movement_volume") or {}, dir8, turn)
-    volume = float(target_flow if target_flow is not None else pg_metrics.get("volume") or 0)
+    volume = float(target_flow) if target_flow is not None else None
 
-    queue_m = float(pg_metrics.get("queue_m") or 0)
-    if approach_queue_avg:
-        # 仅 Case A 下游：按接收进口+转向取 queue_len_avg 均值，避免他向峰值污染。
-        filtered = _mean_row_metric(
-            pg_metrics.get("turn_perf_detail") or [],
-            dir8,
-            turn,
-            ("queue_len_avg",),
-        )
-        if filtered is None:
-            filtered = _mean_row_metric(
-                pg_metrics.get("turn_perf_detail") or [],
-                dir8,
-                turn,
-                ("queue_len_max",),
-            )
-        if filtered is not None:
-            queue_m = float(filtered)
+    queue_fields = ("queue_len_avg",) if approach_queue_avg else ("queue_len_avg", "queue_len_max")
+    queue_m = _mean_row_metric(pg_metrics.get("turn_perf_detail") or [], dir8, turn, queue_fields)
+    if queue_m is None:
+        queue_m = _mean_row_metric(pg_metrics.get("turn_perf_detail") or [], dir8, turn, ("queue_len_max",))
+    queue_available = queue_m is not None
+
+    storage_m, storage_evidence = _storage_for_dir8(dir8=dir8, scope=scope)
+    storage_available = storage_m is not None and storage_m > 0
+
+    util = _pick_row_metric(
+        pg_metrics.get("turn_perf_detail") or [],
+        dir8,
+        turn,
+        ("green_utilization",),
+    )
+    if util is None:
+        util = _as_float_or_none(pg_metrics.get("green_utilization"))
+
+    if saturation is not None and volume is not None and saturation > 0:
+        capacity = volume / saturation
+    else:
+        capacity = _as_float_or_none(pg_metrics.get("capacity")) or 0.0
 
     return {
-        "queue_length_m": queue_m,
-        "storage_length_m": float(pg_metrics.get("storage_m") or 200),
-        "volume_vph": volume,
-        "capacity_vph": float(pg_metrics.get("capacity") or 0) or max(volume / max(saturation or 0.8, 0.1), 1),
-        "saturation": saturation,
-        "saturation_rate": saturation,
-        "green_utilization": float(pg_metrics.get("green_utilization") or 0),
-        "stop_count": float(pg_metrics.get("stop_count") or 0),
-        "avg_delay_s": float(pg_metrics.get("avg_delay_s") or 0),
+        "queue_length_m": float(queue_m) if queue_available else None,
+        "storage_length_m": float(storage_m) if storage_available else None,
+        "storage_direction": storage_evidence.get("storage_direction"),
+        "storage_source": storage_evidence.get("storage_source"),
+        "spacing_version_id": storage_evidence.get("spacing_version_id"),
+        "volume_vph": float(volume) if volume is not None else 0.0,
+        "capacity_vph": float(capacity) if capacity else 0.0,
+        "saturation": saturation if saturation is not None else 0.0,
+        "saturation_rate": saturation if saturation is not None else 0.0,
+        "green_utilization": float(util) if util is not None else 0.0,
+        "stop_count": float(_as_float_or_none(pg_metrics.get("stop_count")) or 0),
+        "avg_delay_s": float(_as_float_or_none(pg_metrics.get("avg_delay_s")) or 0),
         "time_series_trend": "pg_loaded",
-        "upstream_arrival_intensity": "high" if saturation >= 0.8 else "medium",
+        "upstream_arrival_intensity": (
+            "high" if saturation is not None and saturation >= 0.8 else "medium"
+        ),
+        "target_movement_key": movement_key,
+        "metric_scope": "movement",
+        "dir8_code": dir8,
+        "turn_dir_no": turn,
+        "metrics_available": saturation is not None,
+        "queue_available": queue_available,
+        "storage_available": storage_available,
+        "storage_evidence": storage_evidence,
+        # 审计：路口级 MAX 仅作对照，不得覆盖目标字段
+        "intersection_saturation_max": _as_float_or_none(pg_metrics.get("saturation")),
+        "intersection_queue_max": _as_float_or_none(pg_metrics.get("queue_m")),
     }
+
 
 
 def _target_center(inter: dict[str, Any]) -> tuple[float | None, float | None]:
@@ -146,7 +203,6 @@ def _coverage_index(
     （PG trace_type=UPSTREAM）保持目标转向的一跳严格口径。
     """
     best: dict[tuple[str, str], float] = {}
-    combined_upstream: dict[tuple[str, str], float] = {}
     for row in correlate_rows or []:
         try:
             row_dir8 = int(row.get("f_dir8_no"))
@@ -163,17 +219,15 @@ def _coverage_index(
             share = float(row.get("flow_share_ratio") or row.get("share_pct") or 0)
         except (TypeError, ValueError):
             continue
-        key = (trace_type, cor_id)
-        if trace_type == "DOWNSTREAM":
-            combined_upstream[key] = combined_upstream.get(key, 0.0) + share
-            continue
+        # 上/下游均按目标转向约束，取 max 不跨转向累加（需求 34 G4 守恒）
         if row_turn != int(turn_dir_no):
             continue
+        if share < 0 or share > 100:
+            continue
+        key = (trace_type, cor_id)
         prev = best.get(key)
         if prev is None or share > prev:
-            best[key] = share
-    for key, share in combined_upstream.items():
-        best[key] = round(share, 2)
+            best[key] = round(share, 2)
     return best
 
 
@@ -641,10 +695,19 @@ def _as_float_or_none(value: Any) -> float | None:
 
 
 def _row_dir8(row: dict[str, Any]) -> int | None:
-    for key in ("dir8No", "dir8_no", "f_dir_8", "f_dir8_no", "dir8"):
+    for key in ("dir8No", "dir8_no", "f_dir_8", "f_dir8_no", "dir8_code", "dir8"):
         value = _as_float_or_none(row.get(key))
         if value is not None:
             return int(value)
+    for key in ("dir8_label", "f_dir_8_label", "dir4_label"):
+        label = str(row.get(key) or "").strip()
+        if not label:
+            continue
+        compact = label.replace("进口", "").replace("出口", "")
+        # 先精确匹配，避免「南进口」误命中「东南进口」
+        for code, name in DIR8_ENTRY.items():
+            if name == label or name.replace("进口", "") == compact:
+                return int(code)
     return None
 
 
@@ -717,6 +780,10 @@ def _movement_key_matches(text: str, dir8: int, turn: int) -> bool:
     turn_label = TURN_LABEL.get(int(turn))
     if turn_label:
         candidates.add(f"{dir8}_{turn_label}")
+        entry = DIR8_ENTRY.get(int(dir8), "")
+        if entry:
+            candidates.add(f"{entry}{turn_label}")
+            candidates.add(f"{entry.replace('进口', '')}{turn_label}")
     return any(candidate and candidate in normalized for candidate in candidates)
 
 
@@ -726,6 +793,5 @@ def _pick_movement_metric(mapping: dict[str, Any], dir8: int, turn: int) -> floa
             return _metric_value(value)
         if _movement_key_matches(str(key), dir8, turn):
             return _metric_value(value)
-    if len(mapping) == 1:
-        return _metric_value(next(iter(mapping.values())))
+    # 禁止「仅一条就取用」：会把他向指标错绑到目标转向（需求 34 E1/E6）
     return None

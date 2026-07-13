@@ -16,13 +16,22 @@ def build_intersection_profile(node: dict[str, Any]) -> dict[str, Any]:
     # 显式标记指标不可用时，禁止用缺省 0 伪造承接判断（BUG-004）。
     metrics_unavailable = node.get("metrics_available") is False
     queue_ratio = calculate_queue_ratio(
-        node.get("queue_length_m", 0),
-        node.get("storage_length_m", 0),
+        node.get("queue_length_m", 0) or 0,
+        node.get("storage_length_m", 0) or 0,
     )
-    saturation = calculate_saturation(
-        node.get("volume_vph", 0),
-        node.get("capacity_vph", 0),
-    )
+    # 优先消费已绑定的目标转向饱和度，避免 volume/capacity 回算覆盖 movement 真值（需求 34 G1）
+    explicit_sat = node.get("saturation_rate")
+    if explicit_sat is None:
+        explicit_sat = node.get("saturation")
+    try:
+        saturation = float(explicit_sat) if explicit_sat is not None else None
+    except (TypeError, ValueError):
+        saturation = None
+    if saturation is None:
+        saturation = calculate_saturation(
+            node.get("volume_vph", 0) or 0,
+            node.get("capacity_vph", 0) or 0,
+        )
     if metrics_unavailable:
         queue_ratio = None
         saturation = None
@@ -45,10 +54,14 @@ def build_intersection_profile(node: dict[str, Any]) -> dict[str, Any]:
             "max_queue_m": None if metrics_unavailable else node.get("queue_length_m"),
             "queue_storage_ratio_max": queue_ratio,
             "spillback_risk_max": queue_ratio,
-            "level_of_service": None if metrics_unavailable else level_of_service(saturation),
+            "level_of_service": None if metrics_unavailable or saturation is None else level_of_service(saturation),
             "green_utilization": None if metrics_unavailable else node.get("green_utilization"),
             "stop_count": None if metrics_unavailable else node.get("stop_count"),
             "time_series_trend": node.get("time_series_trend"),
+            "target_movement_key": node.get("target_movement_key"),
+            "metric_scope": node.get("metric_scope") or "movement",
+            "storage_direction": node.get("storage_direction"),
+            "storage_source": node.get("storage_source"),
         },
         "by_turn": node.get("by_turn")
         or [

@@ -62,7 +62,11 @@ def load_pg_diagnosis_bundle(
         inter = inter[0] if inter else {}
 
     pg_metrics = pg_task.get("metrics") or {}
-    metrics = metrics_for_diagnosis(pg_metrics, ticket)
+    metrics = metrics_for_diagnosis(
+        pg_metrics,
+        ticket,
+        scope=pg_task.get("scope") if isinstance(pg_task.get("scope"), dict) else None,
+    )
     topology = topology_from_pg_raw({**raw, "metrics": pg_metrics}, ticket, inter)
 
     # 轻量指标加载（跳过 AOI/几何/信号昂贵查询），避免逐下游节点整份检查单加载（需求21-R4）。

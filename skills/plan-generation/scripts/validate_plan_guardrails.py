@@ -14,10 +14,11 @@ def validate_plan_guardrails(plan: dict[str, Any], constraints: dict[str, Any] |
         or timing.get("cycle_s")
     )
     max_cycle = _to_float(constraints.get("max_cycle_s"))
-    if cycle is not None and max_cycle is not None and cycle > max_cycle:
-        engine_max = _to_float(_optimizer_meta(plan).get("max_cycle_s"))
-        if engine_max is None or cycle > engine_max:
-            errors.append(f"周期 {cycle:.0f}s 超过约束上限 {max_cycle:.0f}s")
+    # 产品硬约束不可被引擎 history max 旁路（需求 34 E7/G6）
+    if cycle is not None and max_cycle is None:
+        errors.append("缺少周期上限约束 max_cycle_s，无法完成护栏校验")
+    elif cycle is not None and max_cycle is not None and cycle > max_cycle:
+        errors.append(f"周期 {cycle:.0f}s 超过约束上限 {max_cycle:.0f}s")
     if not str(plan.get("rollback_condition") or "").strip():
         errors.append("缺少回滚条件")
 

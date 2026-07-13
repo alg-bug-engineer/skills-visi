@@ -425,12 +425,15 @@ def analyze_overflow(
 
     return {
         "metrics": {
-            "queue_length_m": metrics_input["queue_length_m"],
-            "storage_length_m": metrics_input["storage_length_m"],
+            "queue_length_m": metrics_input.get("queue_length_m"),
+            "storage_length_m": metrics_input.get("storage_length_m"),
+            "storage_direction": metrics_input.get("storage_direction"),
+            "storage_source": metrics_input.get("storage_source"),
+            "spacing_version_id": metrics_input.get("spacing_version_id"),
             "queue_ratio": queue_ratio,
             "saturation": saturation,
             "los": level_of_service(saturation or 0),
-            "green_utilization": metrics_input["green_utilization"],
+            "green_utilization": metrics_input.get("green_utilization"),
             "stop_count": metrics_input.get("stop_count"),
             "avg_delay_s": metrics_input.get("avg_delay_s"),
             "time_series_trend": metrics_input.get("time_series_trend"),
@@ -439,6 +442,12 @@ def analyze_overflow(
             "imbalance_index": imbalance_index,
             "approach_count": approach_count,
             "lane_count": lane_count,
+            "target_movement_key": metrics_input.get("target_movement_key"),
+            "metric_scope": metrics_input.get("metric_scope") or "movement",
+            "dir8_code": metrics_input.get("dir8_code", dir8_code),
+            "turn_dir_no": metrics_input.get("turn_dir_no", turn_dir_no),
+            "intersection_saturation_max": metrics_input.get("intersection_saturation_max"),
+            "intersection_queue_max": metrics_input.get("intersection_queue_max"),
         },
         "timing_profile": build_timing_profile(signal),
         "problem_regularity": derive_problem_regularity(

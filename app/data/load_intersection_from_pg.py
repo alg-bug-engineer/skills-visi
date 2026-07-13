@@ -2057,16 +2057,27 @@ def _build_link_dir_lookup(channel_rows: list[dict[str, Any]]) -> dict[str, str]
 
 def _enrich_movement_rows(rows: list[dict[str, Any]], channel_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     lookup = _build_link_dir_lookup(channel_rows)
-    if not lookup:
+    code_by_link: dict[str, Any] = {}
+    for row in channel_rows or []:
+        link_id = row.get("link_id")
+        if not link_id or row.get("dir8_code") is None:
+            continue
+        code_by_link[str(link_id)] = row.get("dir8_code")
+        code_by_link[str(link_id)[-4:]] = row.get("dir8_code")
+    if not lookup and not code_by_link:
         return rows
     enriched: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
+        link_id = str(item.get("link_id") or item.get("f_dir_8") or "")
         if not (item.get("f_dir_8_label") or item.get("dir8_label") or item.get("dir4_label")):
-            link_id = str(item.get("link_id") or item.get("f_dir_8") or "")
             label = lookup.get(link_id) or lookup.get(link_id[-4:])
             if label:
                 item["dir8_label"] = label
+        if item.get("dir8_code") is None and item.get("f_dir8_no") is None:
+            code = code_by_link.get(link_id) or code_by_link.get(link_id[-4:])
+            if code is not None:
+                item["dir8_code"] = code
         enriched.append(item)
     return enriched
 
@@ -2244,6 +2255,7 @@ def _build_scope(
             {
                 "link_id": row.get("link_id"),
                 "link_role": row.get("link_role"),
+                "dir8_code": row.get("dir8_code"),
                 "dir8_label": row.get("dir8_label"),
                 "relation_direction": relation,
                 "adjacent_inter_id": adjacent_inter_id,

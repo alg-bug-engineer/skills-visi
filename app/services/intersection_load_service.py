@@ -197,7 +197,11 @@ class IntersectionLoadService:
         task: dict[str, Any] = {}
         merge_pg_task_into_context(task, pg_task)
         pg_metrics = pg_task.get("metrics") or {}
-        metrics = metrics_for_diagnosis(pg_metrics, ticket)
+        metrics = metrics_for_diagnosis(
+            pg_metrics,
+            ticket,
+            scope=pg_task.get("scope") if isinstance(pg_task.get("scope"), dict) else None,
+        )
         topology = topology_from_pg_raw({**raw, "metrics": pg_metrics}, ticket, inter)
         self._enrich_downstream(
             topology,

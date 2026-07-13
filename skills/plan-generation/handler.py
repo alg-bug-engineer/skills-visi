@@ -104,12 +104,56 @@ class PlanGenerationSkill(BaseSkill):
                 errors=["方案生成返回非 JSON 结构"],
             )
 
+        constraints = dict(signal_resolved.get("constraints") or {})
+        # 策略硬约束与配时约束取更严上限（需求 34 E7：策略 180 必须进入护栏）
+        strat_body = strategy.get("strategy") if isinstance(strategy.get("strategy"), dict) else strategy
+        quant = (
+            (strat_body or {}).get("quantitative_constraints")
+            if isinstance(strat_body, dict)
+            else None
+        )
+        if isinstance(quant, dict) and quant.get("max_cycle_s") is not None:
+            try:
+                qmax = float(quant["max_cycle_s"])
+                existing = constraints.get("max_cycle_s")
+                if existing is None:
+                    constraints["max_cycle_s"] = qmax
+                else:
+                    constraints["max_cycle_s"] = min(float(existing), qmax)
+            except (TypeError, ValueError):
+                pass
+
+        # 诊断与方案配时基线一致性（需求 34 G5）
+        diag_cycle = (diagnosis.get("timing_profile") or {}).get("cycle_s")
+        sig_cycle = (signal_resolved.get("signal") or {}).get("current_cycle_s")
+        try:
+            if diag_cycle is not None and sig_cycle is not None:
+                if abs(float(diag_cycle) - float(sig_cycle)) > 2.0:
+                    return SkillResult(
+                        skill_id=self.meta.skill_id,
+                        phase=self.meta.phase,
+                        success=False,
+                        output={
+                            "available": False,
+                            "reason": "signal_plan_snapshot_drift",
+                            "diagnosis_cycle_s": diag_cycle,
+                            "signal_cycle_s": sig_cycle,
+                            "all_guardrails_passed": False,
+                            "signal_source": signal_resolved.get("source"),
+                        },
+                        errors=[
+                            f"配时基线不一致：诊断周期 {diag_cycle}s 与方案快照 {sig_cycle}s 偏差超过容差"
+                        ],
+                    )
+        except (TypeError, ValueError):
+            pass
+
         candidates, optimizer_engine = candidates_module.build_plan_candidates(
             strategy,
             ticket,
             diagnosis,
             signal=signal_resolved["signal"],
-            constraints=signal_resolved.get("constraints") or {},
+            constraints=constraints,
             generate_timing_plan=timing_module.generate_timing_plan,
             adjust_phase_timing=adjust_module.adjust_phase_timing,
             build_strategy_instruction=adjust_module.build_strategy_instruction,
@@ -123,6 +167,8 @@ class PlanGenerationSkill(BaseSkill):
         )
 
         valid_candidates = [c for c in candidates if c.get("guardrail_pass")]
+        has_feasible_candidate = bool(valid_candidates)
+        all_candidates_passed = bool(candidates) and all(c.get("guardrail_pass") for c in candidates)
         if not valid_candidates:
             return SkillResult(
                 skill_id=self.meta.skill_id,
@@ -130,7 +176,10 @@ class PlanGenerationSkill(BaseSkill):
                 success=False,
                 output={
                     "candidates": candidates,
+                    "recommended_plan_id": None,
                     "all_guardrails_passed": False,
+                    "has_feasible_candidate": False,
+                    "all_candidates_passed": False,
                     "signal_source": signal_resolved.get("source"),
                 },
                 errors=["所有候选方案未通过护栏校验"],
@@ -165,7 +214,9 @@ class PlanGenerationSkill(BaseSkill):
             "recommended": recommended,
             "recommended_plan_id": recommended["plan_id"],
             "recommendation": llm_result,
-            "all_guardrails_passed": all(c.get("guardrail_pass") for c in candidates),
+            "all_guardrails_passed": all_candidates_passed,
+            "has_feasible_candidate": has_feasible_candidate,
+            "all_candidates_passed": all_candidates_passed,
             "signal_source": signal_resolved.get("source"),
             "optimizer_engine": optimizer_engine,
             "user_solution_refs": user_solution_refs,

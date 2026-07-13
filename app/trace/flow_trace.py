@@ -22,9 +22,34 @@ def build_flow_trace(
     entry_traces: list[dict[str, Any]] = []
     problem_turns: list[dict[str, Any]] = []
     governance_hints: list[dict[str, Any]] = []
+    out_of_range = False
+    raw_share_pct: float | None = None
 
     for node in upstream_nodes:
         movements = node.get("upstream_movements") or []
+        # 过滤越界占比（需求 34 G4）
+        cleaned: list[dict[str, Any]] = []
+        for mv in movements:
+            share = mv.get("share_pct")
+            vehicles = mv.get("vehicles_of_100")
+            raw = mv.get("raw_coverage")
+            bad = False
+            for val in (share, vehicles, raw):
+                try:
+                    if val is not None and (float(val) < 0 or float(val) > 100):
+                        bad = True
+                        out_of_range = True
+                        raw_share_pct = float(val)
+                        break
+                except (TypeError, ValueError):
+                    continue
+            if bad:
+                continue
+            cleaned.append(mv)
+        movements = cleaned
+        if not movements:
+            continue
+        node = {**node, "upstream_movements": movements}
         dom = movements[0] if movements else None
         up_name = node.get("upstream_inter_name", "上一路口")
         vehicles = dom.get("vehicles_of_100") if dom else None
@@ -66,6 +91,13 @@ def build_flow_trace(
                     "coverage": dom.get("vehicles_of_100"),
                 }
             )
+
+    if out_of_range and not entry_traces:
+        return {
+            "available": False,
+            "reason": "flow_share_out_of_range",
+            "raw_share_pct": raw_share_pct,
+        }
 
     sources = []
     for node in upstream_nodes:
