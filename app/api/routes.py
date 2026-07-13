@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any, AsyncIterator, Literal
@@ -260,8 +261,11 @@ async def run_agent_stream(
                 stop_after=request.stop_after,
             ):
                 yield _sse_frame(ev["event"], ev["data"])
+                # 让出事件循环，避免长耗时 skill 期间缓冲 phase_done 直到下一阶段才下发。
+                await asyncio.sleep(0)
         except Exception as exc:  # noqa: BLE001 - 流内异常转 error 事件而非中断连接
             yield _sse_frame("error", {"phase": None, "errors": [str(exc)]})
+            await asyncio.sleep(0)
 
     return StreamingResponse(
         event_source(),

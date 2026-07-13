@@ -38,7 +38,7 @@ export function buildHudMetrics(resp: RunResponse | null): HudMetric[] {
   if (m.queue_ratio != null) {
     items.push({ label: '排队比', value: ratio(m.queue_ratio), severity: sevFromQueueRatio(m.queue_ratio) })
   }
-  if (saturation != null) {
+  if (saturation != null && saturation > 0) {
     // 小数形式（禁百分比），阈值语义色不变
     items.push({ label: '饱和度', value: ratio(saturation), severity: sevFromSaturation(saturation) })
   }
@@ -87,7 +87,7 @@ export function buildMetricMarkers(
   const markers: MapMarkerSpec[] = []
   const saturation = saturationOf(m)
 
-  if (saturation != null) {
+  if (saturation != null && saturation > 0) {
     const offset = dirOffset(center, dir, 0.0012)
     markers.push({
       position: offset,

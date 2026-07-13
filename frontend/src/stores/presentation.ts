@@ -51,6 +51,15 @@ const SKILL_PHASE_LABEL: Record<string, string> = {
   plan_generation: '方案生成',
 }
 
+/** 后端 skill phase → 前端幕门控 phase。 */
+const SKILL_TO_PHASE: Record<string, PhaseKey> = {
+  intent_understanding: 'intent',
+  data_analysis_diagnosis: 'diagnosis',
+  cause_analysis: 'cause',
+  strategy_generation: 'strategy',
+  plan_generation: 'plan',
+}
+
 interface State {
   status: RunStatus
   mode: RunMode
@@ -361,7 +370,8 @@ export const usePresentationStore = defineStore('presentation', {
     onStreamEvent(ev: StreamEvent) {
       const data = ev.data as Record<string, unknown>
       if (ev.event === 'phase_start') {
-        this.computingPhase = (data.phase as PhaseKey) ?? this.computingPhase
+        const raw = String(data.phase ?? '')
+        this.computingPhase = SKILL_TO_PHASE[raw] ?? (data.phase as PhaseKey) ?? this.computingPhase
       } else if (ev.event === 'phase_done') {
         const snap = data.snapshot as RunResponse | undefined
         if (snap) this.applySnapshot(snap)

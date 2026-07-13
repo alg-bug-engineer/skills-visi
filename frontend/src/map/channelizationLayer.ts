@@ -44,7 +44,9 @@ function metricColor(value: number | null | undefined, kind: 'saturation' | 'que
 function metricText(metrics: Record<string, number | null | undefined> | undefined): string {
   if (!metrics) return ''
   const chunks: string[] = []
-  if (metrics.saturation != null) chunks.push(`饱和 ${Number(metrics.saturation).toFixed(2)}`)
+  if (metrics.saturation != null && metrics.saturation > 0) {
+    chunks.push(`饱和 ${Number(metrics.saturation).toFixed(2)}`)
+  }
   if (metrics.queue_m != null) chunks.push(`排队 ${Number(metrics.queue_m).toFixed(0)}m`)
   if (metrics.green_utilization != null) chunks.push(`绿用 ${Number(metrics.green_utilization).toFixed(2)}`)
   if (metrics.flow_vph != null) chunks.push(`流量 ${Number(metrics.flow_vph).toFixed(0)}`)

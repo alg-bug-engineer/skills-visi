@@ -162,7 +162,7 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
           `推荐方案：${translatePlanId(plan.recommendation.recommended_plan_id)}`,
         plan?.all_guardrails_passed != null &&
           `护栏校验：${plan.all_guardrails_passed ? '最小绿、周期与协调约束全部通过' : '存在未通过项，需人工复核'}`,
-        plan?.recommendation?.rationale && `推荐理由：${plan.recommendation.rationale}`,
+        plan?.recommendation?.rationale && `推荐理由：${productCopy(plan.recommendation.rationale)}`,
       )
     case 'act9_feedback':
       return lines('记录本次处置结果，形成后续复用依据…', '请确认下发、退回修改或提交再生成。')

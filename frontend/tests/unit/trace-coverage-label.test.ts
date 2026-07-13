@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildSegmentCoverageLabelHtml,
   buildSegmentCoverageLinkHtml,
+  buildSegmentCoverageTargetHtml,
   formatCoverageShare,
 } from '@/map/traceCoverageLabel'
 
@@ -29,8 +30,24 @@ describe('traceCoverageLabel', () => {
       targetFlow: 2,
     })
     expect(inter).toContain('书昌街与齐音路路口')
-    expect(inter).toContain('1/2趟 (50.0%)')
+    expect(inter).toContain('占目标流量')
+    expect(inter).not.toContain('途经')
     expect(link).toContain('齐川路')
     expect(link).toContain('1/2趟 (50.0%)')
+  })
+
+  it('does not show low-sample trip disclaimer on target label', () => {
+    const html = buildSegmentCoverageTargetHtml({
+      name: '解放东路与齐川路路口',
+      targetFlow: 2,
+      lowSample: true,
+    })
+    expect(html).toContain('目标：解放东路与齐川路路口')
+    expect(html).not.toContain('样本')
+    expect(html).not.toContain('仅供示意')
+  })
+
+  it('omits bare sample count when flow is unknown', () => {
+    expect(formatCoverageShare({ ratio: 0.5, targetFlow: 2 })).toBe('约50.0%')
   })
 })

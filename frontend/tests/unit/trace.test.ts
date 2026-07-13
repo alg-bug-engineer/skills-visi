@@ -139,15 +139,16 @@ describe('turnLabelFromMovement', () => {
 })
 
 describe('buildUpstreamLabelHtml', () => {
-  it('shows real coverage', () => {
+  it('shows real coverage as target-flow share', () => {
     const html = buildUpstreamLabelHtml({ name: '奥体西路与经十路路口', coverage: 71.63 })
     expect(html).toContain('奥体西路与经十路')
-    expect(html).toContain('71.6%')
+    expect(html).toContain('占目标流量 71.6%')
+    expect(html).not.toContain('途经')
   })
 
-  it('falls back to 拓扑 when coverage missing', () => {
+  it('falls back to topology label when coverage missing', () => {
     const html = buildUpstreamLabelHtml({ name: '转山西路', coverage: null })
-    expect(html).toContain('拓扑')
+    expect(html).toContain('拓扑关联')
     expect(html).not.toContain('%')
   })
 })

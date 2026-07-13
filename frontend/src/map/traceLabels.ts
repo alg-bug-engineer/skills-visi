@@ -50,6 +50,31 @@ export function stripIntersectionSuffix(name: string): string {
   return name.replace(/路口\s*$/u, '').trim() || name
 }
 
+/** 相对目标路口的流量占比（0–100），缺数据时回退为拓扑关联。 */
+export function formatTargetFlowShareLabel(coverage: number | null | undefined): string {
+  if (coverage == null || !Number.isFinite(coverage)) return '拓扑关联'
+  const pct = Number(coverage)
+  const normalized = pct > 0 && pct <= 1 ? pct * 100 : pct
+  return `占目标流量 ${normalized.toFixed(1)}%`
+}
+
+/** 上游节点标签 HTML：名称 + 相对目标路口流量占比。 */
+export function buildUpstreamLabelHtml(opts: {
+  name: string
+  direction?: string
+  coverage?: number | null
+}): string {
+  const name = stripIntersectionSuffix(opts.name || '上游')
+  const dir = opts.direction ? `${opts.direction} · ` : ''
+  const share = formatTargetFlowShareLabel(opts.coverage)
+  return (
+    `<div class="trace-label">` +
+    `<div class="trace-name">${name}</div>` +
+    `<div class="trace-metric" style="color:#fbbf24">${dir}${share}</div>` +
+    `</div>`
+  )
+}
+
 /** dir8 + turn_dir_no → 如「东直行」。 */
 export function formatFeedDirection(
   dir8?: number | null,
@@ -68,24 +93,4 @@ export function turnLabelFromMovement(movement?: string | null): string {
   if (raw.includes('uturn') || raw.includes('u_turn')) return '掉头'
   if (raw.includes('through') || raw.includes('straight')) return '直行'
   return String(movement ?? '')
-}
-
-/** 上游节点标签 HTML：名称 + 方向 + 途经占比（缺占比显示「拓扑」，对齐参考不造数）。 */
-export function buildUpstreamLabelHtml(opts: {
-  name: string
-  direction?: string
-  coverage?: number | null
-}): string {
-  const name = stripIntersectionSuffix(opts.name || '上游')
-  const dir = opts.direction ? `${opts.direction} · ` : ''
-  const cov =
-    opts.coverage != null && Number.isFinite(opts.coverage)
-      ? `途经 ${Number(opts.coverage).toFixed(1)}%`
-      : '拓扑'
-  return (
-    `<div class="trace-label">` +
-    `<div class="trace-name">${name}</div>` +
-    `<div class="trace-metric" style="color:#fbbf24">${dir}${cov}</div>` +
-    `</div>`
-  )
 }

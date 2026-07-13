@@ -15,6 +15,18 @@ const REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bvs\b/gi, '与'],
   [/智能体/g, '系统'],
   [/\bcorridor\b/gi, '干线'],
+  [/\bdownstream\s+check\b/gi, '下游通行核查'],
+  [/\bdata\s+validation\b/gi, '数据质量校验'],
+  [/\bdownstream\s+validation\b/gi, '下游通行校验'],
+  [/\bdata\s+quality\s+check\b/gi, '数据质量核查'],
+  [/\bplan\s+diagnostic\b/gi, '方案诊断'],
+  [/\bdiagnostic\s+data\b/gi, '诊断数据'],
+  [/\bdata\s+cleaning\b/gi, '数据清洗'],
+  [/\bdetection\s+data\b/gi, '检测数据'],
+  [/\bdiagnostic\b/gi, '诊断'],
+  [/\bvalidation\b/gi, '校验'],
+  [/\bdetection\b/gi, '检测'],
+  [/\bcleaning\b/gi, '清洗'],
 ]
 
 const SNAKE_TOKEN = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/gi

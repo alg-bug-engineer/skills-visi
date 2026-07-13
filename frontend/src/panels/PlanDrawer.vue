@@ -38,7 +38,7 @@ function strategyItemText(item: unknown): string {
 const strategyItems = computed(() => {
   const fromStrategy = store.strategy?.strategy?.recommended ?? []
   const fromPlan = selected.value?.execution_order ?? []
-  return [...fromStrategy, ...fromPlan].filter(Boolean).map(strategyItemText).filter(Boolean).slice(0, 6)
+  return [...fromStrategy, ...fromPlan].filter(Boolean).map((item) => productCopy(strategyItemText(item))).filter(Boolean).slice(0, 6)
 })
 const redLines = computed(() => {
   const constraints = store.strategy?.strategy?.hard_constraints ?? []

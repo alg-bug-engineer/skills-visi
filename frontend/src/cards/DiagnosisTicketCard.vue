@@ -3,20 +3,13 @@ import { computed } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import { t, directionMovement } from '@/labels/enums'
 import { productCopy } from '@/utils/productCopy'
-import { ticketTimeLabel } from '@/utils/ticketCopy'
+import { ticketTimeLabel, ticketConstraintList } from '@/utils/ticketCopy'
 import BaseCard from './BaseCard.vue'
 
 const store = usePresentationStore()
 const tk = computed(() => store.ticket)
 
-// 约束可能来自 NLU 的字符串或数组：字符串须整体作为一条约束，
-// 不能被 v-for 当作字符序列逐字拆分（会渲染成「优/先/避/免…」单字标签）。
-const constraintList = computed<string[]>(() => {
-  const c = tk.value?.constraints as unknown
-  if (Array.isArray(c)) return c.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
-  if (typeof c === 'string' && c.trim()) return [c.trim()]
-  return []
-})
+const constraintList = computed(() => ticketConstraintList(tk.value))
 </script>
 
 <template>

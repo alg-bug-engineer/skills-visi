@@ -34,7 +34,7 @@ const signalText = computed(
         <textarea
           v-model="userInput"
           rows="2"
-          placeholder="例如：解放东路与奥体中路路口，早高峰，北向南拥堵排队…"
+          placeholder="例如：解放东路与齐川路路口，晚高峰五点到七点，北进口直行经常排队外溢…"
           @keydown.enter.exact.prevent="store.startRun()"
         />
         <button class="run" :disabled="status === 'submitting' || !userInput.trim()" @click="store.startRun()">

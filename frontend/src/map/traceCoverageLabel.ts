@@ -1,5 +1,7 @@
 /** 路段覆盖溯源：占比展示口径（ratio 为 0–1 小数；低样本时附带趟次）。 */
 
+import { formatTargetFlowShareLabel } from './traceLabels'
+
 export const LOW_SAMPLE_TARGET_FLOW = 10
 
 export function normalizeCoverageRatio(ratio: number | null | undefined): number | null {
@@ -20,7 +22,7 @@ export function formatCoverageShare(opts: {
   const target = opts.targetFlow
   if (typeof target === 'number' && target > 0 && target < LOW_SAMPLE_TARGET_FLOW) {
     if (typeof flow === 'number') return `${flow}/${target}趟 (${pct}%)`
-    return `约${pct}% (样本${target}趟)`
+    return `约${pct}%`
   }
   return `${pct}%`
 }
@@ -37,7 +39,13 @@ export function buildSegmentCoverageLabelHtml(opts: {
   const metric =
     opts.kind === 'link'
       ? `覆盖 ${share}`
-      : `途经 ${share}`
+      : formatTargetFlowShareLabel(
+          opts.ratio != null && Number.isFinite(opts.ratio)
+            ? opts.ratio > 1 && opts.ratio <= 100
+              ? opts.ratio
+              : opts.ratio * 100
+            : null,
+        )
   return (
     `<div class="trace-label">` +
     `<div class="trace-name">${title}</div>` +
@@ -68,9 +76,5 @@ export function buildSegmentCoverageTargetHtml(opts: {
   lowSample?: boolean
 }): string {
   const name = opts.name ?? '目标路口'
-  const sample =
-    opts.lowSample && typeof opts.targetFlow === 'number' && opts.targetFlow > 0
-      ? `<div class="trace-metric" style="color:#fbbf24">样本 ${opts.targetFlow} 趟，占比仅供示意</div>`
-      : ''
-  return `<div class="trace-label"><div class="trace-name">目标：${name}</div>${sample}</div>`
+  return `<div class="trace-label"><div class="trace-name">目标：${name}</div></div>`
 }

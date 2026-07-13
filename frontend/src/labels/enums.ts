@@ -74,6 +74,8 @@ const risk_level: Dict = {
   medium: '中',
   high: '高',
   critical: '严重',
+  warning: '预警',
+  unknown: '未知',
 }
 
 const data_source: Dict = {
@@ -166,6 +168,12 @@ const status: Dict = {
   done: '完成',
   pending: '待执行',
   running: '执行中',
+  normal: '正常',
+  warning: '预警',
+  gap: '数据缺口',
+  ok: '正常',
+  has_data: '有数据',
+  no_data: '无数据',
 }
 
 const category: Dict = {
@@ -209,7 +217,18 @@ export function t(kind: keyof typeof DICTS, value: string | null | undefined): s
   return (dict && dict[value]) ?? labelAny(value)
 }
 
-/** 跨字典查找中文标签；仍未知则降级为可读短语（禁止裸露 snake_case）。 */
+/** 剥离路口编号与方向后缀，得到方案核心编码。 */
+function normalizePlanIdCore(id: string): string {
+  let core = id.trim()
+  core = core.replace(
+    /_0[0-9a-z]{14,}(?:_(?:nb|sb|eb|wb|ew|we|ns|sn)_(?:str|left|right|uturn|through))?$/i,
+    '',
+  )
+  if (core.startsWith('plan_')) core = core.slice(5)
+  return core
+}
+
+/** 跨字典查找中文标签；仍未知则降级为可读短语（禁止裸露 snake_case / 英文）。 */
 export function labelAny(value: string | null | undefined): string {
   if (value == null || value === '') return '—'
   if (/[\u4e00-\u9fff]/.test(value)) return value
@@ -218,6 +237,13 @@ export function labelAny(value: string | null | undefined): string {
   }
   return value
     .replace(/_/g, ' ')
+    .replace(/\bplan\b/gi, '方案')
+    .replace(/\bdiagnostic\b/gi, '诊断')
+    .replace(/\bvalidation\b/gi, '校验')
+    .replace(/\bquality\b/gi, '质量')
+    .replace(/\bdetection\b/gi, '检测')
+    .replace(/\bcleaning\b/gi, '清洗')
+    .replace(/\bdata\b/gi, '数据')
     .replace(/\bcorridor\b/gi, '干线')
     .replace(/\bqueue\b/gi, '排队')
     .replace(/\boverflow\b/gi, '溢出')
@@ -254,7 +280,13 @@ export function labelAny(value: string | null | undefined): string {
 /** 方案/策略编码 → 中文（完整 plan_id，不做截断）。 */
 export function translatePlanId(id: string | null | undefined): string {
   if (id == null || id === '') return '—'
-  return labelAny(id)
+  if (plan_id[id]) return plan_id[id]
+  const core = normalizePlanIdCore(id)
+  if (plan_id[core]) return plan_id[core]
+  if (strategy_package[core]) return `${strategy_package[core]}方案`
+  const labeled = labelAny(core)
+  if (/^0[0-9a-z]{14,}$/i.test(labeled.replace(/\s/g, ''))) return '—'
+  return labeled
 }
 
 /** 方向 + 转向 组合，如「东向西直行」。 */

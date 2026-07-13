@@ -13,7 +13,7 @@
       "opt_type": "TYPE1_POINT",
       "fixture": "case_a_demo_fixture.json",
       "live_validation": "demo-point-jiefangdong-qichuan-north-through.json",
-      "query": "解放东路与齐川路路口，晚高峰十七点到十九点，北进口直行按跨周峰值核验排队溢流，下游永绥路与齐音路北进口直行按跨周均值评估承接并披露峰值风险；采用目标峰值日现状配时和可用流量，生成典型单点溢流优化方案。"
+      "query": "解放东路与齐川路路口，晚高峰五点到七点，北进口直行经常排队外溢，帮忙看看配时怎么调。下游永绥路与齐音路北口平时还能走，高峰接不接得住也一起看看，别加重下游拥堵。"
     },
     {
       "id": "case_b",
@@ -25,7 +25,7 @@
       "opt_type": "TYPE2_LINE",
       "fixture": "case_b_fixture.json",
       "live_validation": "jiefangdong-aotizhong-south-through-line.json",
-      "query": "解放东路与奥体中路路口，晚高峰十七点到十九点，南进口直行局部时段过饱和，向北下游坤顺路与奥体中路路口承接能力不足，按峰值口径制定干线协调策略。"
+      "query": "解放东路与奥体中路路口，晚高峰五点到七点，南口直行高峰经常排得很满，下游坤顺路和奥体中路那个口接不住，帮忙看看要不要做干线协调，别光本口加绿。"
     }
   ]
 }

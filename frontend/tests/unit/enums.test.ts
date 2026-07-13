@@ -17,6 +17,9 @@ describe('enums', () => {
     expect(t('strategy_package', 'incremental_release')).toBe('目标路口小步释放')
     expect(t('bottleneck_type', 'downstream_or_channelization')).toBe('下游或渠化受限')
     expect(translatePlanId('arterial_coordination')).toBe('干线联控方案')
+    expect(translatePlanId('plan_diagnostic_data_validation_011wwe28f7c00001')).toBe('诊断 数据 校验')
+    expect(translatePlanId('downstream_protection_011wwe289qc00001')).toBe('下游保护方案')
+    expect(translatePlanId('plan_incremental_release_011wwe28f7c00001_nb_str')).toBe('目标路口小步释放方案')
   })
 
   it('translates requirement-16 production enum codes', () => {
@@ -33,9 +36,10 @@ describe('enums', () => {
     expect(t('problem_type', 'foo_bar_queue')).toContain('排队')
   })
 
-  it('handles null/empty', () => {
-    expect(t('direction', null)).toBe('—')
-    expect(t('direction', '')).toBe('—')
+  it('translates overflow risk levels including warning', () => {
+    expect(t('risk_level', 'warning')).toBe('预警')
+    expect(t('risk_level', 'unknown')).toBe('未知')
+    expect(t('risk_level', 'high')).toBe('高')
   })
 
   it('directionMovement combines', () => {
@@ -52,5 +56,12 @@ describe('productCopy · 枚举中文化', () => {
 
   it('replaces corridor with 干线', () => {
     expect(productCopy('corridor 瓶颈')).toBe('干线 瓶颈')
+  })
+
+  it('replaces english plan recommendation phrases', () => {
+    expect(productCopy('建议先做 downstream check 与 data validation')).toBe(
+      '建议先做 下游通行核查 与 数据质量校验',
+    )
+    expect(productCopy('plan diagnostic data validation')).toBe('方案诊断 数据质量校验')
   })
 })

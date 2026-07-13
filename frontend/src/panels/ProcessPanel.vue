@@ -285,7 +285,15 @@ async function scrollTimelineToActive() {
       <ExperienceAbsorptionPanel :state="absorption.state" />
     </div>
 
-    <ol v-else-if="panelExpanded" ref="timelineRef" class="timeline" data-testid="reasoning-timeline">
+    <p
+      v-else-if="activeTab === 'closure' && currentAct < 0 && store.status === 'running'"
+      class="empty-hint"
+      data-testid="process-waiting-first-phase"
+    >
+      正在{{ store.computingLabel || '等待后端' }}…首阶段完成后将展示推理明细
+    </p>
+
+    <ol v-else-if="panelExpanded && currentAct >= 0" ref="timelineRef" class="timeline" data-testid="reasoning-timeline">
       <li
         v-for="(act, i) in visibleActs"
         :key="act.id"

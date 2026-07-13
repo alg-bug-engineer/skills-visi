@@ -197,7 +197,7 @@ export function formatNodeMetrics(metrics: DownstreamTopologyMetrics | undefined
   if (metrics.queueRatio != null) {
     parts.push(`排队 ${fmtPct(metrics.queueRatio)}`)
   }
-  if (metrics.saturation != null) {
+  if (metrics.saturation != null && metrics.saturation > 0) {
     parts.push(`饱和 ${fmtPct(metrics.saturation)}`)
   }
   if (metrics.greenUtilization != null) {

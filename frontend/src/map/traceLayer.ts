@@ -17,6 +17,7 @@ import {
 import {
   buildUpstreamLabelHtml,
   coverageNodeStyle,
+  formatTargetFlowShareLabel,
   turnLabelFromMovement,
   upstreamEdgeStrokeWeight,
 } from './traceLabels'
@@ -53,7 +54,7 @@ const SNIFF_PALETTE = {
 export type TraceDirection = keyof typeof TRACE_PALETTE
 
 const LABEL_OFFSET: [number, number] = [10, -48]
-const DEFAULT_DETAIL_LABEL_LIMIT = 6
+const DEFAULT_DETAIL_LABEL_LIMIT = 4
 
 export interface UpstreamTraceItem {
   upstream_inter_id?: string | null
@@ -279,7 +280,7 @@ export class TraceLayer {
     if (defaultOpen) this.setLabelVisible(nodeId, true)
   }
 
-  /** 上游一跳来向：琥珀发光路径 + 占比缩放节点 + 可点开占比标签（缺占比显示「拓扑」）。 */
+  /** 上游一跳来向：琥珀发光路径 + 占比缩放节点 + 点击展开/收起标签。 */
   renderUpstreamTraces(traces: UpstreamTraceItem[]): void {
     let topIdx = -1
     let topCov = -1
@@ -290,6 +291,7 @@ export class TraceLayer {
         topIdx = i
       }
     })
+    const defaultLabels = this.defaultLabelIndexes(traces.length)
 
     traces.forEach((item, i) => {
       const path = (item.path ?? []).filter(Boolean) as LngLat[]
@@ -309,7 +311,13 @@ export class TraceLayer {
           clickable: true,
           onClick: () => this.toggleLabel(nodeId),
         })
-        this.ensureLabel(nodeId, item.upstream_lng, item.upstream_lat, label, i === topIdx)
+        this.ensureLabel(
+          nodeId,
+          item.upstream_lng,
+          item.upstream_lat,
+          label,
+          i === topIdx || defaultLabels.has(i),
+        )
       }
     })
   }
@@ -334,9 +342,9 @@ export class TraceLayer {
           onClick: () => this.toggleLabel(nodeId),
         })
         const move = turnLabelFromMovement(item.movement)
-        const share = item.share_pct != null && Number.isFinite(item.share_pct) ? `${item.share_pct}%` : '拓扑'
+        const share = formatTargetFlowShareLabel(item.share_pct ?? null)
         const text = `${move ? `${move}→` : ''}${item.name ?? '下游'} ${share}${blocked ? ' · 饱和' : ''}`
-        this.ensureLabel(nodeId, item.lon, item.lat, `<div class="trace-label is-downstream">${text}</div>`)
+        this.ensureLabel(nodeId, item.lon, item.lat, `<div class="trace-label is-downstream">${text}</div>`, false)
       }
     }
   }
@@ -346,10 +354,9 @@ export class TraceLayer {
       return `<div class="trace-label"><div class="trace-name">${node.name ?? '目标路口'}</div><div class="trace-metric">目标</div></div>`
     }
     const cov = sniffCoverage(node)
-    const label = cov != null ? `途经 ${cov.toFixed(1)}%` : node.is_topo_anchor ? '拓扑#1' : '拓扑'
+    const label = formatTargetFlowShareLabel(cov)
     const cls = traceDirection === 'downstream' ? ' is-downstream' : ''
-    const hop = node.in_main_corridor && node.corridor_hop ? `走廊#${node.corridor_hop} · ` : ''
-    return `<div class="trace-label${cls}"><div class="trace-name">${node.name ?? '相邻路口'}</div><div class="trace-metric">${hop}${label}</div></div>`
+    return `<div class="trace-label${cls}"><div class="trace-name">${node.name ?? '相邻路口'}</div><div class="trace-metric">${label}</div></div>`
   }
 
   /**
@@ -421,11 +428,21 @@ export class TraceLayer {
       )
     }
 
-    for (const [idx, link] of (scene.links ?? []).entries()) {
+    const eligibleLinks = (scene.links ?? [])
+      .map((link, idx) => ({ link, idx }))
+      .filter(({ link }) => {
+        const path = (link.coords ?? []).filter(
+          (p): p is LngLat => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]),
+        )
+        const ratio = typeof link.ratio === 'number' && Number.isFinite(link.ratio) ? link.ratio : 0
+        return path.length >= 2 && ratio >= 0.05
+      })
+    const defaultLinkLabels = this.defaultLabelIndexes(eligibleLinks.length, 3)
+
+    for (const { link, idx } of eligibleLinks) {
       const path = (link.coords ?? []).filter(
         (p): p is LngLat => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]),
       )
-      if (path.length < 2) continue
       const ratio = typeof link.ratio === 'number' && Number.isFinite(link.ratio) ? link.ratio : 0
       const weight = Math.max(4, Math.min(14, 3 + ratio * 38))
       const line = new this.AMap.Polyline({
@@ -441,7 +458,7 @@ export class TraceLayer {
       })
       this.register(`coverage:link:${link.id ?? idx}`, line)
       const mid = path[Math.floor(path.length / 2)]
-      if (mid && ratio >= 0.05) {
+      if (mid) {
         this.ensureLabel(
           `coverage:link-label:${link.id ?? idx}`,
           mid[0],
@@ -452,7 +469,7 @@ export class TraceLayer {
             flow: link.flow,
             targetFlow,
           }),
-          ratio >= 0.15,
+          defaultLinkLabels.has(idx),
         )
       }
     }
@@ -508,6 +525,7 @@ export class TraceLayer {
       }
     })
 
+    const defaultLabels = this.defaultLabelIndexes(renderNodes.length)
     renderNodes.forEach((node, index) => {
       const nodeId = sniffNodeId(node, index)
       for (const [linkIndex, link] of (node.links ?? []).entries()) {
@@ -531,10 +549,7 @@ export class TraceLayer {
         onClick: () => this.toggleLabel(nodeId),
       })
       const defaultOpen =
-        node.role === 'target' ||
-        Boolean(node.in_main_corridor && sniffCoverage(node) != null) ||
-        nodeId === topId ||
-        Boolean(node.is_topo_anchor)
+        node.role === 'target' || nodeId === topId || defaultLabels.has(index)
       this.ensureLabel(nodeId, center[0], center[1], this.sniffLabelHtml(node, traceDirection), defaultOpen)
     })
   }

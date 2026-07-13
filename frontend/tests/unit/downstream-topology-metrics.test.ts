@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildDownstreamTopology, formatNodeMetrics } from '@/map/downstreamTopologyLayer'
 
 describe('downstream topology metric labels', () => {
-  it('shows zero saturation and green utilization instead of 指标暂无', () => {
+  it('hides zero saturation and only shows meaningful metrics', () => {
     const scene = {
       channelization_map: {
         links: [
@@ -37,7 +37,7 @@ describe('downstream topology metric labels', () => {
 
     const topology = buildDownstreamTopology(scene, [117.1, 36.65])
     const label = formatNodeMetrics(topology.nodes[0]?.metrics)
-    expect(label).toContain('饱和 0%')
+    expect(label).not.toContain('饱和')
     expect(label).toContain('绿灯 41%')
     expect(label).not.toBe('指标暂无')
   })

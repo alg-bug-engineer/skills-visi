@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ticketTimeLabel, ticketLocationLine, ticketPrimaryConstraint } from '@/utils/ticketCopy'
+import { ticketTimeLabel, ticketLocationLine, ticketPrimaryConstraint, ticketConstraintList } from '@/utils/ticketCopy'
 
 describe('ticketCopy', () => {
   it('shows period only when time_range is missing', () => {
@@ -25,5 +25,20 @@ describe('ticketCopy', () => {
         constraints: '优先避免下游继续外溢',
       } as never),
     ).toBe('优先避免下游继续外溢')
+  })
+
+  it('hides internal methodology constraints from ticket display', () => {
+    expect(
+      ticketConstraintList({
+        constraints:
+          '按跨周峰值核验；下游永绥路与齐音路北进口直行按跨周均值评估承接并披露峰值风险；采用目标峰值日现状配时和可用流量',
+      } as never),
+    ).toEqual([])
+    expect(
+      ticketPrimaryConstraint({
+        constraints:
+          '按跨周峰值核验；下游永绥路与齐音路北进口直行按跨周均值评估承接并披露峰值风险；采用目标峰值日现状配时和可用流量',
+      } as never),
+    ).toBeNull()
   })
 })
