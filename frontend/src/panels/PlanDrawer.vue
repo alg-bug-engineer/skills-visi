@@ -20,10 +20,25 @@ const selected = computed<PlanCandidate | null>(() => {
   return candidates.value.find((c) => c.plan_id === id) ?? (store.plan?.recommended as PlanCandidate) ?? candidates.value[0] ?? null
 })
 const hasTiming = computed(() => Boolean(selected.value?.timing?.cycle_s && selected.value?.timing?.phase_stage_timing_list?.length))
+function strategyItemText(item: unknown): string {
+  if (item && typeof item === 'object') {
+    const row = item as Record<string, unknown>
+    const action = String(row.action ?? row.title ?? row.name ?? '').trim()
+    const target = String(row.target_node ?? row.target ?? '').trim()
+    return [action, target ? `实施位置：${target}` : ''].filter(Boolean).join('；')
+  }
+  const raw = String(item ?? '').trim()
+  if (!raw.startsWith('{')) return productCopy(raw)
+  // 模型偶尔把结构化策略以 Python 字典字符串返回，只展示其中的业务含义。
+  const action = raw.match(/["']action["']\s*:\s*["']([^"']+)["']/)?.[1] ?? ''
+  const target = raw.match(/["']target_node["']\s*:\s*["']([^"']+)["']/)?.[1] ?? ''
+  if (action || target) return [action, target ? `实施位置：${target}` : ''].filter(Boolean).join('；')
+  return '按方案要求执行并持续监测关键指标'
+}
 const strategyItems = computed(() => {
   const fromStrategy = store.strategy?.strategy?.recommended ?? []
   const fromPlan = selected.value?.execution_order ?? []
-  return [...fromStrategy, ...fromPlan].filter(Boolean).slice(0, 6)
+  return [...fromStrategy, ...fromPlan].filter(Boolean).map(strategyItemText).filter(Boolean).slice(0, 6)
 })
 const redLines = computed(() => {
   const constraints = store.strategy?.strategy?.hard_constraints ?? []
@@ -37,10 +52,6 @@ const targetTitle = computed(() => {
   if (!target) return store.response?.diagnosis_ticket?.intersection_name ?? ''
   return [target.inter_name, `${target.direction ?? ''}${target.movement ?? ''}`].filter(Boolean).join(' · ')
 })
-const userConstraints = computed(() =>
-  (store.strategy?.strategy?.user_constraints ?? []).map(String).filter(Boolean),
-)
-
 const rejecting = ref(false)
 const rejectReason = ref('')
 const busy = ref(false)
@@ -115,14 +126,7 @@ async function onReject() {
           <div v-if="strategyItems.length" class="list-box">
             <span class="kpi__k">执行策略</span>
             <ul>
-              <li v-for="(item, i) in strategyItems" :key="i">{{ productCopy(String(item)) }}</li>
-            </ul>
-          </div>
-
-          <div v-if="userConstraints.length" class="list-box list-box--constraint">
-            <span class="kpi__k">用户约束如何落实</span>
-            <ul>
-              <li v-for="(item, i) in userConstraints" :key="i">{{ productCopy(item) }}</li>
+              <li v-for="(item, i) in strategyItems" :key="i">{{ item }}</li>
             </ul>
           </div>
 

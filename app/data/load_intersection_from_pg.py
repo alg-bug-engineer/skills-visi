@@ -1539,6 +1539,16 @@ def load_intersection_metrics_only(
     # 仅绿灯利用率不足以支撑下游承接判断（缺饱和度/排队/流量）。
     if isinstance(metrics, dict):
         metrics["has_dynamic_metrics"] = has_dynamic_metrics
+        # 下游轻量加载也必须携带方向库容明细，供真实接收进口转向计算排队比。
+        light_scope = _build_scope(
+            inter_rows[0],
+            channel_rows,
+            [],
+            adjacent_rows=adjacent_rows or [],
+        )
+        metrics["adjacent_inter_spacing_detail"] = light_scope.get(
+            "adjacent_inter_spacing_detail"
+        ) or []
     return {"ok": True, "metrics": metrics, "inter_id": resolved_id, "has_dynamic_metrics": has_dynamic_metrics}
 
 

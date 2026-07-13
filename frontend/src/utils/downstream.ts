@@ -35,10 +35,16 @@ export function downstreamConclusion(dd: DownstreamDiagnosis | null | undefined)
   const downstreamTight = Boolean(
     c.downstream_queue_high || c.downstream_near_saturation || c.add_green_spillback_risk,
   )
-  if (can === true && !downstreamTight) return '下游具备承接空间，可小步增加有效绿'
   if (downstreamTight) return '下游承接不足，不宜简单加绿，需下游联控'
+  const capacity = dd.primary_downstream?.capacity
+  if (capacity?.can_release && !capacity?.blocked) {
+    return can === true
+      ? '下游具备承接空间，可小步增加有效绿'
+      : '下游具备承接余量，目标进口排队需在本路口处置'
+  }
+  if (can === true) return '下游具备承接空间，可小步增加有效绿'
   if (c.target_saturation_high && !c.target_green_utilization_high)
     return '本路口绿灯利用不足，需排查出口、渠化或检测，不宜简单加绿'
-  if (can === false) return '承接能力受限，不宜简单加绿，需继续核验'
+  if (can === false) return '本路口暂不宜直接加绿，需先核验相位利用与检测质量'
   return '需结合上下游拓扑与连续时序进一步核验'
 }

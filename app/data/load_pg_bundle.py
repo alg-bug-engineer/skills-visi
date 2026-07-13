@@ -10,6 +10,8 @@ from app.data.pg_adapters import (
     enrich_downstream_metrics,
     merge_pg_task_into_context,
     metrics_for_diagnosis,
+    load_cross_week_peak_movement_metrics,
+    load_cross_week_mean_movement_metrics,
     parse_day_of_week,
     parse_time_hhmm,
     topology_from_pg_raw,
@@ -55,6 +57,23 @@ def load_pg_diagnosis_bundle(
             "reason": "; ".join(loaded.get("errors") or ["PG 加载失败"]),
         }
 
+    resolved_inter_id = str(inter_id or (((loaded.get("task") or {}).get("scope") or {}).get("intersection_id")) or "")
+    peak = load_cross_week_peak_movement_metrics(
+        inter_id=resolved_inter_id,
+        direction=str(ticket.get("direction") or "东向西"),
+        movement=str(ticket.get("movement") or "直行"),
+        time_range=ticket.get("time_range"),
+    ) if resolved_inter_id else None
+    peak_dow = (peak or {}).get("selected_day_of_week")
+    initial_dow = parse_day_of_week(ticket)
+    if peak_dow and int(peak_dow) != int(initial_dow):
+        loaded = load_intersection_from_pg(
+            inter_id=resolved_inter_id,
+            day_of_week=int(peak_dow),
+            time_hhmm=parse_time_hhmm(ticket.get("time_range")),
+            time_range=ticket.get("time_range"),
+        )
+
     pg_task = loaded.get("task") or {}
     raw = loaded.get("raw") or {}
     inter = raw.get("inter") or {}
@@ -62,6 +81,16 @@ def load_pg_diagnosis_bundle(
         inter = inter[0] if inter else {}
 
     pg_metrics = pg_task.get("metrics") or {}
+    peak_metrics = load_cross_week_peak_movement_metrics(
+        inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
+        direction=str(ticket.get("direction") or "东向西"),
+        movement=str(ticket.get("movement") or "直行"),
+        time_range=ticket.get("time_range"),
+    )
+    if peak_metrics:
+        pg_metrics = {**pg_metrics, **peak_metrics}
+        pg_task["metrics"] = pg_metrics
+        raw["metrics"] = pg_metrics
     metrics = metrics_for_diagnosis(
         pg_metrics,
         ticket,
@@ -72,16 +101,18 @@ def load_pg_diagnosis_bundle(
     # 轻量指标加载（跳过 AOI/几何/信号昂贵查询），避免逐下游节点整份检查单加载（需求21-R4）。
     from app.data.load_intersection_from_pg import load_intersection_metrics_only
 
-    def _adjacent_metrics(adj_id: str) -> dict[str, Any] | None:
-        adj = load_intersection_metrics_only(
+    def _adjacent_metrics(
+        adj_id: str,
+        *,
+        direction: str | None = None,
+        movement: str | None = None,
+    ) -> dict[str, Any] | None:
+        return load_cross_week_mean_movement_metrics(
             inter_id=str(adj_id),
-            day_of_week=parse_day_of_week(ticket),
-            time_hhmm=parse_time_hhmm(ticket.get("time_range")),
+            direction=direction or "东向西",
+            movement=movement or "直行",
             time_range=ticket.get("time_range"),
         )
-        if not adj.get("ok"):
-            return None
-        return adj.get("metrics") or None
 
     enrich_downstream_metrics(
         topology,

@@ -75,6 +75,7 @@ const focusTags = computed(() => {
 })
 
 const overallLos = computed(() => m.value?.los ?? null)
+const queueUsesIntersectionProxy = computed(() => m.value?.queue_is_direction_proxy === true)
 
 /**
  * 维度说明：溢出判定看「进口道空间」（排队比），饱和度/服务水平看「需求」。
@@ -85,8 +86,11 @@ const dimensionNote = computed(() => {
   const spaceOk = risk === 'low' || risk === 'warning'
   const sat = saturation.value
   const demandHigh = (typeof sat === 'number' && sat >= 1) || overallLos.value === 'F'
+  if (queueUsesIntersectionProxy.value) {
+    return '目标方向排队采用同窗口路口级最大排队代理；下游承接判断仍使用真实接收进口道转向排队。该代理用于有限数据演示，不代表目标转向实测排队。'
+  }
   if (spaceOk && demandHigh) {
-    return '溢出判定看进口道空间（排队比），饱和度/服务水平看需求；空间未溢出与需求过饱和可同时成立，并不矛盾。'
+    return '当前排队比反映时段平均空间占用，案例筛选采用窗口峰值饱和度；平均空间未溢出与局部时段过饱和可同时成立。'
   }
   return null
 })

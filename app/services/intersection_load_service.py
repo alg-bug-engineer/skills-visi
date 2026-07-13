@@ -11,6 +11,8 @@ from app.data.pg_adapters import (
     enrich_downstream_metrics,
     merge_pg_task_into_context,
     metrics_for_diagnosis,
+    load_cross_week_peak_movement_metrics,
+    load_cross_week_mean_movement_metrics,
     parse_day_of_week,
     parse_time_hhmm,
     topology_from_pg_raw,
@@ -100,6 +102,25 @@ class IntersectionLoadService:
                 "checklist_queries": loaded.get("checklist_queries") or [],
                 "errors": loaded.get("errors") or ["PG 加载失败"],
             }
+
+        # 演示口径以目标转向跨周峰值日为主日型；配时、时段表和流量优先使用
+        # 同一天，避免目标指标与现状方案日型互相错位。
+        resolved_inter_id = str(inter_id or ((loaded.get("task") or {}).get("scope") or {}).get("intersection_id") or "")
+        peak = load_cross_week_peak_movement_metrics(
+            inter_id=resolved_inter_id,
+            direction=direction,
+            movement=movement,
+            time_range=time_range,
+        ) if resolved_inter_id else None
+        peak_dow = (peak or {}).get("selected_day_of_week")
+        if peak_dow and int(peak_dow) != int(dow):
+            loaded = load_intersection_from_pg(
+                inter_id=resolved_inter_id,
+                day_of_week=int(peak_dow),
+                time_hhmm=hhmm,
+                time_range=time_range,
+            )
+            dow = int(peak_dow)
 
         task = self._build_agent_task(loaded, ticket, day_of_week=dow, time_hhmm=hhmm, time_range=time_range)
         checklist = loaded.get("checklist_queries") or []
@@ -197,6 +218,16 @@ class IntersectionLoadService:
         task: dict[str, Any] = {}
         merge_pg_task_into_context(task, pg_task)
         pg_metrics = pg_task.get("metrics") or {}
+        peak_metrics = load_cross_week_peak_movement_metrics(
+            inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
+            direction=str(ticket.get("direction") or "东向西"),
+            movement=str(ticket.get("movement") or "直行"),
+            time_range=time_range or ticket.get("time_range"),
+        )
+        if peak_metrics:
+            pg_metrics = {**pg_metrics, **peak_metrics}
+            pg_task["metrics"] = pg_metrics
+            raw["metrics"] = pg_metrics
         metrics = metrics_for_diagnosis(
             pg_metrics,
             ticket,
@@ -253,16 +284,18 @@ class IntersectionLoadService:
             logger.warning("下游指标加载模块不可用：%s", exc)
             return
 
-        def _adjacent_metrics(adj_id: str) -> dict[str, Any] | None:
-            adj = load_intersection_metrics_only(
+        def _adjacent_metrics(
+            adj_id: str,
+            *,
+            direction: str | None = None,
+            movement: str | None = None,
+        ) -> dict[str, Any] | None:
+            return load_cross_week_mean_movement_metrics(
                 inter_id=str(adj_id),
-                day_of_week=day_of_week if day_of_week is not None else 5,
-                time_hhmm=time_hhmm,
+                direction=direction or "东向西",
+                movement=movement or "直行",
                 time_range=time_range,
             )
-            if not adj.get("ok"):
-                return None
-            return adj.get("metrics") or None
 
         enrich_downstream_metrics(
             topology,

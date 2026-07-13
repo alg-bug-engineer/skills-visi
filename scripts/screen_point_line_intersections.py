@@ -34,7 +34,6 @@ SAT_OVERSAT = THRESHOLDS["saturation_oversaturation"]  # 0.9
 DOWN_SAT_HIGH = THRESHOLDS["downstream_saturation_high"]  # 0.85
 GREEN_HIGH = THRESHOLDS["green_utilization_high"]  # 0.85
 
-
 def ser(obj: Any) -> Any:
     if isinstance(obj, Decimal):
         return float(obj)
@@ -210,6 +209,14 @@ def classify_pair(
     target_sat_problem = t_sat >= SAT_OVERSAT
     target_high_demand = t_sat >= SAT_HIGH and t_green >= GREEN_HIGH
     target_problem = target_overflow_problem or target_sat_problem or target_high_demand
+    if target_overflow_problem:
+        target_trigger = "queue_ratio_peak"
+    elif target_sat_problem:
+        target_trigger = "saturation_peak"
+    elif target_high_demand:
+        target_trigger = "saturation_and_green_peak"
+    else:
+        target_trigger = None
 
     if not has_down_dwd:
         down_blocked = None
@@ -239,6 +246,8 @@ def classify_pair(
         "target_overflow_problem": target_overflow_problem,
         "target_sat_problem": target_sat_problem,
         "target_high_demand": target_high_demand,
+        "target_problem_trigger": target_trigger,
+        "classification_statistic": "window_peak",
         "downstream_blocked": down_blocked,
         "downstream_slack": down_slack,
         "has_downstream_dwd": has_down_dwd,
@@ -312,7 +321,6 @@ def build_pairs(
         screen_type, criteria = classify_pair(
             t_ov_max, t_ov_mean, t_sat, t_green, d_ov, d_sat, has_down_dwd=down_pm is not None
         )
-
         pairs.append(
             {
                 "target_inter_id": iid,
@@ -381,9 +389,25 @@ def main() -> None:
     type2 = [p for p in pairs if p["screen_type"] in ("TYPE2_LINE", "WEAK_TYPE2")]
     type1_strong = [p for p in pairs if p["screen_type"] == "TYPE1_POINT"]
     type2_strong = [p for p in pairs if p["screen_type"] == "TYPE2_LINE"]
+    # 严格典型点优化：目标必须由同进口同转向排队比峰值触发，不能仅由
+    # 饱和度峰值或“路口 MAX 排队 / 其他进口库容”代理触发；下游仍使用
+    # 真实接收进口道同转向排队判定承接空间。
+    strict_type1_overflow = [
+        p
+        for p in pairs
+        if p["screen_type"] == "TYPE1_POINT"
+        and p.get("target_overflow_problem") is True
+        and p.get("downstream_slack") is True
+    ]
 
     type1.sort(key=lambda x: (-(x.get("target_overflow_max_pm") or 0), -(x.get("target_sat_max_pm") or 0)))
     type2.sort(key=lambda x: (-(x.get("target_overflow_max_pm") or 0), -(x.get("downstream_sat_max_pm") or 0)))
+    strict_type1_overflow.sort(
+        key=lambda x: (
+            -(x.get("target_overflow_mean_pm") or 0),
+            -(x.get("target_overflow_max_pm") or 0),
+        )
+    )
 
     write_json(out_dir / "type1_candidates.json", type1)
     write_csv(out_dir / "type1_candidates.csv", type1)
@@ -391,6 +415,8 @@ def main() -> None:
     write_csv(out_dir / "type2_candidates.csv", type2)
     write_json(out_dir / "type1_strong_candidates.json", type1_strong)
     write_json(out_dir / "type2_strong_candidates.json", type2_strong)
+    write_json(out_dir / "strict_type1_overflow_candidates.json", strict_type1_overflow)
+    write_csv(out_dir / "strict_type1_overflow_candidates.csv", strict_type1_overflow)
 
     # 路口级去重汇总
     by_type: dict[str, set[str]] = defaultdict(set)
@@ -402,6 +428,7 @@ def main() -> None:
         "output_dir": str(out_dir.relative_to(ROOT)),
         "sql_source": "analysis/溢流路口统计优化.sql",
         "thresholds": THRESHOLDS,
+        "classification_policy": "peak_first_demo_v1",
         "period": "evening_peak 17:00-19:00 (DWD clock / DWS step 204-228)",
         "counts": {
             "direction_spacing_rows": len(spacing),
@@ -412,6 +439,7 @@ def main() -> None:
             "type1_with_weak": len(type1),
             "type2_strong": len(type2_strong),
             "type2_with_weak": len(type2),
+            "strict_type1_overflow": len(strict_type1_overflow),
             "unknown_downstream": sum(1 for p in pairs if p["screen_type"] == "UNKNOWN_DOWNSTREAM"),
             "other": sum(1 for p in pairs if p["screen_type"] == "OTHER"),
         },
@@ -438,8 +466,9 @@ def main() -> None:
 | `full_pair_screening_results.*` | **全量** 目标-下游走廊配对及分型 |
 | `type1_candidates.*` | Type1 点优化（含 WEAK） |
 | `type2_candidates.*` | Type2 线优化（含 WEAK） |
-| `type1_strong_candidates.json` | 严格 Type1（溢流≥0.8 或饱和≥0.9 且下游有空间） |
-| `type2_strong_candidates.json` | 严格 Type2 |
+| `type1_strong_candidates.json` | 峰值口径 Type1（溢流峰值或饱和度峰值触发，下游有空间） |
+| `type2_strong_candidates.json` | 峰值口径 Type2（目标峰值触发且下游 blocked） |
+| `strict_type1_overflow_candidates.*` | 严格点优化典型：目标真实转向溢流且下游真实接收转向可承接 |
 | `screening_summary.json` | 汇总统计 |
 
 详细方法论见 `archive/docs/点线优化路口筛选分析.md`。
@@ -447,8 +476,9 @@ def main() -> None:
 ## 本次扫描统计
 
 - 走廊配对总数：{summary['counts']['corridor_pairs_total']}
-- 严格 Type1：{summary['counts']['type1_strong']}
-- 严格 Type2：{summary['counts']['type2_strong']}
+- 峰值口径 Type1：{summary['counts']['type1_strong']}
+- 峰值口径 Type2：{summary['counts']['type2_strong']}
+- 严格溢流型 Type1：{summary['counts']['strict_type1_overflow']}
 - 下游缺 DWD：{summary['counts']['unknown_downstream']}
 """,
         encoding="utf-8",

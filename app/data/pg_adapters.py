@@ -85,8 +85,12 @@ def _storage_for_dir8(
         "scope": "approach_storage",
         "available": False,
     }
+    candidates: list[tuple[float, dict[str, Any]]] = []
     for item in (scope or {}).get("adjacent_inter_spacing_detail") or []:
         if not isinstance(item, dict):
+            continue
+        role = str(item.get("link_role") or "").lower()
+        if role and role != "entrance":
             continue
         item_dir = _row_dir8(item)
         if item_dir is None or int(item_dir) != int(dir8):
@@ -94,15 +98,19 @@ def _storage_for_dir8(
         spacing = _as_float_or_none(item.get("spacing_m") or item.get("length_m") or item.get("storage_m"))
         if spacing is None or spacing <= 0:
             continue
+        candidates.append((float(spacing), item))
+    if candidates:
+        spacing, item = min(candidates, key=lambda pair: pair[0])
         evidence.update(
             {
                 "available": True,
-                "storage_source": "adjacent_inter_spacing_detail",
+                "storage_source": "adjacent_inter_spacing_detail_min_entrance",
                 "spacing_version_id": item.get("version_id") or item.get("link_id"),
                 "link_id": item.get("link_id"),
+                "candidate_count": len(candidates),
             }
         )
-        return float(spacing), evidence
+        return spacing, evidence
     evidence["reason"] = "no_matching_approach_storage"
     return None, evidence
 
@@ -112,6 +120,7 @@ def metrics_for_diagnosis(
     ticket: dict[str, Any],
     *,
     approach_queue_avg: bool = False,
+    queue_mode: str = "movement",
     scope: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     direction = ticket.get("direction", "东向西")
@@ -140,10 +149,21 @@ def metrics_for_diagnosis(
         target_flow = _pick_movement_metric(pg_metrics.get("movement_volume") or {}, dir8, turn)
     volume = float(target_flow) if target_flow is not None else None
 
-    queue_fields = ("queue_len_avg",) if approach_queue_avg else ("queue_len_avg", "queue_len_max")
-    queue_m = _mean_row_metric(pg_metrics.get("turn_perf_detail") or [], dir8, turn, queue_fields)
+    selection_policy = pg_metrics.get("metric_selection_policy")
+    peak_demo = selection_policy == "cross_week_movement_peak"
+    mean_demo = selection_policy == "cross_week_movement_mean"
+    queue_fields = ("queue_len_avg",) if approach_queue_avg or peak_demo or mean_demo else ("queue_len_avg", "queue_len_max")
+    queue_fn = _max_row_metric if peak_demo else _mean_row_metric
+    queue_m = queue_fn(pg_metrics.get("turn_perf_detail") or [], dir8, turn, queue_fields)
     if queue_m is None:
-        queue_m = _mean_row_metric(pg_metrics.get("turn_perf_detail") or [], dir8, turn, ("queue_len_max",))
+        queue_m = queue_fn(pg_metrics.get("turn_perf_detail") or [], dir8, turn, ("queue_len_max",))
+    movement_queue_m = queue_m
+    queue_source = "movement_window_mean"
+    if queue_mode == "intersection_max_proxy":
+        intersection_queue_m = _as_float_or_none(pg_metrics.get("queue_m"))
+        if intersection_queue_m is not None:
+            queue_m = intersection_queue_m
+            queue_source = "intersection_window_max_proxy"
     queue_available = queue_m is not None
 
     storage_m, storage_evidence = _storage_for_dir8(dir8=dir8, scope=scope)
@@ -182,13 +202,33 @@ def metrics_for_diagnosis(
         ),
         "target_movement_key": movement_key,
         "metric_scope": "movement",
+        "queue_statistic": (
+            "cross_week_window_peak" if peak_demo
+            else "cross_week_window_mean" if mean_demo
+            else queue_source
+        ),
+        "queue_source": queue_source,
+        "queue_is_direction_proxy": queue_source == "intersection_window_max_proxy",
+        "movement_queue_length_m": (
+            float(movement_queue_m) if movement_queue_m is not None else None
+        ),
+        "saturation_statistic": "window_peak",
+        "statistic_scope": "selected_typical_day",
+        "selected_day_of_week": pg_metrics.get("selected_day_of_week"),
+        "metric_selection_policy": pg_metrics.get("metric_selection_policy"),
+        "queue_safety_peak_m": pg_metrics.get("selected_movement_queue_peak_m"),
+        "queue_safety_peak_ratio": (
+            round(float(pg_metrics["selected_movement_queue_peak_m"]) / float(storage_m), 4)
+            if pg_metrics.get("selected_movement_queue_peak_m") is not None and storage_available
+            else None
+        ),
         "dir8_code": dir8,
         "turn_dir_no": turn,
         "metrics_available": saturation is not None,
         "queue_available": queue_available,
         "storage_available": storage_available,
         "storage_evidence": storage_evidence,
-        # 审计：路口级 MAX 仅作对照，不得覆盖目标字段
+        # 审计：保留原始路口级 MAX；仅在显式 proxy 模式下覆盖目标展示排队。
         "intersection_saturation_max": _as_float_or_none(pg_metrics.get("saturation")),
         "intersection_queue_max": _as_float_or_none(pg_metrics.get("queue_m")),
     }
@@ -339,7 +379,8 @@ def _append_downstream_from_correlate_exit_links(
                 "link_id": row.get("link_id"),
                 # 出口 link 的 dir8 是本路口驶出方向；下游承接进口为其对向
                 "receiving_dir8": recv,
-                "receiving_label": movement_label(recv, 2) if recv is not None else None,
+                "receiving_turn_dir_no": turn_dir_no,
+                "receiving_label": movement_label(recv, turn_dir_no) if recv is not None else None,
                 "path": oriented,
                 "path_source": "link_geom" if len(oriented) >= 2 else "correlate_exit",
             }
@@ -425,7 +466,10 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
                     "link_id": row.get("link_id"),
                     # 出口 dir8 → 下游承接进口 = 对向进口（与筛选 receiving_eight_direction 一致）
                     "receiving_dir8": _receiving_dir8_from_exit(exit_dir8),
-                    "receiving_label": movement_label(_receiving_dir8_from_exit(exit_dir8), 2),
+                    "receiving_turn_dir_no": turn_dir_no,
+                    "receiving_label": movement_label(
+                        _receiving_dir8_from_exit(exit_dir8), turn_dir_no
+                    ),
                     "path": oriented,
                     "path_source": "link_geom" if len(oriented) >= 2 else "none",
                 }
@@ -483,6 +527,14 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
 
 _ADJ_METRIC_FIELDS = (
     "queue_length_m",
+    "movement_queue_length_m",
+    "queue_statistic",
+    "queue_source",
+    "queue_is_direction_proxy",
+    "selected_day_of_week",
+    "metric_selection_policy",
+    "queue_safety_peak_m",
+    "queue_safety_peak_ratio",
     "storage_length_m",
     "volume_vph",
     "capacity_vph",
@@ -544,7 +596,14 @@ def enrich_downstream_metrics(
         receiving_dir8 = node.get("receiving_dir8")
         direction = _direction_for_dir8(receiving_dir8)
         try:
-            pg_metrics = load_pg_metrics(str(inter_id))
+            try:
+                pg_metrics = load_pg_metrics(
+                    str(inter_id),
+                    direction=direction,
+                    movement=TURN_LABEL.get(int(node.get("receiving_turn_dir_no") or 2), "直行"),
+                )
+            except TypeError:
+                pg_metrics = load_pg_metrics(str(inter_id))
         except Exception as exc:  # noqa: BLE001 - 记录降级原因，不中断主流程
             node["metrics_available"] = False
             node["metrics_reason"] = f"下游路口指标加载失败：{exc}"
@@ -557,9 +616,14 @@ def enrich_downstream_metrics(
             node["metrics_available"] = False
             node["metrics_reason"] = "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）"
             continue
+        receiving_turn = node.get("receiving_turn_dir_no")
+        try:
+            receiving_turn = int(receiving_turn)
+        except (TypeError, ValueError):
+            receiving_turn = 2
         adj_ticket = {
             "direction": direction or "东向西",
-            "movement": "直行",
+            "movement": TURN_LABEL.get(receiving_turn, "直行"),
         }
         metrics = metrics_for_diagnosis(
             pg_metrics,
@@ -567,28 +631,39 @@ def enrich_downstream_metrics(
             approach_queue_avg=use_approach_queue,
             scope=pg_metrics if isinstance(pg_metrics.get("adjacent_inter_spacing_detail"), list) else None,
         )
+        node["metrics_receiving_direction"] = direction
+        node["metrics_receiving_turn_dir_no"] = receiving_turn
         # 饱和度未绑定到承接进口时，禁止用 0.0 冒充「空闲」（与嗅探/筛选 MAX 对不上的主因）
         sat_ok = bool(metrics.get("metrics_available"))
         if not sat_ok:
             node["metrics_available"] = False
             node["metrics_reason"] = (
-                f"下游承接进口（{direction or '未知方向'}直行）该时段无转向饱和度，"
+                f"下游承接进口（{direction or '未知方向'}{TURN_LABEL.get(receiving_turn, '直行')}）"
+                "该时段无转向饱和度，"
                 "不可用 0 代替；请核对日型/时段或嗅探口径"
             )
             # 仍透出排队等非饱和字段供参考，但不宣称指标齐全
-            for field in ("queue_length_m", "storage_length_m", "volume_vph", "avg_delay_s"):
+            for field in (
+                "queue_length_m",
+                "storage_length_m",
+                "volume_vph",
+                "avg_delay_s",
+                "queue_statistic",
+                "metric_selection_policy",
+                "queue_safety_peak_m",
+                "queue_safety_peak_ratio",
+            ):
                 if metrics.get(field) is not None:
                     node[field] = metrics[field]
-            node["metrics_receiving_direction"] = direction
             continue
         for field in _ADJ_METRIC_FIELDS:
             if metrics.get(field) is not None:
                 node[field] = metrics[field]
         node["metrics_available"] = True
         node["metrics_source"] = "pg_adjacent"
-        node["metrics_receiving_direction"] = direction
+        node["metrics_queue_mode"] = "receiving_approach_movement"
         if use_approach_queue:
-            node["metrics_queue_mode"] = "approach_avg"
+            node["metrics_queue_field"] = "queue_len_avg"
     return topology
 
 
@@ -604,55 +679,122 @@ def build_adjacent_metrics_loader(ticket: dict[str, Any]):
     if not settings.pg_dsn:
         return None
 
-    day_of_week = parse_day_of_week(ticket)
-    time_hhmm = parse_time_hhmm(ticket.get("time_range"))
-    time_range = ticket.get("time_range")
-
-    def _load(inter_id: str) -> dict[str, Any] | None:
-        """优先票据日型；该日无转向饱和度时回退周内晚高峰有饱和度的日（对齐筛选嗅探跨日 MAX 口径）。"""
-        loaded = load_intersection_metrics_only(
+    def _load(
+        inter_id: str,
+        *,
+        direction: str | None = None,
+        movement: str | None = None,
+    ) -> dict[str, Any] | None:
+        return load_cross_week_mean_movement_metrics(
             inter_id=str(inter_id),
-            day_of_week=day_of_week,
-            time_hhmm=time_hhmm,
-            time_range=time_range,
+            direction=direction or ticket.get("direction") or "东向西",
+            movement=movement or ticket.get("movement") or "直行",
+            time_range=ticket.get("time_range"),
         )
-        if not loaded.get("ok"):
-            loaded = None
-        metrics = (loaded or {}).get("metrics") if loaded else None
-        if metrics and (metrics.get("turn_saturation_detail") or float(metrics.get("saturation") or 0) > 0):
-            return metrics
-
-        best_metrics = metrics if isinstance(metrics, dict) else None
-        best_sat = float((best_metrics or {}).get("saturation") or 0)
-        for dow in range(1, 8):
-            if dow == day_of_week:
-                continue
-            alt = load_intersection_metrics_only(
-                inter_id=str(inter_id),
-                day_of_week=dow,
-                time_hhmm=time_hhmm,
-                time_range=time_range,
-            )
-            if not alt.get("ok"):
-                continue
-            alt_m = alt.get("metrics") or {}
-            if not alt_m.get("turn_saturation_detail"):
-                continue
-            sat = float(alt_m.get("saturation") or 0)
-            if sat > best_sat:
-                best_sat = sat
-                best_metrics = dict(alt_m)
-                best_metrics["metrics_day_of_week_fallback"] = dow
-        return best_metrics
 
     return _load
 
 
+def load_cross_week_peak_movement_metrics(
+    *,
+    inter_id: str,
+    direction: str,
+    movement: str,
+    time_range: str | None,
+) -> dict[str, Any] | None:
+    """演示口径：在 1..7 日型中选择目标进口转向 queue_len_avg 峰值最大的一天。"""
+    from app.data.load_intersection_from_pg import load_intersection_metrics_only
+
+    dir8, turn = resolve_dir8_turn(direction, movement)
+    best: dict[str, Any] | None = None
+    best_queue = -1.0
+    for dow in range(1, 8):
+        loaded = load_intersection_metrics_only(
+            inter_id=str(inter_id),
+            day_of_week=dow,
+            time_hhmm=parse_time_hhmm(time_range),
+            time_range=time_range,
+        )
+        if not loaded.get("ok"):
+            continue
+        metrics = loaded.get("metrics") or {}
+        queue_peak = _max_row_metric(
+            metrics.get("turn_perf_detail") or [],
+            dir8,
+            turn,
+            ("queue_len_avg",),
+        )
+        if queue_peak is None or queue_peak <= best_queue:
+            continue
+        best_queue = float(queue_peak)
+        best = dict(metrics)
+        best["selected_day_of_week"] = dow
+        best["selected_movement_queue_peak_m"] = round(best_queue, 2)
+        best["metric_selection_policy"] = "cross_week_movement_peak"
+    return best
+
+
+def load_cross_week_mean_movement_metrics(
+    *,
+    inter_id: str,
+    direction: str,
+    movement: str,
+    time_range: str | None,
+) -> dict[str, Any] | None:
+    """演示口径：下游承接进口转向采用一周内同一时间窗的样本均值。
+
+    同时保留跨周峰值作为安全审计字段，避免“均值可承接”掩盖偶发峰值。
+    其他指标明细也合并全部有效日型，供诊断按既有统计规则计算。
+    """
+    from app.data.load_intersection_from_pg import load_intersection_metrics_only
+
+    dir8, turn = resolve_dir8_turn(direction, movement)
+    merged: dict[str, Any] | None = None
+    detail_keys = (
+        "turn_perf_detail",
+        "turn_saturation_detail",
+        "turn_flow_detail",
+        "green_utilization_detail",
+    )
+    valid_days: list[int] = []
+    for dow in range(1, 8):
+        loaded = load_intersection_metrics_only(
+            inter_id=str(inter_id),
+            day_of_week=dow,
+            time_hhmm=parse_time_hhmm(time_range),
+            time_range=time_range,
+        )
+        if not loaded.get("ok"):
+            continue
+        metrics = loaded.get("metrics") or {}
+        if merged is None:
+            merged = dict(metrics)
+            for key in detail_keys:
+                merged[key] = []
+        day_has_target = False
+        for key in detail_keys:
+            rows = metrics.get(key) or []
+            merged[key].extend(rows)
+            if key == "turn_perf_detail" and _max_row_metric(rows, dir8, turn, ("queue_len_avg",)) is not None:
+                day_has_target = True
+        if day_has_target:
+            valid_days.append(dow)
+    if merged is None:
+        return None
+    target_rows = merged.get("turn_perf_detail") or []
+    queue_mean = _mean_row_metric(target_rows, dir8, turn, ("queue_len_avg",))
+    queue_peak = _max_row_metric(target_rows, dir8, turn, ("queue_len_avg",))
+    if queue_mean is None:
+        return None
+    merged["selected_day_of_week"] = None
+    merged["included_day_of_week"] = valid_days
+    merged["selected_movement_queue_mean_m"] = round(float(queue_mean), 2)
+    merged["selected_movement_queue_peak_m"] = round(float(queue_peak), 2) if queue_peak is not None else None
+    merged["metric_selection_policy"] = "cross_week_movement_mean"
+    return merged
+
+
 def _adjacent_profile_has_metrics(profile: dict[str, Any]) -> bool:
-    if profile.get("metrics_available") is False:
-        return False
-    if profile.get("metrics_available") is True:
-        return True
     metrics = profile.get("metrics") or {}
     for key in ("saturation", "saturation_rate", "queue_storage_ratio_max", "green_utilization"):
         val = metrics.get(key)
@@ -663,6 +805,10 @@ def _adjacent_profile_has_metrics(profile: dict[str, Any]) -> bool:
                 return True
         except (TypeError, ValueError):
             continue
+    if profile.get("metrics_available") is False:
+        return False
+    if profile.get("metrics_available") is True:
+        return True
     return False
 
 

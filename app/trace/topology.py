@@ -86,6 +86,11 @@ def resolve_dir8_turn(direction: str, movement: str = "直行") -> tuple[int, in
         return EN_DIRECTION_MOVEMENT[normalized_direction][0], turn
     if raw_direction in DIRECTION_MOVEMENT:
         return DIRECTION_MOVEMENT[raw_direction][0], turn
+    # 用户和筛选结果常直接使用“北进口/西进口”等进口名称；此前这些值
+    # 会落入最终的东进口兜底，导致峰值查询静默查错方向。
+    for dir8, entry_label in DIR8_ENTRY.items():
+        if raw_direction == entry_label:
+            return dir8, turn
     for label, pair in DIRECTION_MOVEMENT.items():
         if raw_direction in label or label in raw_direction:
             return pair[0], turn

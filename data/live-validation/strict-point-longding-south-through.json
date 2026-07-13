@@ -1,0 +1,3369 @@
+{
+  "trace_id": "7834ef71abac42ce",
+  "completed": false,
+  "pipeline_complete": true,
+  "diagnosis_ticket": {
+    "object_type": "intersection",
+    "intersection_name": "龙鼎大道与龙鼎大道路口",
+    "intersection_name_candidates": [
+      "龙鼎大道与龙鼎大道路口",
+      "龙鼎大道交叉口",
+      "龙鼎大道自交路口"
+    ],
+    "time_range": "17:00-19:00",
+    "period": "晚高峰",
+    "direction": "南向北",
+    "movement": "直行",
+    "problem_type": "排队溢流",
+    "constraints": [],
+    "diagnosis_scope": "单点优化适用性评估",
+    "governance_goal": "核验溢流风险并追踪下游接收进口真实转向排队以判断单点优化可行性",
+    "user_experiences": [
+      {
+        "experience_type": "cognitive",
+        "content": "南进口直行存在排队溢流风险",
+        "source_span": "南进口直行排队溢流风险",
+        "tags": {
+          "problem_type": "排队溢流",
+          "time_period": "晚高峰"
+        }
+      },
+      {
+        "experience_type": "diagnostic",
+        "content": "需追踪直接下游接收进口的真实转向排队情况作为判断依据",
+        "source_span": "追踪其直接下游接收进口的真实转向排队",
+        "tags": {
+          "cause_dimension": "下游路段",
+          "cause_keywords": [
+            "下游接收进口",
+            "真实转向排队"
+          ]
+        }
+      },
+      {
+        "experience_type": "solution",
+        "content": "判断是否适合进行单点优化",
+        "source_span": "判断是否适合单点优化",
+        "tags": {
+          "strategy_action": "单点优化"
+        }
+      }
+    ],
+    "inter_id": "011wwe231d900002",
+    "lng": 117.117994,
+    "lat": 36.614898,
+    "match_confidence": 1.0,
+    "match_candidates": [
+      {
+        "inter_id": "011wwe231d900002",
+        "inter_name": "龙鼎大道与龙鼎大道路口",
+        "confidence": 1.0,
+        "source": "pg"
+      },
+      {
+        "inter_id": "011wwe23hu200001",
+        "inter_name": "龙鼎大道与龙鼎大道路口",
+        "confidence": 1.0,
+        "source": "pg"
+      },
+      {
+        "inter_id": "011wwe23nh700001",
+        "inter_name": "龙鼎大道与龙鼎大道路口",
+        "confidence": 1.0,
+        "source": "pg"
+      },
+      {
+        "inter_id": "011wwe23ju200001",
+        "inter_name": "龙翔路与龙鼎大道路口",
+        "confidence": 0.92,
+        "source": "pg"
+      },
+      {
+        "inter_id": "011wwe2357100001",
+        "inter_name": "龙景路与龙鼎大道路口",
+        "confidence": 0.92,
+        "source": "pg"
+      }
+    ],
+    "match_method": "reversed_order"
+  },
+  "phases": {
+    "intent": {
+      "diagnosis_ticket": {
+        "object_type": "intersection",
+        "intersection_name": "龙鼎大道与龙鼎大道路口",
+        "intersection_name_candidates": [
+          "龙鼎大道与龙鼎大道路口",
+          "龙鼎大道交叉口",
+          "龙鼎大道自交路口"
+        ],
+        "time_range": "17:00-19:00",
+        "period": "晚高峰",
+        "direction": "南向北",
+        "movement": "直行",
+        "problem_type": "排队溢流",
+        "constraints": [],
+        "diagnosis_scope": "单点优化适用性评估",
+        "governance_goal": "核验溢流风险并追踪下游接收进口真实转向排队以判断单点优化可行性",
+        "user_experiences": [
+          {
+            "experience_type": "cognitive",
+            "content": "南进口直行存在排队溢流风险",
+            "source_span": "南进口直行排队溢流风险",
+            "tags": {
+              "problem_type": "排队溢流",
+              "time_period": "晚高峰"
+            }
+          },
+          {
+            "experience_type": "diagnostic",
+            "content": "需追踪直接下游接收进口的真实转向排队情况作为判断依据",
+            "source_span": "追踪其直接下游接收进口的真实转向排队",
+            "tags": {
+              "cause_dimension": "下游路段",
+              "cause_keywords": [
+                "下游接收进口",
+                "真实转向排队"
+              ]
+            }
+          },
+          {
+            "experience_type": "solution",
+            "content": "判断是否适合进行单点优化",
+            "source_span": "判断是否适合单点优化",
+            "tags": {
+              "strategy_action": "单点优化"
+            }
+          }
+        ],
+        "inter_id": "011wwe231d900002",
+        "lng": 117.117994,
+        "lat": 36.614898,
+        "match_confidence": 1.0,
+        "match_candidates": [
+          {
+            "inter_id": "011wwe231d900002",
+            "inter_name": "龙鼎大道与龙鼎大道路口",
+            "confidence": 1.0,
+            "source": "pg"
+          },
+          {
+            "inter_id": "011wwe23hu200001",
+            "inter_name": "龙鼎大道与龙鼎大道路口",
+            "confidence": 1.0,
+            "source": "pg"
+          },
+          {
+            "inter_id": "011wwe23nh700001",
+            "inter_name": "龙鼎大道与龙鼎大道路口",
+            "confidence": 1.0,
+            "source": "pg"
+          },
+          {
+            "inter_id": "011wwe23ju200001",
+            "inter_name": "龙翔路与龙鼎大道路口",
+            "confidence": 0.92,
+            "source": "pg"
+          },
+          {
+            "inter_id": "011wwe2357100001",
+            "inter_name": "龙景路与龙鼎大道路口",
+            "confidence": 0.92,
+            "source": "pg"
+          }
+        ],
+        "match_method": "reversed_order"
+      },
+      "user_experiences": [
+        {
+          "experience_type": "cognitive",
+          "content": "南进口直行存在排队溢流风险",
+          "source_span": "南进口直行排队溢流风险",
+          "tags": {
+            "inter_id": "011wwe231d900002",
+            "intersection_name": "龙鼎大道与龙鼎大道路口",
+            "problem_type": "排队溢流",
+            "time_period": "晚高峰",
+            "direction": "南向北",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": null,
+            "cause_keywords": [],
+            "strategy_action": null,
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null
+          }
+        },
+        {
+          "experience_type": "diagnostic",
+          "content": "需追踪直接下游接收进口的真实转向排队情况作为判断依据",
+          "source_span": "追踪其直接下游接收进口的真实转向排队",
+          "tags": {
+            "inter_id": "011wwe231d900002",
+            "intersection_name": "龙鼎大道与龙鼎大道路口",
+            "problem_type": "排队溢流",
+            "time_period": null,
+            "direction": "南向北",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": "下游路段",
+            "cause_keywords": [
+              "下游接收进口",
+              "真实转向排队"
+            ],
+            "strategy_action": null,
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null
+          }
+        },
+        {
+          "experience_type": "solution",
+          "content": "判断是否适合进行单点优化",
+          "source_span": "判断是否适合单点优化",
+          "tags": {
+            "inter_id": "011wwe231d900002",
+            "intersection_name": "龙鼎大道与龙鼎大道路口",
+            "problem_type": "排队溢流",
+            "time_period": null,
+            "direction": "南向北",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": null,
+            "cause_keywords": [],
+            "strategy_action": "单点优化",
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null
+          }
+        }
+      ],
+      "spatial_objects": {
+        "target_intersection": "龙鼎大道与龙鼎大道路口",
+        "target_direction": "南向北",
+        "target_movement": "直行",
+        "upstream_scope": "南向北来车来源路段与相邻路口",
+        "downstream_scope": "南向北出口路段与下游信控节点",
+        "main_path": "上游来车 → 目标路口 → 下游承接节点"
+      },
+      "spatial_scene": {
+        "available": true,
+        "recognition_steps": [
+          {
+            "step": "intersection_match",
+            "status": "done",
+            "label": "路口匹配完成"
+          },
+          {
+            "step": "approach_direction",
+            "status": "done",
+            "label": "进口方向识别完成"
+          },
+          {
+            "step": "turn_relation",
+            "status": "done",
+            "label": "转向关系识别完成"
+          },
+          {
+            "step": "topology",
+            "status": "pending",
+            "label": "上下游拓扑识别完成"
+          },
+          {
+            "step": "arterial_path",
+            "status": "done",
+            "label": "干线路径识别完成"
+          }
+        ],
+        "target": {
+          "inter_id": "011wwe231d900002",
+          "inter_name": "龙鼎大道与龙鼎大道路口",
+          "lng": 117.117994,
+          "lat": 36.614898,
+          "direction": "南向北",
+          "movement": "直行"
+        },
+        "highlight_path": [
+          [
+            117.117994,
+            36.614898
+          ]
+        ],
+        "upstream_nodes": [],
+        "downstream_nodes": [],
+        "main_path": "上游来车 → 龙鼎大道与龙鼎大道路口 → 下游承接节点",
+        "axis_roads": {
+          "ew_road": null,
+          "ns_road": "南",
+          "available": true,
+          "source": "channelization"
+        }
+      }
+    },
+    "diagnosis": {
+      "metrics": {
+        "queue_length_m": 55.6,
+        "storage_length_m": 60.07,
+        "storage_direction": "南进口",
+        "storage_source": "adjacent_inter_spacing_detail_min_entrance",
+        "spacing_version_id": "12wwe2316wwe231d01",
+        "queue_ratio": 0.9256,
+        "saturation": null,
+        "los": "A",
+        "green_utilization": 0.0,
+        "stop_count": 0.02,
+        "avg_delay_s": 2.71,
+        "time_series_trend": "pg_loaded",
+        "by_approach": [],
+        "by_movement": [],
+        "imbalance_index": 0.0,
+        "approach_count": 1,
+        "lane_count": 10,
+        "target_movement_key": "d4_t2",
+        "metric_scope": "movement",
+        "dir8_code": 4,
+        "turn_dir_no": 2,
+        "intersection_saturation_max": 0.0,
+        "intersection_queue_max": 104.0
+      },
+      "timing_profile": {
+        "cycle_s": null,
+        "time_plan_count": null,
+        "plan_name": null
+      },
+      "problem_regularity": {
+        "recurring": "同时段周内规律显示晚高峰该方向排队比 0.93 持续偏高",
+        "periodic": null,
+        "basis": "基于同时段饱和度与周内规律派生，非实测统计"
+      },
+      "downstream_metrics": {
+        "queue_ratio": 0.1599,
+        "saturation": null,
+        "green_utilization": null
+      },
+      "upstream_metrics": {
+        "arrival_intensity": "high",
+        "arrival_flow_vph": 0.0,
+        "release_intensity_vph": 0.0
+      },
+      "target_intersection": {
+        "inter_id": "011wwe231d900002",
+        "inter_name": "龙鼎大道与龙鼎大道路口",
+        "role": "target",
+        "lng": 117.117994,
+        "lat": 36.614898,
+        "receiving_dir8": null,
+        "receiving_label": null,
+        "metrics_available": false,
+        "metrics_reason": null,
+        "metrics": {
+          "avg_delay_s": 2.71,
+          "saturation": null,
+          "saturation_rate": null,
+          "avg_queue_m": 55.6,
+          "max_queue_m": 55.6,
+          "queue_storage_ratio_max": 0.9256,
+          "spillback_risk_max": 0.9256,
+          "level_of_service": null,
+          "green_utilization": 0.0,
+          "stop_count": 0.02,
+          "time_series_trend": "pg_loaded",
+          "target_movement_key": "d4_t2",
+          "metric_scope": "movement",
+          "queue_statistic": "cross_week_window_peak",
+          "queue_source": "movement_window_mean",
+          "queue_is_direction_proxy": false,
+          "movement_queue_length_m": 55.6,
+          "saturation_statistic": "window_peak",
+          "statistic_scope": "selected_typical_day",
+          "storage_direction": "南进口",
+          "storage_source": "adjacent_inter_spacing_detail_min_entrance"
+        },
+        "by_turn": [
+          {
+            "label": "南向北直行",
+            "turn_saturation": null,
+            "green_utilization": 0.0,
+            "flow_vph": 0.0,
+            "queue_ratio": 0.9256
+          }
+        ],
+        "overflow_verification": {
+          "verified": true,
+          "risk_level": "warning",
+          "message": "排队接近进口道空间边界，进入溢出预警状态"
+        },
+        "remaining_storage_m": 4.469999999999999
+      },
+      "spatial_topology": {
+        "target_intersection": "龙鼎大道与龙鼎大道路口",
+        "target_direction": "南向北",
+        "target_movement": "直行",
+        "upstream_scope": "南向北来车来源路段与相邻路口",
+        "downstream_scope": "南向北出口路段与下游信控节点",
+        "main_path": "上游来车 → 目标路口 → 下游承接节点"
+      },
+      "downstream_trace": {
+        "available": true,
+        "trace_direction": "downstream",
+        "turn_traces": [
+          {
+            "movement": "南进口直行",
+            "dir8_code": 4,
+            "turn_dir_no": 2,
+            "exit_dir8": 0,
+            "downstream_inter_id": "011wwe2344m00001",
+            "downstream_inter_name": "龙腾路与龙鼎大道路口",
+            "share_pct": null,
+            "path": [
+              [
+                117.118002,
+                36.614975
+              ],
+              [
+                117.11804,
+                36.61513
+              ],
+              [
+                117.118034,
+                36.615436
+              ],
+              [
+                117.117986,
+                36.616117
+              ],
+              [
+                117.11783,
+                36.617233
+              ],
+              [
+                117.11782,
+                36.617297
+              ],
+              [
+                117.117809,
+                36.617356
+              ],
+              [
+                117.117809,
+                36.617383
+              ],
+              [
+                117.117804,
+                36.61741
+              ],
+              [
+                117.117809,
+                36.617356
+              ],
+              [
+                117.117809,
+                36.617383
+              ],
+              [
+                117.117804,
+                36.61741
+              ],
+              [
+                117.117798,
+                36.617431
+              ],
+              [
+                117.117648,
+                36.618419
+              ]
+            ],
+            "path_source": "link_geom",
+            "receiving_dir8": 4,
+            "receiving_label": "南进口直行",
+            "lng": 117.117491,
+            "lat": 36.618416,
+            "downstream_metrics": {
+              "inter_id": "011wwe2344m00001",
+              "inter_name": "龙腾路与龙鼎大道路口",
+              "role": "downstream",
+              "lng": 117.117491,
+              "lat": 36.618416,
+              "receiving_dir8": 4,
+              "receiving_label": "南进口直行",
+              "metrics_available": false,
+              "metrics_reason": "下游承接进口（南向北直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+              "metrics": {
+                "avg_delay_s": 22.43,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": 63.4,
+                "max_queue_m": 63.4,
+                "queue_storage_ratio_max": 0.1599,
+                "spillback_risk_max": 0.1599,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null,
+                "target_movement_key": null,
+                "metric_scope": "movement",
+                "queue_statistic": "window_mean",
+                "queue_source": null,
+                "queue_is_direction_proxy": false,
+                "movement_queue_length_m": null,
+                "saturation_statistic": "window_peak",
+                "statistic_scope": null,
+                "storage_direction": null,
+                "storage_source": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.1599
+                }
+              ],
+              "overflow_verification": {
+                "verified": true,
+                "risk_level": "low",
+                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+              },
+              "remaining_storage_m": 333.1
+            },
+            "capacity": {
+              "can_release": true,
+              "blocked": false,
+              "reasons": [],
+              "release_guard": "downstream_has_slack"
+            },
+            "trace_kind": "downstream",
+            "narrative": "南进口直行去向龙腾路与龙鼎大道路口，下游仍有余量，可局部增绿清空"
+          }
+        ],
+        "adjacent_intersections": [
+          {
+            "inter_id": "011wwe2344m00001",
+            "inter_name": "龙腾路与龙鼎大道路口",
+            "role": "downstream",
+            "lng": 117.117491,
+            "lat": 36.618416,
+            "receiving_dir8": 4,
+            "receiving_label": "南进口直行",
+            "metrics_available": false,
+            "metrics_reason": "下游承接进口（南向北直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+            "metrics": {
+              "avg_delay_s": 22.43,
+              "saturation": null,
+              "saturation_rate": null,
+              "avg_queue_m": 63.4,
+              "max_queue_m": 63.4,
+              "queue_storage_ratio_max": 0.1599,
+              "spillback_risk_max": 0.1599,
+              "level_of_service": null,
+              "green_utilization": null,
+              "stop_count": null,
+              "time_series_trend": null,
+              "target_movement_key": null,
+              "metric_scope": "movement",
+              "queue_statistic": "window_mean",
+              "queue_source": null,
+              "queue_is_direction_proxy": false,
+              "movement_queue_length_m": null,
+              "saturation_statistic": "window_peak",
+              "statistic_scope": null,
+              "storage_direction": null,
+              "storage_source": null
+            },
+            "by_turn": [
+              {
+                "label": "直行",
+                "turn_saturation": null,
+                "green_utilization": null,
+                "flow_vph": 0.0,
+                "queue_ratio": 0.1599
+              }
+            ],
+            "overflow_verification": {
+              "verified": true,
+              "risk_level": "low",
+              "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+            },
+            "remaining_storage_m": 333.1,
+            "capacity": {
+              "can_release": true,
+              "blocked": false,
+              "reasons": [],
+              "release_guard": "downstream_has_slack"
+            },
+            "linked_movements": [
+              "南进口直行"
+            ],
+            "share_pct": null
+          }
+        ],
+        "governance": {
+          "landing": "local_reallocation",
+          "downstream_blocked": false,
+          "recommendation": "下游可承接，可评估局部增绿清空"
+        },
+        "target_comparison": {
+          "target": {
+            "inter_id": "011wwe231d900002",
+            "inter_name": "龙鼎大道与龙鼎大道路口",
+            "role": "target",
+            "lng": 117.117994,
+            "lat": 36.614898,
+            "receiving_dir8": null,
+            "receiving_label": null,
+            "metrics_available": false,
+            "metrics_reason": null,
+            "metrics": {
+              "avg_delay_s": 2.71,
+              "saturation": null,
+              "saturation_rate": null,
+              "avg_queue_m": 55.6,
+              "max_queue_m": 55.6,
+              "queue_storage_ratio_max": 0.9256,
+              "spillback_risk_max": 0.9256,
+              "level_of_service": null,
+              "green_utilization": 0.0,
+              "stop_count": 0.02,
+              "time_series_trend": "pg_loaded",
+              "target_movement_key": "d4_t2",
+              "metric_scope": "movement",
+              "queue_statistic": "cross_week_window_peak",
+              "queue_source": "movement_window_mean",
+              "queue_is_direction_proxy": false,
+              "movement_queue_length_m": 55.6,
+              "saturation_statistic": "window_peak",
+              "statistic_scope": "selected_typical_day",
+              "storage_direction": "南进口",
+              "storage_source": "adjacent_inter_spacing_detail_min_entrance"
+            },
+            "by_turn": [
+              {
+                "label": "南向北直行",
+                "turn_saturation": null,
+                "green_utilization": 0.0,
+                "flow_vph": 0.0,
+                "queue_ratio": 0.9256
+              }
+            ],
+            "overflow_verification": {
+              "verified": true,
+              "risk_level": "warning",
+              "message": "排队接近进口道空间边界，进入溢出预警状态"
+            },
+            "remaining_storage_m": 4.469999999999999
+          },
+          "downstream_nodes": [
+            {
+              "inter_id": "011wwe2344m00001",
+              "inter_name": "龙腾路与龙鼎大道路口",
+              "role": "downstream",
+              "lng": 117.117491,
+              "lat": 36.618416,
+              "receiving_dir8": 4,
+              "receiving_label": "南进口直行",
+              "metrics_available": false,
+              "metrics_reason": "下游承接进口（南向北直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+              "metrics": {
+                "avg_delay_s": 22.43,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": 63.4,
+                "max_queue_m": 63.4,
+                "queue_storage_ratio_max": 0.1599,
+                "spillback_risk_max": 0.1599,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null,
+                "target_movement_key": null,
+                "metric_scope": "movement",
+                "queue_statistic": "window_mean",
+                "queue_source": null,
+                "queue_is_direction_proxy": false,
+                "movement_queue_length_m": null,
+                "saturation_statistic": "window_peak",
+                "statistic_scope": null,
+                "storage_direction": null,
+                "storage_source": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.1599
+                }
+              ],
+              "overflow_verification": {
+                "verified": true,
+                "risk_level": "low",
+                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+              },
+              "remaining_storage_m": 333.1,
+              "capacity": {
+                "can_release": true,
+                "blocked": false,
+                "reasons": [],
+                "release_guard": "downstream_has_slack"
+              },
+              "linked_movements": [
+                "南进口直行"
+              ],
+              "share_pct": null
+            }
+          ],
+          "same_metric_dimensions": true
+        }
+      },
+      "flow_trace": {
+        "available": true,
+        "period_type": "EVENING_PEAK",
+        "day_basis": "工作日",
+        "vehicles_base": 100,
+        "entry_traces": [
+          {
+            "entry": "南进口",
+            "dir8_code": 4,
+            "entry_max_saturation": null,
+            "upstream_inter_id": "011wwe2316t00001",
+            "upstream_inter_name": "二环南高架路出口与二环南高架路出口路口",
+            "upstream_lng": 117.11785,
+            "upstream_lat": 36.614295,
+            "vehicles_base": 100,
+            "upstream_movements": [
+              {
+                "turn": "直行",
+                "feed_direction": "南向北直行",
+                "share_pct": null,
+                "vehicles_of_100": null,
+                "raw_coverage": null
+              }
+            ],
+            "dominant_movement": {
+              "turn": "直行",
+              "feed_direction": "南向北直行",
+              "share_pct": null,
+              "vehicles_of_100": null,
+              "raw_coverage": null
+            },
+            "path": [
+              [
+                117.117852,
+                36.614293
+              ],
+              [
+                117.117895,
+                36.614449
+              ],
+              [
+                117.117959,
+                36.614701
+              ],
+              [
+                117.117981,
+                36.614824
+              ]
+            ],
+            "narrative": "南进口来向上游路口二环南高架路出口与二环南高架路出口路口（占比数据缺失）"
+          }
+        ],
+        "problem_turns": [
+          {
+            "entry": "南进口",
+            "turn": "直行",
+            "turn_saturation": null,
+            "source_pattern": "single_corridor",
+            "dominant_feed": {
+              "inter_id": "011wwe2316t00001",
+              "inter_name": "二环南高架路出口与二环南高架路出口路口",
+              "feed_direction": "南向北直行",
+              "path_coverage": null,
+              "lng": 117.11785,
+              "lat": 36.614295
+            },
+            "sources": [
+              {
+                "inter_id": "011wwe2316t00001",
+                "inter_name": "二环南高架路出口与二环南高架路出口路口",
+                "feed_direction": "南向北直行",
+                "path_coverage": null,
+                "lng": 117.11785,
+                "lat": 36.614295
+              }
+            ]
+          }
+        ],
+        "governance_hints": [],
+        "caveat": "PG 拓扑：几何取自 dim_link_info.geom，占比取自 flow_correlate"
+      },
+      "arterial_analysis": {
+        "upstream_arrival_flow_vph": 0.0,
+        "upstream_release_intensity_vph": 0.0,
+        "target_remaining_storage_m": 4.469999999999999,
+        "downstream_remaining_storage_m": 333.1,
+        "phase_offset_match": null,
+        "need_upstream_metering": false,
+        "need_downstream_dissipation_first": false,
+        "upstream_arrival_intensity": "high",
+        "summary": "上下游压力可控，可评估局部优化",
+        "phase_offset_available": false,
+        "phase_offset_reason": "缺少相邻路口绝对相位；缺少路段速度"
+      },
+      "coordination": {
+        "available": false,
+        "direction": "bidirectional",
+        "cycle_s": null,
+        "target": {
+          "inter_id": "011wwe231d900002",
+          "inter_name": "龙鼎大道与龙鼎大道路口",
+          "lng": 117.117994,
+          "lat": 36.614898
+        },
+        "nodes": [
+          {
+            "inter_id": "011wwe2316t00001",
+            "inter_name": "二环南高架路出口与二环南高架路出口路口",
+            "lng": 117.11785,
+            "lat": 36.614295,
+            "role": "upstream",
+            "spacing_m": 60.07,
+            "spacing_source": "dim_link_info.length_m",
+            "offset_abs_s": null,
+            "offset_source": null,
+            "phase_diff_s": null,
+            "travel_speed_kmh": null,
+            "travel_time_s": null,
+            "travel_source": null
+          },
+          {
+            "inter_id": "011wwe231d900002",
+            "inter_name": "龙鼎大道与龙鼎大道路口",
+            "lng": 117.117994,
+            "lat": 36.614898,
+            "role": "target",
+            "spacing_m": 0.0,
+            "spacing_source": "self",
+            "offset_abs_s": null,
+            "offset_source": null,
+            "phase_diff_s": null,
+            "travel_speed_kmh": null,
+            "travel_time_s": null,
+            "travel_source": null
+          },
+          {
+            "inter_id": "011wwe2344m00001",
+            "inter_name": "龙腾路与龙鼎大道路口",
+            "lng": 117.117491,
+            "lat": 36.618416,
+            "role": "downstream",
+            "spacing_m": 396.5,
+            "spacing_source": "dim_link_info.length_m",
+            "offset_abs_s": null,
+            "offset_source": null,
+            "phase_diff_s": null,
+            "travel_speed_kmh": null,
+            "travel_time_s": null,
+            "travel_source": null
+          }
+        ],
+        "source": "link_geom",
+        "reason": "缺少相邻路口绝对相位；缺少路段速度"
+      },
+      "downstream_diagnosis": {
+        "available": true,
+        "scenario": "mixed",
+        "release_answer": "绿灯给了也用不上",
+        "can_simple_add_green": false,
+        "primary_downstream": {
+          "inter_id": "011wwe2344m00001",
+          "inter_name": "龙腾路与龙鼎大道路口",
+          "metrics": {
+            "avg_delay_s": 22.43,
+            "saturation": null,
+            "saturation_rate": null,
+            "avg_queue_m": 63.4,
+            "max_queue_m": 63.4,
+            "queue_storage_ratio_max": 0.1599,
+            "spillback_risk_max": 0.1599,
+            "level_of_service": null,
+            "green_utilization": null,
+            "stop_count": null,
+            "time_series_trend": null,
+            "target_movement_key": null,
+            "metric_scope": "movement",
+            "queue_statistic": "window_mean",
+            "queue_source": null,
+            "queue_is_direction_proxy": false,
+            "movement_queue_length_m": null,
+            "saturation_statistic": "window_peak",
+            "statistic_scope": null,
+            "storage_direction": null,
+            "storage_source": null
+          },
+          "by_turn": [
+            {
+              "label": "直行",
+              "turn_saturation": null,
+              "green_utilization": null,
+              "flow_vph": 0.0,
+              "queue_ratio": 0.1599
+            }
+          ],
+          "remaining_storage_m": 333.1,
+          "capacity": {
+            "can_release": true,
+            "blocked": false,
+            "reasons": [],
+            "release_guard": "downstream_has_slack"
+          }
+        },
+        "judgment_criteria": {
+          "target_queue_high": true,
+          "target_saturation_high": false,
+          "target_green_utilization_high": false,
+          "downstream_queue_high": false,
+          "downstream_near_saturation": false,
+          "add_green_spillback_risk": false
+        },
+        "narrative": "排队高但绿灯利用率低，可能存在下游阻塞、出口不畅或检测异常",
+        "expert_question": "加绿以后，车有没有地方去？"
+      },
+      "map_scenes": {
+        "channelization_map": {
+          "action": "map_scene",
+          "phase": "channelization_map",
+          "available": true,
+          "center": [
+            117.117994,
+            36.614898
+          ],
+          "target_intersection": {
+            "inter_id": "011wwe231d900002",
+            "inter_name": "龙鼎大道与龙鼎大道路口",
+            "lng": 117.117994,
+            "lat": 36.614898
+          },
+          "links": [
+            {
+              "link_id": "12wwe231dwwe234401",
+              "link_role": "exit",
+              "dir8_code": "0",
+              "dir8_label": "北出口",
+              "dir4_label": "北出口",
+              "lane_num": 5,
+              "c_lane_num": 6,
+              "lane_info": "C|C|B|C|C|CD",
+              "turn_move": "11|11|12|11|11|22",
+              "path": [
+                [
+                  117.118002,
+                  36.614975
+                ],
+                [
+                  117.11804,
+                  36.61513
+                ],
+                [
+                  117.118034,
+                  36.615436
+                ],
+                [
+                  117.117986,
+                  36.616117
+                ],
+                [
+                  117.11783,
+                  36.617233
+                ],
+                [
+                  117.11782,
+                  36.617297
+                ],
+                [
+                  117.117809,
+                  36.617356
+                ],
+                [
+                  117.117809,
+                  36.617383
+                ],
+                [
+                  117.117804,
+                  36.61741
+                ],
+                [
+                  117.117809,
+                  36.617356
+                ],
+                [
+                  117.117809,
+                  36.617383
+                ],
+                [
+                  117.117804,
+                  36.61741
+                ],
+                [
+                  117.117798,
+                  36.617431
+                ],
+                [
+                  117.117648,
+                  36.618419
+                ]
+              ],
+              "adjacent_inter_id": "011wwe2344m00001",
+              "adjacent_inter_name": "龙腾路与龙鼎大道路口",
+              "adjacent_lng": 117.117491,
+              "adjacent_lat": 36.618416,
+              "relation_direction": "downstream",
+              "length_m": 396.5015353658385,
+              "metrics": {
+                "saturation": null,
+                "green_utilization": null,
+                "queue_m": null,
+                "flow_vph": null,
+                "capacity": null
+              }
+            },
+            {
+              "link_id": "12wwe2316wwe231d01",
+              "link_role": "entrance",
+              "dir8_code": "4",
+              "dir8_label": "南进口",
+              "dir4_label": "南进口",
+              "lane_num": 2,
+              "c_lane_num": 4,
+              "lane_info": "Z|Z|Z|D",
+              "turn_move": "99|99|99|13",
+              "path": [
+                [
+                  117.117852,
+                  36.614293
+                ],
+                [
+                  117.117895,
+                  36.614449
+                ],
+                [
+                  117.117959,
+                  36.614701
+                ],
+                [
+                  117.117981,
+                  36.614824
+                ]
+              ],
+              "adjacent_inter_id": "011wwe2316t00001",
+              "adjacent_inter_name": "二环南高架路出口与二环南高架路出口路口",
+              "adjacent_lng": 117.11785,
+              "adjacent_lat": 36.614295,
+              "relation_direction": "upstream",
+              "length_m": 60.06878029430485,
+              "metrics": {
+                "saturation": null,
+                "green_utilization": null,
+                "queue_m": null,
+                "flow_vph": null,
+                "capacity": null
+              }
+            }
+          ],
+          "hud": {
+            "title": "渠化车道与运行指标",
+            "metrics": [
+              {
+                "label": "link",
+                "value": "2"
+              },
+              {
+                "label": "进口",
+                "value": "1"
+              },
+              {
+                "label": "出口",
+                "value": "1"
+              }
+            ]
+          }
+        },
+        "flow_trace_segment_coverage_map": {
+          "action": "map_scene",
+          "phase": "flow_trace_segment_coverage_map",
+          "available": false,
+          "reason": "no_target_events",
+          "intersections": [],
+          "links": [],
+          "target": {
+            "id": "011wwe231d900002",
+            "name": "龙鼎大道与龙鼎大道路口",
+            "lng": 117.117994,
+            "lat": 36.614898,
+            "approach_leg": "S_IN",
+            "approach_label": "南进口",
+            "turn_dir_no": 2,
+            "turn_label": "直行",
+            "start_time": "2026-06-08 06:00:00",
+            "end_time": "2026-06-08 10:00:00",
+            "direction": "upstream",
+            "target_flow": 0
+          },
+          "quality_filters": {
+            "min_display_ratio": 0.05,
+            "exclude_incomplete_trips": true,
+            "filter_spatial_outliers": true,
+            "outlier_radius_m": 900,
+            "removed_intersections": 0,
+            "removed_links": 0
+          },
+          "stats": {
+            "intersection_count": 0,
+            "link_count": 0,
+            "parquet_date": "2026-06-08",
+            "approach_leg": "S_IN",
+            "turn_dir_no": 2
+          }
+        },
+        "flow_trace_links_sniff_map": {
+          "action": "map_scene",
+          "phase": "flow_trace_links_sniff_map",
+          "available": true,
+          "center": [
+            117.117994,
+            36.614898
+          ],
+          "trace_direction": "upstream",
+          "business_direction": "incoming",
+          "target_inter_id": "011wwe231d900002",
+          "title": "龙鼎大道与龙鼎大道路口 · 南向北直行 · 来向溯源",
+          "logic": "real link geometry + flow_correlate share; upstream locked to single topo one-hop (exclude secondary correlated upstreams)",
+          "stats": {
+            "raw_rows": 0,
+            "distinct_peers": 1,
+            "rendered": 2,
+            "main_corridor": 1,
+            "missing_center": 0,
+            "hidden_non_main": 0,
+            "period_type": null,
+            "period_filter_enabled": false,
+            "period_filter_caveat": "流量溯源暂未按诊断时段过滤 flow_correlate（单日样本期）；待多日复用后恢复 period_type 时间片约束。"
+          },
+          "main_corridor_chain": [
+            {
+              "hop": 1,
+              "inter_id": "011wwe2316t00001",
+              "name": "二环南高架路出口与二环南高架路出口路口",
+              "coverage": null
+            }
+          ],
+          "intersections": [
+            {
+              "inter_id": "011wwe231d900002",
+              "name": "龙鼎大道与龙鼎大道路口",
+              "center": [
+                117.117994,
+                36.614898
+              ],
+              "role": "target",
+              "path_coverage": null,
+              "cor_f_dir8_no": null,
+              "cor_turn_dir_no": null,
+              "in_main_corridor": false,
+              "corridor_hop": 0,
+              "exit_dir8": null,
+              "is_topo_anchor": false,
+              "links": [
+                {
+                  "link_id": "12wwe231dwwe234401",
+                  "link_role": "exit",
+                  "dir4_label": "北出口",
+                  "dir8_code": "0",
+                  "dir8_label": "北出口",
+                  "lane_num": 5,
+                  "road_name": null,
+                  "path": [
+                    [
+                      117.118002,
+                      36.614975
+                    ],
+                    [
+                      117.11804,
+                      36.61513
+                    ],
+                    [
+                      117.118034,
+                      36.615436
+                    ],
+                    [
+                      117.117986,
+                      36.616117
+                    ],
+                    [
+                      117.11783,
+                      36.617233
+                    ],
+                    [
+                      117.11782,
+                      36.617297
+                    ],
+                    [
+                      117.117809,
+                      36.617356
+                    ],
+                    [
+                      117.117809,
+                      36.617383
+                    ],
+                    [
+                      117.117804,
+                      36.61741
+                    ],
+                    [
+                      117.117809,
+                      36.617356
+                    ],
+                    [
+                      117.117809,
+                      36.617383
+                    ],
+                    [
+                      117.117804,
+                      36.61741
+                    ],
+                    [
+                      117.117798,
+                      36.617431
+                    ],
+                    [
+                      117.117648,
+                      36.618419
+                    ]
+                  ],
+                  "adjacent_inter_id": "011wwe2344m00001",
+                  "adjacent_inter_name": "龙腾路与龙鼎大道路口",
+                  "length_m": 396.5015353658385
+                },
+                {
+                  "link_id": "12wwe2316wwe231d01",
+                  "link_role": "entrance",
+                  "dir4_label": "南进口",
+                  "dir8_code": "4",
+                  "dir8_label": "南进口",
+                  "lane_num": 2,
+                  "road_name": null,
+                  "path": [
+                    [
+                      117.117852,
+                      36.614293
+                    ],
+                    [
+                      117.117895,
+                      36.614449
+                    ],
+                    [
+                      117.117959,
+                      36.614701
+                    ],
+                    [
+                      117.117981,
+                      36.614824
+                    ]
+                  ],
+                  "adjacent_inter_id": "011wwe2316t00001",
+                  "adjacent_inter_name": "二环南高架路出口与二环南高架路出口路口",
+                  "length_m": 60.06878029430485
+                }
+              ]
+            },
+            {
+              "inter_id": "011wwe2316t00001",
+              "name": "二环南高架路出口与二环南高架路出口路口",
+              "center": [
+                117.11785,
+                36.614295
+              ],
+              "role": "upstream",
+              "path_coverage": null,
+              "cor_f_dir8_no": 4,
+              "cor_turn_dir_no": 2,
+              "in_main_corridor": true,
+              "corridor_hop": 1,
+              "exit_dir8": null,
+              "is_topo_anchor": true,
+              "links": [
+                {
+                  "link_id": "12wwe22cmwwe231601",
+                  "link_role": "entrance",
+                  "dir4_label": "西进口",
+                  "dir8_code": "6",
+                  "dir8_label": "西进口",
+                  "lane_num": 2,
+                  "road_name": "二环南高架路出口:二环南路快速路-龙鼎大道(南向北)",
+                  "path": [
+                    [
+                      117.111146,
+                      36.613542
+                    ],
+                    [
+                      117.111205,
+                      36.613451
+                    ],
+                    [
+                      117.111243,
+                      36.613424
+                    ],
+                    [
+                      117.111414,
+                      36.613317
+                    ],
+                    [
+                      117.111758,
+                      36.613113
+                    ],
+                    [
+                      117.112557,
+                      36.612706
+                    ],
+                    [
+                      117.11282,
+                      36.612582
+                    ],
+                    [
+                      117.113217,
+                      36.612405
+                    ],
+                    [
+                      117.113534,
+                      36.612266
+                    ],
+                    [
+                      117.114258,
+                      36.611976
+                    ],
+                    [
+                      117.114483,
+                      36.61189
+                    ],
+                    [
+                      117.114767,
+                      36.611804
+                    ],
+                    [
+                      117.11495,
+                      36.611772
+                    ],
+                    [
+                      117.115116,
+                      36.611756
+                    ],
+                    [
+                      117.115331,
+                      36.611761
+                    ],
+                    [
+                      117.115508,
+                      36.611788
+                    ],
+                    [
+                      117.115674,
+                      36.611831
+                    ],
+                    [
+                      117.115846,
+                      36.611896
+                    ],
+                    [
+                      117.115985,
+                      36.611965
+                    ],
+                    [
+                      117.116151,
+                      36.612078
+                    ],
+                    [
+                      117.11628,
+                      36.612191
+                    ],
+                    [
+                      117.116425,
+                      36.612346
+                    ],
+                    [
+                      117.117187,
+                      36.613221
+                    ],
+                    [
+                      117.117342,
+                      36.613424
+                    ],
+                    [
+                      117.117498,
+                      36.61365
+                    ],
+                    [
+                      117.117627,
+                      36.613886
+                    ],
+                    [
+                      117.117798,
+                      36.614143
+                    ],
+                    [
+                      117.117852,
+                      36.614293
+                    ]
+                  ],
+                  "adjacent_inter_id": null,
+                  "adjacent_inter_name": null,
+                  "length_m": null
+                },
+                {
+                  "link_id": "12wwe230cwwe231601",
+                  "link_role": "entrance",
+                  "dir4_label": "南进口",
+                  "dir8_code": "5",
+                  "dir8_label": "西南进口",
+                  "lane_num": 2,
+                  "road_name": "龙鼎大道:无名道路-二环南路快速路出口(南向北)",
+                  "path": [
+                    [
+                      117.115824,
+                      36.611134
+                    ],
+                    [
+                      117.11606,
+                      36.611622
+                    ],
+                    [
+                      117.116216,
+                      36.611885
+                    ],
+                    [
+                      117.116479,
+                      36.612249
+                    ],
+                    [
+                      117.117224,
+                      36.613092
+                    ],
+                    [
+                      117.117428,
+                      36.613344
+                    ],
+                    [
+                      117.117589,
+                      36.61358
+                    ],
+                    [
+                      117.117702,
+                      36.613778
+                    ],
+                    [
+                      117.117788,
+                      36.613961
+                    ],
+                    [
+                      117.117846,
+                      36.614122
+                    ],
+                    [
+                      117.117852,
+                      36.614293
+                    ]
+                  ],
+                  "adjacent_inter_id": null,
+                  "adjacent_inter_name": null,
+                  "length_m": null
+                },
+                {
+                  "link_id": "12wwe2316wwe231d01",
+                  "link_role": "exit",
+                  "dir4_label": "北出口",
+                  "dir8_code": "0",
+                  "dir8_label": "北出口",
+                  "lane_num": 2,
+                  "road_name": "龙鼎大道:无名道路-二环南路快速路出口(南向北)",
+                  "path": [
+                    [
+                      117.117852,
+                      36.614293
+                    ],
+                    [
+                      117.117895,
+                      36.614449
+                    ],
+                    [
+                      117.117959,
+                      36.614701
+                    ],
+                    [
+                      117.117981,
+                      36.614824
+                    ]
+                  ],
+                  "adjacent_inter_id": null,
+                  "adjacent_inter_name": null,
+                  "length_m": null
+                }
+              ]
+            }
+          ],
+          "hud": {
+            "title": "流量/去向溯源",
+            "metrics": [
+              {
+                "label": "真实 link",
+                "value": "5"
+              },
+              {
+                "label": "主走廊",
+                "value": "1"
+              },
+              {
+                "label": "相邻路口",
+                "value": "1"
+              }
+            ]
+          }
+        },
+        "downstream_trace_map": {
+          "action": "map_scene",
+          "phase": "downstream_trace_map",
+          "available": true,
+          "center": [
+            117.117994,
+            36.614898
+          ],
+          "trace_direction": "downstream",
+          "turn_traces": [
+            {
+              "movement": "南进口直行",
+              "downstream_inter_id": "011wwe2344m00001",
+              "name": "龙腾路与龙鼎大道路口",
+              "share_pct": null,
+              "path": [
+                [
+                  117.118002,
+                  36.614975
+                ],
+                [
+                  117.11804,
+                  36.61513
+                ],
+                [
+                  117.118034,
+                  36.615436
+                ],
+                [
+                  117.117986,
+                  36.616117
+                ],
+                [
+                  117.11783,
+                  36.617233
+                ],
+                [
+                  117.11782,
+                  36.617297
+                ],
+                [
+                  117.117809,
+                  36.617356
+                ],
+                [
+                  117.117809,
+                  36.617383
+                ],
+                [
+                  117.117804,
+                  36.61741
+                ],
+                [
+                  117.117809,
+                  36.617356
+                ],
+                [
+                  117.117809,
+                  36.617383
+                ],
+                [
+                  117.117804,
+                  36.61741
+                ],
+                [
+                  117.117798,
+                  36.617431
+                ],
+                [
+                  117.117648,
+                  36.618419
+                ]
+              ],
+              "lon": 117.117491,
+              "lat": 36.618416,
+              "capacity": {
+                "blocked": false,
+                "can_release": true
+              },
+              "trace_kind": "downstream"
+            }
+          ],
+          "adjacent_intersections": [
+            {
+              "inter_id": "011wwe2344m00001",
+              "inter_name": "龙腾路与龙鼎大道路口",
+              "lng": 117.117491,
+              "lat": 36.618416,
+              "metrics": {
+                "avg_delay_s": 22.43,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": 63.4,
+                "max_queue_m": 63.4,
+                "queue_storage_ratio_max": 0.1599,
+                "spillback_risk_max": 0.1599,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null,
+                "target_movement_key": null,
+                "metric_scope": "movement",
+                "queue_statistic": "window_mean",
+                "queue_source": null,
+                "queue_is_direction_proxy": false,
+                "movement_queue_length_m": null,
+                "saturation_statistic": "window_peak",
+                "statistic_scope": null,
+                "storage_direction": null,
+                "storage_source": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.1599
+                }
+              ],
+              "remaining_storage_m": 333.1,
+              "capacity": {
+                "can_release": true,
+                "blocked": false,
+                "reasons": [],
+                "release_guard": "downstream_has_slack"
+              }
+            }
+          ],
+          "hud": {
+            "title": "下游一跳去向",
+            "metrics": [
+              {
+                "label": "治理落点",
+                "value": "local_reallocation",
+                "severity": "low"
+              },
+              {
+                "label": "建议",
+                "value": "下游可承接，可评估局部增绿清空"
+              }
+            ]
+          }
+        },
+        "arterial_analysis": {
+          "action": "map_scene",
+          "phase": "arterial_analysis",
+          "available": true,
+          "center": [
+            117.117994,
+            36.614898
+          ],
+          "trace_direction": "upstream",
+          "entry_traces": [
+            {
+              "entry": "南进口",
+              "dir8_code": 4,
+              "upstream_inter_id": "011wwe2316t00001",
+              "name": "二环南高架路出口与二环南高架路出口路口",
+              "narrative": "南进口来向上游路口二环南高架路出口与二环南高架路出口路口（占比数据缺失）",
+              "lon": 117.11785,
+              "lat": 36.614295,
+              "dominant_turn": "直行",
+              "vehicles_of_100": null,
+              "movements": [
+                {
+                  "turn": "直行",
+                  "vehicles_of_100": null,
+                  "feed_direction": "南向北直行"
+                }
+              ],
+              "path": [
+                [
+                  117.117852,
+                  36.614293
+                ],
+                [
+                  117.117895,
+                  36.614449
+                ],
+                [
+                  117.117959,
+                  36.614701
+                ],
+                [
+                  117.117981,
+                  36.614824
+                ]
+              ],
+              "dominant": true
+            }
+          ],
+          "hud": {
+            "title": "干线协调分析",
+            "metrics": [
+              {
+                "label": "上游到达流量",
+                "value": "-"
+              },
+              {
+                "label": "上游放行强度",
+                "value": "-"
+              },
+              {
+                "label": "目标剩余空间(m)",
+                "value": "4.469999999999999"
+              },
+              {
+                "label": "下游剩余空间(m)",
+                "value": "333.1"
+              },
+              {
+                "label": "相位差匹配",
+                "value": "-"
+              },
+              {
+                "label": "上游控流",
+                "value": "暂不需要",
+                "severity": "low"
+              }
+            ]
+          },
+          "speakable": "上下游压力可控，可评估局部优化",
+          "coordination": {
+            "available": false,
+            "direction": "bidirectional",
+            "cycle_s": null,
+            "target": {
+              "inter_id": "011wwe231d900002",
+              "inter_name": "龙鼎大道与龙鼎大道路口",
+              "lng": 117.117994,
+              "lat": 36.614898
+            },
+            "nodes": [
+              {
+                "inter_id": "011wwe2316t00001",
+                "inter_name": "二环南高架路出口与二环南高架路出口路口",
+                "lng": 117.11785,
+                "lat": 36.614295,
+                "role": "upstream",
+                "spacing_m": 60.07,
+                "spacing_source": "dim_link_info.length_m",
+                "offset_abs_s": null,
+                "offset_source": null,
+                "phase_diff_s": null,
+                "travel_speed_kmh": null,
+                "travel_time_s": null,
+                "travel_source": null
+              },
+              {
+                "inter_id": "011wwe231d900002",
+                "inter_name": "龙鼎大道与龙鼎大道路口",
+                "lng": 117.117994,
+                "lat": 36.614898,
+                "role": "target",
+                "spacing_m": 0.0,
+                "spacing_source": "self",
+                "offset_abs_s": null,
+                "offset_source": null,
+                "phase_diff_s": null,
+                "travel_speed_kmh": null,
+                "travel_time_s": null,
+                "travel_source": null
+              },
+              {
+                "inter_id": "011wwe2344m00001",
+                "inter_name": "龙腾路与龙鼎大道路口",
+                "lng": 117.117491,
+                "lat": 36.618416,
+                "role": "downstream",
+                "spacing_m": 396.5,
+                "spacing_source": "dim_link_info.length_m",
+                "offset_abs_s": null,
+                "offset_source": null,
+                "phase_diff_s": null,
+                "travel_speed_kmh": null,
+                "travel_time_s": null,
+                "travel_source": null
+              }
+            ],
+            "source": "link_geom",
+            "reason": "缺少相邻路口绝对相位；缺少路段速度"
+          }
+        },
+        "diagnosis_compare": {
+          "action": "map_scene",
+          "phase": "diagnosis_compare",
+          "available": true,
+          "reason": null,
+          "comparison_label": "本路口 vs 主要下游",
+          "target": {
+            "inter_id": "011wwe231d900002",
+            "inter_name": "龙鼎大道与龙鼎大道路口",
+            "lng": 117.117994,
+            "lat": 36.614898,
+            "role": "target",
+            "direction": "南向北",
+            "movement": "直行",
+            "metrics": {
+              "queue_ratio": 0.9256,
+              "saturation": null,
+              "green_utilization": 0.0
+            }
+          },
+          "downstream": {
+            "inter_id": "011wwe2344m00001",
+            "inter_name": "龙腾路与龙鼎大道路口",
+            "lng": 117.117491,
+            "lat": 36.618416,
+            "role": "primary_downstream",
+            "metrics": {
+              "queue_ratio": 0.1599,
+              "saturation": null,
+              "green_utilization": null
+            },
+            "remaining_storage_m": 333.1
+          }
+        },
+        "cause_spatial": {
+          "action": "map_scene",
+          "phase": "cause_spatial",
+          "available": true,
+          "reason": null,
+          "primary_cause": "交通需求压力",
+          "annotations": [
+            {
+              "kind": "approach",
+              "label": "南向北直行进口",
+              "lng": 117.117994,
+              "lat": 36.614898,
+              "color": "#ff5050"
+            },
+            {
+              "kind": "downstream",
+              "label": "龙腾路与龙鼎大道路口",
+              "inter_id": "011wwe2344m00001",
+              "lng": 117.117491,
+              "lat": 36.618416,
+              "color": "#38bdf8"
+            },
+            {
+              "kind": "case_ref",
+              "case_id": "A",
+              "label": "相似案例 A",
+              "lng": 117.117994,
+              "lat": 36.614898,
+              "color": "#6dffb5",
+              "offset": true
+            },
+            {
+              "kind": "case_ref",
+              "case_id": "B",
+              "label": "相似案例 B",
+              "lng": 117.117994,
+              "lat": 36.614898,
+              "color": "#6dffb5",
+              "offset": true
+            },
+            {
+              "kind": "case_ref",
+              "case_id": "C",
+              "label": "相似案例 C",
+              "lng": 117.117994,
+              "lat": 36.614898,
+              "color": "#6dffb5",
+              "offset": true
+            }
+          ]
+        }
+      },
+      "overflow_verification": {
+        "verified": true,
+        "risk_level": "warning",
+        "message": "排队接近进口道空间边界，进入溢出预警状态"
+      },
+      "bottleneck_analysis": {
+        "bottleneck_type": "downstream_or_channelization",
+        "label": "绿灯给了也用不上",
+        "can_simple_add_green": false,
+        "reason": "排队高但绿灯利用率低，可能存在下游阻塞、出口不畅或检测异常"
+      },
+      "problem_confirmed": true,
+      "healthy": false,
+      "target": {
+        "intersection": "龙鼎大道与龙鼎大道路口",
+        "direction": "南向北",
+        "movement": "直行",
+        "dir8_code": 4,
+        "turn_dir_no": 2
+      },
+      "scenario_report": {
+        "available": true,
+        "dimensions": [
+          {
+            "dimension": "demand",
+            "status": "warning",
+            "summary": "目标方向排队比 0.9256"
+          },
+          {
+            "dimension": "data_quality",
+            "status": "gap",
+            "summary": "16 项检查单数据缺失"
+          },
+          {
+            "dimension": "spatial",
+            "status": "ok",
+            "summary": "目标方向 南向北直行"
+          }
+        ],
+        "issues": [
+          {
+            "item_id": "inter_basic_info",
+            "label": "路口交叉道路等级、形态",
+            "status": "has_data",
+            "summary": "信号化 · inter · 龙鼎大道与龙鼎大道路口",
+            "table": "road6.dim_inter_info + dim_link_info"
+          },
+          {
+            "item_id": "channelization",
+            "label": "进口/出口/渠化",
+            "status": "has_data",
+            "summary": "进口 1 条 / 出口 1 条",
+            "table": "road6.dwd_tfc_rltn_wide_inter_ft_link"
+          },
+          {
+            "item_id": "lane_detail",
+            "label": "车道明细",
+            "status": "has_data",
+            "summary": "10 条车道记录",
+            "table": "road6.dwd_tfc_rltn_wide_inter_ft_lane"
+          },
+          {
+            "item_id": "adjacent_spacing",
+            "label": "相邻路口间距、进口道路等级",
+            "status": "has_data",
+            "summary": "最短关联路段 60 m · 上游 1 / 下游 1 · 道路等级 城市主干道",
+            "table": "road6.dwd_tfc_rltn_wide_inter_ft_link + dim_link_info"
+          },
+          {
+            "item_id": "aoi_sources",
+            "label": "周边交通发生源/吸引源",
+            "status": "has_data",
+            "summary": "800m范围吸引源/出入口：停车场6处、其他3处、学校2处、公交站1处",
+            "table": "xianchang.ods_amap_aoi_info + xianchang.ods_amap_poi_info"
+          },
+          {
+            "item_id": "min_green_cfg",
+            "label": "各方向最小绿",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dws_turn_min_green_5min_mm"
+          },
+          {
+            "item_id": "turn_flow",
+            "label": "转向流量",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dws_inter_link_turn_flow_5min_mm"
+          },
+          {
+            "item_id": "flow_correlate",
+            "label": "转向流量溯源",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dws_tfc_inter_turn_flow_correlate_m"
+          },
+          {
+            "item_id": "lane_flow",
+            "label": "车道流量",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_tfc_lane_roadcross_flow_5mi"
+          },
+          {
+            "item_id": "turn_saturation",
+            "label": "转向/相位饱和度",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dws_turn_saturation_5min_mm"
+          },
+          {
+            "item_id": "inter_evaluation",
+            "label": "路口综合评价",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dws_inter_evaluation_5min_mm"
+          },
+          {
+            "item_id": "turn_perf",
+            "label": "排队/延误/停车/溢流",
+            "status": "has_data",
+            "summary": "最大排队 104 m · 540 条",
+            "table": "xianchang.dws_inter_dir_turn_perf_5min_mm"
+          },
+          {
+            "item_id": "green_utilization",
+            "label": "绿灯利用率/空放",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dws_turn_green_utilization_5min_mm"
+          },
+          {
+            "item_id": "lane_capacity",
+            "label": "车道通行能力",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dws_lane_capacity_5min_mm"
+          },
+          {
+            "item_id": "lane_saturation_headway",
+            "label": "车道级饱和流率",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dim_lane_saturation_headway"
+          },
+          {
+            "item_id": "plan_cfg",
+            "label": "当前方案/周期",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_ctl_inter_plan_cfg"
+          },
+          {
+            "item_id": "stage_timing",
+            "label": "阶段绿信比",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_ctl_inter_plan_stage_timing"
+          },
+          {
+            "item_id": "signal_lane_mapping",
+            "label": "信号原子↔车道",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_ctl_inter_signal_atom_lane_mapping"
+          },
+          {
+            "item_id": "schedule_cfg",
+            "label": "时段方案数",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_ctl_inter_schedule_cfg"
+          },
+          {
+            "item_id": "complaint_records",
+            "label": "投诉台账",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_tfc_complaint_inter_issue"
+          },
+          {
+            "item_id": "field_survey",
+            "label": "现场调研",
+            "status": "no_data",
+            "summary": "",
+            "table": "xianchang.dwd_tfc_field_survey_inter_issue"
+          },
+          {
+            "item_id": "expert_strong_attractor",
+            "label": "强吸引点上下文标签",
+            "status": "no_data",
+            "summary": "",
+            "table": null
+          }
+        ],
+        "summary": {
+          "total": 22,
+          "has_data": 6,
+          "no_data": 16
+        }
+      },
+      "topology": {
+        "target_inter_id": "011wwe231d900002",
+        "target_inter_name": "龙鼎大道与龙鼎大道路口",
+        "target_lng": 117.117994,
+        "target_lat": 36.614898,
+        "dir8_code": 4,
+        "turn_dir_no": 2,
+        "exit_dir8": 0,
+        "period_type": "EVENING_PEAK",
+        "day_basis": "工作日",
+        "upstream_arrival_flow_vph": 0.0,
+        "upstream_release_intensity_vph": 0.0,
+        "upstream_arrival_intensity": "high",
+        "phase_offset_match": null,
+        "upstream_nodes": [
+          {
+            "upstream_inter_id": "011wwe2316t00001",
+            "upstream_inter_name": "二环南高架路出口与二环南高架路出口路口",
+            "upstream_lng": 117.11785,
+            "upstream_lat": 36.614295,
+            "vehicles_base": 100,
+            "link_id": "12wwe2316wwe231d01",
+            "path": [
+              [
+                117.117852,
+                36.614293
+              ],
+              [
+                117.117895,
+                36.614449
+              ],
+              [
+                117.117959,
+                36.614701
+              ],
+              [
+                117.117981,
+                36.614824
+              ]
+            ],
+            "path_source": "link_geom",
+            "upstream_movements": [
+              {
+                "turn": "直行",
+                "feed_direction": "南向北直行",
+                "share_pct": null,
+                "vehicles_of_100": null,
+                "raw_coverage": null
+              }
+            ]
+          }
+        ],
+        "downstream_nodes": [
+          {
+            "inter_id": "011wwe2344m00001",
+            "inter_name": "龙腾路与龙鼎大道路口",
+            "role": "downstream",
+            "lng": 117.117491,
+            "lat": 36.618416,
+            "share_pct": null,
+            "link_id": "12wwe231dwwe234401",
+            "receiving_dir8": 4,
+            "receiving_turn_dir_no": 2,
+            "receiving_label": "南进口直行",
+            "path": [
+              [
+                117.118002,
+                36.614975
+              ],
+              [
+                117.11804,
+                36.61513
+              ],
+              [
+                117.118034,
+                36.615436
+              ],
+              [
+                117.117986,
+                36.616117
+              ],
+              [
+                117.11783,
+                36.617233
+              ],
+              [
+                117.11782,
+                36.617297
+              ],
+              [
+                117.117809,
+                36.617356
+              ],
+              [
+                117.117809,
+                36.617383
+              ],
+              [
+                117.117804,
+                36.61741
+              ],
+              [
+                117.117809,
+                36.617356
+              ],
+              [
+                117.117809,
+                36.617383
+              ],
+              [
+                117.117804,
+                36.61741
+              ],
+              [
+                117.117798,
+                36.617431
+              ],
+              [
+                117.117648,
+                36.618419
+              ]
+            ],
+            "path_source": "link_geom",
+            "metrics_receiving_direction": "南向北",
+            "metrics_receiving_turn_dir_no": 2,
+            "metrics_available": false,
+            "metrics_reason": "下游承接进口（南向北直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+            "queue_length_m": 63.4,
+            "storage_length_m": 396.5,
+            "volume_vph": 0.0,
+            "avg_delay_s": 22.43
+          }
+        ],
+        "geometry_source": "dim_link_info.geom",
+        "caveat": "PG 拓扑：几何取自 dim_link_info.geom，占比取自 flow_correlate",
+        "flow_trace_period_caveat": "流量溯源暂未按诊断时段过滤 flow_correlate（单日样本期）；待多日复用后恢复 period_type 时间片约束。"
+      },
+      "data_source": "pg"
+    },
+    "cause": {
+      "cause_analysis": {
+        "primary_cause": "交通需求压力",
+        "secondary_causes": [
+          "信号控制不当",
+          "通行供给不足"
+        ],
+        "optimizable_points": [
+          "核查下游阻塞或检测异常导致绿灯利用率0.0的原因",
+          "评估南进口局部渠化与信号配时优化"
+        ],
+        "data_gaps": [
+          "target_saturation缺失",
+          "downstream_saturation缺失",
+          "上游转向占比数据缺失",
+          "历史案例佐证信息缺失",
+          "各方向最小绿数据不足",
+          "转向流量数据不足",
+          "转向流量溯源数据不足",
+          "车道流量数据不足",
+          "转向/相位饱和度数据不足",
+          "路口综合评价数据不足",
+          "绿灯利用率/空放数据不足",
+          "车道通行能力数据不足",
+          "车道级饱和流率数据不足",
+          "当前方案/周期数据不足",
+          "阶段绿信比数据不足",
+          "信号原子↔车道数据不足",
+          "时段方案数数据不足",
+          "投诉台账数据不足",
+          "现场调研数据不足",
+          "强吸引点上下文标签数据不足"
+        ],
+        "narrative": "主因为交通需求压力，queue_ratio达0.9256；次因信号控制不当致green_utilization为0.0。饱和度该指标缺失，需排查下游阻塞或检测异常，优化局部渠化与配时。",
+        "cause_ranking": [
+          {
+            "rank": 1,
+            "cause": "交通需求压力",
+            "role": "主因"
+          },
+          {
+            "rank": 2,
+            "cause": "信号控制不当",
+            "role": "次因"
+          },
+          {
+            "rank": 3,
+            "cause": "通行供给不足",
+            "role": "次因"
+          }
+        ]
+      },
+      "cause_scores": {
+        "scores": {
+          "demand": 0.35,
+          "supply": 0.15,
+          "control": 0.25,
+          "order": 0.0,
+          "event": 0.0,
+          "coordination": 0.0
+        },
+        "ranked_dimensions": [
+          {
+            "dimension": "demand",
+            "label": "交通需求压力",
+            "score": 0.35
+          },
+          {
+            "dimension": "control",
+            "label": "信号控制不当",
+            "score": 0.25
+          },
+          {
+            "dimension": "supply",
+            "label": "通行供给不足",
+            "score": 0.15
+          },
+          {
+            "dimension": "order",
+            "label": "交通秩序干扰",
+            "score": 0.0
+          },
+          {
+            "dimension": "event",
+            "label": "事件与阻塞",
+            "score": 0.0
+          },
+          {
+            "dimension": "coordination",
+            "label": "协调联动不足",
+            "score": 0.0
+          }
+        ],
+        "primary_dimension": "demand",
+        "issue_flags": [
+          {
+            "issue_code": "queue_pressure",
+            "dimension": "demand",
+            "value": 0.9256
+          },
+          {
+            "issue_code": "limited_channelization",
+            "dimension": "supply",
+            "value": 2
+          },
+          {
+            "issue_code": "spillback",
+            "dimension": "control",
+            "value": 0.85
+          }
+        ],
+        "scoring_method": "deterministic_thresholds"
+      },
+      "cause_ranking": [
+        {
+          "rank": 1,
+          "cause": "交通需求压力",
+          "role": "主因"
+        },
+        {
+          "rank": 2,
+          "cause": "信号控制不当",
+          "role": "次因"
+        },
+        {
+          "rank": 3,
+          "cause": "通行供给不足",
+          "role": "次因"
+        }
+      ],
+      "similar_cases": [
+        {
+          "score": 7.5,
+          "scene": "南宁市唐山路-秀东路交叉口与园湖路-中华路交叉口，两路口相距约150m，南连城市快速路；平峰期北往南平均行程时长1分29秒（其中等待时间40秒），高峰期东进口左转机动车与西进口右转机动车同时汇入，易引发排队溢出，通行效率显著偏低。",
+          "diagnosis": "短间距叠加信号配时不合理，导致主辅流冲突加剧——北往南车流为主协调方向但受南进口车流积压干扰，南北直行与左转相位顺序不当造成南口车流清空不及时；高峰期排队溢出频发，形成局部“锁死”风险；影响范围覆盖整条秀东路路段，北往南方向问题最为突出，等待时间占行程总时长超45%。",
+          "solution": "①精细化划分控制时段，区分南北方向交通晚高峰与交叉口整体晚高峰；②单点相位优化：将唐山路-秀东路交叉口南北方向相位由“先南北直行，后南北左转”调整为“先南口单放，后北口单放”；③统一公共周期：唐山路-秀东路交叉口各时段周期与关键交叉口园湖路-中华路保持一致；④测算相位差：以唐山路-秀东路交叉口东进口左转车流为北往南协调主线，设定绿波协调参数。",
+          "effect": "平峰时段北往南主协调方向车流可不停车通行，行驶时长约36秒，比优化前减少约1分钟；早高峰持续时间减少15分钟，晚高峰减少35分钟；高德拥堵指数显示早高峰下降20%，全天拥堵指数均有不同程度下降。",
+          "structured_tags": {
+            "场景层级": [
+              "干线协调",
+              "点位单口",
+              "短间距多路口",
+              "走廊区段"
+            ],
+            "空间拓扑": [
+              "下游约束",
+              "上游冲击"
+            ],
+            "问题形态": [
+              "排队溢出",
+              "饱和偏高"
+            ],
+            "时段": [
+              "早高峰",
+              "晚高峰",
+              "平峰"
+            ],
+            "流量特征": [
+              "左转集中",
+              "直行主导",
+              "混行冲突",
+              "放行受阻"
+            ],
+            "策略动作": [
+              "绿波协调",
+              "周期统一",
+              "相位重排"
+            ],
+            "效果类型": [
+              "排队改善",
+              "行程缩短",
+              "拥堵指数下降"
+            ]
+          },
+          "similarity_dimensions": [
+            {
+              "key": "problem_type",
+              "label": "问题形态：排队溢出"
+            },
+            {
+              "key": "problem_type",
+              "label": "问题形态：排队溢出"
+            },
+            {
+              "key": "time_period",
+              "label": "时段：晚高峰"
+            }
+          ]
+        },
+        {
+          "score": 7.5,
+          "scene": "嘉兴市中环西路-洪兴路交叉口与洪兴路-友谊街交叉口，两路口相距仅50m；中环西路为双向6车道主干路，交通流量大；洪兴路-友谊街交叉口存在机非冲突，慢行交通安全风险高；因路段排队空间严重不足，机动车排队溢出频发，影响道路正常通行。",
+          "diagnosis": "超短间距（50m）导致车辆离散度极低，常规四相位难以应对左转集中需求；东进口左转排队长度波动大，西进口非机动车左转与机动车直行冲突突出；成因机制为相位设计未适配短距协调要求，缺乏搭接相位与专用左转保护，叠加地面车道功能混用（左转与直行共用车道）；影响范围覆盖两交叉口全向通行，溢出已常态化。",
+          "solution": "①增加搭接相位，在常规四相位基础上嵌入过渡相位；②东进口直行与左转同时放行（图7相位1）；③西进口设置左转专用相位（图7相位3），机动车直行灯变红以保障非机动车左转安全；④南北方向均采用直行与左转同时放行；⑤设定高峰期相位差为15s（中环西路-洪兴路交叉口信号滞后于洪兴路-友谊街交叉口15s）；⑥早晚高峰公共周期设为160s，相位1时长按左转排队长度动态设为10–20s（图6）。",
+          "effect": "中环西路-洪兴路交叉口东进口左转机动车能够及时通过；洪兴路-友谊街交叉口西进口左转机动车排队等待时长显著减少；两路口均不再出现机动车排队溢出情况。",
+          "structured_tags": {
+            "场景层级": [
+              "干线协调",
+              "短间距多路口",
+              "走廊区段"
+            ],
+            "空间拓扑": [
+              "蓄流不足"
+            ],
+            "问题形态": [
+              "排队溢出",
+              "机非冲突",
+              "时空不均衡"
+            ],
+            "时段": [
+              "晚高峰"
+            ],
+            "流量特征": [
+              "左转集中",
+              "直行主导",
+              "混行冲突",
+              "放行受阻"
+            ],
+            "车道组织": [
+              "左转专用",
+              "共用车道",
+              "渠化改造"
+            ],
+            "策略动作": [
+              "绿波协调",
+              "搭接相位",
+              "周期统一"
+            ],
+            "效果类型": [
+              "排队改善"
+            ]
+          },
+          "similarity_dimensions": [
+            {
+              "key": "problem_type",
+              "label": "问题形态：排队溢出"
+            },
+            {
+              "key": "problem_type",
+              "label": "问题形态：排队溢出"
+            },
+            {
+              "key": "time_period",
+              "label": "时段：晚高峰"
+            }
+          ]
+        },
+        {
+          "score": 7.5,
+          "scene": "江苏省南京市内环线重要节点——集庆门大街-凤台南路交叉口，位于秦淮河旁、紧邻南京古城墙，道路空间受限、上游交叉口距离近、蓄流空间有限，属典型历史城区高密度路网中的关键瓶颈路口。东进口为治理核心对象，具备3条进口车道（左转、直行、直右），但受物理条件约束无法拓宽。",
+          "diagnosis": "东进口存在显著时空不均衡交通流——早晚高峰左转流量大（导致左转车道饱和度达1.47，服务水平F级）、直行流量小；平峰期直行流量上升而左转骤降。现有固定渠化（1左+1直+1直右）与流量特性严重错配：高峰左转通行能力不足引发排队溢出，直行与直右车道闲置；信号配时优化及“左转借用直行车道”等常规组织措施均收效甚微，拥堵持续蔓延。",
+          "solution": "1）渠化改造：将东进口原直行车道改为可变导向车道，早晚高峰设为左转专用，其余时段恢复直行；同步更换为LED可变车道指示标志，多级设置强化驾驶人提示；2）信号深度联动：①相位优化——高峰取消东西直行对放，改用东进口单口放行并前置为首相位，加速清空；②可变车道功能与信号方案动态绑定——常规对放时支持直/左切换，应急单放时扩展为直/左/直左三模式；3）控制模式适配——基于周期性规律采用定时切换（日1–2",
+          "effect": "东进口左转车道饱和度由1.47降至0.90，服务水平由F级升至E级；交叉口总体饱和度由0.68降至0.58，拥堵明显缓解，通行能力有效提升。",
+          "structured_tags": {
+            "场景层级": [
+              "点位单口"
+            ],
+            "空间拓扑": [
+              "蓄流不足",
+              "上游冲击",
+              "空间受限"
+            ],
+            "问题形态": [
+              "排队溢出",
+              "饱和偏高",
+              "时空不均衡"
+            ],
+            "时段": [
+              "晚高峰",
+              "平峰"
+            ],
+            "流量特征": [
+              "左转集中",
+              "直行主导",
+              "放行受阻"
+            ],
+            "车道组织": [
+              "可变车道",
+              "左转专用",
+              "共用车道",
+              "渠化改造"
+            ],
+            "策略动作": [
+              "相位重排",
+              "信号车道联动"
+            ],
+            "效果类型": [
+              "排队改善",
+              "饱和改善"
+            ]
+          },
+          "similarity_dimensions": [
+            {
+              "key": "problem_type",
+              "label": "问题形态：排队溢出"
+            },
+            {
+              "key": "problem_type",
+              "label": "问题形态：排队溢出"
+            },
+            {
+              "key": "time_period",
+              "label": "时段：晚高峰"
+            }
+          ]
+        }
+      ],
+      "case_cards": {
+        "matched_count": 793,
+        "high_similarity_count": 507,
+        "cards": [
+          {
+            "case_id": "A",
+            "title": "南宁市唐山路-秀东路交叉口与园湖路-中华路交叉口，两路口相距约150m，南连城市快速路；平峰期北往南平均行程时长1分29秒（其中等待时间40秒），高峰期东进口左",
+            "similarity_points": [
+              "问题形态：排队溢出",
+              "问题形态：排队溢出",
+              "时段：晚高峰"
+            ],
+            "similarity_dimensions": [
+              {
+                "key": "problem_type",
+                "label": "问题形态：排队溢出"
+              },
+              {
+                "key": "problem_type",
+                "label": "问题形态：排队溢出"
+              },
+              {
+                "key": "time_period",
+                "label": "时段：晚高峰"
+              }
+            ],
+            "structured_tags": {
+              "场景层级": [
+                "干线协调",
+                "点位单口",
+                "短间距多路口",
+                "走廊区段"
+              ],
+              "空间拓扑": [
+                "下游约束",
+                "上游冲击"
+              ],
+              "问题形态": [
+                "排队溢出",
+                "饱和偏高"
+              ],
+              "时段": [
+                "早高峰",
+                "晚高峰",
+                "平峰"
+              ],
+              "流量特征": [
+                "左转集中",
+                "直行主导",
+                "混行冲突",
+                "放行受阻"
+              ],
+              "策略动作": [
+                "绿波协调",
+                "周期统一",
+                "相位重排"
+              ],
+              "效果类型": [
+                "排队改善",
+                "行程缩短",
+                "拥堵指数下降"
+              ]
+            },
+            "transferable_actions": [
+              "绿波协调",
+              "周期统一",
+              "相位重排"
+            ],
+            "caveats": [
+              "干线协调方案需核对本路段路口间距与周期统一条件",
+              "单点渠化/相位方案不宜直接套用于多路口协调场景",
+              "下游承接不足时不宜单点照搬加绿"
+            ],
+            "help_summary": "与本场景在问题形态：排队溢出上相近，可对照历史处置路径",
+            "similarity_tier": "high",
+            "historical_action": "①精细化划分控制时段，区分南北方向交通晚高峰与交叉口整体晚高峰；②单点相位优化：将唐山路-秀东路交叉口南北方向相位由“先南北直行，后南北左转”调整为“先南口单放，后北口单放”；③统一公共周期：唐山路-秀东路交叉口各时段周期与关键交叉口园湖路",
+            "outcome": "平峰时段北往南主协调方向车流可不停车通行，行驶时长约36秒，比优化前减少约1分钟；早高峰持续时间减少15分钟，晚高峰减少35分钟；高德拥堵指数显示早高峰下降20%，全天拥堵指数均有不同程度下降。",
+            "lesson": "下游接不住时，不宜单点激进放行",
+            "case_type": "risk",
+            "score": 7.5,
+            "dimension_scores": {
+              "problem_type": 3.0,
+              "time_period": 1.5
+            }
+          },
+          {
+            "case_id": "B",
+            "title": "嘉兴市中环西路-洪兴路交叉口与洪兴路-友谊街交叉口，两路口相距仅50m；中环西路为双向6车道主干路，交通流量大；洪兴路-友谊街交叉口存在机非冲突，慢行交通安全风",
+            "similarity_points": [
+              "问题形态：排队溢出",
+              "问题形态：排队溢出",
+              "时段：晚高峰"
+            ],
+            "similarity_dimensions": [
+              {
+                "key": "problem_type",
+                "label": "问题形态：排队溢出"
+              },
+              {
+                "key": "problem_type",
+                "label": "问题形态：排队溢出"
+              },
+              {
+                "key": "time_period",
+                "label": "时段：晚高峰"
+              }
+            ],
+            "structured_tags": {
+              "场景层级": [
+                "干线协调",
+                "短间距多路口",
+                "走廊区段"
+              ],
+              "空间拓扑": [
+                "蓄流不足"
+              ],
+              "问题形态": [
+                "排队溢出",
+                "机非冲突",
+                "时空不均衡"
+              ],
+              "时段": [
+                "晚高峰"
+              ],
+              "流量特征": [
+                "左转集中",
+                "直行主导",
+                "混行冲突",
+                "放行受阻"
+              ],
+              "车道组织": [
+                "左转专用",
+                "共用车道",
+                "渠化改造"
+              ],
+              "策略动作": [
+                "绿波协调",
+                "搭接相位",
+                "周期统一"
+              ],
+              "效果类型": [
+                "排队改善"
+              ]
+            },
+            "transferable_actions": [
+              "绿波协调",
+              "搭接相位",
+              "周期统一"
+            ],
+            "caveats": [
+              "干线协调方案需核对本路段路口间距与周期统一条件",
+              "需核对本路口配时结构与下游拓扑"
+            ],
+            "help_summary": "与本场景在问题形态：排队溢出上相近，可对照历史处置路径",
+            "similarity_tier": "high",
+            "historical_action": "①增加搭接相位，在常规四相位基础上嵌入过渡相位；②东进口直行与左转同时放行（图7相位1）；③西进口设置左转专用相位（图7相位3），机动车直行灯变红以保障非机动车左转安全；④南北方向均采用直行与左转同时放行；⑤设定高峰期相位差为15s（中环西",
+            "outcome": "中环西路-洪兴路交叉口东进口左转机动车能够及时通过；洪兴路-友谊街交叉口西进口左转机动车排队等待时长显著减少；两路口均不再出现机动车排队溢出情况。",
+            "lesson": "中环西路-洪兴路交叉口东进口左转机动车能够及时通过；洪兴路-友谊街交叉口西进口左转机动车排队等待时长显著减少；两路口均不再出现机动车排队溢出情况。",
+            "case_type": "recommended",
+            "score": 7.5,
+            "dimension_scores": {
+              "problem_type": 3.0,
+              "time_period": 1.5
+            }
+          },
+          {
+            "case_id": "C",
+            "title": "江苏省南京市内环线重要节点——集庆门大街-凤台南路交叉口，位于秦淮河旁、紧邻南京古城墙，道路空间受限、上游交叉口距离近、蓄流空间有限，属典型历史城区高密度路网中",
+            "similarity_points": [
+              "问题形态：排队溢出",
+              "问题形态：排队溢出",
+              "时段：晚高峰"
+            ],
+            "similarity_dimensions": [
+              {
+                "key": "problem_type",
+                "label": "问题形态：排队溢出"
+              },
+              {
+                "key": "problem_type",
+                "label": "问题形态：排队溢出"
+              },
+              {
+                "key": "time_period",
+                "label": "时段：晚高峰"
+              }
+            ],
+            "structured_tags": {
+              "场景层级": [
+                "点位单口"
+              ],
+              "空间拓扑": [
+                "蓄流不足",
+                "上游冲击",
+                "空间受限"
+              ],
+              "问题形态": [
+                "排队溢出",
+                "饱和偏高",
+                "时空不均衡"
+              ],
+              "时段": [
+                "晚高峰",
+                "平峰"
+              ],
+              "流量特征": [
+                "左转集中",
+                "直行主导",
+                "放行受阻"
+              ],
+              "车道组织": [
+                "可变车道",
+                "左转专用",
+                "共用车道",
+                "渠化改造"
+              ],
+              "策略动作": [
+                "相位重排",
+                "信号车道联动"
+              ],
+              "效果类型": [
+                "排队改善",
+                "饱和改善"
+              ]
+            },
+            "transferable_actions": [
+              "相位重排",
+              "信号车道联动"
+            ],
+            "caveats": [
+              "单点渠化/相位方案不宜直接套用于多路口协调场景",
+              "需核对本路口配时结构与下游拓扑"
+            ],
+            "help_summary": "与本场景在问题形态：排队溢出上相近，可对照历史处置路径",
+            "similarity_tier": "high",
+            "historical_action": "1）渠化改造：将东进口原直行车道改为可变导向车道，早晚高峰设为左转专用，其余时段恢复直行；同步更换为LED可变车道指示标志，多级设置强化驾驶人提示；2）信号深度联动：①相位优化——高峰取消东西直行对放，改用东进口单口放行并前置为首相位，加速",
+            "outcome": "东进口左转车道饱和度由1.47降至0.90，服务水平由F级升至E级；交叉口总体饱和度由0.68降至0.58，拥堵明显缓解，通行能力有效提升。",
+            "lesson": "东进口左转车道饱和度由1.47降至0.90，服务水平由F级升至E级；交叉口总体饱和度由0.68降至0.58，拥堵明显缓解，通行能力有效提升。",
+            "case_type": "recommended",
+            "score": 7.5,
+            "dimension_scores": {
+              "problem_type": 3.0,
+              "time_period": 1.5
+            }
+          }
+        ],
+        "query_profile": {
+          "problem_type": [
+            "queue_overflow"
+          ],
+          "time_period": [
+            "evening_peak"
+          ]
+        }
+      },
+      "user_experience_refs": [
+        {
+          "record_id": "ue_20260713_7fe44333",
+          "trace_id": "8e34fece843a4288",
+          "experience_type": "diagnostic",
+          "content": "需追踪直接下游接收进口的真实转向排队来判断成因",
+          "tags": {
+            "inter_id": "011wwe231d900002",
+            "intersection_name": "龙鼎大道与龙鼎大道路口",
+            "problem_type": "排队溢流",
+            "time_period": null,
+            "direction": "南向北",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": "下游路段",
+            "cause_keywords": [
+              "下游接收进口",
+              "真实转向排队"
+            ],
+            "strategy_action": null,
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null
+          },
+          "score": 5.5
+        },
+        {
+          "record_id": "ue_20260713_942174d5",
+          "trace_id": "d63421e90306467e",
+          "experience_type": "diagnostic",
+          "content": "需追踪直接下游接收进口的真实转向排队情况作为判断依据",
+          "tags": {
+            "inter_id": "011wwe231d900002",
+            "intersection_name": "龙鼎大道与龙鼎大道路口",
+            "problem_type": "排队溢流",
+            "time_period": null,
+            "direction": "南向北",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": "下游接收能力",
+            "cause_keywords": [
+              "下游",
+              "接收进口",
+              "转向排队"
+            ],
+            "strategy_action": null,
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null
+          },
+          "score": 5.5
+        },
+        {
+          "record_id": "ue_20260713_cd27e632",
+          "trace_id": "4eb53eb5cdbe4c4e",
+          "experience_type": "diagnostic",
+          "content": "需追踪直接下游接收进口的真实转向排队以判断成因",
+          "tags": {
+            "inter_id": "011wwe231d900002",
+            "intersection_name": "龙鼎大道与龙鼎大道路口",
+            "problem_type": "排队溢流",
+            "time_period": null,
+            "direction": "南向北",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": "下游路段",
+            "cause_keywords": [
+              "下游接收进口",
+              "转向排队"
+            ],
+            "strategy_action": null,
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null
+          },
+          "score": 5.5
+        },
+        {
+          "record_id": "ue_20260713_f2fe00c2",
+          "trace_id": "4dcbfbdefa5a4dd1",
+          "experience_type": "diagnostic",
+          "content": "需追踪直接下游接收进口的真实转向排队以判断溢流成因",
+          "tags": {
+            "inter_id": "011wwe231d900002",
+            "intersection_name": "龙鼎大道与龙鼎大道路口",
+            "problem_type": "排队溢流",
+            "time_period": null,
+            "direction": "南向北",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": "下游路段",
+            "cause_keywords": [
+              "下游接收进口",
+              "转向排队"
+            ],
+            "strategy_action": null,
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null
+          },
+          "score": 5.5
+        },
+        {
+          "record_id": "ue_20260713_32e2c728",
+          "trace_id": "7834ef71abac42ce",
+          "experience_type": "diagnostic",
+          "content": "需追踪直接下游接收进口的真实转向排队情况作为判断依据",
+          "tags": {
+            "inter_id": "011wwe231d900002",
+            "intersection_name": "龙鼎大道与龙鼎大道路口",
+            "problem_type": "排队溢流",
+            "time_period": null,
+            "direction": "南向北",
+            "movement": "直行",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": "下游路段",
+            "cause_keywords": [
+              "下游接收进口",
+              "真实转向排队"
+            ],
+            "strategy_action": null,
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null
+          },
+          "score": 5.5
+        }
+      ],
+      "evidence_summary": {
+        "target_queue_ratio": 0.9256,
+        "target_saturation": null,
+        "target_green_utilization": 0.0,
+        "downstream_queue_ratio": 0.1599,
+        "downstream_saturation": null,
+        "downstream_intersections": [
+          {
+            "inter_id": "011wwe2344m00001",
+            "inter_name": "龙腾路与龙鼎大道路口",
+            "queue_ratio": 0.1599,
+            "saturation": null,
+            "blocked": false
+          }
+        ],
+        "upstream_entry_traces": [
+          {
+            "entry": "南进口",
+            "dir8_code": 4,
+            "entry_max_saturation": null,
+            "upstream_inter_id": "011wwe2316t00001",
+            "upstream_inter_name": "二环南高架路出口与二环南高架路出口路口",
+            "upstream_lng": 117.11785,
+            "upstream_lat": 36.614295,
+            "vehicles_base": 100,
+            "upstream_movements": [
+              {
+                "turn": "直行",
+                "feed_direction": "南向北直行",
+                "share_pct": null,
+                "vehicles_of_100": null,
+                "raw_coverage": null
+              }
+            ],
+            "dominant_movement": {
+              "turn": "直行",
+              "feed_direction": "南向北直行",
+              "share_pct": null,
+              "vehicles_of_100": null,
+              "raw_coverage": null
+            },
+            "path": [
+              [
+                117.117852,
+                36.614293
+              ],
+              [
+                117.117895,
+                36.614449
+              ],
+              [
+                117.117959,
+                36.614701
+              ],
+              [
+                117.117981,
+                36.614824
+              ]
+            ],
+            "narrative": "南进口来向上游路口二环南高架路出口与二环南高架路出口路口（占比数据缺失）"
+          }
+        ],
+        "upstream_governance_hints": [],
+        "arterial_summary": "上下游压力可控，可评估局部优化",
+        "need_upstream_metering": false,
+        "need_downstream_dissipation_first": false,
+        "downstream_release_answer": "绿灯给了也用不上",
+        "downstream_scenario": "mixed",
+        "downstream_narrative": "排队高但绿灯利用率低，可能存在下游阻塞、出口不畅或检测异常",
+        "judgment_criteria": {
+          "target_queue_high": true,
+          "target_saturation_high": false,
+          "target_green_utilization_high": false,
+          "downstream_queue_high": false,
+          "downstream_near_saturation": false,
+          "add_green_spillback_risk": false
+        },
+        "bottleneck_type": "downstream_or_channelization"
+      },
+      "arterial_coordination_needed": false
+    },
+    "strategy": {
+      "strategy": {
+        "principles": [
+          "先诊断后治理：在绿灯利用率为0.0的异常状态下，优先排查检测器故障或下游物理阻塞，严禁盲目增加绿灯时长",
+          "供需匹配原则：针对高排队比与低绿灯利用率并存现象，需确认有效通行能力是否被非信号因素（如出口道溢出、事故）抑制",
+          "数据补全优先：在关键饱和度与转向流量数据缺失情况下，策略执行前必须完成基础数据校验与现场复核",
+          "局部优化为主：鉴于干线上下游压力可控且下游具备承接能力，采用节点级资源重分配而非干线协调调整"
+        ],
+        "not_recommended": [
+          "直接延长南向北直行相位绿灯时间",
+          "在未核实检测器状态前调整感应控制阈值",
+          "基于当前缺失的饱和度数据生成新的时段方案",
+          "忽略出口道渠化瓶颈而单纯依赖信号配时解决拥堵"
+        ],
+        "recommended": [
+          "{'action': '核查南进口检测器及下游路段视频/地磁数据', 'target_node': '龙鼎大道与龙鼎大道路口南进口及下游50-100米路段', 'monitoring_metric': '检测器在线率、下游断面过车数、人工观测排队消散情况', 'exit_condition': '确认检测器工作正常且下游无物理阻塞，或修复故障/清除阻塞后绿灯利用率恢复至0.6以上'}",
+          "{'action': '评估南进口局部渠化与车道功能划分合理性', 'target_node': '龙鼎大道与龙鼎大道路口南进口停止线区域', 'monitoring_metric': '车道级饱和流率、转向车辆变道干扰次数、实际通行能力', 'exit_condition': '完成渠化微调或确认现有渠化已最优，且实测通行能力与设计值偏差小于10%'}",
+          "{'action': '实施保守型绿信比重分配测试', 'target_node': '龙鼎大道与龙鼎大道路口信号机南向北直行相位', 'monitoring_metric': '绿灯利用率、排队长度、周期内空放时间', 'exit_condition': '绿灯利用率提升至合理区间（0.7-0.9）且未引发下游溢出，或连续3个周期无改善则回退并升级人工干预'}"
+        ],
+        "hard_constraints": [
+          "绿灯利用率低于0.3时禁止自动增加该相位绿信比",
+          "未完成检测器状态确认前不得启用自适应或感应控制逻辑",
+          "任何配时调整必须以实测或可靠推算的饱和度为依据，禁用默认经验值",
+          "下游出口道存在溢出风险时，上游增绿幅度不得超过当前绿灯时长的10%"
+        ],
+        "quantitative_constraints": {
+          "min_green_s": null,
+          "max_green_s": null,
+          "max_cycle_s": null,
+          "current_cycle_s": null,
+          "source": "unavailable",
+          "missing": [
+            "min_green_s",
+            "max_green_s",
+            "max_cycle_s",
+            "all"
+          ]
+        },
+        "trigger_exit_rules": {
+          "rollback_condition": "下游排队比持续上升或目标方向绿灯利用率异常下降时回滚",
+          "rules": [
+            "当绿灯利用率连续5分钟≥0.7且排队比≤0.8时，退出诊断模式进入常规优化流程",
+            "若确认为检测器故障且48小时内无法修复，切换为固定配时+人工疏导预案",
+            "当现场调研证实存在不可短期消除的物理瓶颈（如施工占道），终止信号优化并上报工程改造需求",
+            "用户新增约束或上级指令变更时，立即暂停当前策略并重新评估"
+          ]
+        },
+        "explanation": "当前南向北直行呈现‘高排队比(0.9256)’与‘零绿灯利用率’的矛盾特征，表明供给失效并非源于绿灯时间不足，而是通行权无法转化为实际通行量。若此时激进加绿，不仅无法缓解拥堵，反而会因无效绿灯占用其他方向资源导致路口整体效率下降，甚至加剧下游潜在阻塞风险。必须先通过数据核查与现场诊断定位‘绿灯给了也用不上’的根本原因（设备故障或空间瓶颈），再针对性优化。",
+        "narrative": null,
+        "source": "hybrid",
+        "target_intersection": {
+          "inter_id": "011wwe231d900002",
+          "inter_name": "龙鼎大道与龙鼎大道路口",
+          "direction": "南向北",
+          "movement": "直行"
+        },
+        "user_constraints": []
+      },
+      "strategy_package": "incremental_release",
+      "package_scores": {
+        "downstream_protection": 0.0,
+        "incremental_release": 0.2,
+        "arterial_coordination": 0.0
+      },
+      "strategy_instruction": {
+        "package": "incremental_release",
+        "strategy": "incremental_release",
+        "name": "小步释放方案",
+        "target_green_delta": 5,
+        "cycle_delta": 0,
+        "upstream_control": false,
+        "target_saturation": 0.8,
+        "rollback_condition": "下游排队比持续上升或目标方向绿灯利用率异常下降时回滚",
+        "principles": [
+          "防溢流优先",
+          "可回滚",
+          "先判断下游承接能力",
+          "小步释放，保留监测窗口"
+        ],
+        "not_recommended": [
+          "单点激进加绿",
+          "无监测条件下大幅加绿"
+        ],
+        "trigger_exit_rules": {
+          "rollback_condition": "下游排队比持续上升或目标方向绿灯利用率异常下降时回滚"
+        }
+      },
+      "case_references": {
+        "failure_lesson": "单点加绿后下游排队继续增长",
+        "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
+        "matched_count": 3
+      },
+      "reference_basis": {
+        "industry_scene": "一般路口优化",
+        "intersection_case_ids": [
+          "011wwe231d900002",
+          "A",
+          "B",
+          "C"
+        ]
+      },
+      "control_scope_map": {
+        "action": "map_scene",
+        "phase": "strategy_control_scope",
+        "available": true,
+        "center": [
+          117.117994,
+          36.614898
+        ],
+        "target_intersection": {
+          "inter_id": "011wwe231d900002",
+          "inter_name": "龙鼎大道与龙鼎大道路口",
+          "lng": 117.117994,
+          "lat": 36.614898
+        },
+        "upstream_metering_points": [
+          {
+            "inter_id": "011wwe2316t00001",
+            "inter_name": "二环南高架路出口与二环南高架路出口路口",
+            "lng": 117.11785,
+            "lat": 36.614295
+          }
+        ],
+        "downstream_protection_nodes": [
+          {
+            "inter_id": "011wwe2344m00001",
+            "inter_name": "龙腾路与龙鼎大道路口",
+            "lng": 117.117491,
+            "lat": 36.618416,
+            "blocked": false
+          }
+        ],
+        "coordination_paths": [
+          {
+            "inter_id": "011wwe2316t00001",
+            "inter_name": "二环南高架路出口与二环南高架路出口路口",
+            "path": [
+              [
+                117.117852,
+                36.614293
+              ],
+              [
+                117.117895,
+                36.614449
+              ],
+              [
+                117.117959,
+                36.614701
+              ],
+              [
+                117.117981,
+                36.614824
+              ]
+            ],
+            "role": "upstream_inflow"
+          }
+        ],
+        "risk_boundary": "controlled_release"
+      },
+      "experience_contrast": {
+        "available": true,
+        "reason": null,
+        "items": [
+          {
+            "dimension": "策略选择",
+            "without_experience": {
+              "summary": "仅依赖实时指标评分 → 小步释放方案",
+              "source": "package_scores"
+            },
+            "with_experience": {
+              "summary": "小步释放方案（参考 5 条经验/案例）",
+              "refs": [
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_7fe44333",
+                  "trace_id": "8e34fece843a4288",
+                  "label": "需追踪直接下游接收进口的真实转向排队来判断成因"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_942174d5",
+                  "trace_id": "d63421e90306467e",
+                  "label": "需追踪直接下游接收进口的真实转向排队情况作为判断依据"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_cd27e632",
+                  "trace_id": "4eb53eb5cdbe4c4e",
+                  "label": "需追踪直接下游接收进口的真实转向排队以判断成因"
+                },
+                {
+                  "type": "case",
+                  "case_id": "A",
+                  "label": "南宁市唐山路-秀东路交叉口与园湖路-中华路交叉口，两路口相距约150m，南连城市快速路；平峰期北往南平均行程时长1分29秒（其中等待时间40秒），高峰期东进口左"
+                },
+                {
+                  "type": "case",
+                  "case_id": "B",
+                  "label": "嘉兴市中环西路-洪兴路交叉口与洪兴路-友谊街交叉口，两路口相距仅50m；中环西路为双向6车道主干路，交通流量大；洪兴路-友谊街交叉口存在机非冲突，慢行交通安全风"
+                }
+              ],
+              "source": "strategy_generation"
+            }
+          },
+          {
+            "dimension": "成因判断",
+            "without_experience": {
+              "summary": "demand",
+              "source": "cause_scores"
+            },
+            "with_experience": {
+              "summary": "交通需求压力",
+              "refs": [
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_7fe44333",
+                  "trace_id": "8e34fece843a4288",
+                  "label": "需追踪直接下游接收进口的真实转向排队来判断成因"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_942174d5",
+                  "trace_id": "d63421e90306467e",
+                  "label": "需追踪直接下游接收进口的真实转向排队情况作为判断依据"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_cd27e632",
+                  "trace_id": "4eb53eb5cdbe4c4e",
+                  "label": "需追踪直接下游接收进口的真实转向排队以判断成因"
+                }
+              ],
+              "source": "cause_analysis"
+            }
+          },
+          {
+            "dimension": "治理护栏",
+            "without_experience": {
+              "summary": "量化护栏 0 项（PG 配时真源）",
+              "source": "quantitative_constraints"
+            },
+            "with_experience": {
+              "summary": "护栏 4 条（含用户约束 3 条）",
+              "refs": [
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_7fe44333",
+                  "trace_id": "8e34fece843a4288",
+                  "label": "需追踪直接下游接收进口的真实转向排队来判断成因"
+                },
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_942174d5",
+                  "trace_id": "d63421e90306467e",
+                  "label": "需追踪直接下游接收进口的真实转向排队情况作为判断依据"
+                }
+              ],
+              "source": "strategy.hard_constraints"
+            }
+          },
+          {
+            "dimension": "下游承接",
+            "without_experience": {
+              "summary": "仅看目标路口排队/饱和度指标",
+              "source": "diagnosis.metrics"
+            },
+            "with_experience": {
+              "summary": "绿灯给了也用不上",
+              "refs": [
+                {
+                  "type": "user_experience",
+                  "record_id": "ue_20260713_7fe44333",
+                  "trace_id": "8e34fece843a4288",
+                  "label": "需追踪直接下游接收进口的真实转向排队来判断成因"
+                }
+              ],
+              "source": "downstream_diagnosis"
+            }
+          }
+        ]
+      }
+    },
+    "plan": {
+      "available": false,
+      "reason": "缺少 task.signal 或 inter_id 对应配时 fixture；生产环境请注入现状配时。",
+      "source": "none"
+    }
+  },
+  "plan": {
+    "candidates": null,
+    "recommended": null,
+    "recommended_plan_id": null,
+    "recommendation": null,
+    "rollback_conditions": null,
+    "signal_source": null,
+    "optimizer_engine": null,
+    "all_guardrails_passed": null
+  },
+  "phase_results": [
+    {
+      "phase": "intent_understanding",
+      "success": true,
+      "duration_ms": 11897.53,
+      "errors": []
+    },
+    {
+      "phase": "data_analysis_diagnosis",
+      "success": true,
+      "duration_ms": 198689.85,
+      "errors": []
+    },
+    {
+      "phase": "cause_analysis",
+      "success": true,
+      "duration_ms": 6570.95,
+      "errors": []
+    },
+    {
+      "phase": "strategy_generation",
+      "success": true,
+      "duration_ms": 19911.89,
+      "errors": []
+    },
+    {
+      "phase": "plan_generation",
+      "success": false,
+      "duration_ms": 3.06,
+      "errors": [
+        "缺少 task.signal 或 inter_id 对应配时 fixture；生产环境请注入现状配时。"
+      ]
+    }
+  ]
+}

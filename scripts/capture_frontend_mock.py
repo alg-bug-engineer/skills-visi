@@ -155,13 +155,33 @@ async def capture_live(user_input: str, out_path: Path) -> int:
     result = await agent.run(user_input)
     public = build_public_run_response(result)
     if not public.get("completed"):
-        print("⚠️  流水线未完整完成（个别 phase 失败/超时）；不覆盖建议重试。")
+        # 诊断/下游追踪通常已完成；保留 partial 结果供 live 指标核验，
+        # 但返回码仍为 2，避免被误当成完整前端 fixture。
+        _write(public, out_path)
+        print("⚠️  流水线未完整完成；已保存 partial live 结果，仅供诊断证据分析。")
         return 2
-    return _write_if_valid(public, out_path)
+    errors = _validate_public_evidence(public)
+    _write(public, out_path)
+    if errors:
+        print("⚠️  Live 结果已保存，但不满足完整前端方案 fixture 证据门槛：")
+        for error in errors:
+            print(f"  - {error}")
+        return 3
+    return 0
 
 
 def main() -> int:
     args = sys.argv[1:]
+
+    if args and args[0] == "--from-public":
+        public_path = Path(args[1]) if len(args) > 1 else Path()
+        out_path = Path(args[2]) if len(args) > 2 else DEFAULT_OUT
+        if not public_path.exists():
+            print(f"✗ Public response 不存在：{public_path}")
+            return 1
+        public = json.loads(public_path.read_text(encoding="utf-8"))
+        _write(public, out_path)
+        return 0
 
     if args and args[0] == "--from-log":
         log_path = Path(args[1]) if len(args) > 1 else Path()

@@ -14,9 +14,14 @@ const canAddGreen = computed(() => dd.value?.can_simple_add_green)
 const conclusion = computed(() => productCopy(downstreamConclusion(dd.value)))
 
 /** 结论语义色：可加绿=protected，受限=alarm，未定=evidence。 */
-const tone = computed(() =>
-  canAddGreen.value === true ? 'yes' : canAddGreen.value === false ? 'no' : 'unknown',
-)
+const tone = computed(() => {
+  const c = dd.value?.judgment_criteria ?? {}
+  const tight = Boolean(c.downstream_queue_high || c.downstream_near_saturation || c.add_green_spillback_risk)
+  const capacity = dd.value?.primary_downstream?.capacity
+  if (tight || capacity?.blocked) return 'no'
+  if (capacity?.can_release) return 'yes'
+  return 'unknown'
+})
 
 // —— 本路口（目标进口）侧指标：为「绿灯利用不足」结论提供可见依据 ——
 const targetMetrics = computed(() => store.diagnosis?.metrics ?? null)

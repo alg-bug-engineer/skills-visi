@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""批量采集 docs/典型输入案例-点线优化.md 两例典型 Case（A 点 / B 线）的前端 mock fixture。
+"""批量采集 manifest 中当前有效的点/线演示 Case。
 
 用法：
   # 采集全部（需 LLM_MOCK=false、PG、QWEN 可用，每例数十秒）
   PYTHONPATH=. .venv/bin/python scripts/capture_typical_point_line_fixtures.py --live
 
   # 仅采集指定 Case
-  PYTHONPATH=. .venv/bin/python scripts/capture_typical_point_line_fixtures.py --live --case case_a
   PYTHONPATH=. .venv/bin/python scripts/capture_typical_point_line_fixtures.py --live --case case_b
 
   # 跳过方案证据校验（仅诊断/成因联调，plan 不完整时）
@@ -115,7 +114,7 @@ async def main_async(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="批量采集点/线优化典型 Case 前端 fixture")
     parser.add_argument("--live", action="store_true", help="发起真实 agent/run 请求")
-    parser.add_argument("--case", help="仅采集 case_a / case_b / A / B")
+    parser.add_argument("--case", help="仅采集 manifest 中指定的 case id / code")
     parser.add_argument(
         "--relax-evidence",
         action="store_true",

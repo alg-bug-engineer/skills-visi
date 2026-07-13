@@ -18,12 +18,12 @@
     "problem_type": "过饱和排队",
     "constraints": [],
     "diagnosis_scope": "单点",
-    "governance_goal": "缓解北进口左转排队积压",
+    "governance_goal": "缓解北进口左转局部时段供需失衡",
     "user_experiences": [
       {
         "experience_type": "cognitive",
-        "content": "晚高峰17:00-19:00北进口左转过饱和并有排队积压",
-        "source_span": "晚高峰十七点到十九点，北进口左转过饱和并有排队积压",
+        "content": "晚高峰17:00-19:00北进口左转局部时段过饱和",
+        "source_span": "晚高峰十七点到十九点，北进口左转局部时段过饱和",
         "tags": {
           "problem_type": "过饱和排队",
           "time_period": "晚高峰",
@@ -267,12 +267,16 @@
     },
     "diagnosis": {
       "metrics": {
-        "queue_length_m": 6.84,
+        "queue_length_m": 163.0,
         "storage_length_m": 356.63,
         "storage_direction": "北进口",
         "storage_source": "adjacent_inter_spacing_detail",
         "spacing_version_id": "12wwe28ftwwe28gm01",
-        "queue_ratio": 0.0192,
+        "queue_ratio": 0.4571,
+        "queue_statistic": "intersection_window_max_proxy",
+        "queue_source": "intersection_window_max_proxy",
+        "queue_is_direction_proxy": true,
+        "movement_queue_length_m": 6.84,
         "saturation": 1.2365,
         "los": "F",
         "green_utilization": 0.6807,
@@ -399,10 +403,10 @@
           "avg_delay_s": 44.74,
           "saturation": 1.2365,
           "saturation_rate": 1.2365,
-          "avg_queue_m": 6.84,
-          "max_queue_m": 6.84,
-          "queue_storage_ratio_max": 0.0192,
-          "spillback_risk_max": 0.0192,
+          "avg_queue_m": 163.0,
+          "max_queue_m": 163.0,
+          "queue_storage_ratio_max": 0.4571,
+          "spillback_risk_max": 0.4571,
           "level_of_service": "F",
           "green_utilization": 0.6807,
           "stop_count": 0.56,
@@ -418,7 +422,7 @@
             "turn_saturation": 1.2365,
             "green_utilization": 0.6807,
             "flow_vph": 252.0,
-            "queue_ratio": 0.0192
+            "queue_ratio": 0.4571
           }
         ],
         "overflow_verification": {
@@ -426,7 +430,7 @@
           "risk_level": "low",
           "message": "排队尚在进口道可容纳范围内，溢出风险较低"
         },
-        "remaining_storage_m": 349.79
+        "remaining_storage_m": 193.63
       },
       "spatial_topology": {
         "target_intersection": "坤顺路与奥体西路路口",
@@ -722,10 +726,10 @@
               "avg_delay_s": 44.74,
               "saturation": 1.2365,
               "saturation_rate": 1.2365,
-              "avg_queue_m": 6.84,
-              "max_queue_m": 6.84,
-              "queue_storage_ratio_max": 0.0192,
-              "spillback_risk_max": 0.0192,
+              "avg_queue_m": 163.0,
+              "max_queue_m": 163.0,
+              "queue_storage_ratio_max": 0.4571,
+              "spillback_risk_max": 0.4571,
               "level_of_service": "F",
               "green_utilization": 0.6807,
               "stop_count": 0.56,
@@ -741,7 +745,7 @@
                 "turn_saturation": 1.2365,
                 "green_utilization": 0.6807,
                 "flow_vph": 252.0,
-                "queue_ratio": 0.0192
+                "queue_ratio": 0.4571
               }
             ],
             "overflow_verification": {
@@ -749,7 +753,7 @@
               "risk_level": "low",
               "message": "排队尚在进口道可容纳范围内，溢出风险较低"
             },
-            "remaining_storage_m": 349.79
+            "remaining_storage_m": 193.63
           },
           "downstream_nodes": [
             {
@@ -913,7 +917,7 @@
       "arterial_analysis": {
         "upstream_arrival_flow_vph": 252.0,
         "upstream_release_intensity_vph": 239.39999999999998,
-        "target_remaining_storage_m": 349.79,
+        "target_remaining_storage_m": 193.63,
         "downstream_remaining_storage_m": 0.0,
         "phase_offset_match": "上游相位差 -2s",
         "need_upstream_metering": false,
@@ -5982,7 +5986,7 @@
             "direction": "北向南",
             "movement": "左转",
             "metrics": {
-              "queue_ratio": 0.0192,
+              "queue_ratio": 0.4571,
               "saturation": 1.2365,
               "green_utilization": 0.6807
             }
@@ -6079,7 +6083,7 @@
           {
             "dimension": "demand",
             "status": "normal",
-            "summary": "目标方向排队比 0.0192"
+            "summary": "目标方向排队代理比 0.4571（路口级最大排队）"
           },
           {
             "dimension": "capacity",
@@ -7057,7 +7061,7 @@
         }
       ],
       "evidence_summary": {
-        "target_queue_ratio": 0.0192,
+        "target_queue_ratio": 0.4571,
         "target_saturation": 1.2365,
         "target_green_utilization": 0.6807,
         "downstream_queue_ratio": null,

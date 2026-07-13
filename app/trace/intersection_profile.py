@@ -15,6 +15,10 @@ from app.metrics.traffic import (
 def build_intersection_profile(node: dict[str, Any]) -> dict[str, Any]:
     # 显式标记指标不可用时，禁止用缺省 0 伪造承接判断（BUG-004）。
     metrics_unavailable = node.get("metrics_available") is False
+    queue_available = (
+        node.get("queue_length_m") is not None
+        and float(node.get("storage_length_m") or 0) > 0
+    )
     queue_ratio = calculate_queue_ratio(
         node.get("queue_length_m", 0) or 0,
         node.get("storage_length_m", 0) or 0,
@@ -33,7 +37,6 @@ def build_intersection_profile(node: dict[str, Any]) -> dict[str, Any]:
             node.get("capacity_vph", 0) or 0,
         )
     if metrics_unavailable:
-        queue_ratio = None
         saturation = None
     movement = node.get("movement_label") or "直行"
     profile = {
@@ -47,19 +50,29 @@ def build_intersection_profile(node: dict[str, Any]) -> dict[str, Any]:
         "metrics_available": not metrics_unavailable,
         "metrics_reason": node.get("metrics_reason") if metrics_unavailable else None,
         "metrics": {
-            "avg_delay_s": None if metrics_unavailable else node.get("avg_delay_s"),
+            "avg_delay_s": node.get("avg_delay_s"),
             "saturation": saturation,
             "saturation_rate": saturation,
-            "avg_queue_m": None if metrics_unavailable else node.get("queue_length_m"),
-            "max_queue_m": None if metrics_unavailable else node.get("queue_length_m"),
+            "avg_queue_m": node.get("queue_length_m"),
+            "max_queue_m": node.get("queue_length_m"),
             "queue_storage_ratio_max": queue_ratio,
             "spillback_risk_max": queue_ratio,
             "level_of_service": None if metrics_unavailable or saturation is None else level_of_service(saturation),
-            "green_utilization": None if metrics_unavailable else node.get("green_utilization"),
-            "stop_count": None if metrics_unavailable else node.get("stop_count"),
+            "green_utilization": node.get("green_utilization"),
+            "stop_count": node.get("stop_count"),
             "time_series_trend": node.get("time_series_trend"),
             "target_movement_key": node.get("target_movement_key"),
             "metric_scope": node.get("metric_scope") or "movement",
+            "queue_statistic": node.get("queue_statistic") or "window_mean",
+            "queue_source": node.get("queue_source"),
+            "queue_is_direction_proxy": bool(node.get("queue_is_direction_proxy")),
+            "movement_queue_length_m": node.get("movement_queue_length_m"),
+            "saturation_statistic": node.get("saturation_statistic") or "window_peak",
+            "statistic_scope": node.get("statistic_scope"),
+            "selected_day_of_week": node.get("selected_day_of_week"),
+            "metric_selection_policy": node.get("metric_selection_policy"),
+            "queue_safety_peak_m": node.get("queue_safety_peak_m"),
+            "queue_safety_peak_ratio": node.get("queue_safety_peak_ratio"),
             "storage_direction": node.get("storage_direction"),
             "storage_source": node.get("storage_source"),
         },
@@ -76,7 +89,7 @@ def build_intersection_profile(node: dict[str, Any]) -> dict[str, Any]:
         "overflow_verification": assess_overflow_risk(queue_ratio),
         "remaining_storage_m": (
             None
-            if metrics_unavailable
+            if not queue_available
             else max(
                 0.0,
                 float(node.get("storage_length_m") or 0) - float(node.get("queue_length_m") or 0),

@@ -44,12 +44,68 @@ def test_target_saturation_binds_north_left_not_north_through_max():
         scope=scope,
     )
     assert out["metric_scope"] == "movement"
+    assert out["queue_statistic"] == "movement_window_mean"
+    assert out["saturation_statistic"] == "window_peak"
     assert out["target_movement_key"] == "d0_t1"
     assert out["saturation"] == pytest.approx(1.2365)
     assert out["storage_length_m"] == pytest.approx(357.21)
     assert out["storage_direction"] == "北进口"
     assert out["queue_length_m"] == pytest.approx(40.0)
     assert out["intersection_saturation_max"] == pytest.approx(1.5446)
+
+
+def test_storage_uses_min_entrance_for_same_direction():
+    pg_metrics = {
+        "turn_saturation_detail": [
+            {"dir8_code": 6, "turn_dir_no": 2, "turn_saturation": 1.0},
+        ],
+        "turn_perf_detail": [
+            {"dir8_code": 6, "turn_dir_no": 2, "queue_len_avg": 100.0},
+        ],
+    }
+    scope = {
+        "adjacent_inter_spacing_detail": [
+            {"dir8_code": 6, "link_role": "entrance", "spacing_m": 345.6},
+            {"dir8_code": 6, "link_role": "entrance", "spacing_m": 92.3},
+            {"dir8_code": 6, "link_role": "exit", "spacing_m": 50.0},
+        ]
+    }
+    out = metrics_for_diagnosis(
+        pg_metrics,
+        {"direction": "西向东", "movement": "直行"},
+        scope=scope,
+    )
+    assert out["storage_length_m"] == pytest.approx(92.3)
+    assert out["storage_source"] == "adjacent_inter_spacing_detail_min_entrance"
+
+
+def test_target_can_use_intersection_max_queue_as_explicit_direction_proxy():
+    pg_metrics = {
+        "queue_m": 163.0,
+        "turn_saturation_detail": [
+            {"dir8_code": 0, "turn_dir_no": 1, "turn_saturation": 1.2365},
+        ],
+        "turn_perf_detail": [
+            {"dir8_code": 0, "turn_dir_no": 1, "queue_len_avg": 6.84},
+            {"dir8_code": 2, "turn_dir_no": 2, "queue_len_avg": 163.0},
+        ],
+    }
+    scope = {
+        "adjacent_inter_spacing_detail": [
+            {"dir8_code": 0, "spacing_m": 356.63, "link_id": "north"},
+        ]
+    }
+    out = metrics_for_diagnosis(
+        pg_metrics,
+        {"direction": "北向南", "movement": "左转"},
+        queue_mode="intersection_max_proxy",
+        scope=scope,
+    )
+    assert out["queue_length_m"] == pytest.approx(163.0)
+    assert out["movement_queue_length_m"] == pytest.approx(6.84)
+    assert out["queue_source"] == "intersection_window_max_proxy"
+    assert out["queue_is_direction_proxy"] is True
+    assert out["queue_statistic"] == "intersection_window_max_proxy"
 
 
 def test_target_saturation_binds_south_through_not_south_left_peak():
