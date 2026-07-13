@@ -32,10 +32,13 @@ def build_downstream_diagnosis(
     )
     high_queue = (target_queue or 0) >= THRESHOLDS["queue_ratio_warning"]
     low_green_util = (target_green or 1) < THRESHOLDS["green_utilization_low"]
-    downstream_blocked = down_capacity.get("blocked") or (
-        (down_queue or 0) >= THRESHOLDS["queue_ratio_warning"]
-        or (down_sat or 0) >= THRESHOLDS["downstream_saturation_high"]
-    )
+    # 有 capacity 时以 blocked 为准，避免与 assess_downstream_capacity 双口径（BUG-007）
+    if "blocked" in down_capacity:
+        downstream_blocked = bool(down_capacity.get("blocked"))
+    else:
+        downstream_blocked = (down_queue or 0) >= THRESHOLDS["queue_ratio_warning"] or (
+            down_sat or 0
+        ) >= THRESHOLDS["downstream_saturation_high"]
 
     criteria = {
         "target_queue_high": high_queue,

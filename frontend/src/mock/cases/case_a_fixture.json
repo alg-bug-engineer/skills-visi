@@ -1,5 +1,5 @@
 {
-  "trace_id": "c4b71b97655f4ef9",
+  "trace_id": "fcdd3a2a18724204",
   "completed": false,
   "pipeline_complete": true,
   "diagnosis_ticket": {
@@ -14,28 +14,41 @@
     "time_range": "17:00-19:00",
     "period": "晚高峰",
     "direction": "北向南",
-    "movement": "直行",
-    "problem_type": "过饱和",
+    "movement": "左转",
+    "problem_type": "过饱和排队",
     "constraints": [],
     "diagnosis_scope": "单点",
-    "governance_goal": "缓解北进口过饱和及路口积压",
+    "governance_goal": "缓解北进口左转排队积压",
     "user_experiences": [
       {
         "experience_type": "cognitive",
-        "content": "晚高峰17:00-19:00北进口过饱和、路口积压",
-        "source_span": "晚高峰十七点到十九点，北进口过饱和、路口积压",
+        "content": "晚高峰17点到19点北进口左转过饱和并有排队积压",
+        "source_span": "晚高峰十七点到十九点，北进口左转过饱和并有排队积压",
         "tags": {
-          "problem_type": "过饱和",
-          "time_period": "晚高峰"
+          "problem_type": "过饱和排队",
+          "time_period": "晚高峰",
+          "direction": "北向南",
+          "movement": "左转"
+        }
+      },
+      {
+        "experience_type": "diagnostic",
+        "content": "东向下游坤顺路与礼耕路路口仍有承接空间",
+        "source_span": "东向下游坤顺路与礼耕路路口仍有承接空间",
+        "tags": {
+          "cause_dimension": "下游承载能力",
+          "related_poi": "坤顺路与礼耕路路口"
         }
       },
       {
         "experience_type": "solution",
-        "content": "按点控经验在本路口做北进口相位局部优化",
-        "source_span": "按点控经验在本路口做北进口相位局部优化",
+        "content": "按点控经验在本路口对北进口左转做局部加绿优化",
+        "source_span": "按点控经验在本路口对北进口左转做局部加绿优化",
         "tags": {
-          "strategy_action": "相位局部优化",
-          "cause_dimension": "信号配时"
+          "strategy_action": "局部加绿",
+          "control_level": "点控",
+          "direction": "北向南",
+          "movement": "左转"
         }
       }
     ],
@@ -67,28 +80,41 @@
         "time_range": "17:00-19:00",
         "period": "晚高峰",
         "direction": "北向南",
-        "movement": "直行",
-        "problem_type": "过饱和",
+        "movement": "左转",
+        "problem_type": "过饱和排队",
         "constraints": [],
         "diagnosis_scope": "单点",
-        "governance_goal": "缓解北进口过饱和及路口积压",
+        "governance_goal": "缓解北进口左转排队积压",
         "user_experiences": [
           {
             "experience_type": "cognitive",
-            "content": "晚高峰17:00-19:00北进口过饱和、路口积压",
-            "source_span": "晚高峰十七点到十九点，北进口过饱和、路口积压",
+            "content": "晚高峰17点到19点北进口左转过饱和并有排队积压",
+            "source_span": "晚高峰十七点到十九点，北进口左转过饱和并有排队积压",
             "tags": {
-              "problem_type": "过饱和",
-              "time_period": "晚高峰"
+              "problem_type": "过饱和排队",
+              "time_period": "晚高峰",
+              "direction": "北向南",
+              "movement": "左转"
+            }
+          },
+          {
+            "experience_type": "diagnostic",
+            "content": "东向下游坤顺路与礼耕路路口仍有承接空间",
+            "source_span": "东向下游坤顺路与礼耕路路口仍有承接空间",
+            "tags": {
+              "cause_dimension": "下游承载能力",
+              "related_poi": "坤顺路与礼耕路路口"
             }
           },
           {
             "experience_type": "solution",
-            "content": "按点控经验在本路口做北进口相位局部优化",
-            "source_span": "按点控经验在本路口做北进口相位局部优化",
+            "content": "按点控经验在本路口对北进口左转做局部加绿优化",
+            "source_span": "按点控经验在本路口对北进口左转做局部加绿优化",
             "tags": {
-              "strategy_action": "相位局部优化",
-              "cause_dimension": "信号配时"
+              "strategy_action": "局部加绿",
+              "control_level": "点控",
+              "direction": "北向南",
+              "movement": "左转"
             }
           }
         ],
@@ -109,15 +135,15 @@
       "user_experiences": [
         {
           "experience_type": "cognitive",
-          "content": "晚高峰17:00-19:00北进口过饱和、路口积压",
-          "source_span": "晚高峰十七点到十九点，北进口过饱和、路口积压",
+          "content": "晚高峰17点到19点北进口左转过饱和并有排队积压",
+          "source_span": "晚高峰十七点到十九点，北进口左转过饱和并有排队积压",
           "tags": {
             "inter_id": "011wwe28fty00001",
             "intersection_name": "坤顺路与奥体西路路口",
-            "problem_type": "过饱和",
+            "problem_type": "过饱和排队",
             "time_period": "晚高峰",
             "direction": "北向南",
-            "movement": "直行",
+            "movement": "左转",
             "spatial_structure": null,
             "severity": null,
             "cause_dimension": null,
@@ -131,33 +157,59 @@
           }
         },
         {
-          "experience_type": "solution",
-          "content": "按点控经验在本路口做北进口相位局部优化",
-          "source_span": "按点控经验在本路口做北进口相位局部优化",
+          "experience_type": "diagnostic",
+          "content": "东向下游坤顺路与礼耕路路口仍有承接空间",
+          "source_span": "东向下游坤顺路与礼耕路路口仍有承接空间",
           "tags": {
             "inter_id": "011wwe28fty00001",
             "intersection_name": "坤顺路与奥体西路路口",
-            "problem_type": "过饱和",
+            "problem_type": "过饱和排队",
             "time_period": null,
             "direction": "北向南",
-            "movement": "直行",
+            "movement": "左转",
             "spatial_structure": null,
             "severity": null,
-            "cause_dimension": "信号配时",
-            "cause_keywords": [],
-            "strategy_action": "相位局部优化",
-            "related_poi": [],
+            "cause_dimension": "下游承载能力",
+            "cause_keywords": [
+              "下游"
+            ],
+            "strategy_action": null,
+            "related_poi": "坤顺路与礼耕路路口",
             "target_phase": null,
             "adjustment_direction": null,
             "constraints": [],
             "confidence": null
+          }
+        },
+        {
+          "experience_type": "solution",
+          "content": "按点控经验在本路口对北进口左转做局部加绿优化",
+          "source_span": "按点控经验在本路口对北进口左转做局部加绿优化",
+          "tags": {
+            "inter_id": "011wwe28fty00001",
+            "intersection_name": "坤顺路与奥体西路路口",
+            "problem_type": "过饱和排队",
+            "time_period": null,
+            "direction": "北向南",
+            "movement": "左转",
+            "spatial_structure": null,
+            "severity": null,
+            "cause_dimension": null,
+            "cause_keywords": [],
+            "strategy_action": "局部加绿",
+            "related_poi": [],
+            "target_phase": null,
+            "adjustment_direction": null,
+            "constraints": [],
+            "confidence": null,
+            "control_level": "点控"
           }
         }
       ],
       "spatial_objects": {
         "target_intersection": "坤顺路与奥体西路路口",
         "target_direction": "北向南",
-        "target_movement": "直行",
+        "target_movement": "左转",
         "upstream_scope": "北向南来车来源路段与相邻路口",
         "downstream_scope": "北向南出口路段与下游信控节点",
         "main_path": "上游来车 → 目标路口 → 下游承接节点"
@@ -197,7 +249,7 @@
           "lng": 117.11126,
           "lat": 36.665179,
           "direction": "北向南",
-          "movement": "直行"
+          "movement": "左转"
         },
         "highlight_path": [
           [
@@ -318,9 +370,9 @@
         "basis": "基于同时段饱和度与月度同时段流量规律（flow_correlate）派生，非实测统计"
       },
       "downstream_metrics": {
-        "queue_ratio": null,
-        "saturation": null,
-        "green_utilization": null
+        "queue_ratio": 0.0397,
+        "saturation": 0.8,
+        "green_utilization": 0.0
       },
       "upstream_metrics": {
         "arrival_intensity": "high",
@@ -352,7 +404,7 @@
         },
         "by_turn": [
           {
-            "label": "北向南直行",
+            "label": "北向南左转",
             "turn_saturation": 1.5446,
             "green_utilization": 0.6807,
             "flow_vph": 2376.96,
@@ -369,7 +421,7 @@
       "spatial_topology": {
         "target_intersection": "坤顺路与奥体西路路口",
         "target_direction": "北向南",
-        "target_movement": "直行",
+        "target_movement": "左转",
         "upstream_scope": "北向南来车来源路段与相邻路口",
         "downstream_scope": "北向南出口路段与下游信控节点",
         "main_path": "上游来车 → 目标路口 → 下游承接节点"
@@ -379,66 +431,78 @@
         "trace_direction": "downstream",
         "turn_traces": [
           {
-            "movement": "北进口直行",
+            "movement": "北进口左转",
             "dir8_code": 0,
-            "turn_dir_no": 2,
-            "exit_dir8": 4,
-            "downstream_inter_id": "011wwe28fmc00001",
-            "downstream_inter_name": "奥体西路与解放东路路口",
-            "share_pct": 87.7,
+            "turn_dir_no": 1,
+            "exit_dir8": 2,
+            "downstream_inter_id": "011wwe2948q00001",
+            "downstream_inter_name": "坤顺路与礼耕路路口",
+            "share_pct": 201.93,
             "path": [
               [
-                117.111168,
+                117.111361,
                 36.665132
               ],
               [
-                117.111264,
-                36.66319
+                117.113453,
+                36.665186
+              ],
+              [
+                117.113759,
+                36.665186
+              ],
+              [
+                117.114258,
+                36.665191
+              ],
+              [
+                117.114783,
+                36.665196
               ]
             ],
             "path_source": "link_geom",
-            "receiving_dir8": 4,
-            "receiving_label": "南进口直行",
-            "lng": 117.111368,
-            "lat": 36.663092,
+            "receiving_dir8": 2,
+            "receiving_label": "东进口直行",
+            "lng": 117.114783,
+            "lat": 36.665241,
             "downstream_metrics": {
-              "inter_id": "011wwe28fmc00001",
-              "inter_name": "奥体西路与解放东路路口",
+              "inter_id": "011wwe2948q00001",
+              "inter_name": "坤顺路与礼耕路路口",
               "role": "downstream",
-              "lng": 117.111368,
-              "lat": 36.663092,
-              "receiving_dir8": 4,
-              "receiving_label": "南进口直行",
-              "metrics_available": false,
-              "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）",
+              "lng": 117.114783,
+              "lat": 36.665241,
+              "receiving_dir8": 2,
+              "receiving_label": "东进口直行",
+              "metrics_available": true,
+              "metrics_reason": null,
               "metrics": {
-                "avg_delay_s": null,
-                "saturation": null,
-                "saturation_rate": null,
-                "avg_queue_m": null,
-                "max_queue_m": null,
-                "queue_storage_ratio_max": null,
-                "spillback_risk_max": null,
-                "level_of_service": null,
-                "green_utilization": null,
-                "stop_count": null,
+                "avg_delay_s": 8.89,
+                "saturation": 0.8,
+                "saturation_rate": 0.8,
+                "avg_queue_m": 5.4,
+                "max_queue_m": 5.4,
+                "queue_storage_ratio_max": 0.0397,
+                "spillback_risk_max": 0.0397,
+                "level_of_service": "C",
+                "green_utilization": 0.0,
+                "stop_count": 0.31,
                 "time_series_trend": null
               },
               "by_turn": [
                 {
                   "label": "直行",
-                  "turn_saturation": null,
-                  "green_utilization": null,
-                  "flow_vph": null,
-                  "queue_ratio": null
+                  "turn_saturation": 0.8,
+                  "green_utilization": 0.0,
+                  "flow_vph": 661.92,
+                  "queue_ratio": 0.0397
                 }
               ],
               "overflow_verification": {
-                "verified": false,
-                "risk_level": "unknown",
-                "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
+                "verified": true,
+                "risk_level": "low",
+                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
               },
-              "remaining_storage_m": null
+              "remaining_storage_m": 130.76
             },
             "capacity": {
               "can_release": true,
@@ -447,48 +511,58 @@
               "release_guard": "downstream_has_slack"
             },
             "trace_kind": "downstream",
-            "narrative": "北进口直行去向奥体西路与解放东路路口，占比87.7%，下游仍有余量，可局部增绿清空"
+            "narrative": "北进口左转去向坤顺路与礼耕路路口，占比201.9%，下游仍有余量，可局部增绿清空"
           }
         ],
         "adjacent_intersections": [
           {
-            "inter_id": "011wwe28fmc00001",
-            "inter_name": "奥体西路与解放东路路口",
-            "role": "adjacent_peer",
-            "lng": 117.111368,
-            "lat": 36.663092,
-            "receiving_dir8": 4,
-            "receiving_label": null,
-            "metrics_available": false,
-            "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）",
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
+            "role": "downstream",
+            "lng": 117.114783,
+            "lat": 36.665241,
+            "receiving_dir8": 2,
+            "receiving_label": "东进口直行",
+            "metrics_available": true,
+            "metrics_reason": null,
             "metrics": {
-              "avg_delay_s": null,
-              "saturation": null,
-              "saturation_rate": null,
-              "avg_queue_m": null,
-              "max_queue_m": null,
-              "queue_storage_ratio_max": null,
-              "spillback_risk_max": null,
-              "level_of_service": null,
-              "green_utilization": null,
-              "stop_count": null,
+              "avg_delay_s": 8.89,
+              "saturation": 0.8,
+              "saturation_rate": 0.8,
+              "avg_queue_m": 5.4,
+              "max_queue_m": 5.4,
+              "queue_storage_ratio_max": 0.0397,
+              "spillback_risk_max": 0.0397,
+              "level_of_service": "C",
+              "green_utilization": 0.0,
+              "stop_count": 0.31,
               "time_series_trend": null
             },
             "by_turn": [
               {
                 "label": "直行",
-                "turn_saturation": null,
-                "green_utilization": null,
-                "flow_vph": null,
-                "queue_ratio": null
+                "turn_saturation": 0.8,
+                "green_utilization": 0.0,
+                "flow_vph": 661.92,
+                "queue_ratio": 0.0397
               }
             ],
             "overflow_verification": {
-              "verified": false,
-              "risk_level": "unknown",
-              "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
+              "verified": true,
+              "risk_level": "low",
+              "message": "排队尚在进口道可容纳范围内，溢出风险较低"
             },
-            "remaining_storage_m": null
+            "remaining_storage_m": 130.76,
+            "capacity": {
+              "can_release": true,
+              "blocked": false,
+              "reasons": [],
+              "release_guard": "downstream_has_slack"
+            },
+            "linked_movements": [
+              "北进口左转"
+            ],
+            "share_pct": 201.93
           },
           {
             "inter_id": "011wwe28gm900001",
@@ -530,43 +604,43 @@
             "remaining_storage_m": 243.63
           },
           {
-            "inter_id": "011wwe2948q00001",
-            "inter_name": "坤顺路与礼耕路路口",
+            "inter_id": "011wwe28fmc00001",
+            "inter_name": "奥体西路与解放东路路口",
             "role": "adjacent_peer",
-            "lng": 117.114783,
-            "lat": 36.665241,
-            "receiving_dir8": 2,
+            "lng": 117.111368,
+            "lat": 36.663092,
+            "receiving_dir8": 4,
             "receiving_label": null,
-            "metrics_available": true,
-            "metrics_reason": null,
+            "metrics_available": false,
+            "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）",
             "metrics": {
-              "avg_delay_s": 8.89,
-              "saturation": 0.8,
-              "saturation_rate": 0.8,
-              "avg_queue_m": 117.0,
-              "max_queue_m": 117.0,
-              "queue_storage_ratio_max": 0.8593,
-              "spillback_risk_max": 0.8593,
-              "level_of_service": "C",
-              "green_utilization": 0.0,
-              "stop_count": 0.31,
+              "avg_delay_s": null,
+              "saturation": null,
+              "saturation_rate": null,
+              "avg_queue_m": null,
+              "max_queue_m": null,
+              "queue_storage_ratio_max": null,
+              "spillback_risk_max": null,
+              "level_of_service": null,
+              "green_utilization": null,
+              "stop_count": null,
               "time_series_trend": null
             },
             "by_turn": [
               {
                 "label": "直行",
-                "turn_saturation": 0.8,
-                "green_utilization": 0.0,
-                "flow_vph": 661.92,
-                "queue_ratio": 0.8593
+                "turn_saturation": null,
+                "green_utilization": null,
+                "flow_vph": null,
+                "queue_ratio": null
               }
             ],
             "overflow_verification": {
-              "verified": true,
-              "risk_level": "warning",
-              "message": "排队接近进口道空间边界，进入溢出预警状态"
+              "verified": false,
+              "risk_level": "unknown",
+              "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
             },
-            "remaining_storage_m": 19.159999999999997
+            "remaining_storage_m": null
           },
           {
             "inter_id": "011wwe28fsv00001",
@@ -639,7 +713,7 @@
             },
             "by_turn": [
               {
-                "label": "北向南直行",
+                "label": "北向南左转",
                 "turn_saturation": 1.5446,
                 "green_utilization": 0.6807,
                 "flow_vph": 2376.96,
@@ -655,43 +729,43 @@
           },
           "downstream_nodes": [
             {
-              "inter_id": "011wwe28fmc00001",
-              "inter_name": "奥体西路与解放东路路口",
+              "inter_id": "011wwe2948q00001",
+              "inter_name": "坤顺路与礼耕路路口",
               "role": "downstream",
-              "lng": 117.111368,
-              "lat": 36.663092,
-              "receiving_dir8": 4,
-              "receiving_label": "南进口直行",
-              "metrics_available": false,
-              "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）",
+              "lng": 117.114783,
+              "lat": 36.665241,
+              "receiving_dir8": 2,
+              "receiving_label": "东进口直行",
+              "metrics_available": true,
+              "metrics_reason": null,
               "metrics": {
-                "avg_delay_s": null,
-                "saturation": null,
-                "saturation_rate": null,
-                "avg_queue_m": null,
-                "max_queue_m": null,
-                "queue_storage_ratio_max": null,
-                "spillback_risk_max": null,
-                "level_of_service": null,
-                "green_utilization": null,
-                "stop_count": null,
+                "avg_delay_s": 8.89,
+                "saturation": 0.8,
+                "saturation_rate": 0.8,
+                "avg_queue_m": 5.4,
+                "max_queue_m": 5.4,
+                "queue_storage_ratio_max": 0.0397,
+                "spillback_risk_max": 0.0397,
+                "level_of_service": "C",
+                "green_utilization": 0.0,
+                "stop_count": 0.31,
                 "time_series_trend": null
               },
               "by_turn": [
                 {
                   "label": "直行",
-                  "turn_saturation": null,
-                  "green_utilization": null,
-                  "flow_vph": null,
-                  "queue_ratio": null
+                  "turn_saturation": 0.8,
+                  "green_utilization": 0.0,
+                  "flow_vph": 661.92,
+                  "queue_ratio": 0.0397
                 }
               ],
               "overflow_verification": {
-                "verified": false,
-                "risk_level": "unknown",
-                "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
+                "verified": true,
+                "risk_level": "low",
+                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
               },
-              "remaining_storage_m": null,
+              "remaining_storage_m": 130.76,
               "capacity": {
                 "can_release": true,
                 "blocked": false,
@@ -699,9 +773,9 @@
                 "release_guard": "downstream_has_slack"
               },
               "linked_movements": [
-                "北进口直行"
+                "北进口左转"
               ],
-              "share_pct": 87.7
+              "share_pct": 201.93
             }
           ],
           "same_metric_dimensions": true
@@ -724,16 +798,16 @@
             "vehicles_base": 100,
             "upstream_movements": [
               {
-                "turn": "直行",
-                "feed_direction": "北向南直行",
+                "turn": "左转",
+                "feed_direction": "北向南左转",
                 "share_pct": 286.39,
                 "vehicles_of_100": 286,
                 "raw_coverage": 286.39
               }
             ],
             "dominant_movement": {
-              "turn": "直行",
-              "feed_direction": "北向南直行",
+              "turn": "左转",
+              "feed_direction": "北向南左转",
               "share_pct": 286.39,
               "vehicles_of_100": 286,
               "raw_coverage": 286.39
@@ -776,19 +850,19 @@
                 36.665223
               ]
             ],
-            "narrative": "北进口约100辆过境车中，约286辆来自上一路口安成街与奥体西路路口，以直行为主"
+            "narrative": "北进口约100辆过境车中，约286辆来自上一路口安成街与奥体西路路口，以左转为主"
           }
         ],
         "problem_turns": [
           {
             "entry": "北进口",
-            "turn": "直行",
+            "turn": "左转",
             "turn_saturation": 1.5446,
             "source_pattern": "single_corridor",
             "dominant_feed": {
               "inter_id": "011wwe28gm900001",
               "inter_name": "安成街与奥体西路路口",
-              "feed_direction": "北向南直行",
+              "feed_direction": "北向南左转",
               "path_coverage": 286.39,
               "lng": 117.111028,
               "lat": 36.668467
@@ -797,7 +871,7 @@
               {
                 "inter_id": "011wwe28gm900001",
                 "inter_name": "安成街与奥体西路路口",
-                "feed_direction": "北向南直行",
+                "feed_direction": "北向南左转",
                 "path_coverage": 286.39,
                 "lng": 117.111028,
                 "lat": 36.668467
@@ -808,10 +882,10 @@
         "governance_hints": [
           {
             "type": "upstream_coordination",
-            "problem_turn": "北进口直行",
+            "problem_turn": "北进口左转",
             "inter_id": "011wwe28gm900001",
             "inter_name": "安成街与奥体西路路口",
-            "feed_direction": "北向南直行",
+            "feed_direction": "北向南左转",
             "coverage": 286
           }
         ],
@@ -821,7 +895,7 @@
         "upstream_arrival_flow_vph": 2376.96,
         "upstream_release_intensity_vph": 2258.112,
         "target_remaining_storage_m": 32.68000000000001,
-        "downstream_remaining_storage_m": 19.159999999999997,
+        "downstream_remaining_storage_m": 28.430000000000007,
         "phase_offset_match": "上游相位差 -2s",
         "need_upstream_metering": false,
         "need_downstream_dissipation_first": false,
@@ -871,16 +945,16 @@
             "travel_source": null
           },
           {
-            "inter_id": "011wwe28fmc00001",
-            "inter_name": "奥体西路与解放东路路口",
-            "lng": 117.111368,
-            "lat": 36.663092,
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
+            "lng": 117.114783,
+            "lat": 36.665241,
             "role": "downstream",
-            "spacing_m": 215.68,
+            "spacing_m": 306.03,
             "spacing_source": "dim_link_info.length_m",
-            "offset_abs_s": 118.0,
+            "offset_abs_s": 54.0,
             "offset_source": "plan_cfg.offset_sec",
-            "phase_diff_s": -9.0,
+            "phase_diff_s": -13.0,
             "travel_speed_kmh": null,
             "travel_time_s": null,
             "travel_source": null
@@ -894,32 +968,37 @@
         "release_answer": "复合瓶颈",
         "can_simple_add_green": false,
         "primary_downstream": {
-          "inter_id": "011wwe28fmc00001",
-          "inter_name": "奥体西路与解放东路路口",
+          "inter_id": "011wwe2948q00001",
+          "inter_name": "坤顺路与礼耕路路口",
           "metrics": {
-            "avg_delay_s": null,
-            "saturation": null,
-            "saturation_rate": null,
-            "avg_queue_m": null,
-            "max_queue_m": null,
-            "queue_storage_ratio_max": null,
-            "spillback_risk_max": null,
-            "level_of_service": null,
-            "green_utilization": null,
-            "stop_count": null,
+            "avg_delay_s": 8.89,
+            "saturation": 0.8,
+            "saturation_rate": 0.8,
+            "avg_queue_m": 5.4,
+            "max_queue_m": 5.4,
+            "queue_storage_ratio_max": 0.0397,
+            "spillback_risk_max": 0.0397,
+            "level_of_service": "C",
+            "green_utilization": 0.0,
+            "stop_count": 0.31,
             "time_series_trend": null
           },
           "by_turn": [
             {
               "label": "直行",
-              "turn_saturation": null,
-              "green_utilization": null,
-              "flow_vph": null,
-              "queue_ratio": null
+              "turn_saturation": 0.8,
+              "green_utilization": 0.0,
+              "flow_vph": 661.92,
+              "queue_ratio": 0.0397
             }
           ],
-          "remaining_storage_m": null,
-          "capacity": {}
+          "remaining_storage_m": 130.76,
+          "capacity": {
+            "can_release": true,
+            "blocked": false,
+            "reasons": [],
+            "release_guard": "downstream_has_slack"
+          }
         },
         "judgment_criteria": {
           "target_queue_high": true,
@@ -1319,336 +1398,6 @@
             ]
           }
         },
-        "downstream_trace_map": {
-          "action": "map_scene",
-          "phase": "downstream_trace_map",
-          "available": true,
-          "center": [
-            117.11126,
-            36.665179
-          ],
-          "trace_direction": "downstream",
-          "turn_traces": [
-            {
-              "movement": "北进口直行",
-              "downstream_inter_id": "011wwe28fmc00001",
-              "name": "奥体西路与解放东路路口",
-              "share_pct": 87.7,
-              "path": [
-                [
-                  117.111168,
-                  36.665132
-                ],
-                [
-                  117.111264,
-                  36.66319
-                ]
-              ],
-              "lon": 117.111368,
-              "lat": 36.663092,
-              "capacity": {
-                "blocked": false,
-                "can_release": true
-              },
-              "trace_kind": "downstream"
-            }
-          ],
-          "adjacent_intersections": [
-            {
-              "inter_id": "011wwe28fmc00001",
-              "inter_name": "奥体西路与解放东路路口",
-              "lng": 117.111368,
-              "lat": 36.663092,
-              "metrics": {
-                "avg_delay_s": null,
-                "saturation": null,
-                "saturation_rate": null,
-                "avg_queue_m": null,
-                "max_queue_m": null,
-                "queue_storage_ratio_max": null,
-                "spillback_risk_max": null,
-                "level_of_service": null,
-                "green_utilization": null,
-                "stop_count": null,
-                "time_series_trend": null
-              },
-              "by_turn": [
-                {
-                  "label": "直行",
-                  "turn_saturation": null,
-                  "green_utilization": null,
-                  "flow_vph": null,
-                  "queue_ratio": null
-                }
-              ],
-              "remaining_storage_m": null,
-              "capacity": null
-            },
-            {
-              "inter_id": "011wwe28gm900001",
-              "inter_name": "安成街与奥体西路路口",
-              "lng": 117.111028,
-              "lat": 36.668467,
-              "metrics": {
-                "avg_delay_s": 20.02,
-                "saturation": 0.0,
-                "saturation_rate": 0.0,
-                "avg_queue_m": 113.0,
-                "max_queue_m": 113.0,
-                "queue_storage_ratio_max": 0.3169,
-                "spillback_risk_max": 0.3169,
-                "level_of_service": "A",
-                "green_utilization": 0.3381,
-                "stop_count": 0.49,
-                "time_series_trend": null
-              },
-              "by_turn": [
-                {
-                  "label": "直行",
-                  "turn_saturation": 0.0,
-                  "green_utilization": 0.3381,
-                  "flow_vph": 0.0,
-                  "queue_ratio": 0.3169
-                }
-              ],
-              "remaining_storage_m": 243.63,
-              "capacity": null
-            },
-            {
-              "inter_id": "011wwe2948q00001",
-              "inter_name": "坤顺路与礼耕路路口",
-              "lng": 117.114783,
-              "lat": 36.665241,
-              "metrics": {
-                "avg_delay_s": 8.89,
-                "saturation": 0.8,
-                "saturation_rate": 0.8,
-                "avg_queue_m": 117.0,
-                "max_queue_m": 117.0,
-                "queue_storage_ratio_max": 0.8593,
-                "spillback_risk_max": 0.8593,
-                "level_of_service": "C",
-                "green_utilization": 0.0,
-                "stop_count": 0.31,
-                "time_series_trend": null
-              },
-              "by_turn": [
-                {
-                  "label": "直行",
-                  "turn_saturation": 0.8,
-                  "green_utilization": 0.0,
-                  "flow_vph": 661.92,
-                  "queue_ratio": 0.8593
-                }
-              ],
-              "remaining_storage_m": 19.159999999999997,
-              "capacity": null
-            },
-            {
-              "inter_id": "011wwe28fsv00001",
-              "inter_name": "坤顺路与无名道路路口",
-              "lng": 117.109866,
-              "lat": 36.665144,
-              "metrics": {
-                "avg_delay_s": 5.34,
-                "saturation": 0.2628,
-                "saturation_rate": 0.2628,
-                "avg_queue_m": 83.0,
-                "max_queue_m": 83.0,
-                "queue_storage_ratio_max": 0.7449,
-                "spillback_risk_max": 0.7449,
-                "level_of_service": "A",
-                "green_utilization": 0.3651,
-                "stop_count": 0.21,
-                "time_series_trend": null
-              },
-              "by_turn": [
-                {
-                  "label": "直行",
-                  "turn_saturation": 0.2628,
-                  "green_utilization": 0.3651,
-                  "flow_vph": 268.8,
-                  "queue_ratio": 0.7449
-                }
-              ],
-              "remaining_storage_m": 28.430000000000007,
-              "capacity": null
-            }
-          ],
-          "hud": {
-            "title": "下游一跳去向",
-            "metrics": [
-              {
-                "label": "治理落点",
-                "value": "local_reallocation",
-                "severity": "low"
-              },
-              {
-                "label": "建议",
-                "value": "下游可承接，可评估局部增绿清空"
-              }
-            ]
-          }
-        },
-        "arterial_analysis": {
-          "action": "map_scene",
-          "phase": "arterial_analysis",
-          "available": true,
-          "center": [
-            117.11126,
-            36.665179
-          ],
-          "trace_direction": "upstream",
-          "entry_traces": [
-            {
-              "entry": "北进口",
-              "dir8_code": 0,
-              "upstream_inter_id": "011wwe28gm900001",
-              "name": "安成街与奥体西路路口",
-              "narrative": "北进口约100辆过境车中，约286辆来自上一路口安成街与奥体西路路口，以直行为主",
-              "lon": 117.111028,
-              "lat": 36.668467,
-              "dominant_turn": "直行",
-              "vehicles_of_100": 286,
-              "movements": [
-                {
-                  "turn": "直行",
-                  "vehicles_of_100": 286,
-                  "feed_direction": "北向南直行"
-                }
-              ],
-              "path": [
-                [
-                  117.110932,
-                  36.668436
-                ],
-                [
-                  117.111018,
-                  36.667685
-                ],
-                [
-                  117.111018,
-                  36.667621
-                ],
-                [
-                  117.111034,
-                  36.667396
-                ],
-                [
-                  117.111034,
-                  36.667369
-                ],
-                [
-                  117.111055,
-                  36.667079
-                ],
-                [
-                  117.111098,
-                  36.666317
-                ],
-                [
-                  117.111098,
-                  36.666285
-                ],
-                [
-                  117.111157,
-                  36.665223
-                ]
-              ],
-              "dominant": true
-            }
-          ],
-          "hud": {
-            "title": "干线协调分析",
-            "metrics": [
-              {
-                "label": "上游到达流量",
-                "value": "2376.96"
-              },
-              {
-                "label": "上游放行强度",
-                "value": "2258.112"
-              },
-              {
-                "label": "目标剩余空间(m)",
-                "value": "32.68000000000001"
-              },
-              {
-                "label": "下游剩余空间(m)",
-                "value": "19.159999999999997"
-              },
-              {
-                "label": "相位差匹配",
-                "value": "上游相位差 -2s"
-              },
-              {
-                "label": "上游控流",
-                "value": "暂不需要",
-                "severity": "low"
-              }
-            ]
-          },
-          "speakable": "上下游压力可控，可评估局部优化",
-          "coordination": {
-            "available": true,
-            "direction": "bidirectional",
-            "cycle_s": 60.0,
-            "target": {
-              "inter_id": "011wwe28fty00001",
-              "inter_name": "坤顺路与奥体西路路口",
-              "lng": 117.11126,
-              "lat": 36.665179
-            },
-            "nodes": [
-              {
-                "inter_id": "011wwe28gm900001",
-                "inter_name": "安成街与奥体西路路口",
-                "lng": 117.111028,
-                "lat": 36.668467,
-                "role": "upstream",
-                "spacing_m": 356.63,
-                "spacing_source": "dim_link_info.length_m",
-                "offset_abs_s": 125.0,
-                "offset_source": "plan_cfg.offset_sec",
-                "phase_diff_s": -2.0,
-                "travel_speed_kmh": null,
-                "travel_time_s": null,
-                "travel_source": null
-              },
-              {
-                "inter_id": "011wwe28fty00001",
-                "inter_name": "坤顺路与奥体西路路口",
-                "lng": 117.11126,
-                "lat": 36.665179,
-                "role": "target",
-                "spacing_m": 0.0,
-                "spacing_source": "self",
-                "offset_abs_s": 7.0,
-                "offset_source": "plan_cfg.offset_sec",
-                "phase_diff_s": 0.0,
-                "travel_speed_kmh": null,
-                "travel_time_s": null,
-                "travel_source": null
-              },
-              {
-                "inter_id": "011wwe28fmc00001",
-                "inter_name": "奥体西路与解放东路路口",
-                "lng": 117.111368,
-                "lat": 36.663092,
-                "role": "downstream",
-                "spacing_m": 215.68,
-                "spacing_source": "dim_link_info.length_m",
-                "offset_abs_s": 118.0,
-                "offset_source": "plan_cfg.offset_sec",
-                "phase_diff_s": -9.0,
-                "travel_speed_kmh": null,
-                "travel_time_s": null,
-                "travel_source": null
-              }
-            ],
-            "source": "link_geom+pg_signal"
-          }
-        },
         "flow_trace_links_sniff_map": {
           "action": "map_scene",
           "phase": "flow_trace_links_sniff_map",
@@ -1660,13 +1409,13 @@
           "trace_direction": "upstream",
           "business_direction": "incoming",
           "target_inter_id": "011wwe28fty00001",
-          "title": "坤顺路与奥体西路路口 · 北向南直行 · 来向溯源",
+          "title": "坤顺路与奥体西路路口 · 北向南左转 · 来向溯源",
           "logic": "real link geometry + flow_correlate share; upstream locked to single topo one-hop (exclude secondary correlated upstreams)",
           "stats": {
             "raw_rows": 3105,
-            "distinct_peers": 13,
-            "rendered": 10,
-            "main_corridor": 9,
+            "distinct_peers": 5,
+            "rendered": 2,
+            "main_corridor": 1,
             "missing_center": 0,
             "hidden_non_main": 4,
             "period_type": null,
@@ -1678,55 +1427,7 @@
               "hop": 1,
               "inter_id": "011wwe28gm900001",
               "name": "安成街与奥体西路路口",
-              "coverage": 91.12
-            },
-            {
-              "hop": 2,
-              "inter_id": "011wwe28gvj00001",
-              "name": "奥体西路与新泺大街路口",
-              "coverage": 74.64
-            },
-            {
-              "hop": 3,
-              "inter_id": "011wwe28uub00001",
-              "name": "奥体西路与奥体西路路口",
-              "coverage": 64.25
-            },
-            {
-              "hop": 4,
-              "inter_id": "011wwe28usb00001",
-              "name": "天辰路与奥体西路路口",
-              "coverage": 64.25
-            },
-            {
-              "hop": 5,
-              "inter_id": "011wwe28vu000001",
-              "name": "奥体西路与规划路路口",
-              "coverage": 31.63
-            },
-            {
-              "hop": 6,
-              "inter_id": "011wwe28vhw00001",
-              "name": "奥体西路与工业南路路口",
-              "coverage": 28.97
-            },
-            {
-              "hop": 7,
-              "inter_id": "011wwe28y7r00001",
-              "name": "兴贤北街与奥体西路路口",
-              "coverage": 28.75
-            },
-            {
-              "hop": 8,
-              "inter_id": "011wwe28ygh00001",
-              "name": "奥体西路与康虹路路口",
-              "coverage": 23.65
-            },
-            {
-              "hop": 9,
-              "inter_id": "011wwe28zdk00001",
-              "name": "奥体西路与花园东路路口",
-              "coverage": 11.09
+              "coverage": 286.39
             }
           ],
           "intersections": [
@@ -2012,7 +1713,7 @@
                 36.668467
               ],
               "role": "upstream",
-              "path_coverage": 91.12,
+              "path_coverage": 286.39,
               "cor_f_dir8_no": 0,
               "cor_turn_dir_no": 2,
               "in_main_corridor": true,
@@ -2321,2026 +2022,6 @@
                   "length_m": null
                 }
               ]
-            },
-            {
-              "inter_id": "011wwe28gvj00001",
-              "name": "奥体西路与新泺大街路口",
-              "center": [
-                117.110164,
-                36.671879
-              ],
-              "role": "upstream",
-              "path_coverage": 74.64,
-              "cor_f_dir8_no": 0,
-              "cor_turn_dir_no": 2,
-              "in_main_corridor": true,
-              "corridor_hop": 2,
-              "exit_dir8": null,
-              "is_topo_anchor": false,
-              "links": [
-                {
-                  "link_id": "12wwe28uswwe28gu01",
-                  "link_role": "entrance",
-                  "dir4_label": "北进口",
-                  "dir8_code": "0",
-                  "dir8_label": "北进口",
-                  "lane_num": 3,
-                  "road_name": "奥体西路:工业南路-新泺大街(北向南)",
-                  "path": [
-                    [
-                      117.109854,
-                      36.675233
-                    ],
-                    [
-                      117.109891,
-                      36.674788
-                    ],
-                    [
-                      117.109939,
-                      36.674058
-                    ],
-                    [
-                      117.109945,
-                      36.674005
-                    ],
-                    [
-                      117.110009,
-                      36.672926
-                    ],
-                    [
-                      117.110014,
-                      36.672868
-                    ],
-                    [
-                      117.110052,
-                      36.672454
-                    ],
-                    [
-                      117.110063,
-                      36.672363
-                    ],
-                    [
-                      117.110122,
-                      36.671939
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28gvwwe28us01",
-                  "link_role": "exit",
-                  "dir4_label": "北出口",
-                  "dir8_code": "0",
-                  "dir8_label": "北出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:新泺大街-天辰路(南向北)",
-                  "path": [
-                    [
-                      117.110315,
-                      36.671977
-                    ],
-                    [
-                      117.110261,
-                      36.672363
-                    ],
-                    [
-                      117.110234,
-                      36.672583
-                    ],
-                    [
-                      117.110133,
-                      36.674069
-                    ],
-                    [
-                      117.110057,
-                      36.675249
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28gywwe28gv01",
-                  "link_role": "entrance",
-                  "dir4_label": "东进口",
-                  "dir8_code": "2",
-                  "dir8_label": "东进口",
-                  "lane_num": 4,
-                  "road_name": "新泺大街:大辛河西路-奥体西路(东向西)",
-                  "path": [
-                    [
-                      117.112777,
-                      36.671923
-                    ],
-                    [
-                      117.111779,
-                      36.672014
-                    ],
-                    [
-                      117.111393,
-                      36.67202
-                    ],
-                    [
-                      117.111018,
-                      36.67202
-                    ],
-                    [
-                      117.110315,
-                      36.671977
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28gvwwe28gy01",
-                  "link_role": "exit",
-                  "dir4_label": "东出口",
-                  "dir8_code": "2",
-                  "dir8_label": "东出口",
-                  "lane_num": 4,
-                  "road_name": "新泺大街:无名道路-大辛河西路(西向东)",
-                  "path": [
-                    [
-                      117.110336,
-                      36.671832
-                    ],
-                    [
-                      117.111163,
-                      36.671891
-                    ],
-                    [
-                      117.111586,
-                      36.671896
-                    ],
-                    [
-                      117.111833,
-                      36.671886
-                    ],
-                    [
-                      117.112332,
-                      36.671843
-                    ],
-                    [
-                      117.112825,
-                      36.671768
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28gmwwe28gv01",
-                  "link_role": "entrance",
-                  "dir4_label": "南进口",
-                  "dir8_code": "4",
-                  "dir8_label": "南进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:礼耕路-新泺大街(南向北)",
-                  "path": [
-                    [
-                      117.111125,
-                      36.668501
-                    ],
-                    [
-                      117.110932,
-                      36.669391
-                    ],
-                    [
-                      117.110857,
-                      36.669692
-                    ],
-                    [
-                      117.110621,
-                      36.670614
-                    ],
-                    [
-                      117.110535,
-                      36.670872
-                    ],
-                    [
-                      117.110433,
-                      36.671279
-                    ],
-                    [
-                      117.110384,
-                      36.671489
-                    ],
-                    [
-                      117.110336,
-                      36.671832
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28gvwwe28gm01",
-                  "link_role": "exit",
-                  "dir4_label": "南出口",
-                  "dir8_code": "4",
-                  "dir8_label": "南出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:无名道路-安成街(北向南)",
-                  "path": [
-                    [
-                      117.110143,
-                      36.671805
-                    ],
-                    [
-                      117.110326,
-                      36.670942
-                    ],
-                    [
-                      117.110556,
-                      36.67011
-                    ],
-                    [
-                      117.11068,
-                      36.669681
-                    ],
-                    [
-                      117.110792,
-                      36.669204
-                    ],
-                    [
-                      117.110894,
-                      36.668683
-                    ],
-                    [
-                      117.110926,
-                      36.66849
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28ggwwe28gu01",
-                  "link_role": "entrance",
-                  "dir4_label": "西进口",
-                  "dir8_code": "6",
-                  "dir8_label": "西进口",
-                  "lane_num": 4,
-                  "road_name": "新泺大街:山左路-奥体西路(西向东)",
-                  "path": [
-                    [
-                      117.107858,
-                      36.671371
-                    ],
-                    [
-                      117.109242,
-                      36.671634
-                    ],
-                    [
-                      117.110052,
-                      36.671789
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28guwwe28gg01",
-                  "link_role": "exit",
-                  "dir4_label": "西出口",
-                  "dir8_code": "6",
-                  "dir8_label": "西出口",
-                  "lane_num": 3,
-                  "road_name": "新泺大街:奥体西路-星天路(东向西)",
-                  "path": [
-                    [
-                      117.11002,
-                      36.671923
-                    ],
-                    [
-                      117.109403,
-                      36.6718
-                    ],
-                    [
-                      117.10782,
-                      36.671489
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                }
-              ]
-            },
-            {
-              "inter_id": "011wwe28uub00001",
-              "name": "奥体西路与奥体西路路口",
-              "center": [
-                117.109977,
-                36.676583
-              ],
-              "role": "upstream",
-              "path_coverage": 64.25,
-              "cor_f_dir8_no": 0,
-              "cor_turn_dir_no": 2,
-              "in_main_corridor": true,
-              "corridor_hop": 3,
-              "exit_dir8": null,
-              "is_topo_anchor": false,
-              "links": [
-                {
-                  "link_id": "12wwe28uuwwe28vh01",
-                  "link_role": "exit",
-                  "dir4_label": "北出口",
-                  "dir8_code": "0",
-                  "dir8_label": "北出口",
-                  "lane_num": 5,
-                  "road_name": "奥体西路:天辰路-工业南路(南向北)",
-                  "path": [
-                    [
-                      117.109977,
-                      36.676585
-                    ],
-                    [
-                      117.109923,
-                      36.677395
-                    ],
-                    [
-                      117.10988,
-                      36.677835
-                    ],
-                    [
-                      117.109859,
-                      36.678162
-                    ],
-                    [
-                      117.109821,
-                      36.678656
-                    ],
-                    [
-                      117.109816,
-                      36.678752
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28uswwe28uu01",
-                  "link_role": "entrance",
-                  "dir4_label": "南进口",
-                  "dir8_code": "4",
-                  "dir8_label": "南进口",
-                  "lane_num": 3,
-                  "road_name": "奥体西路:天辰路-工业南路(南向北)",
-                  "path": [
-                    [
-                      117.110057,
-                      36.675351
-                    ],
-                    [
-                      117.110009,
-                      36.676006
-                    ],
-                    [
-                      117.109977,
-                      36.676585
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                }
-              ]
-            },
-            {
-              "inter_id": "011wwe28usb00001",
-              "name": "天辰路与奥体西路路口",
-              "center": [
-                117.109964,
-                36.675277
-              ],
-              "role": "upstream",
-              "path_coverage": 64.25,
-              "cor_f_dir8_no": 0,
-              "cor_turn_dir_no": 2,
-              "in_main_corridor": true,
-              "corridor_hop": 4,
-              "exit_dir8": null,
-              "is_topo_anchor": false,
-              "links": [
-                {
-                  "link_id": "12wwe28uswwe28gu01",
-                  "link_role": "exit",
-                  "dir4_label": "南出口",
-                  "dir8_code": "4",
-                  "dir8_label": "南出口",
-                  "lane_num": 3,
-                  "road_name": "奥体西路:工业南路-新泺大街(北向南)",
-                  "path": [
-                    [
-                      117.109854,
-                      36.675233
-                    ],
-                    [
-                      117.109891,
-                      36.674788
-                    ],
-                    [
-                      117.109939,
-                      36.674058
-                    ],
-                    [
-                      117.109945,
-                      36.674005
-                    ],
-                    [
-                      117.110009,
-                      36.672926
-                    ],
-                    [
-                      117.110014,
-                      36.672868
-                    ],
-                    [
-                      117.110052,
-                      36.672454
-                    ],
-                    [
-                      117.110063,
-                      36.672363
-                    ],
-                    [
-                      117.110122,
-                      36.671939
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28uswwe28us01",
-                  "link_role": "entrance",
-                  "dir4_label": "北进口",
-                  "dir8_code": "0",
-                  "dir8_label": "北进口",
-                  "lane_num": 3,
-                  "road_name": "奥体西路:工业南路-新泺大街(北向南)",
-                  "path": [
-                    [
-                      117.109794,
-                      36.676403
-                    ],
-                    [
-                      117.109816,
-                      36.676016
-                    ],
-                    [
-                      117.109816,
-                      36.675925
-                    ],
-                    [
-                      117.109854,
-                      36.675281
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28uswwe28uu01",
-                  "link_role": "exit",
-                  "dir4_label": "北出口",
-                  "dir8_code": "0",
-                  "dir8_label": "北出口",
-                  "lane_num": 3,
-                  "road_name": "奥体西路:天辰路-工业南路(南向北)",
-                  "path": [
-                    [
-                      117.110057,
-                      36.675351
-                    ],
-                    [
-                      117.110009,
-                      36.676006
-                    ],
-                    [
-                      117.109977,
-                      36.676585
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28uwwwe28ut01",
-                  "link_role": "entrance",
-                  "dir4_label": "东进口",
-                  "dir8_code": "2",
-                  "dir8_label": "东进口",
-                  "lane_num": 2,
-                  "road_name": "天辰路:大辛河西路-奥体西路(东向西)",
-                  "path": [
-                    [
-                      117.112681,
-                      36.675732
-                    ],
-                    [
-                      117.111307,
-                      36.675517
-                    ],
-                    [
-                      117.110149,
-                      36.675362
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28utwwe28uw01",
-                  "link_role": "exit",
-                  "dir4_label": "东出口",
-                  "dir8_code": "2",
-                  "dir8_label": "东出口",
-                  "lane_num": 2,
-                  "road_name": "天辰路:无名道路-大辛河西路(西向东)",
-                  "path": [
-                    [
-                      117.110165,
-                      36.675265
-                    ],
-                    [
-                      117.111312,
-                      36.675437
-                    ],
-                    [
-                      117.11267,
-                      36.675625
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28gvwwe28us01",
-                  "link_role": "entrance",
-                  "dir4_label": "南进口",
-                  "dir8_code": "4",
-                  "dir8_label": "南进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:新泺大街-天辰路(南向北)",
-                  "path": [
-                    [
-                      117.110315,
-                      36.671977
-                    ],
-                    [
-                      117.110261,
-                      36.672363
-                    ],
-                    [
-                      117.110234,
-                      36.672583
-                    ],
-                    [
-                      117.110133,
-                      36.674069
-                    ],
-                    [
-                      117.110057,
-                      36.675249
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28u7wwe28us01",
-                  "link_role": "entrance",
-                  "dir4_label": "西进口",
-                  "dir8_code": "6",
-                  "dir8_label": "西进口",
-                  "lane_num": 2,
-                  "road_name": "天辰路:无名道路-大辛河西路(西向东)",
-                  "path": [
-                    [
-                      117.108357,
-                      36.674927
-                    ],
-                    [
-                      117.109789,
-                      36.675217
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28uswwe28u701",
-                  "link_role": "exit",
-                  "dir4_label": "西出口",
-                  "dir8_code": "6",
-                  "dir8_label": "西出口",
-                  "lane_num": 2,
-                  "road_name": "天辰路:奥体西路-星天路(东向西)",
-                  "path": [
-                    [
-                      117.109784,
-                      36.67526
-                    ],
-                    [
-                      117.108341,
-                      36.674981
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                }
-              ]
-            },
-            {
-              "inter_id": "011wwe28vu000001",
-              "name": "奥体西路与规划路路口",
-              "center": [
-                117.108955,
-                36.6821
-              ],
-              "role": "upstream",
-              "path_coverage": 31.63,
-              "cor_f_dir8_no": 0,
-              "cor_turn_dir_no": 2,
-              "in_main_corridor": true,
-              "corridor_hop": 5,
-              "exit_dir8": null,
-              "is_topo_anchor": false,
-              "links": [
-                {
-                  "link_id": "12wwe28y7wwe28vu01",
-                  "link_role": "entrance",
-                  "dir4_label": "北进口",
-                  "dir8_code": "0",
-                  "dir8_label": "北进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:康虹路-无名道路, 奥体西路:无名道路-规划路(北向南)",
-                  "path": [
-                    [
-                      117.107954,
-                      36.685919
-                    ],
-                    [
-                      117.108148,
-                      36.685061
-                    ],
-                    [
-                      117.108325,
-                      36.684347
-                    ],
-                    [
-                      117.108566,
-                      36.683349
-                    ],
-                    [
-                      117.108604,
-                      36.683199
-                    ],
-                    [
-                      117.10885,
-                      36.682126
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vuwwe28y701",
-                  "link_role": "exit",
-                  "dir4_label": "北出口",
-                  "dir8_code": "0",
-                  "dir8_label": "北出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:华龙路-康虹路(南向北)",
-                  "path": [
-                    [
-                      117.109038,
-                      36.682132
-                    ],
-                    [
-                      117.10885,
-                      36.682958
-                    ],
-                    [
-                      117.108759,
-                      36.683349
-                    ],
-                    [
-                      117.10833,
-                      36.68512
-                    ],
-                    [
-                      117.108137,
-                      36.685951
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vywwe28vu01",
-                  "link_role": "entrance",
-                  "dir4_label": "东进口",
-                  "dir8_code": "2",
-                  "dir8_label": "东进口",
-                  "lane_num": 1,
-                  "road_name": "华龙路:正丰路-奥体西路(东向西)",
-                  "path": [
-                    [
-                      117.111871,
-                      36.682266
-                    ],
-                    [
-                      117.110159,
-                      36.682196
-                    ],
-                    [
-                      117.109113,
-                      36.682132
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vuwwe28vy01",
-                  "link_role": "exit",
-                  "dir4_label": "东出口",
-                  "dir8_code": "2",
-                  "dir8_label": "东出口",
-                  "lane_num": 1,
-                  "road_name": "华龙路:奥体西路-正丰路(西向东)",
-                  "path": [
-                    [
-                      117.109119,
-                      36.682094
-                    ],
-                    [
-                      117.109671,
-                      36.682148
-                    ],
-                    [
-                      117.110165,
-                      36.682164
-                    ],
-                    [
-                      117.111881,
-                      36.682239
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vhwwe28vu01",
-                  "link_role": "entrance",
-                  "dir4_label": "南进口",
-                  "dir8_code": "4",
-                  "dir8_label": "南进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:工业南路-会展路(南向北)",
-                  "path": [
-                    [
-                      117.109768,
-                      36.679096
-                    ],
-                    [
-                      117.109451,
-                      36.680496
-                    ],
-                    [
-                      117.109274,
-                      36.681247
-                    ],
-                    [
-                      117.109135,
-                      36.681767
-                    ],
-                    [
-                      117.109049,
-                      36.682089
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vuwwe28vh01",
-                  "link_role": "exit",
-                  "dir4_label": "南出口",
-                  "dir8_code": "4",
-                  "dir8_label": "南出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:华龙路-工业南路(北向南)",
-                  "path": [
-                    [
-                      117.108872,
-                      36.682057
-                    ],
-                    [
-                      117.109344,
-                      36.680109
-                    ],
-                    [
-                      117.109585,
-                      36.679063
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vcwwe28vu01",
-                  "link_role": "entrance",
-                  "dir4_label": "西进口",
-                  "dir8_code": "6",
-                  "dir8_label": "西进口",
-                  "lane_num": 2,
-                  "road_name": "华龙路:辛河路-奥体西路(西向东)",
-                  "path": [
-                    [
-                      117.105728,
-                      36.682454
-                    ],
-                    [
-                      117.105927,
-                      36.682481
-                    ],
-                    [
-                      117.106098,
-                      36.682481
-                    ],
-                    [
-                      117.106307,
-                      36.682459
-                    ],
-                    [
-                      117.106511,
-                      36.682416
-                    ],
-                    [
-                      117.106704,
-                      36.682357
-                    ],
-                    [
-                      117.107155,
-                      36.68218
-                    ],
-                    [
-                      117.107364,
-                      36.682099
-                    ],
-                    [
-                      117.107788,
-                      36.682014
-                    ],
-                    [
-                      117.108571,
-                      36.682024
-                    ],
-                    [
-                      117.108807,
-                      36.682051
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vuwwe28vf01",
-                  "link_role": "exit",
-                  "dir4_label": "西出口",
-                  "dir8_code": "6",
-                  "dir8_label": "西出口",
-                  "lane_num": 2,
-                  "road_name": "华龙路:奥体西路-辛河路(东向西)",
-                  "path": [
-                    [
-                      117.108791,
-                      36.682121
-                    ],
-                    [
-                      117.107981,
-                      36.682094
-                    ],
-                    [
-                      117.107761,
-                      36.682116
-                    ],
-                    [
-                      117.107611,
-                      36.682132
-                    ],
-                    [
-                      117.107166,
-                      36.682244
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                }
-              ]
-            },
-            {
-              "inter_id": "011wwe28vhw00001",
-              "name": "奥体西路与工业南路路口",
-              "center": [
-                117.109701,
-                36.678912
-              ],
-              "role": "upstream",
-              "path_coverage": 28.97,
-              "cor_f_dir8_no": 0,
-              "cor_turn_dir_no": 2,
-              "in_main_corridor": true,
-              "corridor_hop": 6,
-              "exit_dir8": null,
-              "is_topo_anchor": false,
-              "links": [
-                {
-                  "link_id": "12wwe28vuwwe28vh01",
-                  "link_role": "entrance",
-                  "dir4_label": "北进口",
-                  "dir8_code": "0",
-                  "dir8_label": "北进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:华龙路-工业南路(北向南)",
-                  "path": [
-                    [
-                      117.108872,
-                      36.682057
-                    ],
-                    [
-                      117.109344,
-                      36.680109
-                    ],
-                    [
-                      117.109585,
-                      36.679063
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vhwwe28vu01",
-                  "link_role": "exit",
-                  "dir4_label": "北出口",
-                  "dir8_code": "0",
-                  "dir8_label": "北出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:工业南路-会展路(南向北)",
-                  "path": [
-                    [
-                      117.109768,
-                      36.679096
-                    ],
-                    [
-                      117.109451,
-                      36.680496
-                    ],
-                    [
-                      117.109274,
-                      36.681247
-                    ],
-                    [
-                      117.109135,
-                      36.681767
-                    ],
-                    [
-                      117.109049,
-                      36.682089
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vqwwe28vh01",
-                  "link_role": "entrance",
-                  "dir4_label": "东进口",
-                  "dir8_code": "2",
-                  "dir8_label": "东进口",
-                  "lane_num": 5,
-                  "road_name": "工业南路:无名道路-奥体西路(东向西)",
-                  "path": [
-                    [
-                      117.112686,
-                      36.679567
-                    ],
-                    [
-                      117.111393,
-                      36.679321
-                    ],
-                    [
-                      117.110878,
-                      36.679224
-                    ],
-                    [
-                      117.109784,
-                      36.67901
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vhwwe28vj01",
-                  "link_role": "exit",
-                  "dir4_label": "东出口",
-                  "dir8_code": "2",
-                  "dir8_label": "东出口",
-                  "lane_num": 4,
-                  "road_name": "工业南路:奥体西路-奥体中路(西向东)",
-                  "path": [
-                    [
-                      117.109805,
-                      36.67887
-                    ],
-                    [
-                      117.110932,
-                      36.679079
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28uuwwe28vh01",
-                  "link_role": "entrance",
-                  "dir4_label": "南进口",
-                  "dir8_code": "4",
-                  "dir8_label": "南进口",
-                  "lane_num": 5,
-                  "road_name": "奥体西路:天辰路-工业南路(南向北)",
-                  "path": [
-                    [
-                      117.109977,
-                      36.676585
-                    ],
-                    [
-                      117.109923,
-                      36.677395
-                    ],
-                    [
-                      117.10988,
-                      36.677835
-                    ],
-                    [
-                      117.109859,
-                      36.678162
-                    ],
-                    [
-                      117.109821,
-                      36.678656
-                    ],
-                    [
-                      117.109816,
-                      36.678752
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vhwwe28us01",
-                  "link_role": "exit",
-                  "dir4_label": "南出口",
-                  "dir8_code": "4",
-                  "dir8_label": "南出口",
-                  "lane_num": 3,
-                  "road_name": "奥体西路:工业南路-新泺大街(北向南)",
-                  "path": [
-                    [
-                      117.109628,
-                      36.678709
-                    ],
-                    [
-                      117.109682,
-                      36.678151
-                    ],
-                    [
-                      117.109714,
-                      36.677636
-                    ],
-                    [
-                      117.109719,
-                      36.677609
-                    ],
-                    [
-                      117.109784,
-                      36.676574
-                    ],
-                    [
-                      117.109789,
-                      36.676462
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28szwwe28vh01",
-                  "link_role": "entrance",
-                  "dir4_label": "西进口",
-                  "dir8_code": "6",
-                  "dir8_label": "西进口",
-                  "lane_num": 6,
-                  "road_name": "工业南路:山左路-奥体西路(西向东)",
-                  "path": [
-                    [
-                      117.103078,
-                      36.677572
-                    ],
-                    [
-                      117.103293,
-                      36.677615
-                    ],
-                    [
-                      117.103561,
-                      36.677669
-                    ],
-                    [
-                      117.104017,
-                      36.677754
-                    ],
-                    [
-                      117.10436,
-                      36.677819
-                    ],
-                    [
-                      117.105213,
-                      36.677985
-                    ],
-                    [
-                      117.105519,
-                      36.678044
-                    ],
-                    [
-                      117.105964,
-                      36.67813
-                    ],
-                    [
-                      117.107284,
-                      36.678382
-                    ],
-                    [
-                      117.107638,
-                      36.678446
-                    ],
-                    [
-                      117.108131,
-                      36.678537
-                    ],
-                    [
-                      117.108722,
-                      36.678645
-                    ],
-                    [
-                      117.109623,
-                      36.678827
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vhwwe28sz01",
-                  "link_role": "exit",
-                  "dir4_label": "西出口",
-                  "dir8_code": "6",
-                  "dir8_label": "西出口",
-                  "lane_num": 4,
-                  "road_name": "工业南路:奥体西路-山左路(东向西)",
-                  "path": [
-                    [
-                      117.109601,
-                      36.678972
-                    ],
-                    [
-                      117.108673,
-                      36.67879
-                    ],
-                    [
-                      117.108105,
-                      36.678683
-                    ],
-                    [
-                      117.106898,
-                      36.678452
-                    ],
-                    [
-                      117.106114,
-                      36.678302
-                    ],
-                    [
-                      117.10546,
-                      36.678168
-                    ],
-                    [
-                      117.104366,
-                      36.677958
-                    ],
-                    [
-                      117.10303,
-                      36.677706
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                }
-              ]
-            },
-            {
-              "inter_id": "011wwe28y7r00001",
-              "name": "兴贤北街与奥体西路路口",
-              "center": [
-                117.108053,
-                36.685933
-              ],
-              "role": "upstream",
-              "path_coverage": 28.75,
-              "cor_f_dir8_no": 0,
-              "cor_turn_dir_no": 2,
-              "in_main_corridor": true,
-              "corridor_hop": 7,
-              "exit_dir8": null,
-              "is_topo_anchor": false,
-              "links": [
-                {
-                  "link_id": "12wwe28yfwwe28y701",
-                  "link_role": "entrance",
-                  "dir4_label": "北进口",
-                  "dir8_code": "0",
-                  "dir8_label": "北进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:康虹路-无名道路(北向南)",
-                  "path": [
-                    [
-                      117.10737,
-                      36.688269
-                    ],
-                    [
-                      117.107488,
-                      36.687802
-                    ],
-                    [
-                      117.107579,
-                      36.687437
-                    ],
-                    [
-                      117.107954,
-                      36.685919
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28y7wwe28yg01",
-                  "link_role": "exit",
-                  "dir4_label": "北出口",
-                  "dir8_code": "0",
-                  "dir8_label": "北出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:华龙路-康虹路(南向北)",
-                  "path": [
-                    [
-                      117.108137,
-                      36.685951
-                    ],
-                    [
-                      117.108035,
-                      36.686348
-                    ],
-                    [
-                      117.10782,
-                      36.687303
-                    ],
-                    [
-                      117.107563,
-                      36.688306
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28ytwwe28y701",
-                  "link_role": "entrance",
-                  "dir4_label": "东进口",
-                  "dir8_code": "2",
-                  "dir8_label": "东进口",
-                  "lane_num": 2,
-                  "road_name": "兴贤北街:正丰路-奥体西路(东向西)",
-                  "path": [
-                    [
-                      117.110615,
-                      36.686161
-                    ],
-                    [
-                      117.108249,
-                      36.685957
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28y7wwe28yt01",
-                  "link_role": "exit",
-                  "dir4_label": "东出口",
-                  "dir8_code": "2",
-                  "dir8_label": "东出口",
-                  "lane_num": 2,
-                  "road_name": "兴贤北街:奥体西路-正丰路(西向东)",
-                  "path": [
-                    [
-                      117.108249,
-                      36.685957
-                    ],
-                    [
-                      117.110615,
-                      36.686161
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28vuwwe28y701",
-                  "link_role": "entrance",
-                  "dir4_label": "南进口",
-                  "dir8_code": "4",
-                  "dir8_label": "南进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:华龙路-康虹路(南向北)",
-                  "path": [
-                    [
-                      117.109038,
-                      36.682132
-                    ],
-                    [
-                      117.10885,
-                      36.682958
-                    ],
-                    [
-                      117.108759,
-                      36.683349
-                    ],
-                    [
-                      117.10833,
-                      36.68512
-                    ],
-                    [
-                      117.108137,
-                      36.685951
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28y7wwe28vu01",
-                  "link_role": "exit",
-                  "dir4_label": "南出口",
-                  "dir8_code": "4",
-                  "dir8_label": "南出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:康虹路-无名道路, 奥体西路:无名道路-规划路(北向南)",
-                  "path": [
-                    [
-                      117.107954,
-                      36.685919
-                    ],
-                    [
-                      117.108148,
-                      36.685061
-                    ],
-                    [
-                      117.108325,
-                      36.684347
-                    ],
-                    [
-                      117.108566,
-                      36.683349
-                    ],
-                    [
-                      117.108604,
-                      36.683199
-                    ],
-                    [
-                      117.10885,
-                      36.682126
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                }
-              ]
-            },
-            {
-              "inter_id": "011wwe28ygh00001",
-              "name": "奥体西路与康虹路路口",
-              "center": [
-                117.107487,
-                36.688316
-              ],
-              "role": "upstream",
-              "path_coverage": 23.65,
-              "cor_f_dir8_no": 0,
-              "cor_turn_dir_no": 2,
-              "in_main_corridor": true,
-              "corridor_hop": 8,
-              "exit_dir8": null,
-              "is_topo_anchor": false,
-              "links": [
-                {
-                  "link_id": "12wwe28zdwwe28yf01",
-                  "link_role": "entrance",
-                  "dir4_label": "北进口",
-                  "dir8_code": "0",
-                  "dir8_label": "北进口",
-                  "lane_num": 3,
-                  "road_name": "奥体西路:花园东路-康虹路(北向南)",
-                  "path": [
-                    [
-                      117.106447,
-                      36.692093
-                    ],
-                    [
-                      117.106646,
-                      36.691353
-                    ],
-                    [
-                      117.106699,
-                      36.691122
-                    ],
-                    [
-                      117.106833,
-                      36.690549
-                    ],
-                    [
-                      117.106871,
-                      36.690398
-                    ],
-                    [
-                      117.106994,
-                      36.689862
-                    ],
-                    [
-                      117.10737,
-                      36.688285
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28ygwwe28z601",
-                  "link_role": "exit",
-                  "dir4_label": "北出口",
-                  "dir8_code": "0",
-                  "dir8_label": "北出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:康虹路-花园东路(南向北)",
-                  "path": [
-                    [
-                      117.107547,
-                      36.688376
-                    ],
-                    [
-                      117.106935,
-                      36.690919
-                    ],
-                    [
-                      117.106839,
-                      36.691391
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28yvwwe28yg01",
-                  "link_role": "entrance",
-                  "dir4_label": "东进口",
-                  "dir8_code": "2",
-                  "dir8_label": "东进口",
-                  "lane_num": 3,
-                  "road_name": "康虹路:正丰路-奥体西路(东向西)",
-                  "path": [
-                    [
-                      117.110165,
-                      36.688805
-                    ],
-                    [
-                      117.109108,
-                      36.688698
-                    ],
-                    [
-                      117.108695,
-                      36.688644
-                    ],
-                    [
-                      117.108217,
-                      36.688553
-                    ],
-                    [
-                      117.107611,
-                      36.688392
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28ygwwe28yv01",
-                  "link_role": "exit",
-                  "dir4_label": "东出口",
-                  "dir8_code": "2",
-                  "dir8_label": "东出口",
-                  "lane_num": 3,
-                  "road_name": "康虹路:奥体西路-正丰路(西向东)",
-                  "path": [
-                    [
-                      117.107627,
-                      36.688328
-                    ],
-                    [
-                      117.108185,
-                      36.688483
-                    ],
-                    [
-                      117.108711,
-                      36.688591
-                    ],
-                    [
-                      117.109124,
-                      36.688644
-                    ],
-                    [
-                      117.11017,
-                      36.688741
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28y7wwe28yg01",
-                  "link_role": "entrance",
-                  "dir4_label": "南进口",
-                  "dir8_code": "4",
-                  "dir8_label": "南进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:华龙路-康虹路(南向北)",
-                  "path": [
-                    [
-                      117.108137,
-                      36.685951
-                    ],
-                    [
-                      117.108035,
-                      36.686348
-                    ],
-                    [
-                      117.10782,
-                      36.687303
-                    ],
-                    [
-                      117.107563,
-                      36.688306
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28yfwwe28y701",
-                  "link_role": "exit",
-                  "dir4_label": "南出口",
-                  "dir8_code": "4",
-                  "dir8_label": "南出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:康虹路-无名道路(北向南)",
-                  "path": [
-                    [
-                      117.10737,
-                      36.688269
-                    ],
-                    [
-                      117.107488,
-                      36.687802
-                    ],
-                    [
-                      117.107579,
-                      36.687437
-                    ],
-                    [
-                      117.107954,
-                      36.685919
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28y9wwe28yf01",
-                  "link_role": "entrance",
-                  "dir4_label": "西进口",
-                  "dir8_code": "6",
-                  "dir8_label": "西进口",
-                  "lane_num": 3,
-                  "road_name": "康虹路:康奥路-奥体西路(西向东)",
-                  "path": [
-                    [
-                      117.104956,
-                      36.687405
-                    ],
-                    [
-                      117.10605,
-                      36.687845
-                    ],
-                    [
-                      117.107316,
-                      36.688258
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28yfwwe28y901",
-                  "link_role": "exit",
-                  "dir4_label": "西出口",
-                  "dir8_code": "6",
-                  "dir8_label": "西出口",
-                  "lane_num": 3,
-                  "road_name": "康虹路:奥体西路-康奥路(东向西)",
-                  "path": [
-                    [
-                      117.107316,
-                      36.688258
-                    ],
-                    [
-                      117.10605,
-                      36.687845
-                    ],
-                    [
-                      117.104956,
-                      36.687405
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                }
-              ]
-            },
-            {
-              "inter_id": "011wwe28zdk00001",
-              "name": "奥体西路与花园东路路口",
-              "center": [
-                117.106492,
-                36.692293
-              ],
-              "role": "upstream",
-              "path_coverage": 11.09,
-              "cor_f_dir8_no": 0,
-              "cor_turn_dir_no": 2,
-              "in_main_corridor": true,
-              "corridor_hop": 9,
-              "exit_dir8": null,
-              "is_topo_anchor": false,
-              "links": [
-                {
-                  "link_id": "12wwe2bb3wwe28zd01",
-                  "link_role": "entrance",
-                  "dir4_label": "北进口",
-                  "dir8_code": "0",
-                  "dir8_label": "北进口",
-                  "lane_num": 5,
-                  "road_name": "奥体西路:轻风路-花园东路(北向南)",
-                  "path": [
-                    [
-                      117.105363,
-                      36.696948
-                    ],
-                    [
-                      117.105659,
-                      36.695452
-                    ],
-                    [
-                      117.105921,
-                      36.694336
-                    ],
-                    [
-                      117.106152,
-                      36.693338
-                    ],
-                    [
-                      117.106195,
-                      36.693156
-                    ],
-                    [
-                      117.106265,
-                      36.692861
-                    ],
-                    [
-                      117.106367,
-                      36.692426
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28zdwwe28zd01",
-                  "link_role": "exit",
-                  "dir4_label": "北出口",
-                  "dir8_code": "0",
-                  "dir8_label": "北出口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:花园东路-轻风路(南向北)",
-                  "path": [
-                    [
-                      117.106544,
-                      36.692469
-                    ],
-                    [
-                      117.106442,
-                      36.692893
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28zewwe28zd01",
-                  "link_role": "entrance",
-                  "dir4_label": "东进口",
-                  "dir8_code": "2",
-                  "dir8_label": "东进口",
-                  "lane_num": 5,
-                  "road_name": "花园东路:正丰路-奥体西路(东向西)",
-                  "path": [
-                    [
-                      117.107541,
-                      36.692566
-                    ],
-                    [
-                      117.10656,
-                      36.692394
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28zdwwe28zs01",
-                  "link_role": "exit",
-                  "dir4_label": "东出口",
-                  "dir8_code": "2",
-                  "dir8_label": "东出口",
-                  "lane_num": 5,
-                  "road_name": "花园东路:奥体西路-正丰路(西向东)",
-                  "path": [
-                    [
-                      117.106592,
-                      36.692265
-                    ],
-                    [
-                      117.107252,
-                      36.692351
-                    ],
-                    [
-                      117.107601,
-                      36.692421
-                    ],
-                    [
-                      117.108217,
-                      36.692528
-                    ],
-                    [
-                      117.108427,
-                      36.692571
-                    ],
-                    [
-                      117.1087,
-                      36.692624
-                    ],
-                    [
-                      117.10892,
-                      36.692662
-                    ],
-                    [
-                      117.10951,
-                      36.692786
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28z6wwe28zd01",
-                  "link_role": "entrance",
-                  "dir4_label": "南进口",
-                  "dir8_code": "4",
-                  "dir8_label": "南进口",
-                  "lane_num": 4,
-                  "road_name": "奥体西路:康虹路-花园东路(南向北)",
-                  "path": [
-                    [
-                      117.106839,
-                      36.691391
-                    ],
-                    [
-                      117.106662,
-                      36.692018
-                    ],
-                    [
-                      117.106629,
-                      36.692131
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28zdwwe28yf01",
-                  "link_role": "exit",
-                  "dir4_label": "南出口",
-                  "dir8_code": "4",
-                  "dir8_label": "南出口",
-                  "lane_num": 3,
-                  "road_name": "奥体西路:花园东路-康虹路(北向南)",
-                  "path": [
-                    [
-                      117.106447,
-                      36.692093
-                    ],
-                    [
-                      117.106646,
-                      36.691353
-                    ],
-                    [
-                      117.106699,
-                      36.691122
-                    ],
-                    [
-                      117.106833,
-                      36.690549
-                    ],
-                    [
-                      117.106871,
-                      36.690398
-                    ],
-                    [
-                      117.106994,
-                      36.689862
-                    ],
-                    [
-                      117.10737,
-                      36.688285
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28xxwwe28zd01",
-                  "link_role": "entrance",
-                  "dir4_label": "西进口",
-                  "dir8_code": "6",
-                  "dir8_label": "西进口",
-                  "lane_num": 5,
-                  "road_name": "花园东路:辛河路-无名道路, 花园东路:无名道路-奥体西路(西向东)",
-                  "path": [
-                    [
-                      117.101903,
-                      36.691852
-                    ],
-                    [
-                      117.103781,
-                      36.691847
-                    ],
-                    [
-                      117.104269,
-                      36.691852
-                    ],
-                    [
-                      117.104639,
-                      36.691879
-                    ],
-                    [
-                      117.105117,
-                      36.691943
-                    ],
-                    [
-                      117.105342,
-                      36.691976
-                    ],
-                    [
-                      117.105932,
-                      36.692099
-                    ],
-                    [
-                      117.106415,
-                      36.692222
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                },
-                {
-                  "link_id": "12wwe28zdwwe28z901",
-                  "link_role": "exit",
-                  "dir4_label": "西出口",
-                  "dir8_code": "6",
-                  "dir8_label": "西出口",
-                  "lane_num": 3,
-                  "road_name": "花园东路:奥体西路-辛河路(东向西)",
-                  "path": [
-                    [
-                      117.106383,
-                      36.692351
-                    ],
-                    [
-                      117.106056,
-                      36.692271
-                    ],
-                    [
-                      117.10561,
-                      36.692163
-                    ],
-                    [
-                      117.105288,
-                      36.692109
-                    ]
-                  ],
-                  "adjacent_inter_id": null,
-                  "adjacent_inter_name": null,
-                  "length_m": null
-                }
-              ]
             }
           ],
           "hud": {
@@ -4348,17 +2029,364 @@
             "metrics": [
               {
                 "label": "真实 link",
-                "value": "72"
+                "value": "16"
               },
               {
                 "label": "主走廊",
-                "value": "9"
+                "value": "1"
               },
               {
                 "label": "相邻路口",
-                "value": "9"
+                "value": "1"
               }
             ]
+          }
+        },
+        "downstream_trace_map": {
+          "action": "map_scene",
+          "phase": "downstream_trace_map",
+          "available": true,
+          "center": [
+            117.11126,
+            36.665179
+          ],
+          "trace_direction": "downstream",
+          "turn_traces": [
+            {
+              "movement": "北进口左转",
+              "downstream_inter_id": "011wwe2948q00001",
+              "name": "坤顺路与礼耕路路口",
+              "share_pct": 201.93,
+              "path": [
+                [
+                  117.111361,
+                  36.665132
+                ],
+                [
+                  117.113453,
+                  36.665186
+                ],
+                [
+                  117.113759,
+                  36.665186
+                ],
+                [
+                  117.114258,
+                  36.665191
+                ],
+                [
+                  117.114783,
+                  36.665196
+                ]
+              ],
+              "lon": 117.114783,
+              "lat": 36.665241,
+              "capacity": {
+                "blocked": false,
+                "can_release": true
+              },
+              "trace_kind": "downstream"
+            }
+          ],
+          "adjacent_intersections": [
+            {
+              "inter_id": "011wwe2948q00001",
+              "inter_name": "坤顺路与礼耕路路口",
+              "lng": 117.114783,
+              "lat": 36.665241,
+              "metrics": {
+                "avg_delay_s": 8.89,
+                "saturation": 0.8,
+                "saturation_rate": 0.8,
+                "avg_queue_m": 5.4,
+                "max_queue_m": 5.4,
+                "queue_storage_ratio_max": 0.0397,
+                "spillback_risk_max": 0.0397,
+                "level_of_service": "C",
+                "green_utilization": 0.0,
+                "stop_count": 0.31,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": 0.8,
+                  "green_utilization": 0.0,
+                  "flow_vph": 661.92,
+                  "queue_ratio": 0.0397
+                }
+              ],
+              "remaining_storage_m": 130.76,
+              "capacity": {
+                "can_release": true,
+                "blocked": false,
+                "reasons": [],
+                "release_guard": "downstream_has_slack"
+              }
+            },
+            {
+              "inter_id": "011wwe28gm900001",
+              "inter_name": "安成街与奥体西路路口",
+              "lng": 117.111028,
+              "lat": 36.668467,
+              "metrics": {
+                "avg_delay_s": 20.02,
+                "saturation": 0.0,
+                "saturation_rate": 0.0,
+                "avg_queue_m": 113.0,
+                "max_queue_m": 113.0,
+                "queue_storage_ratio_max": 0.3169,
+                "spillback_risk_max": 0.3169,
+                "level_of_service": "A",
+                "green_utilization": 0.3381,
+                "stop_count": 0.49,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": 0.0,
+                  "green_utilization": 0.3381,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.3169
+                }
+              ],
+              "remaining_storage_m": 243.63,
+              "capacity": null
+            },
+            {
+              "inter_id": "011wwe28fmc00001",
+              "inter_name": "奥体西路与解放东路路口",
+              "lng": 117.111368,
+              "lat": 36.663092,
+              "metrics": {
+                "avg_delay_s": null,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": null,
+                "max_queue_m": null,
+                "queue_storage_ratio_max": null,
+                "spillback_risk_max": null,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": null,
+                  "queue_ratio": null
+                }
+              ],
+              "remaining_storage_m": null,
+              "capacity": null
+            },
+            {
+              "inter_id": "011wwe28fsv00001",
+              "inter_name": "坤顺路与无名道路路口",
+              "lng": 117.109866,
+              "lat": 36.665144,
+              "metrics": {
+                "avg_delay_s": 5.34,
+                "saturation": 0.2628,
+                "saturation_rate": 0.2628,
+                "avg_queue_m": 83.0,
+                "max_queue_m": 83.0,
+                "queue_storage_ratio_max": 0.7449,
+                "spillback_risk_max": 0.7449,
+                "level_of_service": "A",
+                "green_utilization": 0.3651,
+                "stop_count": 0.21,
+                "time_series_trend": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": 0.2628,
+                  "green_utilization": 0.3651,
+                  "flow_vph": 268.8,
+                  "queue_ratio": 0.7449
+                }
+              ],
+              "remaining_storage_m": 28.430000000000007,
+              "capacity": null
+            }
+          ],
+          "hud": {
+            "title": "下游一跳去向",
+            "metrics": [
+              {
+                "label": "治理落点",
+                "value": "local_reallocation",
+                "severity": "low"
+              },
+              {
+                "label": "建议",
+                "value": "下游可承接，可评估局部增绿清空"
+              }
+            ]
+          }
+        },
+        "arterial_analysis": {
+          "action": "map_scene",
+          "phase": "arterial_analysis",
+          "available": true,
+          "center": [
+            117.11126,
+            36.665179
+          ],
+          "trace_direction": "upstream",
+          "entry_traces": [
+            {
+              "entry": "北进口",
+              "dir8_code": 0,
+              "upstream_inter_id": "011wwe28gm900001",
+              "name": "安成街与奥体西路路口",
+              "narrative": "北进口约100辆过境车中，约286辆来自上一路口安成街与奥体西路路口，以左转为主",
+              "lon": 117.111028,
+              "lat": 36.668467,
+              "dominant_turn": "左转",
+              "vehicles_of_100": 286,
+              "movements": [
+                {
+                  "turn": "左转",
+                  "vehicles_of_100": 286,
+                  "feed_direction": "北向南左转"
+                }
+              ],
+              "path": [
+                [
+                  117.110932,
+                  36.668436
+                ],
+                [
+                  117.111018,
+                  36.667685
+                ],
+                [
+                  117.111018,
+                  36.667621
+                ],
+                [
+                  117.111034,
+                  36.667396
+                ],
+                [
+                  117.111034,
+                  36.667369
+                ],
+                [
+                  117.111055,
+                  36.667079
+                ],
+                [
+                  117.111098,
+                  36.666317
+                ],
+                [
+                  117.111098,
+                  36.666285
+                ],
+                [
+                  117.111157,
+                  36.665223
+                ]
+              ],
+              "dominant": true
+            }
+          ],
+          "hud": {
+            "title": "干线协调分析",
+            "metrics": [
+              {
+                "label": "上游到达流量",
+                "value": "2376.96"
+              },
+              {
+                "label": "上游放行强度",
+                "value": "2258.112"
+              },
+              {
+                "label": "目标剩余空间(m)",
+                "value": "32.68000000000001"
+              },
+              {
+                "label": "下游剩余空间(m)",
+                "value": "28.430000000000007"
+              },
+              {
+                "label": "相位差匹配",
+                "value": "上游相位差 -2s"
+              },
+              {
+                "label": "上游控流",
+                "value": "暂不需要",
+                "severity": "low"
+              }
+            ]
+          },
+          "speakable": "上下游压力可控，可评估局部优化",
+          "coordination": {
+            "available": true,
+            "direction": "bidirectional",
+            "cycle_s": 60.0,
+            "target": {
+              "inter_id": "011wwe28fty00001",
+              "inter_name": "坤顺路与奥体西路路口",
+              "lng": 117.11126,
+              "lat": 36.665179
+            },
+            "nodes": [
+              {
+                "inter_id": "011wwe28gm900001",
+                "inter_name": "安成街与奥体西路路口",
+                "lng": 117.111028,
+                "lat": 36.668467,
+                "role": "upstream",
+                "spacing_m": 356.63,
+                "spacing_source": "dim_link_info.length_m",
+                "offset_abs_s": 125.0,
+                "offset_source": "plan_cfg.offset_sec",
+                "phase_diff_s": -2.0,
+                "travel_speed_kmh": null,
+                "travel_time_s": null,
+                "travel_source": null
+              },
+              {
+                "inter_id": "011wwe28fty00001",
+                "inter_name": "坤顺路与奥体西路路口",
+                "lng": 117.11126,
+                "lat": 36.665179,
+                "role": "target",
+                "spacing_m": 0.0,
+                "spacing_source": "self",
+                "offset_abs_s": 7.0,
+                "offset_source": "plan_cfg.offset_sec",
+                "phase_diff_s": 0.0,
+                "travel_speed_kmh": null,
+                "travel_time_s": null,
+                "travel_source": null
+              },
+              {
+                "inter_id": "011wwe2948q00001",
+                "inter_name": "坤顺路与礼耕路路口",
+                "lng": 117.114783,
+                "lat": 36.665241,
+                "role": "downstream",
+                "spacing_m": 306.03,
+                "spacing_source": "dim_link_info.length_m",
+                "offset_abs_s": 54.0,
+                "offset_source": "plan_cfg.offset_sec",
+                "phase_diff_s": -13.0,
+                "travel_speed_kmh": null,
+                "travel_time_s": null,
+                "travel_source": null
+              }
+            ],
+            "source": "link_geom+pg_signal"
           }
         },
         "diagnosis_compare": {
@@ -4374,7 +2402,7 @@
             "lat": 36.665179,
             "role": "target",
             "direction": "北向南",
-            "movement": "直行",
+            "movement": "左转",
             "metrics": {
               "queue_ratio": 0.833,
               "saturation": 1.5446,
@@ -4382,17 +2410,17 @@
             }
           },
           "downstream": {
-            "inter_id": "011wwe28fmc00001",
-            "inter_name": "奥体西路与解放东路路口",
-            "lng": 117.111368,
-            "lat": 36.663092,
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
+            "lng": 117.114783,
+            "lat": 36.665241,
             "role": "primary_downstream",
             "metrics": {
-              "queue_ratio": null,
-              "saturation": null,
-              "green_utilization": null
+              "queue_ratio": 0.0397,
+              "saturation": 0.8,
+              "green_utilization": 0.0
             },
-            "remaining_storage_m": null
+            "remaining_storage_m": 130.76
           }
         },
         "cause_spatial": {
@@ -4404,17 +2432,17 @@
           "annotations": [
             {
               "kind": "approach",
-              "label": "北向南直行进口",
+              "label": "北向南左转进口",
               "lng": 117.11126,
               "lat": 36.665179,
               "color": "#ff5050"
             },
             {
               "kind": "downstream",
-              "label": "奥体西路与解放东路路口",
-              "inter_id": "011wwe28fmc00001",
-              "lng": 117.111368,
-              "lat": 36.663092,
+              "label": "坤顺路与礼耕路路口",
+              "inter_id": "011wwe2948q00001",
+              "lng": 117.114783,
+              "lat": 36.665241,
               "color": "#38bdf8"
             },
             {
@@ -4463,9 +2491,9 @@
       "target": {
         "intersection": "坤顺路与奥体西路路口",
         "direction": "北向南",
-        "movement": "直行",
+        "movement": "左转",
         "dir8_code": 0,
-        "turn_dir_no": 2
+        "turn_dir_no": 1
       },
       "scenario_report": {
         "available": true,
@@ -4488,7 +2516,7 @@
           {
             "dimension": "spatial",
             "status": "ok",
-            "summary": "目标方向 北向南直行"
+            "summary": "目标方向 北向南左转"
           }
         ],
         "issues": [
@@ -4659,8 +2687,8 @@
         "target_lng": 117.11126,
         "target_lat": 36.665179,
         "dir8_code": 0,
-        "turn_dir_no": 2,
-        "exit_dir8": 4,
+        "turn_dir_no": 1,
+        "exit_dir8": 2,
         "period_type": "EVENING_PEAK",
         "day_basis": "工作日",
         "upstream_arrival_flow_vph": 2376.96,
@@ -4716,8 +2744,8 @@
             "path_source": "link_geom",
             "upstream_movements": [
               {
-                "turn": "直行",
-                "feed_direction": "北向南直行",
+                "turn": "左转",
+                "feed_direction": "北向南左转",
                 "share_pct": 286.39,
                 "vehicles_of_100": 286,
                 "raw_coverage": 286.39
@@ -4727,28 +2755,51 @@
         ],
         "downstream_nodes": [
           {
-            "inter_id": "011wwe28fmc00001",
-            "inter_name": "奥体西路与解放东路路口",
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
             "role": "downstream",
-            "lng": 117.111368,
-            "lat": 36.663092,
-            "share_pct": 87.7,
-            "link_id": "12wwe28ftwwe28fm01",
-            "receiving_dir8": 4,
-            "receiving_label": "南进口直行",
+            "lng": 117.114783,
+            "lat": 36.665241,
+            "share_pct": 201.93,
+            "link_id": "12wwe28ftwwe294801",
+            "receiving_dir8": 2,
+            "receiving_label": "东进口直行",
             "path": [
               [
-                117.111168,
+                117.111361,
                 36.665132
               ],
               [
-                117.111264,
-                36.66319
+                117.113453,
+                36.665186
+              ],
+              [
+                117.113759,
+                36.665186
+              ],
+              [
+                117.114258,
+                36.665191
+              ],
+              [
+                117.114783,
+                36.665196
               ]
             ],
             "path_source": "link_geom",
-            "metrics_available": false,
-            "metrics_reason": "相邻路口 PG 动态指标缺失（该时段无饱和度/排队/流量，仅有配时或绿灯利用率不足以判断承接）"
+            "queue_length_m": 5.4,
+            "storage_length_m": 136.16,
+            "volume_vph": 661.92,
+            "capacity_vph": 827.3999999999999,
+            "saturation": 0.0,
+            "saturation_rate": 0.0,
+            "green_utilization": 0.0,
+            "stop_count": 0.31,
+            "avg_delay_s": 8.89,
+            "metrics_available": true,
+            "metrics_source": "pg_adjacent",
+            "metrics_receiving_direction": "东向西",
+            "metrics_queue_mode": "approach_avg"
           }
         ],
         "geometry_source": "dim_link_info.geom",
@@ -4764,20 +2815,18 @@
           "信号控制不当"
         ],
         "optimizable_points": [
-          "优化北直行绿灯时长以匹配饱和度1.5446",
-          "调整相位差缓解排队比0.833压力",
-          "结合下游复合瓶颈特征实施联动控制"
+          "优化北进口左转与直行相位绿灯分配，缓解失衡指数0.3803",
+          "结合下游坤顺路与礼耕路路口饱和度0.8的承载能力，评估绿信比提升空间"
         ],
         "data_gaps": [
-          "downstream_queue_ratio",
-          "downstream_saturation",
-          "similar_cases_brief",
+          "奥体西路与解放东路路口queue_ratio与saturation缺失",
+          "历史相似案例字段均为null，缺乏直接佐证",
           "车道流量数据不足",
           "投诉台账数据不足",
           "现场调研数据不足",
           "强吸引点上下文标签数据不足"
         ],
-        "narrative": "主因交通需求压力致饱和度1.5446、排队比0.833；次因信号控制不当，失衡指数0.3803。下游数据缺失，需核实复合瓶颈。建议优化配时并联动上下游，历史案例该指标缺失。",
+        "narrative": "主因交通需求压力致饱和度1.5446、排队比0.833；次因信号控制不当，失衡指数0.3803。下游坤顺路与礼耕路路口饱和度0.8具备消纳能力，可优化配时。奥体西路与解放东路路口指标缺失，历史案例为空。",
         "cause_ranking": [
           {
             "rank": 1,
@@ -4911,44 +2960,41 @@
       ],
       "similar_cases": [
         {
-          "score": 4.5,
-          "scene": "河北省唐山市路北区北新道-卫国路交叉口，为东西向主干道北新道（双向10车道）与南北向主干道卫国路（双向4车道）交汇的主-主路口，地处八方商业圈东侧，紧邻爱琴海商圈与八方商场，日均车流量大，早晚高峰受商圈停车进出流强烈干扰，属典型“商圈+主干道”复合型拥堵节点。",
-          "diagnosis": "该路口存在双重结构性拥堵：一是北进口双向6车道在早高峰南、北向车流严重过饱和，排队车辆多次循环未清空，常溢出至上游路口，导致中央区域存车堆积、秩序混乱；二是西进口受爱琴海商圈国安街停车场进出口及八方商场停车场出入口双重挤压，早高峰西向东直行车辆排队过长，引发回溢，致使北向南车流无法汇入，西进口右转、北进口直行、东进口左转均受阻；南出口西侧因停车场进出流干扰，车流从路段中部即开始回溢至本路口，形成“",
-          "solution": "①实施分时段可变导向车道：北进口设置2条可变车道——第2车道（早高峰7:20–9:00固定为直行，晚高峰17:30–19:30改为直左）、第4车道（晚高峰17:30–19:30由直行变为右转）；西进口第2车道早高峰（7:20–9:00）由左转调整为直行；②开展区域协调控制：对北新道、卫国路沿线共8个路口实施分时段绿波协同，优先疏导上下游车流，抑制回溢；③精细化信号配时重构：维持原有绿波周期不变前提",
-          "effect": "北进口每个绿灯周期直行车通行量提升12–17辆，总通行效率提升约30%；西进口每个绿灯周期直行车通行量提升24–30辆，总通行效率提升约40%；高峰时段车流回溢现象基本消除，北进口与西进口排队长度显著缩短（图13、图14），路口中央存车减少、通行秩序明显改善，安全隐患同步降低。"
-        },
-        {
-          "score": 4.5,
-          "scene": "广西北海市北海大道（西藏路路口至南珠大道路口）段，全长8.1km，为市区核心东西向主干道，双向8车道，配备非机动车专用辅道及智能信号机；沿线共11个路口，与四川路、北京路、广东路、上海路等主干道相交，日常通勤车流密集，工作日以东往西进城为主，节假日呈现明显潮汐特征（上午西往东出城、下午东往西回城），全天除晚平峰和夜间外均处于高负荷运行状态。",
-          "diagnosis": "该路段存在多重结构性与运行性问题：一是早晚高峰东西向车流饱和，北京路等关键路口出现持续过饱和，车辆平均排队长度超120米，部分时段排队溢出至上游路口；二是路段内含5个人行横道（4处无信号灯、1处感应式），叠加客运车辆随意停靠、岔口车辆无序进出等干扰，导致上海路至四川路段通行速度波动剧烈，实测平均车速仅32–38 km/h，远低于设计时速；三是原有配时未统一周期且缺乏协调，11个路口周期差异达8–1",
-          "solution": "①实施“关键节点先行+全段周期统合”策略：优先对北京路、广东路两个高压力路口（毗邻学校与商圈）开展单点配时优化，确定公共周期为140秒，并将其余9个路口配时全部适配该周期；②采用阶梯式绿波设计：上海路—四川路段按40 km/h（平峰）/45 km/h（高峰）设定协调时距，其余路段按50 km/h设计，同步延长绿灯时间3–5秒以补偿干扰延误；③分时段差异化协调：工作日晚高峰实行“进城红波截流+出城绿",
-          "effect": "工作日平峰东往西行程时间由24分05秒降至10分33秒，通行效率提升56%；工作日晚高峰西往东行程时间由23分10秒降至14分22秒，通行效率提升38%，停车次数由平均7.2次降至仅1次；节假日平峰西往东行程时间由12分50秒降至6分25秒，效率提升50%；全线东西向平均停车次数由9次降至1.8次，"
+          "score": 4.0,
+          "scene": "广东省汕头市金平区中山路与龙眼路交叉口（中山-龙眼路口），属老城区核心路段，周边密集分布多所中小学、住宅区及办公区，交通需求旺盛；受东迁潮汐流影响，早高峰东往西、晚高峰西往东车流集中；同期中山路东西向实施道路改造施工，导致该路口及相邻的长平-龙眼、中山-东厦、中山-金环等四个路口在高峰时段频繁出现连锁性拥堵。",
+          "diagnosis": "晚高峰期间东出口严重回溢，排队车辆溢出至上游各进口道，导致全路口通行效率崩溃；成因包括三方面：一是潮汐流下西往东方向车流量激增（文中明确晚高峰西往东为主流），叠加东出口仅剩两条车道（施工压缩一半）、且东进口北侧与西进口南侧被占，直行车辆需大幅绕行弧线通过，车速显著降低；二是东出口路段设有多个公交站点，公交车频繁靠站上下客（图3所示），形成移动瓶颈，加剧回溢；三是上下游路口（如中山-金环）缺乏协调，",
+          "solution": "① 优化相位设计：增设南北向搭接相位，实行东西向单边放行（避免双向同时放行导致冲突），取消东、西进口左转与行人同放相位，消除人车冲突；② 重新分配绿信比并压缩周期时长，提升信号响应效率；③ 实施晚高峰协同控制：将中山-龙眼路口与下游中山-金环路口统一设置公共周期，实现绿波衔接，确保东出口车流快速抵达中山-金环路口西进口；④ 对上游西往东方向实施截流管控，具体在中山-（金新至东厦）路段关键节点进行流",
+          "effect": "东出口回溢现象基本消失，晚高峰车辆平均仅需两次排队即可通过路口；晚高峰结束时间较优化前提前约15分钟；人车冲突显著缓解，行人过街安全性提升，路口通行秩序明显改善；整体通行效率提升，有效遏制施工引发的“打结”与片区级拥堵蔓延。"
         },
         {
           "score": 4.0,
-          "scene": "西安市地铁8号线延平门站占道施工区域，施工围挡位于沣惠南路与科技路交叉口。沣惠南路为城南重要通勤干道，科技路为高新区东西向主干道，流量长期过饱和；与东侧唐延路与科技路路口间距近，南口需封闭施工10个月，属商业核心区占道施工交通组织场景。",
-          "diagnosis": "南口10个月封闭施工叠加节点本身过饱和，通行能力大幅下降；慢行出行需求旺盛，人车交织秩序混乱；周边停车资源紧缺，静态交通影响动态交通；相邻路口间距近易排队溢出，施工期间组织条件限制多、管控难度大，拥堵加剧风险高。",
-          "solution": "实施“五化”治理：新建交通导改路，空间利用最大化；增设加强型交通警示设施，组织精细化；远端分流、近端疏导，分流精准化；多元化施工期交通宣传引导；警企联动加强疏导，秩序管理有序化，充分调动路网剩余资源并做足预案。",
-          "effect": "施工后沣惠南路高峰小时流量由3420辆降至2959辆，同比下降13.48%，拥堵未明显加剧；北向南排队长度减少10.2%，早高峰持续时长缩短20%，周边路网分流效果显著。"
+          "scene": "广西南宁市青秀区月湾路沿线的丹凤-月湾路口与长湖-月湾路口，两T型交叉口间距仅60米，属超短间距信控交叉口；周边分布多个大型住宅小区，是居民通勤高频出行节点，早高峰（07:00–09:00）与晚高峰（17:00–19:30）车流密集，路段容车量低、车流交互频繁，易发生上下游相互溢出。",
+          "diagnosis": "长湖-月湾路口原全天采用黄闪控制，导致早晚高峰南北直行与西左转车辆无序交织、冲突严重，行人过街安全隐患突出；因缺乏信号约束，北往南方向车辆无法及时清空，滞留车辆反堵至上游丹凤-月湾路口，形成“回溢—死结”恶性循环；实测显示高峰期路段内车辆滞留长度达80–120米，平均通行延误较优化前上升42%，双向绿波中断，协调失效，整体通行秩序濒临瘫痪。",
+          "solution": "① 高峰时段启用红绿灯控：长湖-月湾路口仅在早晚高峰启用信号控制，取消黄闪；② 搭接相位设计：在长湖-月湾路口采用“南直行早断+迟启动”搭接相位组合，精准匹配60米短距清空需求；③ 二次放行机制：丹凤-月湾路口高峰设置南单边二次放行，缓解南往北回溢；④ 分时段精细化配时：全天划分为早平峰、早高峰、平峰、晚高峰、夜间平峰5个时段，其中长湖-月湾路口仅高峰启控，平峰/夜间恢复黄闪；⑤ 双向绿波协调：以",
+          "effect": "晚高峰路段内滞留车辆减少63%，早晚高峰平均延误指数下降37.5%，双向大部分车辆实现不停车通过（绿波通行率提升至89%），行人过街冲突事件归零，驾驶人投诉率下降72%，回溢“死结”现象彻底消除。"
+        },
+        {
+          "score": 4.0,
+          "scene": "晚高峰时段，大量下班车流从工业区经主干道涌入老城区居民区，形成典型“职住分离”交通流特征；该主干道上存在一个关键瓶颈交叉口，其上游路段连续分布若干相邻交叉口，路段整体呈现单向长距离、高流量、易排队溢出的交通特性，属城市核心区通勤主通道。",
+          "diagnosis": "瓶颈交叉口在晚高峰持续处于饱和状态（流量达设计通行能力100%以上），车辆排队长度频繁超过上下游交叉口间距（实测平均排队达350–450米），导致排队回溢至上游第2–3个交叉口，引发“锁死效应”；上游车流集中抵达加剧瓶颈冲突，造成该交叉口平均延误达186秒/车，通行效率下降37%，并波及整条主干道通行秩序，下游居民区路网节点平均拥堵指数上升至8.2（满分为10）。",
+          "solution": "以瓶颈交叉口为终点，向上游选取关联度≥0.65的4个相邻交叉口构建红波带控制范围（含瓶颈口共5个控制节点）；采用投票法启动机制——连续5次检测中4次出现瓶颈口饱和且排队长度＞路口间距（实测阈值设为320米）即触发红波带；统一信号周期为120秒，依据路段平均车速42 km/h与路口间距（如A-B段680米、B-C段520米等）计算相对相位差，设置A→B相位差为58秒、B→C为45秒、C→D为39秒、",
+          "effect": "瓶颈交叉口小时通行量提升12.3%（由2140pcu/h增至2403pcu/h），平均排队长度缩短至210米以内，排队回溢发生率下降89%；上游关键路径车辆到达瓶颈口的行程时间标准差降低41%，车流时空分布趋于均匀，主干道整体平均车速由18.6 km/h提升至24.3 km/h。"
         }
       ],
       "case_cards": {
-        "matched_count": 780,
-        "high_similarity_count": 58,
+        "matched_count": 779,
+        "high_similarity_count": 49,
         "cards": [
           {
             "case_id": "A",
-            "title": "河北省唐山市路北区北新道-卫国路交叉口，为东西向主干道北新道（双向10车道）与南北向主干道卫国路（双向4车道）交汇的主-主路口，地处八方商业圈东侧，紧邻爱琴海商",
+            "title": "广东省汕头市金平区中山路与龙眼路交叉口（中山-龙眼路口），属老城区核心路段，周边密集分布多所中小学、住宅区及办公区，交通需求旺盛；受东迁潮汐流影响，早高峰东往西",
             "similarity_points": [
               "晚高峰短时段",
               "目标方向排队高",
+              "下游节点高饱和",
               "上游来车冲击"
             ],
             "similarity_dimensions": [
-              {
-                "key": "problem",
-                "label": "问题形态：过饱和"
-              },
               {
                 "key": "晚高峰",
                 "label": "同时段：晚高峰"
@@ -4958,6 +3004,10 @@
                 "label": "同时段：早高峰"
               },
               {
+                "key": "下游",
+                "label": "空间：下游承接"
+              },
+              {
                 "key": "上游",
                 "label": "空间：上游来车"
               },
@@ -4967,40 +3017,86 @@
               }
             ],
             "transferable_actions": [
-              "上下游协调配时",
+              "上游截流节奏控制",
               "干线绿波协调"
             ],
             "caveats": [
               "需核对本路口配时结构与下游拓扑",
               "历史方案仅作参考，须结合实时指标"
             ],
-            "help_summary": "可借鉴处置路径：北进口每个绿灯周期直行车通行量提升12–17辆，总通行效率提升约30%；西进口每个绿灯周期直行车通行量提升24–30辆，总通行效率提升约40%；高峰时段车流回溢",
+            "help_summary": "可借鉴处置路径：东出口回溢现象基本消失，晚高峰车辆平均仅需两次排队即可通过路口；晚高峰结束时间较优化前提前约15分钟；人车冲突显著缓解，行人过街安全性提升，路口通行秩序明显改善",
             "similarity_tier": "high",
-            "historical_action": "①实施分时段可变导向车道：北进口设置2条可变车道——第2车道（早高峰7:20–9:00固定为直行，晚高峰17:30–19:30改为直左）、第4车道（晚高峰17:30–19:30由直行变为右转）；西进口第2车道早高峰（7:20–9:00）由左",
-            "outcome": "北进口每个绿灯周期直行车通行量提升12–17辆，总通行效率提升约30%；西进口每个绿灯周期直行车通行量提升24–30辆，总通行效率提升约40%；高峰时段车流回溢现象基本消除，北进口与西进口排队长度显著缩短（图13、图14），路口中央存车减少",
-            "lesson": "北进口每个绿灯周期直行车通行量提升12–17辆，总通行效率提升约30%；西进口每个绿灯周期直行车通行量提升24–30辆，总通行效率提升约40%；高峰时段车流回溢现象基本消除，北进口与西进口排队长度显著缩短（图13、图14），路口中央存车减少",
+            "historical_action": "① 优化相位设计：增设南北向搭接相位，实行东西向单边放行（避免双向同时放行导致冲突），取消东、西进口左转与行人同放相位，消除人车冲突；② 重新分配绿信比并压缩周期时长，提升信号响应效率；③ 实施晚高峰协同控制：将中山-龙眼路口与下游中山-金",
+            "outcome": "东出口回溢现象基本消失，晚高峰车辆平均仅需两次排队即可通过路口；晚高峰结束时间较优化前提前约15分钟；人车冲突显著缓解，行人过街安全性提升，路口通行秩序明显改善；整体通行效率提升，有效遏制施工引发的“打结”与片区级拥堵蔓延。",
+            "lesson": "东出口回溢现象基本消失，晚高峰车辆平均仅需两次排队即可通过路口；晚高峰结束时间较优化前提前约15分钟；人车冲突显著缓解，行人过街安全性提升，路口通行秩序明显改善；整体通行效率提升，有效遏制施工引发的“打结”与片区级拥堵蔓延。",
             "case_type": "recommended",
-            "score": 5.0
+            "score": 4.0
           },
           {
             "case_id": "B",
-            "title": "广西北海市北海大道（西藏路路口至南珠大道路口）段，全长8.1km，为市区核心东西向主干道，双向8车道，配备非机动车专用辅道及智能信号机；沿线共11个路口，与四川",
+            "title": "广西南宁市青秀区月湾路沿线的丹凤-月湾路口与长湖-月湾路口，两T型交叉口间距仅60米，属超短间距信控交叉口；周边分布多个大型住宅小区，是居民通勤高频出行节点，早",
             "similarity_points": [
               "晚高峰短时段",
-              "目标方向排队高",
-              "上游来车冲击",
-              "绿灯利用率高"
+              "下游节点高饱和",
+              "上游来车冲击"
             ],
             "similarity_dimensions": [
-              {
-                "key": "problem",
-                "label": "问题形态：过饱和"
-              },
               {
                 "key": "晚高峰",
                 "label": "同时段：晚高峰"
               },
               {
+                "key": "早高峰",
+                "label": "同时段：早高峰"
+              },
+              {
+                "key": "下游",
+                "label": "空间：下游承接"
+              },
+              {
+                "key": "上游",
+                "label": "空间：上游来车"
+              },
+              {
+                "key": "measure",
+                "label": "措施：历史治理方案可对照"
+              }
+            ],
+            "transferable_actions": [
+              "上下游协调配时",
+              "干线绿波协调"
+            ],
+            "caveats": [
+              "需核对本路口配时结构与下游拓扑",
+              "历史方案仅作参考，须结合实时指标"
+            ],
+            "help_summary": "可借鉴处置路径：晚高峰路段内滞留车辆减少63%，早晚高峰平均延误指数下降37.5%，双向大部分车辆实现不停车通过（绿波通行率提升至89%），行人过街冲突事件归零，驾驶人投诉率下",
+            "similarity_tier": "high",
+            "historical_action": "① 高峰时段启用红绿灯控：长湖-月湾路口仅在早晚高峰启用信号控制，取消黄闪；② 搭接相位设计：在长湖-月湾路口采用“南直行早断+迟启动”搭接相位组合，精准匹配60米短距清空需求；③ 二次放行机制：丹凤-月湾路口高峰设置南单边二次放行，缓解南",
+            "outcome": "晚高峰路段内滞留车辆减少63%，早晚高峰平均延误指数下降37.5%，双向大部分车辆实现不停车通过（绿波通行率提升至89%），行人过街冲突事件归零，驾驶人投诉率下降72%，回溢“死结”现象彻底消除。",
+            "lesson": "晚高峰路段内滞留车辆减少63%，早晚高峰平均延误指数下降37.5%，双向大部分车辆实现不停车通过（绿波通行率提升至89%），行人过街冲突事件归零，驾驶人投诉率下降72%，回溢“死结”现象彻底消除。",
+            "case_type": "recommended",
+            "score": 4.0
+          },
+          {
+            "case_id": "C",
+            "title": "晚高峰时段，大量下班车流从工业区经主干道涌入老城区居民区，形成典型“职住分离”交通流特征；该主干道上存在一个关键瓶颈交叉口，其上游路段连续分布若干相邻交叉口，路",
+            "similarity_points": [
+              "晚高峰短时段",
+              "目标方向排队高",
+              "下游节点高饱和",
+              "上游来车冲击"
+            ],
+            "similarity_dimensions": [
+              {
+                "key": "晚高峰",
+                "label": "同时段：晚高峰"
+              },
+              {
+                "key": "下游",
+                "label": "空间：下游承接"
+              },
+              {
                 "key": "上游",
                 "label": "空间：上游来车"
               },
@@ -5014,65 +3110,19 @@
               }
             ],
             "transferable_actions": [
-              "上游截流节奏控制",
-              "上下游协调配时",
-              "干线绿波协调"
-            ],
-            "caveats": [
-              "下游承接不足时不宜单点照搬加绿",
-              "需核对本路口转向结构与相位方案"
-            ],
-            "help_summary": "提示下游约束与防溢流做法，避免重复单点加压",
-            "similarity_tier": "high",
-            "historical_action": "①实施“关键节点先行+全段周期统合”策略：优先对北京路、广东路两个高压力路口（毗邻学校与商圈）开展单点配时优化，确定公共周期为140秒，并将其余9个路口配时全部适配该周期；②采用阶梯式绿波设计：上海路—四川路段按40 km/h（平峰）/45",
-            "outcome": "工作日平峰东往西行程时间由24分05秒降至10分33秒，通行效率提升56%；工作日晚高峰西往东行程时间由23分10秒降至14分22秒，通行效率提升38%，停车次数由平均7.2次降至仅1次；节假日平峰西往东行程时间由12分50秒降至6分25秒",
-            "lesson": "下游接不住时，不宜单点激进放行",
-            "case_type": "risk",
-            "score": 4.5
-          },
-          {
-            "case_id": "C",
-            "title": "重庆市两江新区人和大道（连接金山大道、金开大道、民安大道、黄山大道、泰山大道，全长1.6公里），为金山居住片区、人和居住片区及重庆南北交通转换的核心主干道，承担",
-            "similarity_points": [
-              "目标方向排队高"
-            ],
-            "similarity_dimensions": [
-              {
-                "key": "problem",
-                "label": "问题形态：过饱和"
-              },
-              {
-                "key": "排队",
-                "label": "指标：排队积压"
-              },
-              {
-                "key": "饱和",
-                "label": "指标：饱和偏高"
-              },
-              {
-                "key": "measure",
-                "label": "措施：历史治理方案可对照"
-              },
-              {
-                "key": "tier",
-                "label": "匹配：高度相似"
-              }
-            ],
-            "transferable_actions": [
-              "上游截流节奏控制",
-              "上下游协调配时"
+              "上游截流节奏控制"
             ],
             "caveats": [
               "需核对本路口配时结构与下游拓扑",
               "历史方案仅作参考，须结合实时指标"
             ],
-            "help_summary": "可借鉴处置路径：2019年11月相较9月，早高峰流量增长7.02%（11396pcu/h vs 10648pcu/h）、晚高峰增长8.53%（10279pcu/h vs 947",
+            "help_summary": "可借鉴处置路径：瓶颈交叉口小时通行量提升12.3%（由2140pcu/h增至2403pcu/h），平均排队长度缩短至210米以内，排队回溢发生率下降89%；上游关键路径车辆到达",
             "similarity_tier": "high",
-            "historical_action": "实施“互联网+”区域交通信号协调控制系统，依托重庆攸亮平台接入高德实时交通大数据，构建四层闭环控制逻辑：①设置溢出控制（应用于金山大道-镜泊西路、人和B匝道，阈值为排队长度≥路段长4/5）；②设置失衡控制（应用于金山大道-镜泊西路、人和场口",
-            "outcome": "2019年11月相较9月，早高峰流量增长7.02%（11396pcu/h vs 10648pcu/h）、晚高峰增长8.53%（10279pcu/h vs 9471pcu/h）前提下，早高峰平均车速提升12.29%（28.92km/h vs ",
-            "lesson": "2019年11月相较9月，早高峰流量增长7.02%（11396pcu/h vs 10648pcu/h）、晚高峰增长8.53%（10279pcu/h vs 9471pcu/h）前提下，早高峰平均车速提升12.29%（28.92km/h vs ",
+            "historical_action": "以瓶颈交叉口为终点，向上游选取关联度≥0.65的4个相邻交叉口构建红波带控制范围（含瓶颈口共5个控制节点）；采用投票法启动机制——连续5次检测中4次出现瓶颈口饱和且排队长度＞路口间距（实测阈值设为320米）即触发红波带；统一信号周期为120",
+            "outcome": "瓶颈交叉口小时通行量提升12.3%（由2140pcu/h增至2403pcu/h），平均排队长度缩短至210米以内，排队回溢发生率下降89%；上游关键路径车辆到达瓶颈口的行程时间标准差降低41%，车流时空分布趋于均匀，主干道整体平均车速由18",
+            "lesson": "瓶颈交叉口小时通行量提升12.3%（由2140pcu/h增至2403pcu/h），平均排队长度缩短至210米以内，排队回溢发生率下降89%；上游关键路径车辆到达瓶颈口的行程时间标准差降低41%，车流时空分布趋于均匀，主干道整体平均车速由18",
             "case_type": "recommended",
-            "score": 4.5
+            "score": 4.0
           }
         ]
       },
@@ -5172,76 +3222,73 @@
           "score": 5.5
         },
         {
-          "record_id": "ue_20260709_5910b441",
-          "trace_id": "a9bb601d9ba3410b",
+          "record_id": "ue_20260712_a28ee863",
+          "trace_id": "a717efc837ea407f",
           "experience_type": "diagnostic",
-          "content": "下游旅游路与浆水泉路路口同样过饱和",
+          "content": "东向下游坤顺路与礼耕路路口仍有承接空间",
           "tags": {
-            "inter_id": "011wwe22jsg00001",
-            "intersection_name": "旅游路与荆山东路路口",
-            "problem_type": "过饱和",
+            "inter_id": "011wwe28fty00001",
+            "intersection_name": "坤顺路与奥体西路路口",
+            "problem_type": "过饱和排队",
             "time_period": null,
-            "direction": "西向东",
-            "movement": "直行",
+            "direction": "北向南",
+            "movement": "左转",
             "spatial_structure": null,
             "severity": null,
-            "cause_dimension": "下游瓶颈",
+            "cause_dimension": "下游承载力",
             "cause_keywords": [
               "下游"
             ],
             "strategy_action": null,
-            "related_poi": "旅游路与浆水泉路路口",
+            "related_poi": "坤顺路与礼耕路路口",
             "target_phase": null,
             "adjustment_direction": null,
-            "constraints": "下游旅游路与浆水泉路路口同样过饱和，整条旅游路走廊要一起协调，按线控做法别单点猛加绿",
+            "constraints": [],
             "confidence": null
           },
-          "score": 0.5
+          "score": 5.5
         },
         {
-          "record_id": "ue_20260710_0f413d80",
-          "trace_id": "fcb29da257a04de0",
+          "record_id": "ue_20260712_2d6d9432",
+          "trace_id": "234540ab86494ab3",
           "experience_type": "diagnostic",
-          "content": "单点优化空间受限，需考虑上下游联动",
+          "content": "东向下游坤顺路与礼耕路路口仍有承接空间",
           "tags": {
-            "inter_id": "011wwe22jsg00001",
-            "intersection_name": "旅游路与荆山东路路口",
-            "problem_type": "溢流",
+            "inter_id": "011wwe28fty00001",
+            "intersection_name": "坤顺路与奥体西路路口",
+            "problem_type": "过饱和",
             "time_period": null,
-            "direction": "西向东",
-            "movement": "直行",
+            "direction": "北向南",
+            "movement": "左转",
             "spatial_structure": null,
             "severity": null,
-            "cause_dimension": "控制策略限制",
+            "cause_dimension": "下游承载力",
             "cause_keywords": [
               "下游"
             ],
             "strategy_action": null,
-            "related_poi": [],
+            "related_poi": "坤顺路与礼耕路路口",
             "target_phase": null,
             "adjustment_direction": null,
-            "constraints": [
-              "本路口不能再单点加绿",
-              "需与下游旅游路与浆水泉路路口协调"
-            ],
+            "constraints": [],
             "confidence": null
           },
-          "score": 0.5
+          "score": 5.5
         }
       ],
       "evidence_summary": {
         "target_queue_ratio": 0.833,
         "target_saturation": 1.5446,
         "target_green_utilization": 0.6807,
-        "downstream_queue_ratio": null,
-        "downstream_saturation": null,
+        "downstream_queue_ratio": 0.0397,
+        "downstream_saturation": 0.8,
         "downstream_intersections": [
           {
-            "inter_id": "011wwe28fmc00001",
-            "inter_name": "奥体西路与解放东路路口",
-            "queue_ratio": null,
-            "saturation": null,
-            "blocked": null
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
+            "queue_ratio": 0.0397,
+            "saturation": 0.8,
+            "blocked": false
           },
           {
             "inter_id": "011wwe28gm900001",
@@ -5251,10 +3298,10 @@
             "blocked": null
           },
           {
-            "inter_id": "011wwe2948q00001",
-            "inter_name": "坤顺路与礼耕路路口",
-            "queue_ratio": 0.8593,
-            "saturation": 0.8,
+            "inter_id": "011wwe28fmc00001",
+            "inter_name": "奥体西路与解放东路路口",
+            "queue_ratio": null,
+            "saturation": null,
             "blocked": null
           },
           {
@@ -5277,16 +3324,16 @@
             "vehicles_base": 100,
             "upstream_movements": [
               {
-                "turn": "直行",
-                "feed_direction": "北向南直行",
+                "turn": "左转",
+                "feed_direction": "北向南左转",
                 "share_pct": 286.39,
                 "vehicles_of_100": 286,
                 "raw_coverage": 286.39
               }
             ],
             "dominant_movement": {
-              "turn": "直行",
-              "feed_direction": "北向南直行",
+              "turn": "左转",
+              "feed_direction": "北向南左转",
               "share_pct": 286.39,
               "vehicles_of_100": 286,
               "raw_coverage": 286.39
@@ -5329,16 +3376,16 @@
                 36.665223
               ]
             ],
-            "narrative": "北进口约100辆过境车中，约286辆来自上一路口安成街与奥体西路路口，以直行为主"
+            "narrative": "北进口约100辆过境车中，约286辆来自上一路口安成街与奥体西路路口，以左转为主"
           }
         ],
         "upstream_governance_hints": [
           {
             "type": "upstream_coordination",
-            "problem_turn": "北进口直行",
+            "problem_turn": "北进口左转",
             "inter_id": "011wwe28gm900001",
             "inter_name": "安成街与奥体西路路口",
-            "feed_direction": "北向南直行",
+            "feed_direction": "北向南左转",
             "coverage": 286
           }
         ],
@@ -5363,29 +3410,29 @@
     "strategy": {
       "strategy": {
         "principles": [
-          "防溢流优先原则：在饱和度严重过饱和（>1.5）且存在复合瓶颈特征时，信号控制的首要目标是防止排队溢出至上游交叉口或阻塞横向交通，而非单纯追求本路口通行量最大化。",
-          "供需匹配与截流原则：针对下游数据缺失及复合瓶颈风险，采取保守的流量调节策略，通过控制驶入率来匹配下游不确定的消散能力，避免将拥堵转移至下游节点。",
-          "时空资源均衡原则：在无法简单增加绿灯时长的约束下，通过优化相位差和绿信比分配，平滑车流到达波峰，减少因信号切换造成的启停损失和排队堆积。",
-          "数据驱动的安全边界原则：在下游关键指标（排队比、饱和度）缺失的情况下，策略生成必须预留安全冗余，禁止基于假设进行激进优化，直至数据补全或现场核实。"
+          "防溢流优先原则：在过饱和状态下，信号控制首要目标是防止排队溢出至上游交叉口或阻塞横向交通，而非单纯追求本路口通行量最大化。",
+          "下游承载匹配原则：绿信比调整必须以下游路段及交叉口的实际消纳能力为刚性上限，确保释放车流能被下游有效承接。",
+          "相位均衡服务原则：针对失衡指数较高的进口道，应通过相位间绿灯时间的再分配实现服务水平的相对均衡，避免单一方向过度积压。",
+          "数据驱动审慎原则：在关键监测指标缺失及历史案例空白的情况下，策略调整应采取小步迭代验证模式，严禁基于推测进行大幅度参数变更。"
         ],
         "not_recommended": [
-          "单点激进增加北直行绿灯时长：当前饱和度已达1.5446，属于严重过饱和状态。在下游为复合瓶颈且数据缺失的情况下，盲目增加绿灯会导致更多车辆涌入下游瓶颈区，极易引发下游排队回溢，导致本路口出口道被堵死，形成区域性死锁。",
-          "仅依赖历史案例进行配时调整：分析显示历史案例中关键指标缺失，且当前路网拓扑与需求特征可能已发生变化，直接套用历史经验缺乏可靠性。",
-          "忽视相位差的孤立优化：在排队比高达0.833的压力下，若不协调上下游相位差，单纯调整本路口绿信比无法解决车队离散与集结的矛盾，甚至可能加剧路段停车次数。",
-          "在未核实下游承载力前实施联动控制：虽然建议联动，但在下游数据空白时强行实施紧密联动可能导致“同步拥堵”，应先以本地防溢流为主，待数据明确后再升级为干线协调。"
+          "不推荐单点激进增加北进口左转或直行绿灯时长",
+          "不推荐在未核实奥体西路与解放东路路口实时排队状态前实施干线绿波协调",
+          "不推荐仅依据当前路口饱和度1.5446直接套用最大绿信比模板",
+          "不推荐忽略0.3803失衡指数而维持现有相位差结构不变"
         ],
         "recommended": [
-          "实施防溢流截流控制策略：适当压缩北直行绿灯时长或设置最大绿灯限制，主动降低驶入下游瓶颈区的流量速率，确保本路口出口道始终保留足够的蓄车空间，防止排队溢出干扰横向交通。",
-          "优化相位差以缓解排队压力：基于当前0.833的排队比，调整与上游交叉口的相位差，使上游车流到达本路口时刚好处于绿灯启亮或队列消散阶段，减少二次排队和启动损失。",
-          "开展下游瓶颈实地核查与数据补全：立即安排现场调研或部署临时检测器，获取下游排队比、饱和度及复合瓶颈的具体成因，为后续精准治理提供数据支撑。",
-          "建立动态反馈调节机制：在数据缺失期，采用小步长、高频次的微调策略，密切监测出口道排队长度与下游路口状态，一旦发现溢流征兆立即触发降级保护方案。",
-          "评估局部再分配可行性：在不增加总周期时长的前提下，重新分配各相位绿信比，将部分非关键相位的绿灯时间转移至北直行，但需严格控制转移幅度，确保不超过下游瞬时消散能力。"
+          "实施北进口左转与直行相位的绿灯时间内部再分配，优先缓解失衡指数0.3803对应的拥堵方向",
+          "建立以下游坤顺路与礼耕路路口饱和度0.8为阈值的动态绿信比上限约束机制",
+          "采用渐进式微调策略，单次调整幅度控制在安全阈值内，并设置观察期验证防溢流效果",
+          "补充部署或修复奥体西路与解放东路路口的检测器数据，完善queue_ratio与saturation指标采集",
+          "启用溢出检测逻辑，当检测到下游排队回溢风险时自动触发截流保护预案"
         ],
         "hard_constraints": [
-          "严禁在下游数据未核实前将北直行绿灯时长调整至超过当前值的120%。",
-          "必须保证本路口北出口道排队长度在任何时段均不超过出口道长度的80%，预留20%作为防溢流安全缓冲区。",
-          "所有配时调整方案必须包含溢流检测与自动降级逻辑，当检测到出口道排队触及安全阈值时，自动切换至最小绿灯或红灯保护模式。",
-          "在下游复合瓶颈性质未明确前，禁止实施跨路口的紧密绿波协调，仅允许进行松耦合的相位差微调。",
+          "北进口任一相位绿灯时长调整不得导致下游坤顺路与礼耕路路口饱和度超过0.85",
+          "在奥体西路与解放东路路口queue_ratio数据恢复可用前，禁止执行跨路口协调控制策略",
+          "相位调整后的周期时长变动不得超过原周期的10%，以维持驾驶员预期稳定性",
+          "必须保留最小行人过街绿灯时间及黄灯全红清空时间，严禁压缩安全间隔",
           "各相位最小绿不得低于 14s（含黄灯全红、行人过街清空）",
           "单相位绿灯不得超过 60s（最大绿上限）",
           "信号周期不得超过 90s（最大周期约束）"
@@ -5401,13 +3448,13 @@
         "trigger_exit_rules": {
           "rollback_condition": "下游排队比持续上升或目标方向绿灯利用率异常下降时回滚",
           "rules": [
-            "当下游排队比、饱和度等关键数据补全且连续7天稳定可靠时，可退出防溢流优先模式，转入基于数据的精准优化模式。",
-            "当北直行饱和度连续5个周期低于1.2且排队比低于0.6时，表明需求压力显著缓解，可逐步放宽截流限制。",
-            "当现场调研确认下游复合瓶颈已通过工程改造或管理措施消除，且实测消散能力满足当前需求时，可解除单点加绿禁令。",
-            "当投诉台账或现场反馈显示当前防溢流策略导致上游路口严重拥堵或公众满意度显著下降时，需重新评估策略阈值并进行适应性调整。"
+            "当下游坤顺路与礼耕路路口连续3个周期饱和度超过0.85时，立即回退至上一版保守配时方案",
+            "当奥体西路与解放东路路口检测到排队长度超过路段存储能力的70%时，触发防溢流截流模式",
+            "当北进口失衡指数连续5个周期低于0.1且整体饱和度下降至1.2以下时，可转入常规优化评估流程",
+            "当现场反馈或视频巡检确认发生二次排队溢出至上游交叉口时，无条件终止当前增绿策略"
           ]
         },
-        "explanation": "当前路口北直行饱和度高达1.5446，远超通行能力极限，且排队比0.833表明排队压力巨大。核心矛盾在于‘高需求’与‘下游不确定承载力’之间的冲突。由于下游被判定为复合瓶颈且关键数据缺失，无法确认其是否具备承接增量车流的能力。若此时单点激进增加绿灯，虽能短暂提升本路口放行效率，但极大概率导致车辆在下游瓶颈处积压并回溢至本路口出口道，造成‘进得来、出不去’的死锁局面，反而降低整体路网运行效率。因此，策略必须从‘追求通行量’转向‘防止系统崩溃’，优先通过截流和相位差优化来维持系统稳定性，同时尽快补全数据以解除不确定性约束。",
+        "explanation": "当前路口虽处于严重过饱和状态（饱和度1.5446），但属于复合瓶颈且关键上游节点数据缺失。若单点激进加绿，极易导致两个负面后果：一是因下游坤顺路与礼耕路路口承载能力有限（饱和度已达0.8），过量放行将引发下游溢流反堵本路口；二是在缺乏奥体西路与解放东路路口数据支撑的情况下，盲目加绿可能破坏区域交通流的连续性，加剧未知节点的拥堵。因此，策略重心应从“增量”转向“存量优化”，利用下游尚存的消纳空间，通过相位间的精准再分配解决结构性失衡，同时以防溢流为底线约束，确保治理措施的安全性和可持续性。",
         "narrative": null,
         "source": "hybrid"
       },
@@ -5478,11 +3525,11 @@
         ],
         "downstream_protection_nodes": [
           {
-            "inter_id": "011wwe28fmc00001",
-            "inter_name": "奥体西路与解放东路路口",
-            "lng": 117.111368,
-            "lat": 36.663092,
-            "blocked": null
+            "inter_id": "011wwe2948q00001",
+            "inter_name": "坤顺路与礼耕路路口",
+            "lng": 117.114783,
+            "lat": 36.665241,
+            "blocked": false
           },
           {
             "inter_id": "011wwe28gm900001",
@@ -5492,10 +3539,10 @@
             "blocked": null
           },
           {
-            "inter_id": "011wwe2948q00001",
-            "inter_name": "坤顺路与礼耕路路口",
-            "lng": 117.114783,
-            "lat": 36.665241,
+            "inter_id": "011wwe28fmc00001",
+            "inter_name": "奥体西路与解放东路路口",
+            "lng": 117.111368,
+            "lat": 36.663092,
             "blocked": null
           },
           {
@@ -5587,12 +3634,12 @@
                 {
                   "type": "case",
                   "case_id": "A",
-                  "label": "河北省唐山市路北区北新道-卫国路交叉口，为东西向主干道北新道（双向10车道）与南北向主干道卫国路（双向4车道）交汇的主-主路口，地处八方商业圈东侧，紧邻爱琴海商"
+                  "label": "广东省汕头市金平区中山路与龙眼路交叉口（中山-龙眼路口），属老城区核心路段，周边密集分布多所中小学、住宅区及办公区，交通需求旺盛；受东迁潮汐流影响，早高峰东往西"
                 },
                 {
                   "type": "case",
                   "case_id": "B",
-                  "label": "广西北海市北海大道（西藏路路口至南珠大道路口）段，全长8.1km，为市区核心东西向主干道，双向8车道，配备非机动车专用辅道及智能信号机；沿线共11个路口，与四川"
+                  "label": "广西南宁市青秀区月湾路沿线的丹凤-月湾路口与长湖-月湾路口，两T型交叉口间距仅60米，属超短间距信控交叉口；周边分布多个大型住宅小区，是居民通勤高频出行节点，早"
                 }
               ],
               "source": "strategy_generation"
@@ -5636,7 +3683,7 @@
               "source": "quantitative_constraints"
             },
             "with_experience": {
-              "summary": "护栏 7 条（含用户约束 2 条）",
+              "summary": "护栏 7 条（含用户约束 3 条）",
               "refs": [
                 {
                   "type": "user_experience",
@@ -5682,7 +3729,7 @@
           "plan_id": "downstream_protection",
           "name": "下游保护方案",
           "status": "rejected",
-          "scenario": "奥体西路与解放东路路口承接不足，目标路口不宜继续强放",
+          "scenario": "坤顺路与礼耕路路口承接不足，目标路口不宜继续强放",
           "case_basis": {
             "failure_lesson": "单点加绿后下游排队继续增长",
             "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
@@ -6736,7 +4783,7 @@
           "plan_id": "arterial_coordination",
           "name": "干线联控方案",
           "status": "rejected",
-          "scenario": "奥体西路与解放东路路口接不住，上游持续来车，目标路口接近溢出",
+          "scenario": "坤顺路与礼耕路路口接不住，上游持续来车，目标路口接近溢出",
           "case_basis": {
             "failure_lesson": "单点加绿后下游排队继续增长",
             "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
@@ -7270,7 +5317,7 @@
         "plan_id": "downstream_protection",
         "name": "下游保护方案",
         "status": "rejected",
-        "scenario": "奥体西路与解放东路路口承接不足，目标路口不宜继续强放",
+        "scenario": "坤顺路与礼耕路路口承接不足，目标路口不宜继续强放",
         "case_basis": {
           "failure_lesson": "单点加绿后下游排队继续增长",
           "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
@@ -8324,7 +6371,7 @@
         "plan_id": "arterial_coordination",
         "name": "干线联控方案",
         "status": "rejected",
-        "scenario": "奥体西路与解放东路路口接不住，上游持续来车，目标路口接近溢出",
+        "scenario": "坤顺路与礼耕路路口接不住，上游持续来车，目标路口接近溢出",
         "case_basis": {
           "failure_lesson": "单点加绿后下游排队继续增长",
           "success_lesson": "上游控流+目标小步释放+下游保护后外溢风险下降",
@@ -8860,31 +6907,31 @@
     {
       "phase": "intent_understanding",
       "success": true,
-      "duration_ms": 12535.6,
+      "duration_ms": 13684.37,
       "errors": []
     },
     {
       "phase": "data_analysis_diagnosis",
       "success": true,
-      "duration_ms": 12758.01,
+      "duration_ms": 13217.87,
       "errors": []
     },
     {
       "phase": "cause_analysis",
       "success": true,
-      "duration_ms": 9408.39,
+      "duration_ms": 8532.88,
       "errors": []
     },
     {
       "phase": "strategy_generation",
       "success": true,
-      "duration_ms": 24001.34,
+      "duration_ms": 15442.8,
       "errors": []
     },
     {
       "phase": "plan_generation",
       "success": false,
-      "duration_ms": 5994.72,
+      "duration_ms": 6037.66,
       "errors": [
         "所有候选方案未通过护栏校验"
       ]

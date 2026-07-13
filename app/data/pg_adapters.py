@@ -60,7 +60,17 @@ def parse_time_step_range(time_range: str | None) -> tuple[int | None, int | Non
     return lo, hi
 
 
-def metrics_for_diagnosis(pg_metrics: dict[str, Any], ticket: dict[str, Any]) -> dict[str, Any]:
+# Case A（坤顺路×奥体西路）：下游承接排队按接收进口道方向筛选 + queue_len_avg 均值。
+# 其他路口保持整路口 queue_m（max）原逻辑。
+CASE_A_APPROACH_QUEUE_TARGET_IDS = frozenset({"011wwe28fty00001"})
+
+
+def metrics_for_diagnosis(
+    pg_metrics: dict[str, Any],
+    ticket: dict[str, Any],
+    *,
+    approach_queue_avg: bool = False,
+) -> dict[str, Any]:
     direction = ticket.get("direction", "东向西")
     movement = ticket.get("movement", "直行")
     dir8, turn = resolve_dir8_turn(direction, movement)
@@ -85,8 +95,27 @@ def metrics_for_diagnosis(pg_metrics: dict[str, Any], ticket: dict[str, Any]) ->
         target_flow = _pick_movement_metric(pg_metrics.get("movement_volume") or {}, dir8, turn)
     volume = float(target_flow if target_flow is not None else pg_metrics.get("volume") or 0)
 
+    queue_m = float(pg_metrics.get("queue_m") or 0)
+    if approach_queue_avg:
+        # 仅 Case A 下游：按接收进口+转向取 queue_len_avg 均值，避免他向峰值污染。
+        filtered = _mean_row_metric(
+            pg_metrics.get("turn_perf_detail") or [],
+            dir8,
+            turn,
+            ("queue_len_avg",),
+        )
+        if filtered is None:
+            filtered = _mean_row_metric(
+                pg_metrics.get("turn_perf_detail") or [],
+                dir8,
+                turn,
+                ("queue_len_max",),
+            )
+        if filtered is not None:
+            queue_m = float(filtered)
+
     return {
-        "queue_length_m": float(pg_metrics.get("queue_m") or 0),
+        "queue_length_m": queue_m,
         "storage_length_m": float(pg_metrics.get("storage_m") or 200),
         "volume_vph": volume,
         "capacity_vph": float(pg_metrics.get("capacity") or 0) or max(volume / max(saturation or 0.8, 0.1), 1),
@@ -420,6 +449,7 @@ def enrich_downstream_metrics(
     topology: dict[str, Any],
     *,
     load_pg_metrics: Any,
+    target_inter_id: str | None = None,
 ) -> dict[str, Any]:
     """为下游相邻节点注入真实运行指标（修复 BUG-004）。
 
@@ -432,7 +462,11 @@ def enrich_downstream_metrics(
 
     行为（rule 14/16）：取到真实指标 → ``metrics_available=True``；取不到 →
     ``metrics_available=False`` + ``metrics_reason``，绝不静默回落 0。
+
+    Case A（坤顺×奥体西）额外按下游接收进口道方向用 queue_len_avg 均值判定；
+    其他目标路口保持整路口 queue_m（max）原逻辑。
     """
+    use_approach_queue = str(target_inter_id or "") in CASE_A_APPROACH_QUEUE_TARGET_IDS
     for node in topology.get("downstream_nodes") or []:
         if not isinstance(node, dict):
             continue
@@ -461,13 +495,19 @@ def enrich_downstream_metrics(
             "direction": direction or "东向西",
             "movement": "直行",
         }
-        metrics = metrics_for_diagnosis(pg_metrics, adj_ticket)
+        metrics = metrics_for_diagnosis(
+            pg_metrics,
+            adj_ticket,
+            approach_queue_avg=use_approach_queue,
+        )
         for field in _ADJ_METRIC_FIELDS:
             if metrics.get(field) is not None:
                 node[field] = metrics[field]
         node["metrics_available"] = True
         node["metrics_source"] = "pg_adjacent"
         node["metrics_receiving_direction"] = direction
+        if use_approach_queue:
+            node["metrics_queue_mode"] = "approach_avg"
     return topology
 
 
@@ -632,6 +672,29 @@ def _pick_row_metric(
             if value is not None:
                 return value
     return None
+
+
+def _mean_row_metric(
+    rows: list[dict[str, Any]],
+    dir8: int,
+    turn: int,
+    fields: tuple[str, ...],
+) -> float | None:
+    """Mean of the first available field across matching dir8+turn rows."""
+    values: list[float] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if _row_dir8(row) != int(dir8) or _row_turn(row) != int(turn):
+            continue
+        for field in fields:
+            value = _as_float_or_none(row.get(field))
+            if value is not None:
+                values.append(value)
+                break
+    if not values:
+        return None
+    return round(sum(values) / len(values), 2)
 
 
 def _metric_value(value: Any) -> float | None:

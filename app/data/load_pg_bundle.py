@@ -79,7 +79,11 @@ def load_pg_diagnosis_bundle(
             return None
         return adj.get("metrics") or None
 
-    enrich_downstream_metrics(topology, load_pg_metrics=_adjacent_metrics)
+    enrich_downstream_metrics(
+        topology,
+        load_pg_metrics=_adjacent_metrics,
+        target_inter_id=str(ticket.get("inter_id") or ""),
+    )
 
     merge_pg_task_into_context(task, pg_task)
     task["pg_raw"] = raw

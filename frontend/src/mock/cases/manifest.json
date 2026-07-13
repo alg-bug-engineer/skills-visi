@@ -7,12 +7,12 @@
       "id": "case_a",
       "code": "A",
       "label": "坤顺路×奥体西路",
-      "display_name": "Case A · 坤顺路×奥体西路（点优化）",
+      "display_name": "Case A · 坤顺路×奥体西路北左（点优化）",
       "inter_id": "011wwe28fty00001",
       "intersection_name": "坤顺路与奥体西路路口",
       "opt_type": "TYPE1_POINT",
       "fixture": "case_a_fixture.json",
-      "query": "坤顺路与奥体西路路口，晚高峰十七点到十九点，北进口过饱和、路口积压，按点控经验在本路口做北进口相位局部优化。"
+      "query": "坤顺路与奥体西路路口，晚高峰十七点到十九点，北进口左转过饱和并有排队积压，东向下游坤顺路与礼耕路路口仍有承接空间，按点控经验在本路口对北进口左转做局部加绿优化。"
     },
     {
       "id": "case_b",

@@ -199,7 +199,13 @@ class IntersectionLoadService:
         pg_metrics = pg_task.get("metrics") or {}
         metrics = metrics_for_diagnosis(pg_metrics, ticket)
         topology = topology_from_pg_raw({**raw, "metrics": pg_metrics}, ticket, inter)
-        self._enrich_downstream(topology, day_of_week=day_of_week, time_hhmm=time_hhmm, time_range=time_range)
+        self._enrich_downstream(
+            topology,
+            day_of_week=day_of_week,
+            time_hhmm=time_hhmm,
+            time_range=time_range,
+            target_inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
+        )
 
         diagnosis_ticket = {
             **ticket,
@@ -231,6 +237,7 @@ class IntersectionLoadService:
         day_of_week: int | None,
         time_hhmm: str | None,
         time_range: str | None,
+        target_inter_id: str | None = None,
     ) -> None:
         """为下游相邻节点注入真实 PG 运行指标（修复下游指标恒为 0，BUG-004）。
 
@@ -253,7 +260,11 @@ class IntersectionLoadService:
                 return None
             return adj.get("metrics") or None
 
-        enrich_downstream_metrics(topology, load_pg_metrics=_adjacent_metrics)
+        enrich_downstream_metrics(
+            topology,
+            load_pg_metrics=_adjacent_metrics,
+            target_inter_id=target_inter_id,
+        )
 
     @staticmethod
     def _sse(event: str, data: dict[str, Any]) -> str:

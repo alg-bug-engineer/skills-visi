@@ -12,7 +12,8 @@ THRESHOLDS = {
     "saturation_oversaturation": 0.9,
     "green_utilization_low": 0.6,
     "green_utilization_high": 0.85,
-    "downstream_saturation_high": 0.8,
+    # 与 assess_downstream_capacity 默认 sat_threshold=0.85 对齐，避免 0.80 误判接不住（BUG-007）
+    "downstream_saturation_high": 0.85,
 }
 
 

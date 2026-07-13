@@ -40,7 +40,7 @@ TOP_CANDIDATES = [
         "inter_id": "011wwe28fty00001",
         "alias": "坤顺路×奥体西路",
         "screen_type": "TYPE1_POINT",
-        "reason": "多转向饱和≥0.9、下游余量大，典型点优化候选",
+        "reason": "北进口左转过饱和且有排队；东向下游坤顺×礼耕西进口溢流比低（slack），典型点优化 Case A",
     },
     {
         "rank": 3,
