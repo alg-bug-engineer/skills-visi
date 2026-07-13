@@ -120,7 +120,29 @@ def build_plan_candidates(
             "pedestrian_constraints": adjusted["pedestrian_constraints"],
             "downstream_risk": adjusted["downstream_risk"],
         }
-        validation_errors = validate_plan_guardrails(plan_body, constraints)
+        # 再收紧策略定量上限（防止上游 constraints 仍为信号 history/cycle+30）
+        eff_constraints = _tighten_constraints(constraints, strategy)
+        # 优化结果可能只把周期写在 timing 里，补齐顶栏供护栏读取
+        timing_cycle = _as_dict(plan_body.get("timing")).get("cycle_s")
+        if plan_body.get("cycle_s") is None and timing_cycle is not None:
+            plan_body["cycle_s"] = timing_cycle
+        validation_errors = list(validate_plan_guardrails(plan_body, eff_constraints) or [])
+        # 硬兜底：timing/顶栏周期超过策略上限时必须拒绝（防漏检）
+        cycle_for_check = plan_body.get("cycle_s")
+        if cycle_for_check is None:
+            cycle_for_check = _as_dict(plan_body.get("timing")).get("cycle_s")
+        max_for_check = eff_constraints.get("max_cycle_s")
+        try:
+            if (
+                cycle_for_check is not None
+                and max_for_check is not None
+                and float(cycle_for_check) > float(max_for_check)
+            ):
+                msg = f"周期 {float(cycle_for_check):.0f}s 超过约束上限 {float(max_for_check):.0f}s"
+                if msg not in validation_errors:
+                    validation_errors.append(msg)
+        except (TypeError, ValueError):
+            pass
         guardrail_pass = len(validation_errors) == 0
 
         candidates.append(
@@ -191,3 +213,30 @@ def _rejected_candidate(
         "validation_errors": errors,
         "guardrail_pass": False,
     }
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _tighten_constraints(constraints: dict[str, Any], strategy: dict[str, Any]) -> dict[str, Any]:
+    """取策略 quantitative_constraints 与传入约束的更严 max_cycle_s。"""
+    out = dict(constraints or {})
+    strat_body = strategy.get("strategy") if isinstance(strategy.get("strategy"), dict) else strategy
+    quant = _as_dict(_as_dict(strat_body).get("quantitative_constraints"))
+    qmax = quant.get("max_cycle_s")
+    if qmax is None:
+        return out
+    try:
+        qmax_f = float(qmax)
+    except (TypeError, ValueError):
+        return out
+    existing = out.get("max_cycle_s")
+    if existing is None:
+        out["max_cycle_s"] = qmax_f
+    else:
+        try:
+            out["max_cycle_s"] = min(float(existing), qmax_f)
+        except (TypeError, ValueError):
+            out["max_cycle_s"] = qmax_f
+    return out

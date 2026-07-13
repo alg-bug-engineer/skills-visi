@@ -103,7 +103,9 @@ def collect_map_adjacent_peer_hints(pg_raw: dict[str, Any] | None) -> list[dict[
         receiving_dir8: int | None = None
         for source in (channel, row):
             try:
-                receiving_dir8 = int(source.get("dir8_code"))
+                exit_or_link_dir8 = int(source.get("dir8_code"))
+                # 出口 link 方向 → 下游承接进口对向
+                receiving_dir8 = (exit_or_link_dir8 + 4) % 8
                 break
             except (TypeError, ValueError):
                 continue

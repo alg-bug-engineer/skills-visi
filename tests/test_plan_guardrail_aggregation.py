@@ -34,6 +34,23 @@ def test_guardrail_rejects_190_over_180():
     assert any("周期" in e and "180" in e for e in errors)
 
 
+def test_guardrail_rejects_timing_cycle_when_top_level_understates():
+    """顶栏 180、timing 190 时必须按 190 拒绝（E7 漏检）。"""
+    mod = _load_guardrails()
+    plan = {
+        "cycle_s": 180,
+        "rollback_condition": "回滚",
+        "timing": {
+            "cycle_s": 190,
+            "phase_stage_timing_list": [
+                {"phase_stage_name": "南直", "greenTime": 40, "minGreenTime": 14, "maxGreenTime": 60}
+            ],
+        },
+    }
+    errors = mod.validate_plan_guardrails(plan, {"max_cycle_s": 180})
+    assert any("周期" in e and "190" in e and "180" in e for e in errors)
+
+
 def test_guardrail_requires_max_cycle_constraint():
     mod = _load_guardrails()
     plan = {
@@ -43,3 +60,4 @@ def test_guardrail_requires_max_cycle_constraint():
     }
     errors = mod.validate_plan_guardrails(plan, {})
     assert any("缺少周期上限" in e for e in errors)
+

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""批量采集 docs/典型输入案例-点线优化.md 三类 Case（A/B/D）的前端 mock fixture。
+"""批量采集 docs/典型输入案例-点线优化.md 两例典型 Case（A 点 / B 线）的前端 mock fixture。
 
 用法：
   # 采集全部（需 LLM_MOCK=false、PG、QWEN 可用，每例数十秒）
@@ -7,11 +7,14 @@
 
   # 仅采集指定 Case
   PYTHONPATH=. .venv/bin/python scripts/capture_typical_point_line_fixtures.py --live --case case_a
+  PYTHONPATH=. .venv/bin/python scripts/capture_typical_point_line_fixtures.py --live --case case_b
 
   # 跳过方案证据校验（仅诊断/成因联调，plan 不完整时）
   PYTHONPATH=. .venv/bin/python scripts/capture_typical_point_line_fixtures.py --live --relax-evidence
 
-产物：frontend/src/mock/cases/<fixture>（清单见 manifest.json）
+产物：
+  - frontend/src/mock/cases/<fixture>（清单见 manifest.json）
+  - data/live-validation/<live_validation>（若 manifest 配置了该字段）
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from scripts.capture_frontend_mock import _validate_public_evidence, _write
 
 MANIFEST = PROJECT_ROOT / "frontend/src/mock/cases/manifest.json"
 CASES_DIR = PROJECT_ROOT / "frontend/src/mock/cases"
+LIVE_DIR = PROJECT_ROOT / "data/live-validation"
 
 
 def load_manifest() -> dict:
@@ -60,15 +64,27 @@ async def capture_one(case: dict, *, relax: bool) -> int:
 
     query = case["query"]
     out_path = CASES_DIR / case["fixture"]
+    live_name = case.get("live_validation")
     print(f"\n▶ [{case['code']}] {case['label']} → {out_path.name}")
     print(f"  inter_id={case['inter_id']}")
     print(f"  输入：{query[:80]}…")
 
     agent = AgentService(settings)
-    result = await agent.run(query)
+    # 同进程连续采集时 contextvar 会复用旧 trace_id，强制每次新开
+    from app.logging_setup import new_trace_id, set_trace_id
+
+    tid = set_trace_id(new_trace_id())
+    result = await agent.run(query, trace_id=tid)
     public = build_public_run_response(result)
     if not public.get("completed"):
-        print("⚠️  流水线未完整完成；仍写入供部分幕联调（可加 --relax-evidence）。")
+        print("⚠️  流水线未完整完成；仍尝试写入（可加 --relax-evidence）。")
+
+    if live_name:
+        LIVE_DIR.mkdir(parents=True, exist_ok=True)
+        live_path = LIVE_DIR / live_name
+        _write(public, live_path)
+        print(f"  live-validation → {live_path.relative_to(PROJECT_ROOT)}")
+
     return write_if_valid(public, out_path, relax=relax)
 
 
@@ -76,7 +92,11 @@ async def main_async(args: argparse.Namespace) -> int:
     manifest = load_manifest()
     cases = manifest.get("cases") or []
     if args.case:
-        cases = [c for c in cases if c.get("id") == args.case or c.get("code", "").lower() == args.case.lower()]
+        cases = [
+            c
+            for c in cases
+            if c.get("id") == args.case or c.get("code", "").lower() == args.case.lower()
+        ]
         if not cases:
             print(f"✗ 未找到 case: {args.case}")
             return 1
@@ -95,7 +115,7 @@ async def main_async(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="批量采集点/线优化典型 Case 前端 fixture")
     parser.add_argument("--live", action="store_true", help="发起真实 agent/run 请求")
-    parser.add_argument("--case", help="仅采集 case_a / A 等")
+    parser.add_argument("--case", help="仅采集 case_a / case_b / A / B")
     parser.add_argument(
         "--relax-evidence",
         action="store_true",

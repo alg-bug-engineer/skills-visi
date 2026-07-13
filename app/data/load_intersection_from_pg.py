@@ -2215,9 +2215,9 @@ def _aggregate_metrics(
         "lane_volume_daily_total": lane_volume_daily_total if lane_flow_rows else 0.0,
         "lane_volume_unit": "pcu/5min_avg" if lane_volume else None,
         "los": evaluation.get("level_of_service"),
-        "turn_flow_detail": prepared_flow_rows[:20],
-        "turn_perf_detail": perf_rows[:20],
-        "turn_saturation_detail": sat_rows[:20],
+        "turn_flow_detail": prepared_flow_rows,
+        "turn_perf_detail": perf_rows,
+        "turn_saturation_detail": sat_rows,
     }
 
 

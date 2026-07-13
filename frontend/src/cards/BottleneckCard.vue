@@ -50,6 +50,13 @@ const downstreamIdle = computed(() => {
   return !tight && (sat == null || sat < 0.6) && (!los || ['A', 'B', 'C'].includes(los))
 })
 
+const downQueueM = computed(() => {
+  const m = downMetrics.value
+  if (!m) return null
+  const v = m.max_queue_m ?? m.avg_queue_m
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+})
+
 // 剩余蓄车：仅在取到有效正值时展示（0/空多为下游空闲或数据缺口，展示 0m 会与「有承接余量」矛盾）。
 const remainingStorage = computed(() => {
   const v = primary.value?.remaining_storage_m
@@ -96,6 +103,7 @@ const expertCheck = computed(() => productCopy(dd.value?.expert_question).replac
       <ul class="down__grid">
         <li><span>饱和度</span><b :class="{ warn: (downSaturation ?? 0) >= 0.8 }">{{ ratio(downSaturation) }}</b></li>
         <li><span>服务水平</span><b :class="{ warn: downMetrics?.level_of_service === 'F' }">{{ downMetrics?.level_of_service ?? '—' }}</b></li>
+        <li v-if="downQueueM != null"><span>排队长度</span><b>{{ meters(downQueueM) }}</b></li>
         <li v-if="downMetrics?.queue_storage_ratio_max != null"><span>排队比</span><b>{{ ratio(downMetrics.queue_storage_ratio_max) }}</b></li>
         <li v-if="remainingStorage != null"><span>剩余蓄车</span><b>{{ meters(remainingStorage) }}</b></li>
         <li v-if="capacityText"><span>承接能力</span><b :class="{ ok: capacity?.can_release && !capacity?.blocked, warn: capacity?.blocked }">{{ capacityText }}</b></li>

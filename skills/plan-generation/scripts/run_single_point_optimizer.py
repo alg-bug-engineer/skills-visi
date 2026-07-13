@@ -101,19 +101,26 @@ def run_single_point_optimizer(
             "plan": plan,
         }
 
+    timing = _build_timing_evidence(
+        signal=signal,
+        request=request,
+        cycle_s=cycle_s,
+        timing_list=timing_list,
+        meta=meta,
+    )
+    # 与 timing 展示口径对齐：阶段加总修正后的周期必须回写顶栏，供护栏校验
+    try:
+        aligned_cycle = int(timing.get("cycle_s") or cycle_s)
+    except (TypeError, ValueError):
+        aligned_cycle = cycle_s
+
     return {
         "ok": True,
         "engine": "signal_optimization_engine",
         "request": request,
         "plan": plan,
-        "timing": _build_timing_evidence(
-            signal=signal,
-            request=request,
-            cycle_s=cycle_s,
-            timing_list=timing_list,
-            meta=meta,
-        ),
-        "cycle_s": cycle_s,
+        "timing": timing,
+        "cycle_s": aligned_cycle,
     }
 
 

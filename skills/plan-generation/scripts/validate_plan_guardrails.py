@@ -13,6 +13,12 @@ def validate_plan_guardrails(plan: dict[str, Any], constraints: dict[str, Any] |
         or plan.get("cycleTime")
         or timing.get("cycle_s")
     )
+    # 若顶栏与 timing 不一致，取较大值（阶段加总）作为护栏口径，避免 180 顶栏放过 190 展示
+    timing_cycle = _to_float(timing.get("cycle_s"))
+    if cycle is not None and timing_cycle is not None:
+        cycle = max(cycle, timing_cycle)
+    elif timing_cycle is not None:
+        cycle = timing_cycle
     max_cycle = _to_float(constraints.get("max_cycle_s"))
     # 产品硬约束不可被引擎 history max 旁路（需求 34 E7/G6）
     if cycle is not None and max_cycle is None:

@@ -26,6 +26,14 @@ def _direction_for_dir8(dir8: Any) -> str | None:
         return None
 
 
+def _receiving_dir8_from_exit(exit_dir8: Any) -> int | None:
+    """本路口出口方向 → 下游路口承接进口方向（对向）。"""
+    try:
+        return (int(exit_dir8) + 4) % 8
+    except (TypeError, ValueError):
+        return None
+
+
 def parse_day_of_week(ticket: dict[str, Any]) -> int:
     period = str(ticket.get("period") or "")
     if "周六" in period or "周日" in period:
@@ -111,7 +119,8 @@ def metrics_for_diagnosis(
     dir8, turn = resolve_dir8_turn(direction, movement)
     movement_key = f"d{dir8}_t{turn}"
 
-    target_sat = _pick_row_metric(
+    # 多 step 行取窗口峰值（与 by_movement / 筛选口径一致），禁止取首行低估
+    target_sat = _max_row_metric(
         pg_metrics.get("turn_saturation_detail") or [],
         dir8,
         turn,
@@ -121,7 +130,7 @@ def metrics_for_diagnosis(
         target_sat = _pick_movement_metric(pg_metrics.get("movement_saturation") or {}, dir8, turn)
     saturation = float(target_sat) if target_sat is not None else None
 
-    target_flow = _pick_row_metric(
+    target_flow = _max_row_metric(
         pg_metrics.get("turn_flow_detail") or [],
         dir8,
         turn,
@@ -318,6 +327,7 @@ def _append_downstream_from_correlate_exit_links(
         path = parse_linestring_wkt(row.get("geom_wkt"))
         oriented = orient_path(path, target_lng, target_lat, row.get("adjacent_lng"), row.get("adjacent_lat"))
         share = _match_coverage(coverage, preferred_trace, cor_id) or correlate_share
+        recv = _receiving_dir8_from_exit(link_dir8)
         downstream_nodes.append(
             {
                 "inter_id": cor_id or None,
@@ -327,8 +337,9 @@ def _append_downstream_from_correlate_exit_links(
                 "lat": row.get("adjacent_lat"),
                 "share_pct": share,
                 "link_id": row.get("link_id"),
-                "receiving_dir8": link_dir8,
-                "receiving_label": movement_label(link_dir8, 2) if link_dir8 is not None else None,
+                # 出口 link 的 dir8 是本路口驶出方向；下游承接进口为其对向
+                "receiving_dir8": recv,
+                "receiving_label": movement_label(recv, 2) if recv is not None else None,
                 "path": oriented,
                 "path_source": "link_geom" if len(oriented) >= 2 else "correlate_exit",
             }
@@ -412,8 +423,9 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
                     "lat": adj_lat,
                     "share_pct": share,
                     "link_id": row.get("link_id"),
-                    "receiving_dir8": exit_dir8,
-                    "receiving_label": movement_label(exit_dir8, 2),
+                    # 出口 dir8 → 下游承接进口 = 对向进口（与筛选 receiving_eight_direction 一致）
+                    "receiving_dir8": _receiving_dir8_from_exit(exit_dir8),
+                    "receiving_label": movement_label(_receiving_dir8_from_exit(exit_dir8), 2),
                     "path": oriented,
                     "path_source": "link_geom" if len(oriented) >= 2 else "none",
                 }
@@ -553,7 +565,22 @@ def enrich_downstream_metrics(
             pg_metrics,
             adj_ticket,
             approach_queue_avg=use_approach_queue,
+            scope=pg_metrics if isinstance(pg_metrics.get("adjacent_inter_spacing_detail"), list) else None,
         )
+        # 饱和度未绑定到承接进口时，禁止用 0.0 冒充「空闲」（与嗅探/筛选 MAX 对不上的主因）
+        sat_ok = bool(metrics.get("metrics_available"))
+        if not sat_ok:
+            node["metrics_available"] = False
+            node["metrics_reason"] = (
+                f"下游承接进口（{direction or '未知方向'}直行）该时段无转向饱和度，"
+                "不可用 0 代替；请核对日型/时段或嗅探口径"
+            )
+            # 仍透出排队等非饱和字段供参考，但不宣称指标齐全
+            for field in ("queue_length_m", "storage_length_m", "volume_vph", "avg_delay_s"):
+                if metrics.get(field) is not None:
+                    node[field] = metrics[field]
+            node["metrics_receiving_direction"] = direction
+            continue
         for field in _ADJ_METRIC_FIELDS:
             if metrics.get(field) is not None:
                 node[field] = metrics[field]
@@ -582,6 +609,7 @@ def build_adjacent_metrics_loader(ticket: dict[str, Any]):
     time_range = ticket.get("time_range")
 
     def _load(inter_id: str) -> dict[str, Any] | None:
+        """优先票据日型；该日无转向饱和度时回退周内晚高峰有饱和度的日（对齐筛选嗅探跨日 MAX 口径）。"""
         loaded = load_intersection_metrics_only(
             inter_id=str(inter_id),
             day_of_week=day_of_week,
@@ -589,8 +617,33 @@ def build_adjacent_metrics_loader(ticket: dict[str, Any]):
             time_range=time_range,
         )
         if not loaded.get("ok"):
-            return None
-        return loaded.get("metrics") or None
+            loaded = None
+        metrics = (loaded or {}).get("metrics") if loaded else None
+        if metrics and (metrics.get("turn_saturation_detail") or float(metrics.get("saturation") or 0) > 0):
+            return metrics
+
+        best_metrics = metrics if isinstance(metrics, dict) else None
+        best_sat = float((best_metrics or {}).get("saturation") or 0)
+        for dow in range(1, 8):
+            if dow == day_of_week:
+                continue
+            alt = load_intersection_metrics_only(
+                inter_id=str(inter_id),
+                day_of_week=dow,
+                time_hhmm=time_hhmm,
+                time_range=time_range,
+            )
+            if not alt.get("ok"):
+                continue
+            alt_m = alt.get("metrics") or {}
+            if not alt_m.get("turn_saturation_detail"):
+                continue
+            sat = float(alt_m.get("saturation") or 0)
+            if sat > best_sat:
+                best_sat = sat
+                best_metrics = dict(alt_m)
+                best_metrics["metrics_day_of_week_fallback"] = dow
+        return best_metrics
 
     return _load
 
@@ -668,6 +721,16 @@ def enrich_downstream_trace_adjacent_peers(
 
         adj_ticket = {"direction": direction, "movement": "直行"}
         metrics = metrics_for_diagnosis(pg_metrics, adj_ticket)
+        if not metrics.get("metrics_available"):
+            node["metrics_available"] = False
+            node["metrics_reason"] = (
+                f"相邻路口承接进口（{direction}直行）该时段无转向饱和度，不可用 0 代替"
+            )
+            for field in ("queue_length_m", "storage_length_m", "volume_vph", "avg_delay_s"):
+                if metrics.get(field) is not None:
+                    node[field] = metrics[field]
+            merged[inter_id] = build_intersection_profile(node)
+            continue
         for field in _ADJ_METRIC_FIELDS:
             if metrics.get(field) is not None:
                 node[field] = metrics[field]
@@ -735,6 +798,29 @@ def _pick_row_metric(
             if value is not None:
                 return value
     return None
+
+
+def _max_row_metric(
+    rows: list[dict[str, Any]],
+    dir8: int,
+    turn: int,
+    fields: tuple[str, ...],
+) -> float | None:
+    """Peak value across all matching dir8+turn rows (multi-step windows)."""
+    values: list[float] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if _row_dir8(row) != int(dir8) or _row_turn(row) != int(turn):
+            continue
+        for field in fields:
+            value = _as_float_or_none(row.get(field))
+            if value is not None:
+                values.append(value)
+                break
+    if not values:
+        return None
+    return max(values)
 
 
 def _mean_row_metric(

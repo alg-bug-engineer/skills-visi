@@ -235,7 +235,11 @@ PYTHONPATH=. .venv/bin/python scripts/capture_typical_point_line_fixtures.py --l
 
 ### 线案例
 
-使用南进口直行准确query调用真实链路，输出独立fixture；不得复用旧北直Case D。要求目标南直、下游坤顺×奥体中、上游经十路、候选≤180s。
+```bash
+PYTHONPATH=. .venv/bin/python scripts/capture_typical_point_line_fixtures.py --live --case case_b
+```
+
+使用南进口直行准确 query（manifest `case_b`）调用真实链路；不得复用旧「北直」Case D 或已剔除的浆水泉 Case。要求目标南直、下游坤顺×奥体中、候选≤180s。
 
 ### 结果审计
 

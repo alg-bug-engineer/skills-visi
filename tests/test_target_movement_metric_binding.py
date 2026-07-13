@@ -15,12 +15,14 @@ def test_row_dir8_prefers_code_and_exact_label():
 
 def test_target_saturation_binds_north_left_not_north_through_max():
     # E1：ticket 北左；北直 1.5446、北左 1.2365 → 必须取北左
+    # 多 step：首行偏低，须取窗口峰值而非首行
     pg_metrics = {
         "saturation": 1.5446,
         "queue_m": 163.0,
         "storage_m": 195.68,
         "turn_saturation_detail": [
             {"dir8_code": 0, "turn_dir_no": 2, "turn_saturation": 1.5446},
+            {"dir8_code": 0, "turn_dir_no": 1, "turn_saturation": 0.5388},
             {"dir8_code": 0, "turn_dir_no": 1, "turn_saturation": 1.2365},
         ],
         "turn_perf_detail": [
