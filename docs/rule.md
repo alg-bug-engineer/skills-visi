@@ -17,6 +17,6 @@
 17. **剧本是验收标准**：`docs/剧本.md` 每一幕所需的前端字段必须在对应 Skill 输出中有结构化定义；缺失字段视为未完成，不得以文案或 LLM 自由发挥替代。前端对接路径见 `docs/剧本字段-API对照.md`
 18. **生产化开发须先写计划**：涉及 Skill 行为变更、数据接入、护栏补齐时，先在 `plans/` 目录编写开发计划（含测试与回滚），再开分支实施
 19. **前端禁止合成/伪造数据**：前端只做「呈现」，不得凭方向、存储长度、占比等标量在客户端合成路网几何（link 折线、节点坐标）、指标或任何业务数据。若前端可视化缺少所需字段（如流量溯源的上下游 link `path`、节点经纬度、占比等），必须修改**后端接口**补全真实数据（数据真源见约束16：来自 PG `dim_link_info.geom` / `dim_inter_info.geom_center` 等），随后运行 `scripts/capture_frontend_mock.py` 重新采集 `frontend/src/mock/*_fixture.json`，使前端 `VITE_MOCK=1` 调试数据与真实后端一致。无法从后端取得真实数据时，字段返回 `available:false` + `reason`，前端据此降级为「暂无数据」提示，**严禁前端造数**。
-17. 及时回顾更新项目进度文档，包括 TODO、历史遗留问题、检查项等，保证项目进度文档是对项目及时的记录。
-18. **Git commit 必须带时间点**：每次 `git commit` 的提交说明末尾须附本地时间戳，格式 `[YYYY-MM-DD HH:MM]`（24 小时制，与运行环境时区一致）。示例：`feat(analysis): 点线优化全库筛选 [2026-07-09 22:07]`。分析/扫描类产出若含时间戳目录或 `generated_at` 字段，提交说明中的时间应与该次运行时间一致。
-19. **交通分析落库与全库扫描产出约束**：路口诊断、溢流统计、点/线优化筛选等分析完成后须：① 方法论与口径说明写入 `docs/`（历史范例见 `archive/docs/点线优化路口筛选分析.md`）；② 可复用 SQL 模板放入 `scripts/`（`analysis/` 为本地工作区，默认 gitignore）；③ 全量结果、中间结果、README/汇总说明写入 `data/screening/point-line-<timestamp>/`，并维护软链 `data/screening/point-line-latest`；④ 禁止只留脚本不落数据、禁止只提交摘要不提交 `full_*` 与 `intermediate_*`。
+20. 及时回顾更新项目进度与需求状态：现行需求在根目录 `needs/`（未完成项）；已落地需求迁入 `archive/needs/`；历史进度快照见 `archive/docs/项目进度.md`。更新时同步 TODO、遗留问题与检查项。
+21. **Git commit 必须带时间点**：每次 `git commit` 的提交说明末尾须附本地时间戳，格式 `[YYYY-MM-DD HH:MM]`（24 小时制，与运行环境时区一致）。示例：`feat(analysis): 点线优化全库筛选 [2026-07-09 22:07]`。分析/扫描类产出若含时间戳目录或 `generated_at` 字段，提交说明中的时间应与该次运行时间一致。
+22. **交通分析落库与全库扫描产出约束**：路口诊断、溢流统计、点/线优化筛选等分析完成后须：① 方法论与口径说明写入 `docs/`（历史范例见 `archive/docs/点线优化路口筛选分析.md`）；② 可复用 SQL 模板放入 `scripts/`（`analysis/` 为本地工作区，默认 gitignore）；③ 全量结果、中间结果、README/汇总说明写入 `data/screening/point-line-<timestamp>/`，并维护软链 `data/screening/point-line-latest`；④ 禁止只留脚本不落数据、禁止只提交摘要不提交 `full_*` 与 `intermediate_*`。

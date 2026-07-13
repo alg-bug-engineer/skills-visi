@@ -1,6 +1,6 @@
 import { getJSON, postJSON } from './client'
 import { streamPost, type StreamHandlers, type StreamController } from './sse'
-import type { ApiError, HealthResponse, RunResponse, SkillSolidificationResult } from './types'
+import type { ApiError, RunResponse, SkillSolidificationResult } from './types'
 import fixture from '@/mock/run_1_fixture.json'
 import healthyFixture from '@/mock/run_healthy_fixture.json'
 import skillSolidifyFixture from '@/mock/skill_solidify_fixture.json'
@@ -67,11 +67,6 @@ function pickScenario(userInput: string): { data: RunResponse; phaseCount: numbe
 
 function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms))
-}
-
-export async function health(): Promise<HealthResponse | ApiError> {
-  if (MOCK) return { status: 'ok', llm_mock: true, model: 'mock', pg_configured: false }
-  return getJSON<HealthResponse>('/health')
 }
 
 export interface RunOptions {
@@ -453,11 +448,6 @@ export async function listExperiences(
     }
   }
   return getJSON('/agent/experiences', experienceType ? { experience_type: experienceType } : undefined)
-}
-
-export async function loadIntersection(body: Record<string, unknown>): Promise<Record<string, unknown> | ApiError> {
-  if (MOCK) return { ok: false, reason: 'mock_mode' }
-  return postJSON('/intersection/load', body)
 }
 
 export interface SolidifyOptions {

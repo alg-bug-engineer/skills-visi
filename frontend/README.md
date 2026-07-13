@@ -123,7 +123,7 @@ PYTHONPATH=. .venv/bin/python scripts/capture_frontend_mock.py --live "转山西
 | 4 | 瓶颈：能不能加绿 | `BottleneckCard` | 车道 |
 | 5 | 干线溯源 | `CorridorScanCard` + 粒子流 | 干线 3D |
 | 6 | 成因 + 相似案例 | `CauseCard` | 干线 |
-| 7 | 策略边界（可做/不可做） | `StrategyBoundaryCard` | 控制范围 |
+| 7 | 策略边界（可做/不可做） | `GovernanceStrategyCard` | 控制范围 |
 | 8 | 方案决策（相位图/时距图/比选） | `PlanDrawer` | 路口 |
 | 9 | 接受 / 拒绝再生成 | `PlanDrawer` 页脚 | 干线 |
 

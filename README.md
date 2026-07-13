@@ -29,9 +29,9 @@ bash scripts/start-all.sh   # 或先 VITE_MOCK=1 只跑前端
 | `frontend/` | Vue3 + TS + Vite 演示 SPA |
 | `skills/` | 各阶段 Skill 脚本与配置 |
 | `docs/` | 现行设计、剧本、集成与**部署指南** |
-| `needs/`、`plans/` | **现行**需求与计划（编号 29+） |
+| `needs/`、`plans/` | **现行**需求与计划（当前为 29；已落地项见 `archive/`） |
 | `bugs/` | 缺陷台账 |
-| `archive/` | 历史需求/计划（1–28）与过期分析文档 |
+| `archive/` | 历史需求/计划（1–28、30–32）与过期分析文档 |
 | `scripts/` | 启停、`package-local.sh` 本地打包（含 env）等 |
 | `tests/` | 后端 pytest |
 

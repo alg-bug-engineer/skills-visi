@@ -1,7 +1,7 @@
 import {
   ABSORPTION_STAGE_VOICE,
   ABSORPTION_VOICE_GUIDE,
-} from '@/config/absorptionVoiceTemplates'
+} from '@/config/voiceTemplates'
 import type { VoiceCue } from '@/types/voice'
 
 const SOLIDIFY_STEP_INDEX = 9
