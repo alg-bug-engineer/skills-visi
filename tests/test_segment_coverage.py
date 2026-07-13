@@ -26,25 +26,43 @@ def test_dir8_to_approach_leg_mapping():
 def test_resolve_coverage_time_window_evening_peak():
     pmin = datetime(2026, 6, 10, 0, 0, 0)
     pmax = datetime(2026, 6, 10, 23, 59, 0)
-    start, end = resolve_coverage_time_window(
+    start, end, fallback = resolve_coverage_time_window(
         period="晚高峰",
         parquet_min=pmin,
         parquet_max=pmax,
     )
     assert start == datetime(2026, 6, 10, 16, 0, 0)
-    assert end == datetime(2026, 6, 10, 19, 0, 0)
+    assert end == datetime(2026, 6, 10, 19, 0, 1)
+    assert fallback is None
 
 
 def test_resolve_coverage_time_window_period_code():
     pmin = datetime(2026, 6, 10, 0, 0, 0)
     pmax = datetime(2026, 6, 10, 23, 0, 0)
-    start, end = resolve_coverage_time_window(
+    start, end, fallback = resolve_coverage_time_window(
         period="EVENING_PEAK",
         parquet_min=pmin,
         parquet_max=pmax,
     )
     assert start.hour == 16
     assert end.hour == 19
+    assert end.minute == 0
+    assert end.second == 1
+    assert fallback is None
+
+
+def test_resolve_coverage_time_window_falls_back_when_outside_parquet():
+    # 本批恢复轨迹仅早高峰样本：晚高峰窗与 parquet 无交集 → 回退全窗
+    pmin = datetime(2026, 6, 8, 6, 0, 0)
+    pmax = datetime(2026, 6, 8, 9, 59, 59)
+    start, end, fallback = resolve_coverage_time_window(
+        period="晚高峰",
+        parquet_min=pmin,
+        parquet_max=pmax,
+    )
+    assert start == pmin
+    assert end == pmax + __import__("datetime").timedelta(seconds=1)
+    assert fallback and "outside_parquet" in fallback
 
 
 def test_builder_missing_parquet_returns_unavailable(monkeypatch):

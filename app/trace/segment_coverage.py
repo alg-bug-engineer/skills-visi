@@ -118,20 +118,22 @@ def resolve_coverage_time_window(
     period: Any,
     parquet_min: datetime | None,
     parquet_max: datetime | None,
-) -> tuple[datetime, datetime] | None:
-    """将诊断时段落到 parquet 实际日期上的起止时间。"""
+) -> tuple[datetime, datetime, str | None] | None:
+    """将诊断时段落到 parquet 实际日期上的起止时间。
+
+    返回 (start, end, fallback_reason)。若时段窗与 parquet 无交集，回退到 parquet
+    全窗（同日真实样本，不跨日虚增），并标注 fallback_reason。
+    """
     if parquet_min is None or parquet_max is None:
         return None
     label = resolve_period_label(period) or PERIOD_CODE_TO_LABEL.get(str(period or "").strip().upper())
     if not label:
-        # 无时段时用 parquet 全窗（仍是真实数据范围，不跨库虚增）
-        return parquet_min, parquet_max + timedelta(seconds=1) if parquet_max == parquet_min else parquet_max
+        return parquet_min, parquet_max, "no_period_use_parquet_full"
 
     window = PERIOD_WINDOWS.get(label)
     if not window:
-        return parquet_min, parquet_max
+        return parquet_min, parquet_max, "unknown_period_use_parquet_full"
 
-    # 优先用 parquet 覆盖日期中「有晚/早高峰钟点」的那天（通常为 max 日）
     day = parquet_max.date()
     start_t, end_t = window
     start = datetime.combine(day, start_t)
@@ -142,7 +144,14 @@ def resolve_coverage_time_window(
         end = datetime.combine(day, end_t)
     if end <= start:
         end = start + timedelta(hours=1)
-    return start, end
+
+    # 与 parquet 真实覆盖求交；无交集则回退全窗（本批恢复轨迹仅早高峰样本）
+    overlap_start = max(start, parquet_min)
+    overlap_end = min(end, parquet_max)
+    if overlap_start < overlap_end:
+        # arrive_time < end：右开区间，末端 +1s 避免漏掉 max 时刻事件
+        return overlap_start, overlap_end + timedelta(seconds=1), None
+    return parquet_min, parquet_max + timedelta(seconds=1), f"period_{label}_outside_parquet_use_full"
 
 
 @dataclass
@@ -729,7 +738,7 @@ def build_flow_trace_segment_coverage_map_scene(
     window = resolve_coverage_time_window(period=period, parquet_min=pmin, parquet_max=pmax)
     if not window:
         return _unavailable("no_parquet_time_range")
-    start_time, end_time = window
+    start_time, end_time, period_fallback = window
 
     trace_dir = "downstream" if trace_direction == "downstream" else "upstream"
     req = CoverageRequest(
@@ -791,5 +800,8 @@ def build_flow_trace_segment_coverage_map_scene(
             "turn_dir_no": turn_i,
             "dir8_label": DIR8_ENTRY.get(int(dir8_code) if dir8_code is not None else -1),
             "target_flow": target_flow,
+            "period_fallback": period_fallback,
+            "window_start": start_time.isoformat(sep=" "),
+            "window_end": end_time.isoformat(sep=" "),
         },
     }
