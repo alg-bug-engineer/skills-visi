@@ -39,12 +39,16 @@ function snapWithCases(): RunResponse {
 /** 避免 onMounted 触发真实网络：标记沉淀已加载。 */
 function markPrecipLoaded(s: ReturnType<typeof usePresentationStore>) {
   s.precip.loaded = true
+  s.precip.industryCases = s.precip.industryCases ?? []
 }
 
 describe('沉淀面板 · 案例库（行业/路口）', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
   it('行业案例子标签渲染全部 19 个场景条目', async () => {
+    const s = usePresentationStore()
+    markPrecipLoaded(s)
+    s.precip.industryCases = []
     const wrapper = mount(UnderstandingPanel)
     await wrapper.find('[data-testid="case-library-tab"]').trigger('click')
     await wrapper.find('[data-testid="case-subtab-industry"]').trigger('click')
@@ -55,6 +59,9 @@ describe('沉淀面板 · 案例库（行业/路口）', () => {
   })
 
   it('行业案例本地过滤场景列表（匹配数少于全部）', async () => {
+    const s = usePresentationStore()
+    markPrecipLoaded(s)
+    s.precip.industryCases = []
     const wrapper = mount(UnderstandingPanel)
     await wrapper.find('[data-testid="case-library-tab"]').trigger('click')
     await wrapper.find('[data-testid="case-subtab-industry"]').trigger('click')
@@ -69,6 +76,9 @@ describe('沉淀面板 · 案例库（行业/路口）', () => {
   })
 
   it('代表案例锚点唯一，采用 industry-case-<sceneId>-<caseId> 格式', async () => {
+    const s = usePresentationStore()
+    markPrecipLoaded(s)
+    s.precip.industryCases = []
     const wrapper = mount(UnderstandingPanel)
     await wrapper.find('[data-testid="case-library-tab"]').trigger('click')
     await wrapper.find('[data-testid="case-subtab-industry"]').trigger('click')
@@ -83,6 +93,32 @@ describe('沉淀面板 · 案例库（行业/路口）', () => {
     for (const id of ids) {
       expect(id).toMatch(/^industry-case-.+-.+$/)
     }
+  })
+
+  it('有结构化行业沉淀时渲染标签 chips，不再依赖专家场景树', async () => {
+    const s = usePresentationStore()
+    markPrecipLoaded(s)
+    s.precip.industryCases = [
+      {
+        case_id: 'industry_0',
+        title: '短间距干线排队溢出',
+        diagnosis: '下游承接不足',
+        solution: '绿波协调',
+        structured_tags: {
+          场景层级: ['干线协调'],
+          问题形态: ['排队溢出'],
+        },
+      },
+    ]
+
+    const wrapper = mount(UnderstandingPanel)
+    await wrapper.find('[data-testid="case-library-tab"]').trigger('click')
+    await wrapper.find('[data-testid="case-subtab-industry"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="industry-structured-list"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-testid="industry-structured-case"]').length).toBe(1)
+    expect(wrapper.text()).toContain('干线协调')
+    expect(wrapper.findAll('[data-testid="industry-scene"]').length).toBe(0)
   })
 
   it('路口案例呈现本轮检索到的相似案例并展示 case_id', async () => {

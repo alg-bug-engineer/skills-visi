@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     llm_mock: bool = False
     log_level: str = "INFO"
     case_library_path: str = "data/knowledge_qa.jsonl"
+    structured_catalog_path: str = "data/structured"
     allow_demo_fallback: bool = False
     pg_dsn: str = ""
     mysql_dsn: str = ""
@@ -41,6 +42,11 @@ class Settings(BaseSettings):
     @property
     def case_library_abs_path(self) -> Path:
         path = Path(self.case_library_path)
+        return path if path.is_absolute() else PROJECT_ROOT / path
+
+    @property
+    def structured_catalog_abs_path(self) -> Path:
+        path = Path(self.structured_catalog_path)
         return path if path.is_absolute() else PROJECT_ROOT / path
 
     @property

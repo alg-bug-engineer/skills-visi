@@ -8,9 +8,11 @@ import {
   solidifySkill,
   listExperiences,
   listCases,
+  listStructuredCatalog,
   DEMO_INPUT,
   type StoredExperience,
   type CaseItem,
+  type StructuredCatalogItem,
 } from '@/api/endpoints'
 import type { StreamController, StreamEvent } from '@/api/sse'
 import type { RunResponse, UserExperience, CaseCard, SkillSolidificationResult } from '@/api/types'
@@ -79,7 +81,7 @@ interface State {
   precip: PrecipState
 }
 
-/** 历史沉淀（全量经验 + 路口确认/风险案例），独立于本轮推演。 */
+/** 历史沉淀（全量经验 + 行业/路口案例），独立于本轮推演。 */
 interface PrecipState {
   loaded: boolean
   loading: boolean
@@ -89,16 +91,20 @@ interface PrecipState {
     solution: StoredExperience[]
   }
   interCases: CaseItem[]
+  industryCases: StructuredCatalogItem[]
+  meta: Record<string, unknown> | null
 }
 
 /** 全量经验条目：历史沉淀 + 本轮新吸收标记。 */
 export interface PanelExperience extends StoredExperience {
   fresh?: boolean
+  structured_tags?: Record<string, string[]>
 }
 
 /** 全量路口案例条目：历史沉淀 + 本轮新确认标记。 */
 export interface PanelInterCase extends CaseItem {
   fresh?: boolean
+  structured_tags?: Record<string, string[]>
 }
 
 const EMPTY_PRECIP = (): PrecipState => ({
@@ -106,6 +112,8 @@ const EMPTY_PRECIP = (): PrecipState => ({
   loading: false,
   experiences: { cognitive: [], diagnostic: [], solution: [] },
   interCases: [],
+  industryCases: [],
+  meta: null,
 })
 
 export const usePresentationStore = defineStore('presentation', {
@@ -260,6 +268,9 @@ export const usePresentationStore = defineStore('presentation', {
       }
       return out.sort((a, b) => Number(!!b.fresh) - Number(!!a.fresh))
     },
+    precipIndustryCases(s): StructuredCatalogItem[] {
+      return s.precip.industryCases
+    },
     precipLoaded: (s) => s.precip.loaded,
     precipLoading: (s) => s.precip.loading,
     experienceReady: (s) => phaseReady(s.response, 'intent'),
@@ -270,14 +281,29 @@ export const usePresentationStore = defineStore('presentation', {
 
   actions: {
     /**
-     * 拉取历史沉淀（全量经验 + 路口确认/风险案例），独立于本轮推演。
-     * 幂等：已加载则跳过，除非 force。网络失败静默降级为空，不打断闭环。
+     * 拉取离线结构化沉淀（行业/路口/经验），独立于本轮推演。
+     * 优先 GET /agent/structured-catalog；失败时降级旧 listExperiences/listCases。
      */
     async loadPrecipitation(force = false) {
       if (this.precip.loading) return
       if (this.precip.loaded && !force) return
       this.precip.loading = true
       try {
+        const catalog = await listStructuredCatalog()
+        if (!isApiError(catalog)) {
+          const g = catalog.experiences ?? {}
+          this.precip.experiences = {
+            cognitive: (g.cognitive ?? []) as StoredExperience[],
+            diagnostic: (g.diagnostic ?? []) as StoredExperience[],
+            solution: (g.solution ?? []) as StoredExperience[],
+          }
+          this.precip.interCases = (catalog.intersection_cases ?? []) as CaseItem[]
+          this.precip.industryCases = catalog.industry_cases ?? []
+          this.precip.meta = catalog.meta ?? null
+          this.precip.loaded = true
+          return
+        }
+
         const [expRes, caseRes] = await Promise.all([
           listExperiences(),
           listCases({ category: 'recommended', limit: 100 }),
@@ -290,11 +316,12 @@ export const usePresentationStore = defineStore('presentation', {
             solution: g.solution ?? [],
           }
         }
-        // 路口案例：确认方案（recommended）+ 风险规避（risk）合并全量呈现。
         const riskRes = await listCases({ category: 'risk', limit: 100 })
         const recommended = !isApiError(caseRes) ? caseRes.cases ?? [] : []
         const risk = !isApiError(riskRes) ? riskRes.cases ?? [] : []
         this.precip.interCases = [...recommended, ...risk]
+        this.precip.industryCases = []
+        this.precip.meta = null
         this.precip.loaded = true
       } finally {
         this.precip.loading = false

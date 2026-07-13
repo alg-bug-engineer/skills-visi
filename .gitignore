@@ -9,6 +9,9 @@ data/user_experience.jsonl
 data/plan_feedback.jsonl
 data/knowledge_qa.jsonl
 data/skills/
+data/structured/*.jsonl
+data/structured/manifest.json
+!data/structured/.gitkeep
 /assets/
 # Python
 .venv/

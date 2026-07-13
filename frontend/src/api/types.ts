@@ -297,6 +297,8 @@ export interface CaseCard {
   caveats?: string[]
   help_summary?: string
   similarity_tier?: 'high' | 'matched' | string
+  structured_tags?: Record<string, string[]>
+  dimension_scores?: Record<string, number>
   action?: string
   historical_action?: string
   outcome?: string

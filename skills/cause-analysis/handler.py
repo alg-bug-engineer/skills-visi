@@ -44,12 +44,15 @@ class CauseAnalysisSkill(BaseSkill):
         case_cards: dict[str, Any] = {"matched_count": 0, "high_similarity_count": 0, "cards": []}
         user_experience_refs: list[dict[str, Any]] = []
         if case_service:
+            query_profile = case_service.build_query_profile(ticket, diagnosis)
             similar_cases = case_service.search_similar(
                 problem_type=ticket.get("problem_type", "排队溢出"),
+                query_profile=query_profile,
                 limit=3,
             )
             case_cards = case_service.search_case_cards(
                 problem_type=ticket.get("problem_type", "排队溢出"),
+                query_profile=query_profile,
                 limit=6,
             )
 

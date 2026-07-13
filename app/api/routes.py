@@ -19,6 +19,8 @@ from app.services.feedback_service import PlanFeedbackService
 from app.services.intersection_load_service import IntersectionLoadService
 from app.services.qwen_tts_service import get_tts_service
 from app.services.skill_solidification_service import SkillSolidificationService
+from app.services.structured_catalog_service import StructuredCatalogService
+from app.services.case_tag_extractor import CaseTagExtractor
 
 router = APIRouter(prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -139,7 +141,10 @@ def get_experience_library_service(
 
 def get_cases_catalog_service(settings: Settings = Depends(get_settings)) -> CasesCatalogService:
     return CasesCatalogService(
-        CaseLibraryService(settings.case_library_abs_path),
+        CaseLibraryService(
+            settings.case_library_abs_path,
+            structured_industry_path=settings.structured_catalog_abs_path / "industry_cases.jsonl",
+        ),
         PlanFeedbackService(settings.feedback_log_abs_path),
         skill_service=SkillSolidificationService(
             settings.skills_output_abs_path,
@@ -147,6 +152,18 @@ def get_cases_catalog_service(settings: Settings = Depends(get_settings)) -> Cas
             pg_channel_table=settings.pg_channel_table,
             pg_dim_inter_table=settings.pg_dim_inter_table,
         ),
+    )
+
+
+def get_structured_catalog_service(
+    settings: Settings = Depends(get_settings),
+) -> StructuredCatalogService:
+    return StructuredCatalogService(
+        output_dir=settings.structured_catalog_abs_path,
+        industry_source=settings.case_library_abs_path,
+        feedback_source=settings.feedback_log_abs_path,
+        experience_source=settings.user_experience_abs_path,
+        tag_extractor=CaseTagExtractor(),
     )
 
 
@@ -302,6 +319,23 @@ async def list_experiences(
         total,
     )
     return {"experiences": grouped, "total": total}
+
+
+@router.get("/agent/structured-catalog")
+async def get_structured_catalog(
+    catalog: StructuredCatalogService = Depends(get_structured_catalog_service),
+) -> dict[str, Any]:
+    """加载离线结构化沉淀（行业案例 / 路口案例 / 经验），前端只读。"""
+    payload = catalog.load_catalog()
+    meta = payload.get("meta") or {}
+    counts = meta.get("counts") or {}
+    logger.info(
+        "structured_catalog industry=%s intersection=%s experiences=%s",
+        counts.get("industry_cases"),
+        counts.get("intersection_cases"),
+        counts.get("experiences"),
+    )
+    return payload
 
 
 @router.get("/agent/cases")

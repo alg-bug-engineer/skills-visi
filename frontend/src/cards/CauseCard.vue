@@ -97,6 +97,20 @@ function openCase(caseId: string) {
           {{ selectedCard.help_summary }}
         </p>
 
+        <section v-if="selectedCard.structured_tags && Object.keys(selectedCard.structured_tags).length" class="block">
+          <h4>案例标签</h4>
+          <div class="tag-groups" data-testid="case-structured-tags">
+            <div
+              v-for="(values, group) in selectedCard.structured_tags"
+              :key="group"
+              class="tag-group"
+            >
+              <span class="tag-group__label">{{ group }}</span>
+              <span v-for="(v, i) in values" :key="`${group}-${i}`" class="tag-chip">{{ v }}</span>
+            </div>
+          </div>
+        </section>
+
         <section v-if="selectedCard.similarity_dimensions?.length" class="block">
           <h4>为何相似</h4>
           <ul class="dim-list" data-testid="case-dimensions">
@@ -297,6 +311,31 @@ function openCase(caseId: string) {
   color: var(--primary);
   font-size: 11px;
   cursor: pointer;
+}
+.tag-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tag-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.tag-group__label {
+  font-size: 10px;
+  color: var(--text-mute);
+  flex: 0 0 auto;
+  min-width: 52px;
+}
+.tag-chip {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .empty {
   margin: 0;

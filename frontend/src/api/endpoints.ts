@@ -233,6 +233,7 @@ export interface CaseItem {
   time_period?: string | null
   recorded_at?: string | null
   tags?: Record<string, unknown>
+  structured_tags?: Record<string, string[]>
   skill?: CaseSkillRef | null
   [k: string]: unknown
 }
@@ -289,6 +290,7 @@ export interface StoredExperience {
   tags?: Record<string, unknown>
   inter_id?: string | null
   intersection_name?: string | null
+  structured_tags?: Record<string, string[]>
 }
 
 export interface ExperiencesResponse {
@@ -298,6 +300,107 @@ export interface ExperiencesResponse {
     solution?: StoredExperience[]
   }
   total?: number
+}
+
+/** 离线结构化沉淀目录（行业 / 路口 / 经验），前端只加载。 */
+export interface StructuredCatalogItem {
+  case_id?: string
+  record_id?: string
+  category?: string
+  title?: string
+  content?: string
+  experience_type?: string
+  scene?: string
+  diagnosis?: string
+  solution?: string
+  effect?: string
+  lesson?: string
+  inter_id?: string | null
+  intersection_name?: string | null
+  time_period?: string | null
+  recorded_at?: string | null
+  tags?: Record<string, unknown>
+  structured_tags?: Record<string, string[]>
+  [k: string]: unknown
+}
+
+export interface StructuredCatalogResponse {
+  industry_cases: StructuredCatalogItem[]
+  intersection_cases: StructuredCatalogItem[]
+  experiences: {
+    cognitive?: StructuredCatalogItem[]
+    diagnostic?: StructuredCatalogItem[]
+    solution?: StructuredCatalogItem[]
+  }
+  meta?: {
+    generated_at?: string
+    counts?: Record<string, number>
+    [k: string]: unknown
+  }
+}
+
+export async function listStructuredCatalog(): Promise<StructuredCatalogResponse | ApiError> {
+  if (MOCK) {
+    await delay(120)
+    return {
+      industry_cases: [
+        {
+          case_id: 'industry_0',
+          category: 'textbook',
+          title: '短间距干线排队溢出绿波协调',
+          scene: '两路口相距约150m，晚高峰排队溢出',
+          solution: '统一公共周期与绿波相位差',
+          structured_tags: {
+            场景层级: ['干线协调', '短间距多路口'],
+            问题形态: ['排队溢出'],
+            策略动作: ['绿波协调', '周期统一'],
+          },
+        },
+      ],
+      intersection_cases: [
+        {
+          case_id: 'recommended_demo',
+          category: 'recommended',
+          title: '干线联控成功案例',
+          lesson: '上游控流+小步释放+下游保护',
+          inter_id: 'demo_int_a',
+          intersection_name: '经十路与转山西路路口',
+          time_period: '早高峰',
+          tags: { strategy_applied: '干线联控', primary_cause: '下游受阻' },
+          structured_tags: {
+            场景层级: ['干线协调'],
+            问题形态: ['排队溢出'],
+          },
+        },
+      ],
+      experiences: {
+        cognitive: [
+          {
+            record_id: 'ue_demo_1',
+            experience_type: 'cognitive',
+            content: '经十路与转山西路路口早高峰东向西直行排队溢出到上游',
+            inter_id: 'demo_int_a',
+            intersection_name: '经十路与转山西路路口',
+            tags: {
+              problem_type: '排队溢出',
+              time_period: '早高峰',
+            },
+            structured_tags: {
+              问题形态: ['排队溢出'],
+              时段: ['早高峰'],
+            },
+          },
+        ],
+        diagnostic: [],
+        solution: [],
+      },
+      meta: {
+        generated_at: '2026-07-12T00:00:00Z',
+        counts: { industry_cases: 1, intersection_cases: 1, experiences: 1 },
+      },
+    }
+  }
+  return getJSON('/agent/structured-catalog')
 }
 
 /** 拉取全量历史沉淀经验（默认按类型分组）。 */

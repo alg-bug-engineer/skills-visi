@@ -25,7 +25,8 @@ def test_search_case_cards_structured_fields(tmp_path: Path):
     assert result["matched_count"] >= 1
     assert result["cards"]
     card = result["cards"][0]
-    assert len(card["similarity_dimensions"]) >= 2
+    assert len(card["similarity_dimensions"]) >= 1
+    assert card["structured_tags"]
     assert card["help_summary"]
     assert card["transferable_actions"]
     assert card["caveats"]

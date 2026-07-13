@@ -22,7 +22,10 @@ class AgentService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.llm = QwenClient(settings)
-        self.case_service = CaseLibraryService(settings.case_library_abs_path)
+        self.case_service = CaseLibraryService(
+            settings.case_library_abs_path,
+            structured_industry_path=settings.structured_catalog_abs_path / "industry_cases.jsonl",
+        )
         self.experience_service = ExperienceService(settings.user_experience_abs_path)
         self.experience_library = ExperienceLibraryService(settings.user_experience_abs_path)
         self.feedback_service = PlanFeedbackService(settings.feedback_log_abs_path)

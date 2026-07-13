@@ -66,7 +66,7 @@ const decoratedScenes: DecoratedScene[] = scenes.map((s) => {
 })
 
 const store = usePresentationStore()
-const { precipExperiencesByType, precipInterCases, precipLoading } = storeToRefs(store)
+const { precipExperiencesByType, precipInterCases, precipIndustryCases, precipLoading } = storeToRefs(store)
 
 const activeTab = ref<PanelTab>('experience')
 const expSubTab = ref<ExpSubTab>('cognitive')
@@ -140,6 +140,21 @@ function expChips(e: PanelExperience): string[] {
   if (tags.cause_dimension) chips.push(labelAny(chipText(tags.cause_dimension)))
   if (tags.strategy_action) chips.push(labelAny(chipText(tags.strategy_action)))
   if (Array.isArray(tags.related_poi) && tags.related_poi.length) chips.push(chipText(tags.related_poi))
+  const structured = e.structured_tags ?? {}
+  for (const values of Object.values(structured)) {
+    for (const v of values ?? []) chips.push(String(v))
+  }
+  return dedupChips(chips)
+}
+
+function structuredTagChips(tags?: Record<string, string[]> | null): string[] {
+  if (!tags) return []
+  const chips: string[] = []
+  for (const [group, values] of Object.entries(tags)) {
+    for (const v of values ?? []) {
+      chips.push(`${group}·${v}`)
+    }
+  }
   return dedupChips(chips)
 }
 
@@ -152,14 +167,33 @@ function caseChips(c: PanelInterCase): string[] {
   if (tags.strategy_applied) chips.push(labelAny(chipText(tags.strategy_applied)))
   const spatial = normalizeSpatialStructure(tags.spatial_structure)
   if (spatial) chips.push(spatial)
+  for (const chip of structuredTagChips(c.structured_tags)) chips.push(chip)
   return dedupChips(chips)
 }
 
-// —— 行业案例：搜索 + 折叠（专家先验库的本地浏览，不属于闭环检索）——
+// —— 行业案例：优先离线结构化沉淀；无数据时回退专家场景树 ——
 const industryQuery = ref('')
 const expandedScenes = ref<Set<string>>(new Set())
 
 const searching = computed(() => industryQuery.value.trim().length > 0)
+
+const filteredIndustryCases = computed(() => {
+  const rows = precipIndustryCases.value ?? []
+  const q = industryQuery.value.trim().toLowerCase()
+  if (!q) return rows
+  return rows.filter((c) => {
+    const blob = [
+      c.title,
+      c.scene,
+      c.diagnosis,
+      c.solution,
+      JSON.stringify(c.structured_tags ?? {}),
+    ]
+      .join(' ')
+      .toLowerCase()
+    return blob.includes(q)
+  })
+})
 
 const filteredScenes = computed(() => {
   const q = industryQuery.value.trim().toLowerCase()
@@ -321,7 +355,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
         </button>
       </div>
 
-      <!-- 行业案例：专家经验库全量结构化展示 + 本地浏览过滤 -->
+      <!-- 行业案例：离线结构化沉淀优先；无沉淀时回退专家场景树 -->
       <template v-if="caseSubTab === 'industry'">
         <div class="industry-search">
           <input
@@ -329,69 +363,102 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
             type="search"
             class="industry-search-input"
             data-testid="industry-search"
-            placeholder="浏览场景 / 典型问题"
+            placeholder="浏览场景 / 标签 / 措施"
           />
         </div>
-        <div v-if="!filteredScenes.length" class="hint-row">未匹配到场景，试试其他关键词</div>
-        <ul v-else class="industry-list">
-          <li
-            v-for="s in filteredScenes"
-            :key="s.sceneId"
-            :id="'industry-scene-' + s.sceneId"
-            class="industry-scene"
-            data-testid="industry-scene"
-          >
-            <button
-              type="button"
-              class="scene-head"
-              :class="{ open: isSceneOpen(s.sceneId) }"
-              :aria-expanded="isSceneOpen(s.sceneId)"
-              @click="toggleScene(s.sceneId)"
+
+        <template v-if="(precipIndustryCases?.length ?? 0) > 0">
+          <div v-if="precipLoading && !filteredIndustryCases.length" class="hint-row">加载行业结构化案例…</div>
+          <div v-else-if="!filteredIndustryCases.length" class="hint-row">未匹配到行业案例</div>
+          <ul v-else class="case-list" data-testid="industry-structured-list">
+            <li
+              v-for="(c, i) in filteredIndustryCases"
+              :key="c.case_id ?? i"
+              :id="'industry-struct-' + (c.case_id ?? i)"
+              class="case-item"
+              data-testid="industry-structured-case"
             >
-              <span class="scene-caret">{{ isSceneOpen(s.sceneId) ? '▾' : '▸' }}</span>
-              <span class="scene-name">{{ s.scene }}</span>
-              <span class="scene-count">{{ s.caseCount }} 例</span>
-            </button>
+              <header>
+                <span class="case-title">{{ c.title || c.scene || '行业案例' }}</span>
+                <span class="case-cat cat-textbook">行业</span>
+              </header>
+              <div v-if="structuredTagChips(c.structured_tags).length" class="chip-row">
+                <span
+                  v-for="(chip, ci) in structuredTagChips(c.structured_tags)"
+                  :key="ci"
+                  class="chip"
+                  >{{ chip }}</span
+                >
+              </div>
+              <p v-if="c.diagnosis" class="case-line">诊断：{{ String(c.diagnosis).slice(0, 120) }}</p>
+              <p v-if="c.solution" class="case-line">措施：{{ String(c.solution).slice(0, 120) }}</p>
+              <p v-if="c.effect" class="case-lesson">效果：{{ String(c.effect).slice(0, 100) }}</p>
+            </li>
+          </ul>
+        </template>
 
-            <div v-if="isSceneOpen(s.sceneId)" class="scene-body">
-              <p class="scene-desc">{{ s.desc }}</p>
+        <template v-else>
+          <div v-if="!filteredScenes.length" class="hint-row">未匹配到场景，试试其他关键词</div>
+          <ul v-else class="industry-list">
+            <li
+              v-for="s in filteredScenes"
+              :key="s.sceneId"
+              :id="'industry-scene-' + s.sceneId"
+              class="industry-scene"
+              data-testid="industry-scene"
+            >
+              <button
+                type="button"
+                class="scene-head"
+                :class="{ open: isSceneOpen(s.sceneId) }"
+                :aria-expanded="isSceneOpen(s.sceneId)"
+                @click="toggleScene(s.sceneId)"
+              >
+                <span class="scene-caret">{{ isSceneOpen(s.sceneId) ? '▾' : '▸' }}</span>
+                <span class="scene-name">{{ s.scene }}</span>
+                <span class="scene-count">{{ s.caseCount }} 例</span>
+              </button>
 
-              <div v-for="(p, pi) in s.problems" :key="pi" class="problem-block">
-                <div class="problem-head">
-                  <span class="problem-name">典型问题 · {{ p.name }}</span>
-                  <span class="freq-badge">{{ p.freq }} 次</span>
-                </div>
-                <p v-if="p.symptoms.length" class="problem-symptoms">
-                  典型表现：{{ p.symptoms.join('、') }}
-                </p>
+              <div v-if="isSceneOpen(s.sceneId)" class="scene-body">
+                <p class="scene-desc">{{ s.desc }}</p>
 
-                <div v-for="(sc, si) in p.schemes" :key="si" class="scheme-block">
-                  <div class="scheme-head">
-                    <span class="scheme-name">治理方案 · {{ sc.name }}</span>
-                    <span class="freq-badge alt">{{ sc.freq }}</span>
+                <div v-for="(p, pi) in s.problems" :key="pi" class="problem-block">
+                  <div class="problem-head">
+                    <span class="problem-name">典型问题 · {{ p.name }}</span>
+                    <span class="freq-badge">{{ p.freq }} 次</span>
                   </div>
-                  <p v-if="sc.measures.length" class="scheme-line">
-                    关键措施：{{ sc.measures.join('、') }}
+                  <p v-if="p.symptoms.length" class="problem-symptoms">
+                    典型表现：{{ p.symptoms.join('、') }}
                   </p>
-                  <p v-if="sc.applicable" class="scheme-line">适用条件：{{ sc.applicable }}</p>
-                  <p v-if="sc.caution" class="scheme-caution">注意事项：{{ sc.caution }}</p>
-                  <ul v-if="sc.cases.length" class="rep-cases">
-                    <li
-                      v-for="(c, ci) in sc.cases"
-                      :key="ci"
-                      :id="c.anchorId"
-                      class="rep-case"
-                    >
-                      <span class="rep-id">[#{{ c.id }}]</span>
-                      <span class="rep-title">{{ c.title }}</span>
-                      <span class="rep-snippet">：{{ c.snippet }}…</span>
-                    </li>
-                  </ul>
+
+                  <div v-for="(sc, si) in p.schemes" :key="si" class="scheme-block">
+                    <div class="scheme-head">
+                      <span class="scheme-name">治理方案 · {{ sc.name }}</span>
+                      <span class="freq-badge alt">{{ sc.freq }}</span>
+                    </div>
+                    <p v-if="sc.measures.length" class="scheme-line">
+                      关键措施：{{ sc.measures.join('、') }}
+                    </p>
+                    <p v-if="sc.applicable" class="scheme-line">适用条件：{{ sc.applicable }}</p>
+                    <p v-if="sc.caution" class="scheme-caution">注意事项：{{ sc.caution }}</p>
+                    <ul v-if="sc.cases.length" class="rep-cases">
+                      <li
+                        v-for="(c, ci) in sc.cases"
+                        :key="ci"
+                        :id="c.anchorId"
+                        class="rep-case"
+                      >
+                        <span class="rep-id">[#{{ c.id }}]</span>
+                        <span class="rep-title">{{ c.title }}</span>
+                        <span class="rep-snippet">：{{ c.snippet }}…</span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
-          </li>
-        </ul>
+            </li>
+          </ul>
+        </template>
       </template>
 
       <!-- 路口案例：全量确认/风险沉淀方案 + 本轮检索到的相似案例（置顶） -->

@@ -31,6 +31,10 @@ function snapWithStructuredCases(): RunResponse {
               caveats: ['需核对本路口配时结构'],
               help_summary: '提示下游约束与防溢流做法',
               similarity_tier: 'high',
+              structured_tags: {
+                场景层级: ['干线协调'],
+                策略动作: ['绿波协调', '防溢流保护'],
+              },
             },
           ],
         },
@@ -71,6 +75,8 @@ describe('CauseCard · 结构化相似案例', () => {
     expect(wrapper.find('[data-testid="case-dimensions"]').text()).toContain('下游承接')
     expect(wrapper.find('[data-testid="case-transferable"]').text()).toContain('协调配时')
     expect(wrapper.find('[data-testid="case-caveats"]').text()).toContain('配时结构')
+    expect(wrapper.find('[data-testid="case-structured-tags"]').text()).toContain('干线协调')
+    expect(wrapper.find('[data-testid="case-structured-tags"]').text()).toContain('绿波协调')
   })
 })
 

@@ -84,9 +84,12 @@ class CasesCatalogService:
                         "category": "textbook",
                         "title": card.get("title") or "教科书案例",
                         "similarity": card.get("similarity"),
-                        "action": card.get("action"),
+                        "action": card.get("action") or card.get("historical_action"),
                         "outcome": card.get("outcome"),
                         "lesson": card.get("lesson"),
+                        "structured_tags": card.get("structured_tags") or {},
+                        "similarity_dimensions": card.get("similarity_dimensions") or [],
+                        "transferable_actions": card.get("transferable_actions") or [],
                     }
                 )
 

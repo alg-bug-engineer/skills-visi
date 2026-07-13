@@ -1,0 +1,187 @@
+# 行业案例多维标签 schema（需求30）
+# 从 knowledge_qa.jsonl 四段文本规则抽取；只读源文件，不写回。
+
+version: "1.0.0"
+
+dimension_labels:
+  scope_type: 场景层级
+  spatial_topology: 空间拓扑
+  problem_type: 问题形态
+  time_period: 时段
+  traffic_pattern: 流量特征
+  lane_organization: 车道组织
+  weather_event: 外部事件
+  strategy_actions: 策略动作
+  effect_outcome: 效果类型
+
+# 维度匹配权重（query_profile 与 case_tags 交集计分）
+match_weights:
+  problem_type: 3.0
+  scope_type: 2.5
+  spatial_topology: 1.5
+  time_period: 1.5
+  strategy_actions: 1.0
+  traffic_pattern: 0.8
+  lane_organization: 0.8
+  weather_event: 0.5
+  effect_outcome: 0.3
+
+# 高相似阈值（加权分）
+high_similarity_threshold: 4.0
+
+dimensions:
+  scope_type:
+    arterial_coordination:
+      label: 干线协调
+      keywords: [绿波, 协调, 干线, 公共周期, 相位差, 上下游, 多路口协调, 路段协调]
+    point_intersection:
+      label: 点位单口
+      keywords: [单点, 单口, 单口放行, 交叉口优化, 渠化改造, 可变导向车道]
+    short_spacing_multi:
+      label: 短间距多路口
+      keywords: [短间距, 相距, 50m, 150m, 两路口, 多路口, 超短间距]
+    corridor_segment:
+      label: 走廊区段
+      keywords: [路段, 走廊, 区段, 连续路口, 沿线]
+
+  spatial_topology:
+    short_storage:
+      label: 蓄流不足
+      keywords: [蓄流, 排队空间, 空间受限, 无法拓宽, 蓄流有限]
+    downstream_constraint:
+      label: 下游约束
+      keywords: [下游, 承接, 清空不及时, 积压, 接不住, 高饱和]
+    upstream_inflow:
+      label: 上游冲击
+      keywords: [上游, 来车, 汇入, 冲击, 截流]
+    constrained_geometry:
+      label: 空间受限
+      keywords: [古城墙, 物理条件, 道路空间受限, 高密度路网, 瓶颈路口]
+
+  problem_type:
+    queue_overflow:
+      label: 排队溢出
+      keywords: [排队溢出, 溢流, 溢出, 回溢, 反堵, 锁死]
+    saturation_high:
+      label: 饱和偏高
+      keywords: [饱和, 饱和度, 服务水平, F级, 拥堵]
+    conflict:
+      label: 机非冲突
+      keywords: [机非冲突, 冲突突出, 慢行, 非机动车]
+    temporal_imbalance:
+      label: 时空不均衡
+      keywords: [时空不均衡, 流量特性, 错配, 潮汐, 波动大]
+
+  time_period:
+    morning_peak:
+      label: 早高峰
+      keywords: [早高峰, 早晨, 早上]
+    evening_peak:
+      label: 晚高峰
+      keywords: [晚高峰, 傍晚, 夜间高峰]
+    off_peak:
+      label: 平峰
+      keywords: [平峰, 平峰期, 日间, 全天]
+    school_related:
+      label: 学校相关
+      keywords: [学校, 小学, 放学, 接送, 中学]
+
+  traffic_pattern:
+    left_turn_heavy:
+      label: 左转集中
+      keywords: [左转, 左转流量, 左转排队, 左转专用]
+    straight_heavy:
+      label: 直行主导
+      keywords: [直行, 南北直行, 东西直行, 直行流量]
+    mixed_flow:
+      label: 混行冲突
+      keywords: [同时汇入, 混行, 共用车道, 左转与直行]
+    release_blocked:
+      label: 放行受阻
+      keywords: [清空不及时, 放行, 积压, 排队长度]
+
+  lane_organization:
+    variable_lane:
+      label: 可变车道
+      keywords: [可变导向车道, 可变车道, LED可变]
+    dedicated_left:
+      label: 左转专用
+      keywords: [左转专用, 专用相位, 左转保护]
+    shared_lane:
+      label: 共用车道
+      keywords: [共用车道, 左转与直行共用, 直右]
+    channelization_change:
+      label: 渠化改造
+      keywords: [渠化, 车道功能, 导向车道]
+
+  weather_event:
+    rain:
+      label: 雨天
+      keywords: [雨天, 降雨, 暴雨]
+    fog:
+      label: 雾天
+      keywords: [雾, 能见度]
+    accident:
+      label: 事故
+      keywords: [事故, 追尾, 侧翻]
+    construction:
+      label: 施工
+      keywords: [施工, 占道, 封闭]
+    school_event:
+      label: 学校活动
+      keywords: [放学, 接送, 学校周边]
+
+  strategy_actions:
+    green_wave:
+      label: 绿波协调
+      keywords: [绿波, 相位差, 协调主线, 协调参数]
+    phase_overlap:
+      label: 搭接相位
+      keywords: [搭接相位, 过渡相位, 嵌入过渡]
+    upstream_control:
+      label: 上游控流
+      keywords: [截流, 上游控流, 控流]
+    spillback_protection:
+      label: 防溢流保护
+      keywords: [防溢流, 溢流保护, 排队保护]
+    cycle_unify:
+      label: 周期统一
+      keywords: [公共周期, 统一周期, 周期一致]
+    phase_resequence:
+      label: 相位重排
+      keywords: [相位优化, 相位由, 调整为, 单放, 重排]
+    signal_lane_link:
+      label: 信号车道联动
+      keywords: [信号深度联动, 信号与标志, 动态绑定]
+
+  effect_outcome:
+    queue_reduction:
+      label: 排队改善
+      keywords: [排队, 等待时长, 排队长度下降, 排队等待]
+    travel_time_reduction:
+      label: 行程缩短
+      keywords: [行驶时长, 行程时长, 可不停车, 减少约]
+    congestion_index_down:
+      label: 拥堵指数下降
+      keywords: [拥堵指数, 拥堵下降, 拥堵缓解]
+    saturation_improved:
+      label: 饱和改善
+      keywords: [饱和度由, 服务水平, 降至]
+
+# 查询画像：从 diagnosis_ticket 字段映射到标签值
+query_mappings:
+  problem_type:
+    排队溢出: queue_overflow
+    溢流: queue_overflow
+    饱和: saturation_high
+  period:
+    早高峰: morning_peak
+    晚高峰: evening_peak
+    平峰: off_peak
+  bottleneck_type:
+    downstream: downstream_constraint
+    upstream: upstream_inflow
+    storage: short_storage
+  downstream_scenario:
+    release_blocked: release_blocked
+    saturated: downstream_constraint
