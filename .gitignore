@@ -22,6 +22,10 @@ __pycache__/
 # Logs
 logs/
 
+# 流量溯源恢复轨迹（需求 33，体积大，不入库）
+*.parquet
+data/flow_trace/
+
 # Local packaging output（含密钥，禁止入库）
 dist/
 

@@ -15,10 +15,7 @@ import {
 } from './amapUtils'
 import {
   TraceLayer,
-  type DownstreamTraceItem,
-  type UpstreamTraceItem,
 } from './traceLayer'
-import { buildLegacySniffScene, type TraceSniffScene } from './traceSniff'
 import { ChannelizationLayer } from './channelizationLayer'
 import { DownstreamTopologyLayer, buildDownstreamTopology } from './downstreamTopologyLayer'
 import { sceneEvidencePolicy } from './sceneEvidencePolicy'
@@ -262,6 +259,18 @@ export class MapController {
   private collectTraceBoundsPoints(resp: RunResponse | null, target: [number, number]): [number, number][] {
     const pts: [number, number][] = [target]
     const scenes = resp?.phases?.diagnosis?.map_scenes ?? {}
+    const coverage = (scenes as any).flow_trace_segment_coverage_map
+    if (coverage?.available) {
+      const t = coverage.target
+      if (t && hasCoord(t.lng, t.lat)) pts.push([t.lng, t.lat])
+      for (const inter of coverage.intersections ?? []) {
+        if (hasCoord(inter?.lng, inter?.lat)) pts.push([inter.lng, inter.lat])
+      }
+      for (const link of coverage.links ?? []) {
+        for (const pt of validPath(link?.coords)) pts.push(pt)
+      }
+      return pts
+    }
     const sniff = (scenes as any).flow_trace_links_sniff_map
     for (const inter of sniff?.intersections ?? []) {
       const c = inter?.center
@@ -351,57 +360,31 @@ export class MapController {
   }
 
   /**
-   * 溯源阶段：发光双层干线 + 沿线粒子 + 占比缩放节点 + 占比标签。
-   * 方向由数据来源确定：entry_traces=来向(上游·琥珀)，turn_traces=去向(下游·青蓝)。
-   * 仅渲染真实 path/坐标/占比（禁止前端合成，见 docs/rule.md 约束19）。
+   * 溯源阶段：优先路段覆盖（需求 33）；不可用时降级为「暂无数据」，不再默认 sniff。
    */
   private drawTrace(resp: RunResponse | null, target: [number, number] | null) {
     this.traceLayer = new TraceLayer(this.AMap, this.map)
-    if (target) this.traceLayer.revealTarget('target', target[0], target[1])
 
-    const upstream = (resp?.phases?.diagnosis?.flow_trace?.entry_traces ?? []).map(
-      (t: any): UpstreamTraceItem => ({
-        upstream_inter_id: t.upstream_inter_id,
-        upstream_inter_name: t.upstream_inter_name,
-        upstream_lng: t.upstream_lng,
-        upstream_lat: t.upstream_lat,
-        dir8_code: t.dir8_code,
-        path: validPath(t.path),
-        dominant_movement: t.dominant_movement,
-        upstream_movements: t.upstream_movements,
-      }),
-    )
     const scenes = resp?.phases?.diagnosis?.map_scenes ?? {}
-    const sniff = (scenes as any).flow_trace_links_sniff_map as TraceSniffScene | undefined
-    const legacySniff =
-      sniff?.available && sniff.intersections?.length
-        ? sniff
-        : buildLegacySniffScene({
-            target: resp?.diagnosis_ticket,
-            channelizationMap: (scenes as any).channelization_map,
-            upstreamTraces: resp?.phases?.diagnosis?.flow_trace?.entry_traces as any,
-            downstreamTraces: (scenes as any).downstream_trace_map?.turn_traces as any,
-          })
-    if (legacySniff.available && legacySniff.intersections?.length) {
-      this.traceLayer.renderSniffScene(legacySniff)
+    const coverage = (scenes as any).flow_trace_segment_coverage_map
+    if (coverage?.available) {
+      this.traceLayer.renderSegmentCoverage(coverage)
       return
     }
 
-    const downstream = ((scenes as any).downstream_trace_map?.turn_traces ?? []).map(
-      (t: any): DownstreamTraceItem => ({
-        downstream_inter_id: t.downstream_inter_id,
-        name: t.name,
-        movement: t.movement,
-        share_pct: t.share_pct,
-        path: validPath(t.path),
-        lon: t.lon,
-        lat: t.lat,
-        capacity: t.capacity,
-      }),
-    )
+    if (target) this.traceLayer.revealTarget('target', target[0], target[1])
 
-    this.traceLayer.renderUpstreamTraces(upstream)
-    this.traceLayer.renderDownstreamTraces(downstream)
+    // 无覆盖数据：不画 sniff 作为生产默认呈现（rule 19 / 需求 33）
+    if (target) {
+      this.add(
+        new this.AMap.Text({
+          text: '<div class="trace-label"><div class="trace-name">暂无路段覆盖溯源数据</div></div>',
+          position: target,
+          offset: new this.AMap.Pixel(12, -28),
+          zIndex: 30,
+        }),
+      )
+    }
   }
 
   /** zoom18 渠化：严格消费后端 channelization_map 的真实 link geometry/lane_info/指标。 */
