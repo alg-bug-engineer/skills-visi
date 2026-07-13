@@ -1,0 +1,17 @@
+{
+  "setup-worktree-unix": [
+    "python3 -m venv .venv",
+    ".venv/bin/pip install -r requirements-dev.txt",
+    "npm ci --prefix frontend",
+    "test -f \"$ROOT_WORKTREE_PATH/.env\" && cp \"$ROOT_WORKTREE_PATH/.env\" .env || cp .env.example .env",
+    "test -f \"$ROOT_WORKTREE_PATH/frontend/.env.local\" && cp \"$ROOT_WORKTREE_PATH/frontend/.env.local\" frontend/.env.local || cp frontend/.env.example frontend/.env.local",
+    "chmod +x scripts/*.sh"
+  ],
+  "setup-worktree": [
+    "python3 -m venv .venv",
+    ".venv/bin/pip install -r requirements-dev.txt",
+    "npm ci --prefix frontend",
+    "cp \"$ROOT_WORKTREE_PATH/.env\" .env || cp .env.example .env",
+    "cp \"$ROOT_WORKTREE_PATH/frontend/.env.local\" frontend/.env.local || cp frontend/.env.example frontend/.env.local"
+  ]
+}
