@@ -13,6 +13,10 @@ dashscope>=1.25.11
 # PostgreSQL 数据真源
 psycopg[binary]>=3.2.0
 
+# 流量溯源路段覆盖（需求 33）：DuckDB 读恢复轨迹 parquet
+duckdb>=1.1.0
+pandas>=2.2.0
+
 # signal_optimization_engine 单点优化器
 numpy>=2.0.0
 scipy>=1.14.0

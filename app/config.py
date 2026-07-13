@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     feedback_log_path: str = "data/plan_feedback.jsonl"
     user_experience_path: str = "data/user_experience.jsonl"
     skills_output_path: str = "data/skills"
+    # 需求 33：恢复轨迹路段覆盖溯源（大文件不入库，路径指向本机 parquet）
+    flow_trace_inter_parquet: str = (
+        "references/sequence_restore_custom_h0610/inter_sequence_with_time.parquet"
+    )
+    flow_trace_trips_parquet: str = (
+        "references/sequence_restore_custom_h0610/restored_trips.parquet"
+    )
 
     @property
     def case_library_abs_path(self) -> Path:

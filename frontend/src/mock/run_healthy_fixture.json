@@ -10463,6 +10463,14 @@
               }
             ]
           }
+        },
+        "flow_trace_segment_coverage_map": {
+          "action": "map_scene",
+          "phase": "flow_trace_segment_coverage_map",
+          "available": false,
+          "reason": "missing_parquet",
+          "intersections": [],
+          "links": []
         }
       },
       "overflow_verification": {

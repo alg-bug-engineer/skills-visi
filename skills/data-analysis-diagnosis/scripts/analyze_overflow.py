@@ -23,6 +23,7 @@ from app.trace.map_scene import (
     build_flow_trace_links_sniff_map_scene,
     collect_map_adjacent_peer_hints,
 )
+from app.trace.segment_coverage import build_flow_trace_segment_coverage_map_scene
 from app.trace.topology import resolve_dir8_turn
 
 
@@ -381,6 +382,14 @@ def analyze_overflow(
                 pg_raw=pg_raw,
                 target_profile=target_profile,
                 center=center,
+            ),
+            # 需求 33：路段覆盖为 act5 主可视化；旧 sniff 暂留兼容，前端不再优先消费
+            "flow_trace_segment_coverage_map": build_flow_trace_segment_coverage_map_scene(
+                topology=topology,
+                target_profile=target_profile,
+                direction=direction,
+                movement=movement,
+                trace_direction="upstream",
             ),
             "flow_trace_links_sniff_map": build_flow_trace_links_sniff_map_scene(
                 pg_raw=pg_raw,

@@ -245,6 +245,35 @@ export interface MapScene {
     lat?: number | null
     metrics?: Record<string, unknown>
   }>
+  /** 需求 33：路段覆盖溯源 */
+  target?: {
+    id?: string
+    name?: string
+    lng?: number | null
+    lat?: number | null
+    target_flow?: number
+    direction?: string
+    [k: string]: unknown
+  }
+  intersections?: Array<{
+    id?: string
+    name?: string
+    lng?: number | null
+    lat?: number | null
+    rank?: number
+    flow?: number
+    ratio?: number
+    [k: string]: unknown
+  }>
+  links?: Array<{
+    id?: string
+    name?: string
+    coords?: LngLat[]
+    rank?: number
+    flow?: number
+    ratio?: number
+    [k: string]: unknown
+  }>
   [k: string]: unknown
 }
 

@@ -331,6 +331,120 @@ export class TraceLayer {
     return `<div class="trace-label${cls}"><div class="trace-name">${node.name ?? '相邻路口'}</div><div class="trace-metric">${hop}${label}</div></div>`
   }
 
+  /**
+   * 需求 33：按路段覆盖可视化（对齐 sequence_restore drawResult）。
+   * 只消费后端真实 coords / lng,lat / ratio，禁止前端造几何。
+   */
+  renderSegmentCoverage(scene: {
+    available?: boolean
+    trace_direction?: string
+    target?: {
+      id?: string
+      name?: string
+      lng?: number | null
+      lat?: number | null
+      [k: string]: unknown
+    }
+    intersections?: Array<{
+      id?: string
+      name?: string
+      lng?: number | null
+      lat?: number | null
+      ratio?: number
+      flow?: number
+      [k: string]: unknown
+    }>
+    links?: Array<{
+      id?: string
+      name?: string
+      coords?: LngLat[]
+      ratio?: number
+      flow?: number
+      [k: string]: unknown
+    }>
+  }): void {
+    if (!scene?.available) return
+    const upstream = scene.trace_direction !== 'downstream'
+    const stroke = upstream ? '#0f9f8f' : '#0ea5e9'
+    const nodeFill = upstream ? '#2563eb' : '#7c3aed'
+
+    const target = scene.target
+    if (target && target.lng != null && target.lat != null) {
+      const marker = new this.AMap.CircleMarker({
+        center: [target.lng, target.lat],
+        radius: 9,
+        fillColor: '#f97316',
+        fillOpacity: 0.95,
+        strokeColor: '#fff',
+        strokeWeight: 3,
+        zIndex: 20,
+      })
+      this.register('coverage:target', marker)
+      this.ensureLabel(
+        'coverage:target',
+        target.lng,
+        target.lat,
+        `<div class="trace-label"><div class="trace-name">目标：${target.name ?? '目标路口'}</div></div>`,
+        true,
+      )
+    }
+
+    for (const [idx, link] of (scene.links ?? []).entries()) {
+      const path = (link.coords ?? []).filter(
+        (p): p is LngLat => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]),
+      )
+      if (path.length < 2) continue
+      const ratio = typeof link.ratio === 'number' && Number.isFinite(link.ratio) ? link.ratio : 0
+      const weight = Math.max(4, Math.min(14, 3 + ratio * 38))
+      const line = new this.AMap.Polyline({
+        path,
+        strokeColor: stroke,
+        strokeOpacity: 0.72,
+        strokeWeight: weight,
+        lineJoin: 'round',
+        lineCap: 'round',
+        zIndex: 8,
+      })
+      this.register(`coverage:link:${link.id ?? idx}`, line)
+      const mid = path[Math.floor(path.length / 2)]
+      if (mid && ratio >= 0.05) {
+        const pct = `${(ratio * 100).toFixed(1)}%`
+        this.ensureLabel(
+          `coverage:link-label:${link.id ?? idx}`,
+          mid[0],
+          mid[1],
+          `<div class="trace-label"><div class="trace-metric">${pct}</div></div>`,
+          ratio >= 0.15,
+        )
+      }
+    }
+
+    for (const [idx, item] of (scene.intersections ?? []).entries()) {
+      if (item.lng == null || item.lat == null) continue
+      const ratio = typeof item.ratio === 'number' && Number.isFinite(item.ratio) ? item.ratio : 0
+      const radius = Math.max(5, Math.min(18, 4 + ratio * 36))
+      const marker = new this.AMap.CircleMarker({
+        center: [item.lng, item.lat],
+        radius,
+        fillColor: nodeFill,
+        fillOpacity: 0.78,
+        strokeColor: '#ffffff',
+        strokeWeight: 2,
+        zIndex: 16,
+      })
+      const id = `coverage:inter:${item.id ?? idx}`
+      this.register(id, marker)
+      const pct = `${(ratio * 100).toFixed(1)}%`
+      this.ensureLabel(
+        id,
+        item.lng,
+        item.lat,
+        `<div class="trace-label"><div class="trace-name">${item.name ?? item.id ?? '来源路口'}</div><div class="trace-metric">${pct}</div></div>`,
+        ratio >= 0.1,
+      )
+    }
+  }
+
   /** 标准 link sniff 溯源：目标/主走廊/其他链分色，真实 link 双层发光，主链粒子与占比节点。 */
   renderSniffScene(scene: TraceSniffScene): void {
     const traceDirection = scene.trace_direction === 'downstream' ? 'downstream' : 'upstream'
