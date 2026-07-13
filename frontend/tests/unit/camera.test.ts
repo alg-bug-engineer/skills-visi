@@ -5,6 +5,7 @@ import {
   clampZoomUp,
   drillSteps,
   offsetLngLatByMeters,
+  samplePathForBounds,
 } from '@/map/amapUtils'
 import { lerpPath } from '@/map/MapController'
 import { findArmForDirection } from '@/map/channelizationGeometry'
@@ -80,6 +81,16 @@ describe('offsetLngLatByMeters', () => {
     const [lng, lat] = offsetLngLatByMeters([117, 36], 0, 1000)
     expect(lat).toBeGreaterThan(36)
     expect(lng).toBeCloseTo(117, 3)
+  })
+})
+
+describe('samplePathForBounds', () => {
+  it('samples long paths for corridor fitBounds', () => {
+    const path: [number, number][] = Array.from({ length: 20 }, (_, i) => [117 + i * 0.001, 36.65])
+    const sampled = samplePathForBounds(path, 5)
+    expect(sampled).toHaveLength(5)
+    expect(sampled[0]).toEqual(path[0])
+    expect(sampled[4]).toEqual(path[19])
   })
 })
 

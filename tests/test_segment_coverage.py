@@ -5,8 +5,13 @@ from __future__ import annotations
 from datetime import datetime
 from unittest.mock import patch
 
+import pandas as pd
+
 from app.trace.segment_coverage import (
     DIR8_TO_APPROACH_LEG,
+    IntersectionMeta,
+    CoverageRequest,
+    SegmentCoverageService,
     build_flow_trace_segment_coverage_map_scene,
     dir8_to_approach_leg,
     reset_segment_coverage_service,
@@ -106,3 +111,41 @@ def test_builder_approach_unmap():
         )
     assert scene["available"] is False
     assert scene["reason"] == "approach_unmap"
+
+
+def test_trace_intersections_only_counts_path_corridor():
+    svc = SegmentCoverageService.__new__(SegmentCoverageService)
+    svc.intersections = {
+        "T": IntersectionMeta("T", "目标", [117.0, 36.6]),
+        "U1": IntersectionMeta("U1", "规划一号路", [117.01, 36.61]),
+        "NOISE": IntersectionMeta("NOISE", "无关路口", [117.5, 36.9]),
+    }
+    req = CoverageRequest(
+        inter_id="T",
+        approach_leg="N_IN",
+        turn_dir_no=2,
+        start_time=datetime(2026, 6, 8, 6, 0, 0),
+        end_time=datetime(2026, 6, 8, 10, 0, 0),
+        direction="upstream",
+    )
+    target_events = pd.DataFrame(
+        [
+            {"trip_id": "trip1", "event_key": "trip1|t1"},
+            {"trip_id": "trip2", "event_key": "trip2|t1"},
+        ]
+    )
+
+    def fake_load(_target_events, _exclude):
+        return {
+            "trip1": (["U1", "T"], ["L1"]),
+            "trip2": (["U1", "T"], ["L1"]),
+        }
+
+    svc._load_restored_trips = fake_load  # type: ignore[method-assign]
+    rows = svc._trace_intersections(req, target_events, target_flow=2)
+
+    by_id = {row["id"]: row for row in rows}
+    assert "U1" in by_id
+    assert by_id["U1"]["flow"] == 2
+    assert by_id["U1"]["ratio"] == 1.0
+    assert "NOISE" not in by_id

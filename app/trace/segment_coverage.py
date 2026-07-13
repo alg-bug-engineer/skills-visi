@@ -9,7 +9,7 @@ import json
 import logging
 import math
 import re
-from collections import Counter
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from pathlib import Path
@@ -57,6 +57,7 @@ PERIOD_CODE_TO_LABEL = {
 }
 
 MIN_DISPLAY_RATIO = 0.05
+LOW_SAMPLE_TARGET_FLOW = 10
 POINT_RE = re.compile(r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)", re.I)
 LINE_RE = re.compile(r"LINESTRING\s*\((.*)\)", re.I | re.S)
 
@@ -341,6 +342,8 @@ class SegmentCoverageService:
             "links": [],
             "quality_filters": {
                 "min_display_ratio": MIN_DISPLAY_RATIO,
+                "low_sample_target_flow": LOW_SAMPLE_TARGET_FLOW,
+                "low_sample": target_flow < LOW_SAMPLE_TARGET_FLOW,
                 "exclude_incomplete_trips": req.exclude_incomplete_trips,
                 "filter_spatial_outliers": req.filter_spatial_outliers,
                 "outlier_radius_m": req.outlier_radius_m,
@@ -349,7 +352,7 @@ class SegmentCoverageService:
             },
         }
         if req.include_intersections:
-            result["intersections"] = self._trace_intersections(req, target_flow)
+            result["intersections"] = self._trace_intersections(req, target_events, target_flow)
         if req.include_links:
             result["links"] = self._trace_links(req, target_events, target_flow)
         if req.filter_spatial_outliers:
@@ -382,77 +385,13 @@ class SegmentCoverageService:
             [req.inter_id, req.approach_leg, req.turn_dir_no, req.start_time, req.end_time],
         ).fetchdf()
 
-    def _trace_intersections(self, req: CoverageRequest, target_flow: int) -> list[dict[str, Any]]:
-        assert self._con is not None
-        op = "<" if req.direction == "upstream" else ">"
-        complete_join = ""
-        if req.exclude_incomplete_trips:
-            complete_join = f"""
-                join read_parquet('{self.trips_parquet.as_posix()}') r
-                  on r.trip_id = e.trip_id
-                 and coalesce(r.effective_restore_complete, false) = true
-            """
-        rows = self._con.execute(
-            f"""
-            with target as (
-              select
-                e.trip_id,
-                e.arrive_time as target_time,
-                e.trip_id || '|' || cast(e.arrive_time as varchar) as event_key
-              from read_parquet('{self.inter_parquet.as_posix()}') e
-              {complete_join}
-              where e.inter_id = ?
-                and e.approach_leg = ?
-                and e.turn_dir_no = ?
-                and e.arrive_time >= ?
-                and e.arrive_time < ?
-            )
-            select s.inter_id, count(distinct target.event_key) as flow
-            from target
-            join read_parquet('{self.inter_parquet.as_posix()}') s
-              on s.trip_id = target.trip_id
-             and s.arrive_time {op} target.target_time
-             and s.inter_id <> ?
-            group by s.inter_id
-            order by flow desc
-            limit ?
-            """,
-            [
-                req.inter_id,
-                req.approach_leg,
-                req.turn_dir_no,
-                req.start_time,
-                req.end_time,
-                req.inter_id,
-                req.limit,
-            ],
-        ).fetchall()
-
-        payload: list[dict[str, Any]] = []
-        for inter_id, flow in rows:
-            meta = self.intersections.get(str(inter_id))
-            if not meta or not meta.coord:
-                continue
-            ratio = int(flow) / target_flow
-            if ratio < MIN_DISPLAY_RATIO:
-                continue
-            payload.append(
-                {
-                    **self._intersection_payload(meta),
-                    "rank": len(payload) + 1,
-                    "flow": int(flow),
-                    "ratio": round(ratio, 6),
-                }
-            )
-        return payload
-
-    def _trace_links(self, req: CoverageRequest, target_events, target_flow: int) -> list[dict[str, Any]]:
+    def _load_restored_trips(self, target_events, exclude_incomplete: bool) -> dict[str, tuple[list[Any], list[Any]]]:
         assert self._con is not None
         unique_trips = target_events[["trip_id"]].drop_duplicates()
         self._con.register("target_trip_ids", unique_trips)
         try:
             complete_filter = ""
-            if req.exclude_incomplete_trips:
+            if exclude_incomplete:
                 complete_filter = "where coalesce(r.effective_restore_complete, false) = true"
             rows = self._con.execute(
                 f"""
@@ -465,14 +404,69 @@ class SegmentCoverageService:
         finally:
             self._con.unregister("target_trip_ids")
 
-        restored_by_trip = {
-            trip_id: (json.loads(inter_json or "[]"), json.loads(link_json or "[]"))
+        return {
+            str(trip_id): (json.loads(inter_json or "[]"), json.loads(link_json or "[]"))
             for trip_id, inter_json, link_json in rows
         }
-        event_counts_by_trip = Counter(target_events["trip_id"].tolist())
-        link_counter: Counter[str] = Counter()
 
-        for trip_id, event_count in event_counts_by_trip.items():
+    def _path_inter_ids(self, req: CoverageRequest, inters: list[Any]) -> list[str]:
+        try:
+            target_idx = list(inters).index(req.inter_id)
+        except ValueError:
+            return []
+        if req.direction == "upstream":
+            segment = inters[:target_idx]
+        else:
+            segment = inters[target_idx + 1 :]
+        return [str(inter_id) for inter_id in segment if str(inter_id) != req.inter_id]
+
+    def _trace_intersections(
+        self,
+        req: CoverageRequest,
+        target_events,
+        target_flow: int,
+    ) -> list[dict[str, Any]]:
+        """仅统计恢复轨迹走廊上的上游/下游路口，避免把行程中无关历史访问算入占比。"""
+        restored_by_trip = self._load_restored_trips(target_events, req.exclude_incomplete_trips)
+        inter_event_keys: dict[str, set[str]] = defaultdict(set)
+
+        for _, row in target_events.iterrows():
+            trip_id = str(row["trip_id"])
+            event_key = str(row["event_key"])
+            restored = restored_by_trip.get(trip_id)
+            if not restored:
+                continue
+            inters, _links = restored
+            for inter_id in self._path_inter_ids(req, inters):
+                inter_event_keys[inter_id].add(event_key)
+
+        ranked = sorted(inter_event_keys.items(), key=lambda item: len(item[1]), reverse=True)
+        payload: list[dict[str, Any]] = []
+        for inter_id, keys in ranked[: req.limit]:
+            meta = self.intersections.get(inter_id)
+            if not meta or not meta.coord:
+                continue
+            flow = len(keys)
+            ratio = flow / target_flow
+            if ratio < MIN_DISPLAY_RATIO:
+                continue
+            payload.append(
+                {
+                    **self._intersection_payload(meta),
+                    "rank": len(payload) + 1,
+                    "flow": flow,
+                    "ratio": round(ratio, 6),
+                }
+            )
+        return payload
+
+    def _trace_links(self, req: CoverageRequest, target_events, target_flow: int) -> list[dict[str, Any]]:
+        restored_by_trip = self._load_restored_trips(target_events, req.exclude_incomplete_trips)
+        link_event_keys: dict[str, set[str]] = defaultdict(set)
+
+        for _, row in target_events.iterrows():
+            trip_id = str(row["trip_id"])
+            event_key = str(row["event_key"])
             restored = restored_by_trip.get(trip_id)
             if not restored:
                 continue
@@ -482,15 +476,17 @@ class SegmentCoverageService:
             except ValueError:
                 continue
             selected = links[:target_idx] if req.direction == "upstream" else links[target_idx:]
-            for link_id in set(selected):
-                link_counter[str(link_id)] += event_count
+            for link_id in set(str(link_id) for link_id in selected):
+                link_event_keys[link_id].add(event_key)
 
+        ranked = sorted(link_event_keys.items(), key=lambda item: len(item[1]), reverse=True)
         payload: list[dict[str, Any]] = []
-        for link_id, flow in link_counter.most_common(req.limit):
+        for link_id, keys in ranked[: req.limit]:
             meta = self.links.get(link_id)
             if not meta or len(meta.coords) < 2:
                 continue
-            ratio = int(flow) / target_flow
+            flow = len(keys)
+            ratio = flow / target_flow
             if ratio < MIN_DISPLAY_RATIO:
                 continue
             payload.append(
@@ -503,7 +499,7 @@ class SegmentCoverageService:
                     "direction": meta.direction,
                     "length_m": meta.length_m,
                     "rank": len(payload) + 1,
-                    "flow": int(flow),
+                    "flow": flow,
                     "ratio": round(ratio, 6),
                 }
             )
@@ -636,6 +632,8 @@ class SegmentCoverageService:
             "links": [],
             "quality_filters": {
                 "min_display_ratio": MIN_DISPLAY_RATIO,
+                "low_sample_target_flow": LOW_SAMPLE_TARGET_FLOW,
+                "low_sample": False,
                 "exclude_incomplete_trips": req.exclude_incomplete_trips,
                 "filter_spatial_outliers": req.filter_spatial_outliers,
                 "outlier_radius_m": req.outlier_radius_m,
@@ -800,6 +798,7 @@ def build_flow_trace_segment_coverage_map_scene(
             "turn_dir_no": turn_i,
             "dir8_label": DIR8_ENTRY.get(int(dir8_code) if dir8_code is not None else -1),
             "target_flow": target_flow,
+            "low_sample": target_flow < LOW_SAMPLE_TARGET_FLOW,
             "period_fallback": period_fallback,
             "window_start": start_time.isoformat(sep=" "),
             "window_end": end_time.isoformat(sep=" "),

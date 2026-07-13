@@ -151,13 +151,28 @@ function estimateZoomForBounds(bounds: BoundsLngLat, maxZoom: number): number {
   const latSpan = Math.max(bounds.ne[1] - bounds.sw[1], 0.0004)
   const span = Math.max(lngSpan, latSpan)
   let z = 18
-  if (span > 0.04) z = 13
+  if (span > 0.05) z = 12.6
+  else if (span > 0.04) z = 13.2
+  else if (span > 0.028) z = 13.8
   else if (span > 0.02) z = 14.2
+  else if (span > 0.015) z = 14.8
   else if (span > 0.012) z = 15.2
   else if (span > 0.008) z = 16.2
   else if (span > 0.004) z = 17.2
   else if (span > 0.002) z = 17.8
   return Math.min(maxZoom, z)
+}
+
+/** 折线采样：用于 fitBounds 时覆盖长走廊，避免仅取端点导致镜头过近。 */
+export function samplePathForBounds(path: [number, number][], maxSamples = 5): [number, number][] {
+  if (path.length <= maxSamples) return path
+  const out: [number, number][] = []
+  for (let i = 0; i < maxSamples; i += 1) {
+    const t = i / (maxSamples - 1)
+    const idx = Math.round(t * (path.length - 1))
+    out.push(path[idx])
+  }
+  return out
 }
 
 /** 多点 fitBounds + 侧栏视觉居中校正。 */

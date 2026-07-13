@@ -191,14 +191,17 @@ function fmtPct(v: number | null | undefined): string {
   return v == null ? '暂无' : `${Math.round(v * 100)}%`
 }
 
-function formatNodeMetrics(metrics: DownstreamTopologyMetrics | undefined): string {
+export function formatNodeMetrics(metrics: DownstreamTopologyMetrics | undefined): string {
   if (!metrics) return '指标暂无'
   const parts: string[] = []
-  if (metrics.queueRatio != null && metrics.queueRatio > 0) {
+  if (metrics.queueRatio != null) {
     parts.push(`排队 ${fmtPct(metrics.queueRatio)}`)
   }
-  if (metrics.saturation != null && metrics.saturation > 0) {
+  if (metrics.saturation != null) {
     parts.push(`饱和 ${fmtPct(metrics.saturation)}`)
+  }
+  if (metrics.greenUtilization != null) {
+    parts.push(`绿灯 ${fmtPct(metrics.greenUtilization)}`)
   }
   return parts.length ? parts.join(' · ') : '指标暂无'
 }

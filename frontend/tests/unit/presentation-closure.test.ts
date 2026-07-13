@@ -85,7 +85,7 @@ describe('presentation closure semantics', () => {
     expect(downstream.downstreamTopology).toBe(true)
 
     const topology = sceneEvidencePolicy(act('act5_corridor').scene, { showMetrics: true })
-    expect(topology.downstreamTopology).toBe(true)
+    expect(topology.downstreamTopology).toBe(false)
     expect(topology.trace).toBe(true)
     expect(topology.metricMarkers).toBe(false)
 

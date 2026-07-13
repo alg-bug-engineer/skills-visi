@@ -10,6 +10,11 @@
  */
 import { type LngLat } from './traceParticles'
 import {
+  buildSegmentCoverageLabelHtml,
+  buildSegmentCoverageLinkHtml,
+  buildSegmentCoverageTargetHtml,
+} from './traceCoverageLabel'
+import {
   buildUpstreamLabelHtml,
   coverageNodeStyle,
   turnLabelFromMovement,
@@ -359,6 +364,7 @@ export class TraceLayer {
       name?: string
       lng?: number | null
       lat?: number | null
+      target_flow?: number | null
       [k: string]: unknown
     }
     intersections?: Array<{
@@ -378,11 +384,17 @@ export class TraceLayer {
       flow?: number
       [k: string]: unknown
     }>
+    quality_filters?: { low_sample?: boolean }
+    stats?: { target_flow?: number; low_sample?: boolean }
   }): void {
     if (!scene?.available) return
     const upstream = scene.trace_direction !== 'downstream'
     const stroke = upstream ? '#0f9f8f' : '#0ea5e9'
     const nodeFill = upstream ? '#2563eb' : '#7c3aed'
+    const targetFlow =
+      scene.stats?.target_flow ??
+      (typeof scene.target?.target_flow === 'number' ? scene.target.target_flow : null)
+    const lowSample = Boolean(scene.quality_filters?.low_sample ?? scene.stats?.low_sample)
 
     const target = scene.target
     if (target && target.lng != null && target.lat != null) {
@@ -400,7 +412,11 @@ export class TraceLayer {
         'coverage:target',
         target.lng,
         target.lat,
-        `<div class="trace-label"><div class="trace-name">目标：${target.name ?? '目标路口'}</div></div>`,
+        buildSegmentCoverageTargetHtml({
+          name: String(target.name ?? '目标路口'),
+          targetFlow,
+          lowSample,
+        }),
         true,
       )
     }
@@ -426,12 +442,16 @@ export class TraceLayer {
       this.register(`coverage:link:${link.id ?? idx}`, line)
       const mid = path[Math.floor(path.length / 2)]
       if (mid && ratio >= 0.05) {
-        const pct = `${(ratio * 100).toFixed(1)}%`
         this.ensureLabel(
           `coverage:link-label:${link.id ?? idx}`,
           mid[0],
           mid[1],
-          `<div class="trace-label"><div class="trace-metric">${pct}</div></div>`,
+          buildSegmentCoverageLinkHtml({
+            name: link.name ?? link.id ?? '路段',
+            ratio,
+            flow: link.flow,
+            targetFlow,
+          }),
           ratio >= 0.15,
         )
       }
@@ -457,12 +477,17 @@ export class TraceLayer {
       const id = `coverage:inter:${item.id ?? idx}`
       this.register(id, marker)
       this.bindLabelToggle(marker, id)
-      const pct = `${(ratio * 100).toFixed(1)}%`
       this.ensureLabel(
         id,
         item.lng,
         item.lat,
-        `<div class="trace-label"><div class="trace-name">${item.name ?? item.id ?? '来源路口'}</div><div class="trace-metric">${pct}</div></div>`,
+        buildSegmentCoverageLabelHtml({
+          name: String(item.name ?? item.id ?? '来源路口'),
+          ratio,
+          flow: item.flow,
+          targetFlow,
+          kind: 'intersection',
+        }),
         defaultLabels.has(idx),
       )
     }

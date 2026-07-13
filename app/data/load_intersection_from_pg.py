@@ -1535,6 +1535,7 @@ def load_intersection_metrics_only(
         or _rows_have_positive(sat_rows, "turn_saturation", "lane_saturation")
         or _rows_have_positive(flow_rows, "turn_flow_total", "turn_flow", "flow_vph")
         or _rows_have_positive(perf_rows, "queue_len_max", "queue_len_avg", "delay_s")
+        or _rows_have_positive(util_rows, "green_utilization")
     )
     # 仅绿灯利用率不足以支撑下游承接判断（缺饱和度/排队/流量）。
     if isinstance(metrics, dict):
