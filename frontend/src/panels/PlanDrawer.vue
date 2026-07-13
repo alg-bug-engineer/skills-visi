@@ -31,6 +31,15 @@ const redLines = computed(() => {
   const validation = selected.value?.validation_errors ?? []
   return [...constraints, ...risks, ...validation].filter(Boolean).slice(0, 5)
 })
+const strategyTarget = computed(() => store.strategy?.strategy?.target_intersection ?? null)
+const targetTitle = computed(() => {
+  const target = strategyTarget.value
+  if (!target) return store.response?.diagnosis_ticket?.intersection_name ?? ''
+  return [target.inter_name, `${target.direction ?? ''}${target.movement ?? ''}`].filter(Boolean).join(' · ')
+})
+const userConstraints = computed(() =>
+  (store.strategy?.strategy?.user_constraints ?? []).map(String).filter(Boolean),
+)
 
 const rejecting = ref(false)
 const rejectReason = ref('')
@@ -90,6 +99,11 @@ async function onReject() {
           </div>
         </div>
         <div class="stage__right">
+          <div v-if="targetTitle" class="scope-box">
+            <span class="kpi__k">本次优化对象</span>
+            <strong>{{ targetTitle }}</strong>
+            <small v-if="strategyTarget?.inter_id">路口编号 {{ strategyTarget.inter_id }}</small>
+          </div>
           <div class="kpi">
             <span class="kpi__k">预期效果</span>
             <span class="kpi__v ok">{{ productCopy(selected.expected_effect) || '—' }}</span>
@@ -102,6 +116,13 @@ async function onReject() {
             <span class="kpi__k">执行策略</span>
             <ul>
               <li v-for="(item, i) in strategyItems" :key="i">{{ productCopy(String(item)) }}</li>
+            </ul>
+          </div>
+
+          <div v-if="userConstraints.length" class="list-box list-box--constraint">
+            <span class="kpi__k">用户约束如何落实</span>
+            <ul>
+              <li v-for="(item, i) in userConstraints" :key="i">{{ productCopy(item) }}</li>
             </ul>
           </div>
 
@@ -183,6 +204,16 @@ async function onReject() {
   color: var(--text);
   font-size: 15px;
 }
+.scope-box {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--primary);
+  background: rgba(0, 229, 255, 0.07);
+}
+.scope-box strong { color: var(--text); font-size: 13px; }
+.scope-box small { color: var(--text-mute); }
+.list-box--constraint { border-color: rgba(0, 229, 255, 0.32); }
 .drawer__hd p {
   margin: 3px 0 0;
   color: var(--text-mute);

@@ -390,6 +390,13 @@ export interface StrategyPhase {
     hard_constraints?: string[]
     coordination_scope?: string
     trigger_exit_rules?: Record<string, unknown>
+    target_intersection?: {
+      inter_id?: string | null
+      inter_name?: string | null
+      direction?: string | null
+      movement?: string | null
+    }
+    user_constraints?: unknown[]
   }
   strategy_package?: string
   // 需求13：治理策略卡「参考依据」（可选，缺失即降级不展示）

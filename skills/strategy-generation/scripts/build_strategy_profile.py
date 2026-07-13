@@ -120,6 +120,7 @@ def build_strategy_profile(
         _as_str_list(llm_strategy.get("hard_constraints"))
         or _hard_constraints(package, diagnosis)
     ) + quantitative["constraints"]
+    recommended = _as_str_list(llm_strategy.get("recommended")) or _recommended_for_package(package)
     return {
         "strategy_package": package,
         "package_scores": package_scores,
@@ -128,8 +129,7 @@ def build_strategy_profile(
             "principles": _as_str_list(llm_strategy.get("principles")) or instruction["principles"],
             "not_recommended": _as_str_list(llm_strategy.get("not_recommended"))
             or instruction["not_recommended"],
-            "recommended": _as_str_list(llm_strategy.get("recommended"))
-            or _recommended_for_package(package),
+            "recommended": recommended,
             "hard_constraints": hard_constraints,
             "quantitative_constraints": quantitative["detail"],
             "trigger_exit_rules": trigger_exit,

@@ -48,6 +48,7 @@ const SNIFF_PALETTE = {
 export type TraceDirection = keyof typeof TRACE_PALETTE
 
 const LABEL_OFFSET: [number, number] = [10, -48]
+const DEFAULT_DETAIL_LABEL_LIMIT = 6
 
 export interface UpstreamTraceItem {
   upstream_inter_id?: string | null
@@ -239,6 +240,21 @@ export class TraceLayer {
     this.setLabelVisible(nodeId, !this.openLabelIds.has(nodeId))
   }
 
+  private bindLabelToggle(overlay: Overlay, nodeId: string): void {
+    overlay.setOptions?.({ cursor: 'pointer' })
+    overlay.on?.('click', () => this.toggleLabel(nodeId))
+  }
+
+  /** 稳定抽样，避免每次重放标签跳动，同时让标签沿整条链分散出现。 */
+  private defaultLabelIndexes(total: number, limit = DEFAULT_DETAIL_LABEL_LIMIT): Set<number> {
+    if (total <= limit) return new Set(Array.from({ length: total }, (_, i) => i))
+    const indexes = new Set<number>()
+    for (let i = 0; i < limit; i += 1) {
+      indexes.add(Math.round((i * (total - 1)) / (limit - 1)))
+    }
+    return indexes
+  }
+
   private ensureLabel(nodeId: string, lon: number, lat: number, html: string, defaultOpen = false): void {
     if (this.labelMarkers.has(nodeId)) return
     const marker = new this.AMap.Marker({
@@ -403,6 +419,8 @@ export class TraceLayer {
         strokeWeight: weight,
         lineJoin: 'round',
         lineCap: 'round',
+        showDir: true,
+        dirColor: '#fbbf24',
         zIndex: 8,
       })
       this.register(`coverage:link:${link.id ?? idx}`, line)
@@ -419,7 +437,11 @@ export class TraceLayer {
       }
     }
 
-    for (const [idx, item] of (scene.intersections ?? []).entries()) {
+    const intersections = (scene.intersections ?? []).filter(
+      (item) => item.lng != null && item.lat != null,
+    )
+    const defaultLabels = this.defaultLabelIndexes(intersections.length)
+    for (const [idx, item] of intersections.entries()) {
       if (item.lng == null || item.lat == null) continue
       const ratio = typeof item.ratio === 'number' && Number.isFinite(item.ratio) ? item.ratio : 0
       const radius = Math.max(5, Math.min(18, 4 + ratio * 36))
@@ -434,13 +456,14 @@ export class TraceLayer {
       })
       const id = `coverage:inter:${item.id ?? idx}`
       this.register(id, marker)
+      this.bindLabelToggle(marker, id)
       const pct = `${(ratio * 100).toFixed(1)}%`
       this.ensureLabel(
         id,
         item.lng,
         item.lat,
         `<div class="trace-label"><div class="trace-name">${item.name ?? item.id ?? '来源路口'}</div><div class="trace-metric">${pct}</div></div>`,
-        ratio >= 0.1,
+        defaultLabels.has(idx),
       )
     }
   }

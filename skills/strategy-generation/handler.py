@@ -32,6 +32,7 @@ class StrategyGenerationSkill(BaseSkill):
         cause = context.artifacts.get("cause_analysis", {})
         diagnosis = context.artifacts.get("data_analysis_diagnosis", {})
         ticket = context.task.get("diagnosis_ticket", {})
+        user_constraints = ticket.get("constraints") or context.task.get("constraints") or []
 
         downstream_diag = diagnosis.get("downstream_diagnosis", {})
         arterial = diagnosis.get("arterial_analysis", {})
@@ -43,8 +44,11 @@ class StrategyGenerationSkill(BaseSkill):
             f"下游判断: {downstream_diag.get('release_answer')} — {downstream_diag.get('narrative')}\n"
             f"干线分析: {arterial.get('summary')}\n"
             f"下游治理: {diagnosis.get('downstream_trace', {}).get('governance', {})}\n"
-            f"约束: {context.task.get('diagnosis_ticket', {}).get('constraints', [])}\n"
-            "请生成防溢流优先的治理策略，说明为何不推荐单点激进加绿。"
+            f"治理对象: {ticket.get('intersection_name')}（{ticket.get('inter_id')}），"
+            f"{ticket.get('direction', '')}{ticket.get('movement', '')}\n"
+            f"用户约束: {user_constraints}\n"
+            "请逐条结合治理对象、诊断证据与用户约束生成可执行策略，说明具体动作、作用节点、"
+            "监测指标与退出条件，并说明为何不推荐单点激进加绿。"
         )
         llm_result = await llm.chat(
             system_prompt=self.load_resource("system"),
@@ -65,6 +69,15 @@ class StrategyGenerationSkill(BaseSkill):
         )
         profile = profile_module.build_strategy_profile(
             cause, diagnosis, llm_result, signal=signal, constraints=constraints
+        )
+        profile["strategy"]["target_intersection"] = {
+            "inter_id": ticket.get("inter_id"),
+            "inter_name": ticket.get("intersection_name"),
+            "direction": ticket.get("direction"),
+            "movement": ticket.get("movement"),
+        }
+        profile["strategy"]["user_constraints"] = (
+            user_constraints if isinstance(user_constraints, list) else [user_constraints]
         )
         output = {
             "strategy": profile["strategy"],

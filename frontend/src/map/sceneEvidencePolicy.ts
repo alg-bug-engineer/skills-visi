@@ -40,7 +40,7 @@ export function sceneEvidencePolicy(
       stage === 'control_scope' ||
       stage === 'cause_annotation' ||
       stage === 'feedback',
-    trace: stage === 'flow_trace' || stage === 'feedback',
+    trace: stage === 'flow_trace' || stage === 'control_scope' || stage === 'feedback',
     controlScope: stage === 'control_scope',
     diagnosisCompare: stage === 'overflow_validation' || stage === 'downstream_topology',
     causeAnnotation: stage === 'cause_annotation',

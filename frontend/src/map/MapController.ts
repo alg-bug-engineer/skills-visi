@@ -147,6 +147,7 @@ export class MapController {
         if (policy.trace) this.drawTrace(resp, target)
         break
       case 'control':
+        if (policy.trace) this.drawTrace(resp, target)
         if (policy.controlScope) this.drawControlScope(resp, target)
         break
     }
@@ -359,9 +360,7 @@ export class MapController {
     }
   }
 
-  /**
-   * 溯源阶段：优先路段覆盖（需求 33）；不可用时降级为「暂无数据」，不再默认 sniff。
-   */
+  /** 溯源阶段：优先路段覆盖；缺失时回退到后端真实 link sniff 场景。 */
   private drawTrace(resp: RunResponse | null, target: [number, number] | null) {
     this.traceLayer = new TraceLayer(this.AMap, this.map)
 
@@ -372,9 +371,14 @@ export class MapController {
       return
     }
 
+    const sniff = (scenes as any).flow_trace_links_sniff_map
+    if (sniff?.available) {
+      this.traceLayer.renderSniffScene(sniff)
+      return
+    }
+
     if (target) this.traceLayer.revealTarget('target', target[0], target[1])
 
-    // 无覆盖数据：不画 sniff 作为生产默认呈现（rule 19 / 需求 33）
     if (target) {
       this.add(
         new this.AMap.Text({
