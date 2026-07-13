@@ -7,7 +7,7 @@
 - **修复日期**：2026-07-08
 - **严重程度**：P1（演示可视化效果严重退化）
 - **状态**：已修复
-- **关联需求/计划**：needs/23 · plans/23（`20260708210700-23-流量溯源进口道转向约束复刻`）
+- **关联需求/计划**：`archive/needs/23` · `archive/plans/23`（`20260708210700-23-流量溯源进口道转向约束复刻`）
 - **对照基准**：`references/流量溯源/`（`sniff/flow-trace-links-sniff.html`、`correlate_sniff_map_service.py`）
 
 ## 问题描述

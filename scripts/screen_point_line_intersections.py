@@ -442,7 +442,7 @@ def main() -> None:
 | `type2_strong_candidates.json` | 严格 Type2 |
 | `screening_summary.json` | 汇总统计 |
 
-详细方法论见 `docs/点线优化路口筛选分析.md`。
+详细方法论见 `archive/docs/点线优化路口筛选分析.md`。
 
 ## 本次扫描统计
 

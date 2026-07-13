@@ -39,9 +39,11 @@ frontend/
 
 ## 快速开始
 
+完整步骤见仓库根目录 **[docs/部署指南.md](../docs/部署指南.md)**。摘要：
+
 ```bash
 cd frontend
-cp .env.example .env.local   # 填入高德 KEY / SECURITY（见 ../docs/gd-js20.md）
+cp .env.example .env.local   # 填入高德 KEY / SECURITY；密钥向团队索取
 npm install
 npm run dev                  # http://localhost:5173
 ```

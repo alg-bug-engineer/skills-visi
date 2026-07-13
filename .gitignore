@@ -22,5 +22,8 @@ __pycache__/
 # Logs
 logs/
 
+# Local packaging output（含密钥，禁止入库）
+dist/
+
 # macOS
 .DS_Store

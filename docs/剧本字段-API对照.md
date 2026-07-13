@@ -365,5 +365,6 @@ GET /api/v1/health
 ## 相关文档
 
 - 叙事原文：`docs/剧本.md`
-- 项目进度：`docs/项目进度.md`
+- 项目进度（历史快照）：`archive/docs/项目进度.md`
+- 部署启动：`docs/部署指南.md`
 - 开发约束：`docs/rule.md`

@@ -127,6 +127,6 @@ store.mapResetSeq 变化（重置）
 
 ## 六、相关需求与验收
 
-- 需求：`needs/8-流量溯源前端可视化与镜头连贯.md`
-- 计划：`plans/8-流量溯源前端可视化与镜头连贯.md`
+- 需求：`archive/needs/8-流量溯源前端可视化与镜头连贯.md`
+- 计划：`archive/plans/8-流量溯源前端可视化与镜头连贯.md`
 - 交互总览：`docs/design/interaction_logic.md` § 地图运镜触发
