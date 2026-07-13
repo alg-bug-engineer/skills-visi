@@ -508,6 +508,8 @@ def _pg_metrics_has_dynamic_data(pg_metrics: dict[str, Any] | None) -> bool:
         return True
     if float(pg_metrics.get("queue_length_m") or pg_metrics.get("queue_m") or 0) > 0:
         return True
+    if float(pg_metrics.get("green_utilization") or 0) > 0:
+        return True
     return False
 
 

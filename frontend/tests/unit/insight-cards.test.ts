@@ -67,8 +67,9 @@ describe('CauseCard · 结构化相似案例', () => {
     const wrapper = mount(CauseCard)
     expect(wrapper.text()).toContain('命中 12')
     expect(wrapper.text()).toContain('高相似 3')
+    expect(wrapper.text()).toContain('晚高峰干线瓶颈')
 
-    await wrapper.find('[data-testid="case-id-chip"]').trigger('click')
+    await wrapper.find('[data-testid="case-summary-row"]').trigger('click')
 
     expect(wrapper.find('[data-testid="case-detail"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="case-help"]').text()).toContain('下游约束')

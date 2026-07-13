@@ -148,34 +148,12 @@ def build_cause_spatial_map(
             }
         )
 
-    primary = _clean((cause.get("cause_analysis") or {}).get("primary_cause"))
-    cards = ((cause.get("case_cards") or {}).get("cards") or [])[:3]
-    for card in cards:
-        if not isinstance(card, dict):
-            continue
-        case_id = _clean(card.get("case_id"))
-        if not case_id:
-            continue
-        # 案例库无独立坐标：仅在目标路口旁轻量标记 case_id（不编造经纬度）。
-        if t_lng is not None:
-            annotations.append(
-                {
-                    "kind": "case_ref",
-                    "case_id": case_id,
-                    "label": f"相似案例 {case_id}",
-                    "lng": t_lng,
-                    "lat": t_lat,
-                    "color": "#6dffb5",
-                    "offset": True,
-                }
-            )
-
     return {
         "action": "map_scene",
         "phase": "cause_spatial",
         "available": bool(annotations),
         "reason": None if annotations else "缺少空间标注数据",
-        "primary_cause": primary,
+        "primary_cause": _clean((cause.get("cause_analysis") or {}).get("primary_cause")),
         "annotations": annotations,
     }
 

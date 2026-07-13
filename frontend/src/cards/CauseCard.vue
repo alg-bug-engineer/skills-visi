@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { usePresentationStore } from '@/stores/presentation'
 import BaseCard from './BaseCard.vue'
 import { productCopy } from '@/utils/productCopy'
@@ -18,6 +18,20 @@ const selectedId = ref<string | null>(null)
 
 const selectedCard = computed(() => cards.value.find((c) => c.case_id === selectedId.value) ?? null)
 
+watch(
+  cards,
+  (list) => {
+    if (!list.length) {
+      selectedId.value = null
+      return
+    }
+    if (!list.some((c) => c.case_id === selectedId.value)) {
+      selectedId.value = list[0].case_id ?? null
+    }
+  },
+  { immediate: true },
+)
+
 function roleTone(role?: string) {
   if (role?.includes('主')) return 'alarm'
   if (role?.includes('次')) return 'evidence'
@@ -30,10 +44,27 @@ function tierLabel(tier?: string) {
   return ''
 }
 
+function caseHeadline(card: CaseCard): string {
+  if (card.title?.trim()) return productCopy(card.title)
+  const dim = card.similarity_dimensions?.[0]?.label ?? card.similarity_points?.[0]
+  if (dim) return productCopy(dim)
+  if (card.help_summary?.trim()) return productCopy(card.help_summary).slice(0, 42)
+  return '历史治理案例'
+}
+
+function casePreview(card: CaseCard): string {
+  if (card.help_summary?.trim()) return productCopy(card.help_summary)
+  const action = card.transferable_actions?.[0]
+  if (action) return `可借鉴：${productCopy(action)}`
+  const dim = card.similarity_dimensions?.[1]?.label ?? card.similarity_points?.[1]
+  if (dim) return productCopy(dim)
+  return '点击展开相似维度与借鉴说明'
+}
+
 function selectCase(card: CaseCard) {
   const id = card.case_id
   if (!id) return
-  selectedId.value = selectedId.value === id ? null : id
+  selectedId.value = id
 }
 
 function openCase(caseId: string) {
@@ -66,24 +97,29 @@ function openCase(caseId: string) {
         <span>相似案例检索</span>
         <span
           class="mute"
-          title="命中数=关键词匹配案例总数；高相似=评分≥3 的条目；下方展示评分最高的 3 条代表案例"
+          title="命中数=关键词匹配案例总数；高相似=评分≥3 的条目；下方展示评分最高的代表案例"
         >
           命中 {{ matched }} · 高相似 {{ highSim }}
         </span>
       </div>
-      <p class="cases__sub">从高相似案例中选取 {{ cards.length }} 例代表案例，点击编号展开相似维度与借鉴说明</p>
-      <div class="case-ids" data-testid="case-carousel">
+      <p class="cases__sub">按相似度展示代表案例摘要，点击条目展开完整维度与借鉴说明</p>
+
+      <div class="case-list" data-testid="case-carousel">
         <button
           v-for="card in cards"
           :key="card.case_id"
           type="button"
-          class="case-id-chip us-mono"
+          class="case-row"
           :class="{ active: selectedId === card.case_id }"
-          data-testid="case-id-chip"
+          data-testid="case-summary-row"
           @click="selectCase(card)"
         >
-          {{ card.case_id }}
-          <span v-if="tierLabel(card.similarity_tier)" class="tier">{{ tierLabel(card.similarity_tier) }}</span>
+          <div class="case-row__hd">
+            <span class="case-row__id us-mono">{{ card.case_id }}</span>
+            <span v-if="tierLabel(card.similarity_tier)" class="case-row__tier">{{ tierLabel(card.similarity_tier) }}</span>
+          </div>
+          <strong class="case-row__title">{{ caseHeadline(card) }}</strong>
+          <p class="case-row__preview">{{ casePreview(card) }}</p>
         </button>
       </div>
 
@@ -227,35 +263,56 @@ function openCase(caseId: string) {
   color: var(--text-mute);
   line-height: 1.45;
 }
-.case-ids {
+.case-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
 }
-.case-id-chip {
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--primary);
-  background: var(--primary-dim);
-  color: var(--primary);
-  font-size: 11.5px;
+.case-row {
+  width: 100%;
+  text-align: left;
+  padding: 10px 11px;
+  border: 1px solid rgba(146, 161, 181, 0.35);
+  background: rgba(255, 255, 255, 0.025);
   cursor: pointer;
-  transition: all 0.16s ease;
-  display: inline-flex;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.case-row:hover,
+.case-row.active {
+  border-color: var(--primary);
+  background: rgba(0, 229, 255, 0.06);
+}
+.case-row__hd {
+  display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  margin-bottom: 4px;
 }
-.case-id-chip.active {
-  background: var(--primary);
-  color: var(--bg, #04101c);
+.case-row__id {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
 }
-.case-id-chip:hover {
-  background: var(--primary);
-  color: var(--bg, #04101c);
+.case-row__tier {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: var(--evidence);
+  border: 1px solid rgba(109, 255, 181, 0.35);
+  background: rgba(109, 255, 181, 0.08);
 }
-.tier {
-  font-size: 9px;
-  opacity: 0.85;
+.case-row__title {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.case-row__preview {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
 }
 .case-detail {
   margin-top: 10px;

@@ -11,6 +11,7 @@ import {
   lerpPitch,
   microDollyToApproach,
   panToVisualCenter,
+  samplePathForBounds,
   smoothPullback,
 } from './amapUtils'
 import {
@@ -28,6 +29,8 @@ const JINAN_CENTER: [number, number] = [117.02, 36.66]
 /** 渠化详情镜头（连贯下钻终点）与干线镜头（平滑抬升终点）。 */
 const CHANNELIZATION_ZOOM = 18
 const ARTERIAL_ZOOM = 17
+/** 流量溯源走廊视角：需比车道级更拉远，才能看见主路径走向。 */
+const FLOW_TRACE_MAX_ZOOM = 15.2
 
 export interface ApplySceneOptions {
   showMetrics?: boolean
@@ -214,17 +217,25 @@ export class MapController {
       case 'trace':
       case 'corridor': {
         if (!target) break
+        const isFlowTrace = stage === 'flow_trace'
         const tracePts = this.collectTraceBoundsPoints(resp, target)
         if (tracePts.length >= 2) {
+          if (isFlowTrace && this.currentZoom > FLOW_TRACE_MAX_ZOOM + 0.5) {
+            await smoothPullback(this.map, target, FLOW_TRACE_MAX_ZOOM + 0.8, 850)
+            this.currentZoom = this.map.getZoom?.() ?? this.currentZoom
+          }
           await fitBoundsForPoints(this.map, tracePts, {
-            maxZoom: scene.zoom ?? ARTERIAL_ZOOM,
-            duration: 1000,
+            maxZoom: isFlowTrace ? FLOW_TRACE_MAX_ZOOM : (scene.zoom ?? ARTERIAL_ZOOM),
+            padding: isFlowTrace ? [96, 96, 128, 96] : [80, 80, 80, 80],
+            duration: isFlowTrace ? 1200 : 1000,
             AMap: this.AMap,
           })
           this.currentZoom = this.map.getZoom?.() ?? this.currentZoom
         } else {
-          const z = Math.max(scene.zoom ?? ARTERIAL_ZOOM, ARTERIAL_ZOOM)
-          const dur = Math.abs(this.currentZoom - z) > 1 ? 1000 : 800
+          const z = isFlowTrace
+            ? FLOW_TRACE_MAX_ZOOM
+            : Math.max(scene.zoom ?? ARTERIAL_ZOOM, ARTERIAL_ZOOM)
+          const dur = Math.abs(this.currentZoom - z) > 1 ? 1100 : 850
           await smoothPullback(this.map, target, z, dur)
           panToVisualCenter(this.map, target)
           this.currentZoom = z
@@ -268,7 +279,7 @@ export class MapController {
         if (hasCoord(inter?.lng, inter?.lat)) pts.push([inter.lng, inter.lat])
       }
       for (const link of coverage.links ?? []) {
-        for (const pt of validPath(link?.coords)) pts.push(pt)
+        for (const pt of samplePathForBounds(validPath(link?.coords), 6)) pts.push(pt)
       }
       return pts
     }
@@ -276,12 +287,17 @@ export class MapController {
     for (const inter of sniff?.intersections ?? []) {
       const c = inter?.center
       if (Array.isArray(c) && c.length >= 2 && hasCoord(c[0], c[1])) pts.push([c[0], c[1]])
+      for (const link of inter?.links ?? []) {
+        for (const pt of samplePathForBounds(validPath(link?.path ?? link?.coords), 5)) pts.push(pt)
+      }
     }
     for (const t of resp?.phases?.diagnosis?.flow_trace?.entry_traces ?? []) {
       if (hasCoord(t.upstream_lng, t.upstream_lat)) pts.push([t.upstream_lng as number, t.upstream_lat as number])
+      for (const pt of samplePathForBounds(validPath(t.path), 4)) pts.push(pt)
     }
     for (const t of (scenes as any).downstream_trace_map?.turn_traces ?? []) {
       if (hasCoord(t.lon, t.lat)) pts.push([t.lon, t.lat])
+      for (const pt of samplePathForBounds(validPath(t.path), 4)) pts.push(pt)
     }
     return pts
   }
@@ -551,33 +567,25 @@ export class MapController {
     }
   }
 
-  /** act6：主因关联空间对象 + 案例轻量标记（分散 layout）。 */
+  /** act6：主因关联空间对象（进口/下游）；相似案例仅在右侧面板呈现，不在地图堆叠。 */
   private drawCauseAnnotations(resp: RunResponse | null) {
     const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.cause_spatial
     if (!scene?.available) return
     const reduced =
       typeof window !== 'undefined' &&
       !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    let caseIndex = 0
     for (const ann of scene.annotations ?? []) {
       if (!hasCoord(ann.lng, ann.lat)) continue
+      if (ann.kind === 'case_ref') continue
       const color = ann.color ?? '#00e5ff'
-      let lng = ann.lng as number
-      let lat = ann.lat as number
-      if (ann.kind === 'case_ref' || ann.offset) {
-        const angle = (caseIndex * 72 * Math.PI) / 180
-        lng += Math.cos(angle) * 0.00035
-        lat += Math.sin(angle) * 0.00035
-        caseIndex += 1
-      }
-      const pos: [number, number] = [lng, lat]
+      const pos: [number, number] = [ann.lng as number, ann.lat as number]
       const label = ann.label ?? ann.case_id ?? '标注'
       this.add(
         new this.AMap.Marker({
           position: pos,
           content: markerHtml({
             position: pos,
-            kind: ann.kind === 'case_ref' ? 'evidence' : 'metric',
+            kind: 'metric',
             title: ann.kind === 'approach' ? '问题进口' : ann.kind === 'downstream' ? '下游' : '案例',
             value: label,
             severity: ann.kind === 'approach' ? 'high' : 'medium',
