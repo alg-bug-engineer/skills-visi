@@ -38,11 +38,28 @@ def load_pg_diagnosis_bundle(
     if not inter_id and not inter_name:
         return {"ok": False, "source": "pg", "reason": "缺少 inter_id 或 intersection_name"}
 
+    # The peak day can be resolved from inter_id before the expensive checklist
+    # load.  Previously we loaded the full checklist for the default weekday,
+    # discovered a different peak weekday, then loaded the same 20+ queries a
+    # second time.
+    resolved_inter_id = str(inter_id or "")
+    peak = (
+        load_cross_week_peak_movement_metrics(
+            inter_id=resolved_inter_id,
+            direction=str(ticket.get("direction") or "东向西"),
+            movement=str(ticket.get("movement") or "直行"),
+            time_range=ticket.get("time_range"),
+        )
+        if resolved_inter_id
+        else None
+    )
+    peak_dow = (peak or {}).get("selected_day_of_week")
+    initial_dow = parse_day_of_week(ticket)
     try:
         loaded = load_intersection_from_pg(
-            inter_id=str(inter_id) if inter_id else None,
+            inter_id=resolved_inter_id or None,
             inter_name=str(inter_name) if inter_name else None,
-            day_of_week=parse_day_of_week(ticket),
+            day_of_week=int(peak_dow or initial_dow),
             time_hhmm=parse_time_hhmm(ticket.get("time_range")),
             time_range=ticket.get("time_range"),
         )
@@ -57,21 +74,9 @@ def load_pg_diagnosis_bundle(
             "reason": "; ".join(loaded.get("errors") or ["PG 加载失败"]),
         }
 
-    resolved_inter_id = str(inter_id or (((loaded.get("task") or {}).get("scope") or {}).get("intersection_id")) or "")
-    peak = load_cross_week_peak_movement_metrics(
-        inter_id=resolved_inter_id,
-        direction=str(ticket.get("direction") or "东向西"),
-        movement=str(ticket.get("movement") or "直行"),
-        time_range=ticket.get("time_range"),
-    ) if resolved_inter_id else None
-    peak_dow = (peak or {}).get("selected_day_of_week")
-    initial_dow = parse_day_of_week(ticket)
-    if peak_dow and int(peak_dow) != int(initial_dow):
-        loaded = load_intersection_from_pg(
-            inter_id=resolved_inter_id,
-            day_of_week=int(peak_dow),
-            time_hhmm=parse_time_hhmm(ticket.get("time_range")),
-            time_range=ticket.get("time_range"),
+    if not resolved_inter_id:
+        resolved_inter_id = str(
+            (((loaded.get("task") or {}).get("scope") or {}).get("intersection_id")) or ""
         )
 
     pg_task = loaded.get("task") or {}
@@ -81,12 +86,14 @@ def load_pg_diagnosis_bundle(
         inter = inter[0] if inter else {}
 
     pg_metrics = pg_task.get("metrics") or {}
-    peak_metrics = load_cross_week_peak_movement_metrics(
-        inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
-        direction=str(ticket.get("direction") or "东向西"),
-        movement=str(ticket.get("movement") or "直行"),
-        time_range=ticket.get("time_range"),
-    )
+    peak_metrics = peak
+    if peak_metrics is None:
+        peak_metrics = load_cross_week_peak_movement_metrics(
+            inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
+            direction=str(ticket.get("direction") or "东向西"),
+            movement=str(ticket.get("movement") or "直行"),
+            time_range=ticket.get("time_range"),
+        )
     if peak_metrics:
         pg_metrics = {**pg_metrics, **peak_metrics}
         pg_task["metrics"] = pg_metrics

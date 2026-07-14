@@ -1,4 +1,6 @@
 import json
+import asyncio
+import time
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -7,6 +9,7 @@ from app.config import get_settings
 from app.main import app
 from app.runtime.registry import get_registry
 from app.services.agent_service import AgentService
+from app.runtime.skill_types import SkillResult
 
 
 @pytest.fixture(autouse=True)
@@ -102,3 +105,73 @@ async def test_run_stream_partial_failure_emits_error(script_user_input, monkeyp
     assert done_before
     last_ok_phases = done_before[-1]["data"]["snapshot"]["phases"].keys()
     assert {"intent", "diagnosis"}.issubset(last_ok_phases)
+
+
+@pytest.mark.asyncio
+async def test_blocking_skill_does_not_freeze_server_event_loop(script_user_input, monkeypatch):
+    """Legacy synchronous work inside an async skill must run off the ASGI loop."""
+    registry = get_registry()
+    intent_skill = registry.get("intent_understanding")
+
+    async def blocking_run(context, **deps):  # noqa: ANN001, ARG001
+        time.sleep(0.15)
+        return SkillResult(
+            skill_id="intent_understanding",
+            phase="intent_understanding",
+            success=True,
+            output={},
+        )
+
+    monkeypatch.setattr(intent_skill, "run", blocking_run)
+    agent = AgentService(get_settings())
+    finished = asyncio.Event()
+    ticks = 0
+
+    async def heartbeat():
+        nonlocal ticks
+        while not finished.is_set():
+            ticks += 1
+            await asyncio.sleep(0.01)
+
+    async def consume():
+        async for _ev in agent.run_stream(
+            script_user_input,
+            trace_id="stream-nonblocking",
+            stop_after="intent_understanding",
+        ):
+            pass
+        finished.set()
+
+    await asyncio.gather(consume(), heartbeat())
+    assert ticks >= 5
+
+
+@pytest.mark.asyncio
+async def test_stream_sends_keepalive_during_long_phase(script_user_input, monkeypatch):
+    registry = get_registry()
+    intent_skill = registry.get("intent_understanding")
+
+    async def slow_run(context, **deps):  # noqa: ANN001, ARG001
+        await asyncio.sleep(0.06)
+        return SkillResult(
+            skill_id="intent_understanding",
+            phase="intent_understanding",
+            success=True,
+            output={},
+        )
+
+    monkeypatch.setattr(intent_skill, "run", slow_run)
+    monkeypatch.setattr("app.api.routes.SSE_HEARTBEAT_INTERVAL_S", 0.01)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/v1/agent/run/stream",
+            json={
+                "user_input": script_user_input,
+                "trace_id": "stream-heartbeat",
+                "stop_after": "intent_understanding",
+            },
+        )
+
+    assert ": keep-alive\n\n" in response.text
+    assert "event: phase_done" in response.text

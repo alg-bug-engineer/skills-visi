@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any, AsyncIterator
@@ -12,6 +13,18 @@ from app.runtime.registry import SkillRegistry
 from app.runtime.skill_types import SkillContext, SkillResult
 
 logger = logging.getLogger(__name__)
+
+
+def _run_skill_in_worker(skill: Any, context: SkillContext, deps: dict[str, Any]) -> SkillResult:
+    """Run one async skill on a worker thread with its own event loop.
+
+    Skills intentionally combine async LLM calls with legacy synchronous PG,
+    DuckDB and optimizer work.  Running those coroutines on the ASGI loop lets
+    any synchronous section freeze StreamingResponse flushing (and even the
+    health endpoint).  A per-invocation loop keeps that blocking work away from
+    the server loop while preserving the existing async skill interface.
+    """
+    return asyncio.run(skill.run(context, **deps))
 
 
 def _serialize_results(results: list[SkillResult]) -> list[dict[str, Any]]:
@@ -83,7 +96,10 @@ class SkillExecutor:
                 skill.meta.phase,
             )
             try:
-                result = await skill.run(context, **deps)
+                # A skill may contain synchronous DB/CPU work around its async
+                # LLM calls.  Isolate the whole invocation so the ASGI loop can
+                # keep flushing phase_done events while the next phase runs.
+                result = await asyncio.to_thread(_run_skill_in_worker, skill, context, deps)
             except Exception as exc:  # noqa: BLE001 - 汇集为失败结果，交由上层转 error 事件
                 logger.exception(
                     "技能执行异常 trace_id=%s skill_id=%s error=%s",

@@ -10,6 +10,7 @@ import pandas as pd
 from app.trace.segment_coverage import (
     DIR8_TO_APPROACH_LEG,
     IntersectionMeta,
+    LinkMeta,
     CoverageRequest,
     SegmentCoverageService,
     build_flow_trace_segment_coverage_map_scene,
@@ -149,3 +150,81 @@ def test_trace_intersections_only_counts_path_corridor():
     assert by_id["U1"]["flow"] == 2
     assert by_id["U1"]["ratio"] == 1.0
     assert "NOISE" not in by_id
+
+
+def test_trace_links_lazily_loads_only_ranked_path_ids():
+    svc = SegmentCoverageService.__new__(SegmentCoverageService)
+    svc.links = {}
+    requested: list[str] = []
+    req = CoverageRequest(
+        inter_id="T",
+        approach_leg="N_IN",
+        turn_dir_no=2,
+        start_time=datetime(2026, 6, 8, 6, 0, 0),
+        end_time=datetime(2026, 6, 8, 10, 0, 0),
+        direction="upstream",
+        limit=1,
+    )
+    target_events = pd.DataFrame(
+        [
+            {"trip_id": "trip1", "event_key": "trip1|t1"},
+            {"trip_id": "trip2", "event_key": "trip2|t1"},
+        ]
+    )
+
+    def fake_load_trips(_target_events, _exclude):
+        return {
+            "trip1": (["U1", "T"], ["POPULAR"]),
+            "trip2": (["U2", "T"], ["POPULAR", "OTHER"]),
+        }
+
+    def fake_load_links(link_ids):
+        requested.extend(link_ids)
+        svc.links["POPULAR"] = LinkMeta(
+            "POPULAR", "主路", [[117.0, 36.6], [117.01, 36.61]], "U1", "T", "1", 100.0
+        )
+
+    svc._load_restored_trips = fake_load_trips  # type: ignore[method-assign]
+    svc._load_link_metadata = fake_load_links  # type: ignore[method-assign]
+
+    rows = svc._trace_links(req, target_events, target_flow=2)
+    assert requested == ["POPULAR"]
+    assert [row["id"] for row in rows] == ["POPULAR"]
+
+
+def test_trace_reads_restored_trip_parquet_once():
+    svc = SegmentCoverageService.__new__(SegmentCoverageService)
+    svc._con = object()
+    svc.intersections = {"T": IntersectionMeta("T", "目标", [117.0, 36.6])}
+    svc.ensure_loaded = lambda: None  # type: ignore[method-assign]
+    svc._target_events = lambda _req: pd.DataFrame(  # type: ignore[method-assign]
+        [{"trip_id": "trip1", "event_key": "trip1|t1"}]
+    )
+    loads = 0
+    restored = {"trip1": (["U1", "T"], ["L1"])}
+
+    def fake_load(_events, _exclude):
+        nonlocal loads
+        loads += 1
+        return restored
+
+    seen: list[object] = []
+    svc._load_restored_trips = fake_load  # type: ignore[method-assign]
+    svc._trace_intersections = (  # type: ignore[method-assign]
+        lambda _req, _events, _flow, *, restored_by_trip: seen.append(restored_by_trip) or []
+    )
+    svc._trace_links = (  # type: ignore[method-assign]
+        lambda _req, _events, _flow, *, restored_by_trip: seen.append(restored_by_trip) or []
+    )
+    req = CoverageRequest(
+        inter_id="T",
+        approach_leg="N_IN",
+        turn_dir_no=2,
+        start_time=datetime(2026, 6, 8, 6, 0, 0),
+        end_time=datetime(2026, 6, 8, 10, 0, 0),
+        filter_spatial_outliers=False,
+    )
+
+    svc.trace(req)
+    assert loads == 1
+    assert seen == [restored, restored]

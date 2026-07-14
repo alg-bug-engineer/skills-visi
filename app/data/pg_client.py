@@ -18,6 +18,14 @@ _NAMED_PARAM = re.compile(r"(?<!:):([a-zA-Z_][a-zA-Z0-9_]*)")
 _ctx_conn: contextvars.ContextVar[Any | None] = contextvars.ContextVar("_pg_ctx_conn", default=None)
 
 
+def _connection_kwargs(settings: Any) -> dict[str, Any]:
+    """Bound remote PG waits so one bad query cannot pin a pipeline forever."""
+    return {
+        "connect_timeout": max(1, int(settings.pg_connect_timeout_s)),
+        "options": f"-c statement_timeout={max(1, int(settings.pg_statement_timeout_ms))}",
+    }
+
+
 def _to_psycopg_sql(sql: str) -> str:
     """Convert SQLAlchemy-style :name params to psycopg %(name)s, preserving ::casts."""
     return _NAMED_PARAM.sub(r"%(\1)s", sql)
@@ -49,7 +57,12 @@ def pg_connection() -> Iterator[Any | None]:
     except ImportError as exc:  # pragma: no cover - 环境缺依赖
         raise RuntimeError("请安装 psycopg: pip install 'psycopg[binary]'") from exc
 
-    conn = psycopg.connect(settings.pg_dsn, row_factory=dict_row, autocommit=True)
+    conn = psycopg.connect(
+        settings.pg_dsn,
+        row_factory=dict_row,
+        autocommit=True,
+        **_connection_kwargs(settings),
+    )
     token = _ctx_conn.set(conn)
     try:
         yield conn
@@ -89,7 +102,11 @@ def read_pg_rows(sql: str, params: dict[str, Any], *, limit: int = 500) -> list[
             rows = cur.fetchall()
         return [dict(row) for row in rows]
 
-    with psycopg.connect(settings.pg_dsn, row_factory=dict_row) as conn:
+    with psycopg.connect(
+        settings.pg_dsn,
+        row_factory=dict_row,
+        **_connection_kwargs(settings),
+    ) as conn:
         with conn.cursor() as cur:
             cur.execute(bounded_sql, params)
             rows = cur.fetchall()

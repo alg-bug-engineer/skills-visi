@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 from typing import Any, AsyncIterator, Literal
@@ -25,6 +26,7 @@ from app.services.case_tag_extractor import CaseTagExtractor
 
 router = APIRouter(prefix="/api/v1")
 logger = logging.getLogger(__name__)
+SSE_HEARTBEAT_INTERVAL_S = 15.0
 
 
 class AgentRunRequest(BaseModel):
@@ -252,20 +254,45 @@ async def run_agent_stream(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     async def event_source() -> AsyncIterator[str]:
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+        async def produce() -> None:
+            try:
+                async for ev in agent.run_stream(
+                    request.user_input,
+                    trace_id=request.trace_id,
+                    task=request.task,
+                    skill_ids=request.skill_ids,
+                    stop_after=request.stop_after,
+                ):
+                    await queue.put(ev)
+            except Exception as exc:  # noqa: BLE001 - 流内异常转 error 事件
+                await queue.put(
+                    {"event": "error", "data": {"phase": None, "errors": [str(exc)]}}
+                )
+            finally:
+                await queue.put(None)
+
+        producer = asyncio.create_task(produce())
         try:
-            async for ev in agent.run_stream(
-                request.user_input,
-                trace_id=request.trace_id,
-                task=request.task,
-                skill_ids=request.skill_ids,
-                stop_after=request.stop_after,
-            ):
+            while True:
+                try:
+                    ev = await asyncio.wait_for(
+                        queue.get(), timeout=SSE_HEARTBEAT_INTERVAL_S
+                    )
+                except TimeoutError:
+                    # SSE comment frame: ignored by the frontend parser but
+                    # prevents nginx/Vite/LB idle timeouts during a long skill.
+                    yield ": keep-alive\n\n"
+                    continue
+                if ev is None:
+                    break
                 yield _sse_frame(ev["event"], ev["data"])
-                # 让出事件循环，避免长耗时 skill 期间缓冲 phase_done 直到下一阶段才下发。
-                await asyncio.sleep(0)
-        except Exception as exc:  # noqa: BLE001 - 流内异常转 error 事件而非中断连接
-            yield _sse_frame("error", {"phase": None, "errors": [str(exc)]})
-            await asyncio.sleep(0)
+        finally:
+            if not producer.done():
+                producer.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await producer
 
     return StreamingResponse(
         event_source(),

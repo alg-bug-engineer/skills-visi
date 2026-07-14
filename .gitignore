@@ -29,6 +29,9 @@ data/flow_trace/
 # 全库筛选产出（需求 22，本地工作区，不入库）
 data/screening/
 
+# 真实链路嗅探快照（本地验证产物，不入库）
+data/live-validation/
+
 # Local packaging output（含密钥，禁止入库）
 dist/
 

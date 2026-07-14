@@ -6,6 +6,7 @@ described in docs/reference/PG_DATABASE_SCHEMA.md.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import re
 from datetime import date, timedelta
@@ -1246,39 +1247,43 @@ def _iter_checklist_load_body(
     }
     data_key_by_item = {spec["item_id"]: spec["data_key"] for spec in CHECKLIST_SPEC}
 
-    for index, spec in enumerate(CHECKLIST_SPEC, start=1):
-        item_id = spec["item_id"]
-        if item_id in query_runners:
-            data_key = data_key_by_item[item_id]
-            rows, err = query_runners[item_id]()
-            raw[data_key] = rows
-            query_errors[data_key] = err
-        item = _checklist_item_from_spec(spec, raw, query_errors)
-        yield {
-            "type": "checklist_item",
-            "index": index,
-            "total": total,
-            "item": item,
-        }
+    # Checklist reads are independent after the target intersection is known.
+    # Running them serially made one diagnosis equal the sum of ~20 remote PG
+    # round trips.  A bounded pool keeps load controlled while making latency
+    # track the slowest small group instead.
+    with ThreadPoolExecutor(max_workers=min(6, len(query_runners))) as pool:
+        futures = {item_id: pool.submit(runner) for item_id, runner in query_runners.items()}
+        for index, spec in enumerate(CHECKLIST_SPEC, start=1):
+            item_id = spec["item_id"]
+            if item_id in futures:
+                data_key = data_key_by_item[item_id]
+                rows, err = futures[item_id].result()
+                raw[data_key] = rows
+                query_errors[data_key] = err
+            item = _checklist_item_from_spec(spec, raw, query_errors)
+            yield {
+                "type": "checklist_item",
+                "index": index,
+                "total": total,
+                "item": item,
+            }
 
-    adjacent_offsets, adjacent_offsets_err = _safe_query(
-        _query_adjacent_offsets, flow, raw.get("adjacent_spacing") or []
-    )
-    raw["adjacent_offsets"] = adjacent_offsets
-    query_errors["adjacent_offsets"] = adjacent_offsets_err
-
-    trace_geom_rows, trace_geom_err = _safe_query(
-        _query_trace_geometry, road, channel_table, version_sql, resolved_id
-    )
-    raw["trace_geometry"] = trace_geom_rows
-    query_errors["trace_geometry"] = trace_geom_err
-
-    stage_cfg_rows, stage_cfg_err = _safe_query(_query_stage_cfg, flow, resolved_id)
-    raw["stage_cfg"] = stage_cfg_rows
-    query_errors["stage_cfg"] = stage_cfg_err
-    stage_motor_rows, stage_motor_err = _safe_query(_query_stage_motor_flow, flow, resolved_id)
-    raw["stage_motor_flow"] = stage_motor_rows
-    query_errors["stage_motor_flow"] = stage_motor_err
+    tail_runners = {
+        "adjacent_offsets": lambda: _safe_query(
+            _query_adjacent_offsets, flow, raw.get("adjacent_spacing") or []
+        ),
+        "trace_geometry": lambda: _safe_query(
+            _query_trace_geometry, road, channel_table, version_sql, resolved_id
+        ),
+        "stage_cfg": lambda: _safe_query(_query_stage_cfg, flow, resolved_id),
+        "stage_motor_flow": lambda: _safe_query(_query_stage_motor_flow, flow, resolved_id),
+    }
+    with ThreadPoolExecutor(max_workers=len(tail_runners)) as pool:
+        tail_futures = {key: pool.submit(runner) for key, runner in tail_runners.items()}
+        for key, future in tail_futures.items():
+            rows, err = future.result()
+            raw[key] = rows
+            query_errors[key] = err
 
     result = _assemble_task_from_raw(
         inter, raw, query_errors, day_of_week, step_index, step_index_end, errors=[]

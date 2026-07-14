@@ -199,11 +199,15 @@ class SegmentCoverageService:
         trips_parquet: Path,
         pg_dsn: str,
         pg_schema: str = "road6",
+        pg_connect_timeout_s: int = 8,
+        pg_statement_timeout_ms: int = 30_000,
     ) -> None:
         self.inter_parquet = inter_parquet
         self.trips_parquet = trips_parquet
         self.pg_dsn = pg_dsn
         self.pg_schema = pg_schema
+        self.pg_connect_timeout_s = pg_connect_timeout_s
+        self.pg_statement_timeout_ms = pg_statement_timeout_ms
         self._con = None
         self.intersections: dict[str, IntersectionMeta] = {}
         self.links: dict[str, LinkMeta] = {}
@@ -260,7 +264,11 @@ class SegmentCoverageService:
             return "missing_psycopg"
         schema = self.pg_schema
         try:
-            with psycopg.connect(self.pg_dsn) as conn:
+            with psycopg.connect(
+                self.pg_dsn,
+                connect_timeout=max(1, int(self.pg_connect_timeout_s)),
+                options=f"-c statement_timeout={max(1, int(self.pg_statement_timeout_ms))}",
+            ) as conn:
                 with conn.cursor() as cur:
                     cur.execute(
                         f"""
@@ -275,22 +283,58 @@ class SegmentCoverageService:
                             name=name or str(inter_id),
                             coord=parse_point(geom),
                         )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("segment coverage PG metadata failed: %s", exc)
+            return "pg_metadata_failed"
+        if not self.intersections:
+            return "no_pg_geometry"
+        return None
+
+    def _load_link_metadata(self, link_ids: list[str]) -> None:
+        """Load geometry only for links used by the current trace.
+
+        The old eager query fetched every geometry in ``dim_rid_trace_info``.
+        On the live database that result is large enough to spend minutes in
+        ``ClientWrite`` before the diagnosis snapshot can be produced.
+        """
+        missing = list(dict.fromkeys(link_id for link_id in link_ids if link_id not in self.links))
+        if not missing:
+            return
+        try:
+            import psycopg
+        except ImportError:
+            return
+
+        schema = self.pg_schema
+        try:
+            # autocommit keeps a missing fallback table from aborting the next
+            # table lookup in the same connection.
+            with psycopg.connect(
+                self.pg_dsn,
+                autocommit=True,
+                connect_timeout=max(1, int(self.pg_connect_timeout_s)),
+                options=f"-c statement_timeout={max(1, int(self.pg_statement_timeout_ms))}",
+            ) as conn:
+                with conn.cursor() as cur:
                     for table_name in ("dim_rid_trace_info", "dim_rid_info"):
+                        remaining = [link_id for link_id in missing if link_id not in self.links]
+                        if not remaining:
+                            break
                         try:
                             cur.execute(
                                 f"""
                                 select rid_id, road_name, geom, f_inter_id, t_inter_id, dir, length_m
                                 from {schema}.{table_name}
-                                where rid_id is not null and geom is not null
-                                """
+                                where rid_id = any(%s) and geom is not null
+                                """,
+                                (remaining,),
                             )
                         except Exception:  # noqa: BLE001
-                            logger.warning("skip missing table %s.%s", schema, table_name)
+                            logger.warning("skip unavailable table %s.%s", schema, table_name)
                             continue
-                        for rid_id, road_name, geom, f_inter_id, t_inter_id, direction, length_m in cur.fetchall():
+                        for row in cur.fetchall():
+                            rid_id, road_name, geom, f_inter_id, t_inter_id, direction, length_m = row
                             rid = str(rid_id)
-                            if rid in self.links:
-                                continue
                             coords = parse_linestring(geom)
                             if len(coords) < 2:
                                 continue
@@ -304,11 +348,7 @@ class SegmentCoverageService:
                                 length_m=float(length_m) if length_m is not None else None,
                             )
         except Exception as exc:  # noqa: BLE001
-            logger.exception("segment coverage PG metadata failed: %s", exc)
-            return "pg_metadata_failed"
-        if not self.intersections:
-            return "no_pg_geometry"
-        return None
+            logger.warning("segment coverage link metadata degraded: %s", exc)
 
     def trace(self, req: CoverageRequest) -> dict[str, Any]:
         err = self.ensure_loaded()
@@ -321,6 +361,19 @@ class SegmentCoverageService:
             raise RuntimeError("invalid_time_window")
 
         target_events = self._target_events(req)
+        if target_events.empty:
+            return self._empty_trace(req)
+        restored_by_trip = self._load_restored_trips(
+            target_events, req.exclude_incomplete_trips
+        )
+        # Completion filtering is applied from the single restored-trip read
+        # below.  This avoids joining/scanning the 221 MB trips parquet once in
+        # _target_events and then scanning it twice more for intersections and
+        # links.
+        if req.exclude_incomplete_trips:
+            target_events = target_events[
+                target_events["trip_id"].astype(str).isin(restored_by_trip)
+            ]
         target_flow = len(target_events)
         if target_flow == 0:
             return self._empty_trace(req)
@@ -352,22 +405,19 @@ class SegmentCoverageService:
             },
         }
         if req.include_intersections:
-            result["intersections"] = self._trace_intersections(req, target_events, target_flow)
+            result["intersections"] = self._trace_intersections(
+                req, target_events, target_flow, restored_by_trip=restored_by_trip
+            )
         if req.include_links:
-            result["links"] = self._trace_links(req, target_events, target_flow)
+            result["links"] = self._trace_links(
+                req, target_events, target_flow, restored_by_trip=restored_by_trip
+            )
         if req.filter_spatial_outliers:
             self._filter_spatial_outliers(result, req.outlier_radius_m)
         return result
 
     def _target_events(self, req: CoverageRequest):
         assert self._con is not None
-        complete_join = ""
-        if req.exclude_incomplete_trips:
-            complete_join = f"""
-            join read_parquet('{self.trips_parquet.as_posix()}') r
-              on r.trip_id = e.trip_id
-             and coalesce(r.effective_restore_complete, false) = true
-            """
         return self._con.execute(
             f"""
             select
@@ -375,7 +425,6 @@ class SegmentCoverageService:
               e.arrive_time as target_time,
               e.trip_id || '|' || cast(e.arrive_time as varchar) as event_key
             from read_parquet('{self.inter_parquet.as_posix()}') e
-            {complete_join}
             where e.inter_id = ?
               and e.approach_leg = ?
               and e.turn_dir_no = ?
@@ -425,9 +474,14 @@ class SegmentCoverageService:
         req: CoverageRequest,
         target_events,
         target_flow: int,
+        *,
+        restored_by_trip: dict[str, tuple[list[Any], list[Any]]] | None = None,
     ) -> list[dict[str, Any]]:
         """仅统计恢复轨迹走廊上的上游/下游路口，避免把行程中无关历史访问算入占比。"""
-        restored_by_trip = self._load_restored_trips(target_events, req.exclude_incomplete_trips)
+        if restored_by_trip is None:
+            restored_by_trip = self._load_restored_trips(
+                target_events, req.exclude_incomplete_trips
+            )
         inter_event_keys: dict[str, set[str]] = defaultdict(set)
 
         for _, row in target_events.iterrows():
@@ -460,8 +514,18 @@ class SegmentCoverageService:
             )
         return payload
 
-    def _trace_links(self, req: CoverageRequest, target_events, target_flow: int) -> list[dict[str, Any]]:
-        restored_by_trip = self._load_restored_trips(target_events, req.exclude_incomplete_trips)
+    def _trace_links(
+        self,
+        req: CoverageRequest,
+        target_events,
+        target_flow: int,
+        *,
+        restored_by_trip: dict[str, tuple[list[Any], list[Any]]] | None = None,
+    ) -> list[dict[str, Any]]:
+        if restored_by_trip is None:
+            restored_by_trip = self._load_restored_trips(
+                target_events, req.exclude_incomplete_trips
+            )
         link_event_keys: dict[str, set[str]] = defaultdict(set)
 
         for _, row in target_events.iterrows():
@@ -480,6 +544,7 @@ class SegmentCoverageService:
                 link_event_keys[link_id].add(event_key)
 
         ranked = sorted(link_event_keys.items(), key=lambda item: len(item[1]), reverse=True)
+        self._load_link_metadata([link_id for link_id, _keys in ranked[: req.limit]])
         payload: list[dict[str, Any]] = []
         for link_id, keys in ranked[: req.limit]:
             meta = self.links.get(link_id)
@@ -673,6 +738,8 @@ def get_segment_coverage_service() -> SegmentCoverageService | None:
         trips_parquet=trips,
         pg_dsn=settings.pg_dsn,
         pg_schema=settings.pg_schema,
+        pg_connect_timeout_s=settings.pg_connect_timeout_s,
+        pg_statement_timeout_ms=settings.pg_statement_timeout_ms,
     )
     return _service
 

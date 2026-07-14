@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "description": "真实数据演示案例；Case A 使用目标转向跨周峰值、下游接收转向跨周均值并披露下游峰值风险，配时绑定目标峰值日。",
+  "description": "真实数据演示案例；含点/线典型 Case A/B，以及新增四处进口直行 live 采集 Case C–F。",
   "default_case_id": "case_a",
   "cases": [
     {
@@ -26,6 +26,54 @@
       "fixture": "case_b_fixture.json",
       "live_validation": "jiefangdong-aotizhong-south-through-line.json",
       "query": "解放东路与奥体中路路口，晚高峰五点到七点，南口直行高峰经常排得很满，下游坤顺路和奥体中路那个口接不住，帮忙看看要不要做干线协调，别光本口加绿。"
+    },
+    {
+      "id": "case_c",
+      "code": "C",
+      "label": "草山岭中路×草山岭南路",
+      "display_name": "草山岭中路×草山岭南路 · 北进口直行",
+      "inter_id": "011wwe293wd00001",
+      "intersection_name": "草山岭中路与草山岭南路路口",
+      "opt_type": "TYPE1_POINT",
+      "fixture": "case_c_caoshanling-north-through_fixture.json",
+      "live_validation": "caoshanling-zhong-nan-north-through.json",
+      "query": "草山岭中路与草山岭南路路口，晚高峰五点到七点，北进口直行经常排队外溢，帮忙看看配时怎么调，并核验直接下游是否接得住。"
+    },
+    {
+      "id": "case_d",
+      "code": "D",
+      "label": "奥体中路×经十路",
+      "display_name": "奥体中路×经十路 · 东进口直行",
+      "inter_id": "011wwe291ey00001",
+      "intersection_name": "奥体中路与经十路路口",
+      "opt_type": "TYPE1_POINT",
+      "fixture": "case_d_aotizhong-jingshi-east-through_fixture.json",
+      "live_validation": "aotizhong-jingshi-east-through.json",
+      "query": "奥体中路与经十路路口，晚高峰五点到七点，东进口直行经常排队外溢，帮忙看看配时怎么调，并核验直接下游是否接得住。"
+    },
+    {
+      "id": "case_e",
+      "code": "E",
+      "label": "会展路×奥体中路",
+      "display_name": "会展路×奥体中路 · 西进口直行",
+      "inter_id": "011wwe29jbf00001",
+      "intersection_name": "会展路与奥体中路路口",
+      "opt_type": "TYPE1_POINT",
+      "fixture": "case_e_huizhan-aotizhong-west-through_fixture.json",
+      "live_validation": "huizhan-aotizhong-west-through.json",
+      "query": "会展路与奥体中路路口，晚高峰五点到七点，西进口直行经常排队外溢，帮忙看看配时怎么调，并核验直接下游是否接得住。"
+    },
+    {
+      "id": "case_f",
+      "code": "F",
+      "label": "旅游路×转山西路",
+      "display_name": "旅游路×转山西路 · 东进口直行",
+      "inter_id": "011wwe22xn400001",
+      "intersection_name": "旅游路与转山西路路口",
+      "opt_type": "TYPE1_POINT",
+      "fixture": "case_f_lvyou-zhuanshanxi-east-through_fixture.json",
+      "live_validation": "lvyou-zhuanshanxi-east-through.json",
+      "query": "旅游路与转山西路路口，晚高峰五点到七点，东进口直行经常排队外溢，帮忙看看配时怎么调，并核验直接下游是否接得住。"
     }
   ]
 }
