@@ -75,6 +75,24 @@ class SkillExecutor:
         results: list[SkillResult] = []
         total = len(pipeline)
         healthy_stop = False
+        diagnosis_prefetch: asyncio.Task[Any] | None = None
+        settings = deps.get("settings")
+        if (
+            "intent_understanding" in pipeline
+            and "data_analysis_diagnosis" in pipeline
+            and settings is not None
+            and getattr(settings, "pg_dsn", None)
+        ):
+            from app.data.diagnosis_prefetch import run_diagnosis_prefetch
+
+            diagnosis_prefetch = asyncio.create_task(
+                asyncio.to_thread(
+                    run_diagnosis_prefetch,
+                    user_input=user_input,
+                    task=task,
+                    settings=settings,
+                )
+            )
 
         logger.info("开始流式执行流水线 trace_id=%s pipeline=%s", trace_id, pipeline)
 
@@ -87,6 +105,21 @@ class SkillExecutor:
                 "index": index,
                 "total": total,
             }
+
+            # The first phase_done has already been yielded, so frontend render
+            # can proceed while we join the speculative read.  Only a strict
+            # ticket signature match is allowed to reuse it.
+            if skill_id == "data_analysis_diagnosis" and diagnosis_prefetch is not None:
+                try:
+                    prefetched = await diagnosis_prefetch
+                    from app.data.diagnosis_prefetch import apply_diagnosis_prefetch
+
+                    actual_ticket = context.task.get("diagnosis_ticket") or {}
+                    reused = apply_diagnosis_prefetch(context.task, actual_ticket, prefetched)
+                    logger.info("诊断数据预取完成 trace_id=%s reused=%s", trace_id, reused)
+                except Exception as exc:  # noqa: BLE001 - prefetch is optional
+                    logger.warning("诊断数据预取失败 trace_id=%s error=%s", trace_id, exc)
+                diagnosis_prefetch = None
 
             start = time.perf_counter()
             logger.info(
@@ -154,6 +187,9 @@ class SkillExecutor:
                 healthy_stop = True
                 logger.info("诊断判定路口健康，提前收尾 trace_id=%s", trace_id)
                 break
+
+        if diagnosis_prefetch is not None and not diagnosis_prefetch.done():
+            diagnosis_prefetch.cancel()
 
         merged_artifacts = {**prefilled, **context.artifacts}
         task["artifacts"] = merged_artifacts

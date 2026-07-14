@@ -471,9 +471,16 @@ def _query_adjacent_offsets(
 ) -> dict[str, dict[str, Any]]:
     """Load real absolute offsets for adjacent intersections using their active plan rows."""
     result: dict[str, dict[str, Any]] = {}
-    for inter_id in _adjacent_inter_ids(adjacent_rows):
-        rows = _query_active_plan(schema, inter_id)
-        result.update(_adjacent_offsets_from_plan_rows(rows))
+    inter_ids = _adjacent_inter_ids(adjacent_rows)
+    if not inter_ids:
+        return result
+    with ThreadPoolExecutor(max_workers=min(4, len(inter_ids))) as pool:
+        futures = {
+            inter_id: pool.submit(_query_active_plan, schema, inter_id)
+            for inter_id in inter_ids
+        }
+        for future in futures.values():
+            result.update(_adjacent_offsets_from_plan_rows(future.result()))
     return result
 
 
@@ -828,34 +835,56 @@ def _query_lane_flow(
     schema: str,
     inter_id: str,
     day_of_week: int,
+    step_index: int | None = None,
+    step_index_end: int | None = None,
 ) -> list[dict[str, Any]]:
     dt = _dt_for_dow(day_of_week)
+    step_filter = ""
+    params: dict[str, Any] = {"inter_id": inter_id, "dt": dt}
+    if step_index is not None:
+        step_filter = "AND step_index BETWEEN :step_lo AND :step_hi"
+        params.update(
+            step_lo=min(step_index, step_index_end if step_index_end is not None else step_index),
+            step_hi=max(step_index, step_index_end if step_index_end is not None else step_index),
+        )
     sql = f"""
         SELECT inter_id, link_id, lane_id, lane_no, turn_move, step_index,
                dt, vehicle_count, volume
         FROM {schema}.dwd_tfc_lane_roadcross_flow_5mi
         WHERE inter_id = :inter_id
           AND dt = :dt
+          {step_filter}
           AND is_deleted = 0
         ORDER BY link_id, lane_no, step_index
     """
-    return _read_pg(sql, {"inter_id": inter_id, "dt": dt}, limit=5000)
+    return _read_pg(sql, params, limit=5000)
 
 
 def _query_lane_capacity(
     schema: str,
     inter_id: str,
-    day_of_week: int,
+    day_of_week: int | None,
+    step_index: int | None = None,
+    step_index_end: int | None = None,
 ) -> list[dict[str, Any]]:
+    day_filter = "AND day_of_week BETWEEN 1 AND 7" if day_of_week is None else "AND day_of_week = :dow"
+    step_filter = "AND step_index BETWEEN :step_lo AND :step_hi" if step_index is not None else ""
     sql = f"""
-        SELECT inter_id, lane_id, link_id, lane_capacity, step_index
+        SELECT inter_id, lane_id, link_id, lane_capacity, day_of_week, step_index
         FROM {schema}.dws_lane_capacity_5min_mm
         WHERE inter_id = :inter_id
-          AND day_of_week = :dow
+          {day_filter}
+          {step_filter}
           AND is_deleted = 0
         ORDER BY link_id, lane_id, step_index
     """
-    return _read_pg(sql, {"inter_id": inter_id, "dow": day_of_week}, limit=5000)
+    params = {"inter_id": inter_id}
+    if day_of_week is not None:
+        params["dow"] = day_of_week
+    if step_index is not None:
+        params["step_lo"] = min(step_index, step_index_end if step_index_end is not None else step_index)
+        params["step_hi"] = max(step_index, step_index_end if step_index_end is not None else step_index)
+    return _read_pg(sql, params, limit=35000 if day_of_week is None else 5000)
 
 
 def _query_lane_saturation_headway(
@@ -1228,16 +1257,30 @@ def _iter_checklist_load_body(
         "adjacent_spacing": lambda: _safe_query(_query_adjacent_spacing, road, channel_table, version_sql, resolved_id),
         "aoi_sources": lambda: _safe_query(_query_aoi_sources, inter),
         "min_green_cfg": lambda: _safe_query(_query_min_green, flow, resolved_id, day_of_week),
-        "turn_flow": lambda: _safe_query(_query_turn_flow, flow, resolved_id, day_of_week),
+        "turn_flow": lambda: _safe_query(
+            _query_turn_flow, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
         "flow_correlate": lambda: _safe_query(
             _query_flow_correlate, road, flow, resolved_id, day_of_week
         ),
-        "lane_flow": lambda: _safe_query(_query_lane_flow, flow, resolved_id, day_of_week),
-        "turn_saturation": lambda: _safe_query(_query_turn_saturation, flow, resolved_id, day_of_week),
-        "inter_evaluation": lambda: _safe_query(_query_inter_evaluation, flow, resolved_id, day_of_week),
-        "turn_perf": lambda: _safe_query(_query_turn_perf, flow, resolved_id, day_of_week),
-        "green_utilization": lambda: _safe_query(_query_green_utilization, flow, resolved_id, day_of_week),
-        "lane_capacity": lambda: _safe_query(_query_lane_capacity, flow, resolved_id, day_of_week),
+        "lane_flow": lambda: _safe_query(
+            _query_lane_flow, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "turn_saturation": lambda: _safe_query(
+            _query_turn_saturation, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "inter_evaluation": lambda: _safe_query(
+            _query_inter_evaluation, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "turn_perf": lambda: _safe_query(
+            _query_turn_perf, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "green_utilization": lambda: _safe_query(
+            _query_green_utilization, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "lane_capacity": lambda: _safe_query(
+            _query_lane_capacity, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
         "lane_saturation_headway": lambda: _safe_query(_query_lane_saturation_headway, flow, resolved_id, day_of_week),
         "plan_cfg": lambda: _safe_query(_query_active_plan, flow, resolved_id),
         "signal_lane_mapping": lambda: _safe_query(_query_signal_lane_mapping, flow, resolved_id),
@@ -1455,7 +1498,7 @@ def load_intersection_from_pg(
 def load_intersection_metrics_only(
     inter_id: str | None = None,
     inter_name: str | None = None,
-    day_of_week: int = 1,
+    day_of_week: int | None = 1,
     time_hhmm: str | None = None,
     time_range: str | None = None,
 ) -> dict[str, Any]:
@@ -1467,8 +1510,6 @@ def load_intersection_metrics_only(
     显著降低首步阻塞时延。数据仍为真实 PG，缺失即返回 ``ok=False``（不伪造）。
     """
     from app.config import get_settings
-    from app.data.pg_client import pg_connection
-
     settings = get_settings()
     if not settings.pg_dsn:
         return {"ok": False, "reason": "PG_DSN 未配置"}
@@ -1490,72 +1531,136 @@ def load_intersection_metrics_only(
     channel_table = settings.pg_channel_table
     version_sql = _enabled_version_sql(road)
 
-    # 相邻路口指标：共享一条连接，跳过 AOI/几何/信号昂贵查询（需求21-R4）。
-    with pg_connection():
-        try:
-            inter_rows = _query_intersection(road, inter_table, version_sql, inter_id, inter_name)
-        except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "reason": f"路口查询失败：{exc}"}
-        if not inter_rows:
-            return {"ok": False, "reason": "未找到路口"}
-        resolved_id = str(inter_rows[0]["inter_id"])
+    try:
+        inter_rows = _query_intersection(road, inter_table, version_sql, inter_id, inter_name)
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"路口查询失败：{exc}"}
+    if not inter_rows:
+        return {"ok": False, "reason": "未找到路口"}
+    resolved_id = str(inter_rows[0]["inter_id"])
 
-        # 仅指标相关查询（skip AOI/几何/信号）；单条失败降级为空行，不中断。
-        channel_rows, _ = _safe_query(_query_channelization, road, channel_table, version_sql, resolved_id)
-        adjacent_rows, _ = _safe_query(_query_adjacent_spacing, road, channel_table, version_sql, resolved_id)
-        flow_rows_raw, _ = _safe_query(_query_turn_flow, flow, resolved_id, day_of_week)
-        lane_flow_raw, _ = _safe_query(_query_lane_flow, flow, resolved_id, day_of_week)
-        sat_rows_raw, _ = _safe_query(_query_turn_saturation, flow, resolved_id, day_of_week)
-        eval_raw, _ = _safe_query(_query_inter_evaluation, flow, resolved_id, day_of_week)
-        perf_raw, _ = _safe_query(_query_turn_perf, flow, resolved_id, day_of_week)
-        util_raw, _ = _safe_query(_query_green_utilization, flow, resolved_id, day_of_week)
-        lane_cap_raw, _ = _safe_query(_query_lane_capacity, flow, resolved_id, day_of_week)
-
-    eval_rows = _filter_rows_by_step_range(eval_raw or [], step_index, step_index_end)
-    sat_rows = _filter_rows_by_step_range(sat_rows_raw or [], step_index, step_index_end)
-    flow_rows = _filter_rows_by_step_range(flow_rows_raw or [], step_index, step_index_end)
-    util_rows = _filter_rows_by_step_range(util_raw or [], step_index, step_index_end)
-    perf_rows = _filter_rows_by_step_range(perf_raw or [], step_index, step_index_end)
-    lane_capacity_rows = _filter_rows_by_step_range(lane_cap_raw or [], step_index, step_index_end)
-    lane_flow_rows = _filter_rows_by_step_range(lane_flow_raw or [], step_index, step_index_end)
-    channel_rows = channel_rows or []
-
-    sat_rows = _enrich_movement_rows(sat_rows, channel_rows)
-    flow_rows = _enrich_movement_rows(flow_rows, channel_rows)
-    util_rows = _enrich_movement_rows(util_rows, channel_rows)
-
-    metrics = _aggregate_metrics(
-        eval_rows,
-        sat_rows,
-        flow_rows,
-        util_rows,
-        perf_rows,
-        lane_capacity_rows,
-        adjacent_rows=adjacent_rows or [],
-        channel_rows=channel_rows,
-        lane_flow_rows=lane_flow_rows,
-    )
-    has_dynamic_metrics = (
-        _rows_have_positive(eval_rows, "delay_s", "avg_delay_s", "queue_ratio")
-        or _rows_have_positive(sat_rows, "turn_saturation", "lane_saturation")
-        or _rows_have_positive(flow_rows, "turn_flow_total", "turn_flow", "flow_vph")
-        or _rows_have_positive(perf_rows, "queue_len_max", "queue_len_avg", "delay_s")
-        or _rows_have_positive(util_rows, "green_utilization")
-    )
-    # 仅绿灯利用率不足以支撑下游承接判断（缺饱和度/排队/流量）。
-    if isinstance(metrics, dict):
-        metrics["has_dynamic_metrics"] = has_dynamic_metrics
-        # 下游轻量加载也必须携带方向库容明细，供真实接收进口转向计算排队比。
-        light_scope = _build_scope(
-            inter_rows[0],
-            channel_rows,
-            [],
-            adjacent_rows=adjacent_rows or [],
+    # 轻量指标查询彼此独立。跨周口径用 day_of_week=None 一次取回 1..7，
+    # 避免旧实现按 7 天重复执行 9 条查询（单个路口 63 次往返）。
+    query_runners: dict[str, Any] = {
+        "channel": lambda: _safe_query(
+            _query_channelization, road, channel_table, version_sql, resolved_id
+        ),
+        "adjacent": lambda: _safe_query(
+            _query_adjacent_spacing, road, channel_table, version_sql, resolved_id
+        ),
+        "flow": lambda: _safe_query(
+            _query_turn_flow, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "saturation": lambda: _safe_query(
+            _query_turn_saturation, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "evaluation": lambda: _safe_query(
+            _query_inter_evaluation, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "performance": lambda: _safe_query(
+            _query_turn_perf, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "utilization": lambda: _safe_query(
+            _query_green_utilization, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+        "capacity": lambda: _safe_query(
+            _query_lane_capacity, flow, resolved_id, day_of_week, step_index, step_index_end
+        ),
+    }
+    if day_of_week is not None:
+        query_runners["lane_flow"] = lambda: _safe_query(
+            _query_lane_flow, flow, resolved_id, day_of_week, step_index, step_index_end
         )
+
+    with ThreadPoolExecutor(max_workers=min(6, len(query_runners))) as pool:
+        futures = {key: pool.submit(runner) for key, runner in query_runners.items()}
+        queried = {key: future.result()[0] or [] for key, future in futures.items()}
+
+    channel_rows = queried.get("channel") or []
+    adjacent_rows = queried.get("adjacent") or []
+    light_scope = _build_scope(
+        inter_rows[0], channel_rows, [], adjacent_rows=adjacent_rows
+    )
+
+    def _same_day(rows: list[dict[str, Any]], dow: int | None) -> list[dict[str, Any]]:
+        if dow is None:
+            return rows
+        selected: list[dict[str, Any]] = []
+        for row in rows:
+            value = row.get("day_of_week")
+            try:
+                if value is not None and int(value) != dow:
+                    continue
+            except (TypeError, ValueError):
+                continue
+            selected.append(row)
+        return selected
+
+    def _assemble(dow: int | None) -> tuple[dict[str, Any], bool]:
+        eval_rows = _filter_rows_by_step_range(
+            _same_day(queried.get("evaluation") or [], dow), step_index, step_index_end
+        )
+        sat_rows = _filter_rows_by_step_range(
+            _same_day(queried.get("saturation") or [], dow), step_index, step_index_end
+        )
+        flow_rows = _filter_rows_by_step_range(
+            _same_day(queried.get("flow") or [], dow), step_index, step_index_end
+        )
+        util_rows = _filter_rows_by_step_range(
+            _same_day(queried.get("utilization") or [], dow), step_index, step_index_end
+        )
+        perf_rows = _filter_rows_by_step_range(
+            _same_day(queried.get("performance") or [], dow), step_index, step_index_end
+        )
+        lane_capacity_rows = _filter_rows_by_step_range(
+            _same_day(queried.get("capacity") or [], dow), step_index, step_index_end
+        )
+        lane_flow_rows = _filter_rows_by_step_range(
+            queried.get("lane_flow") or [], step_index, step_index_end
+        )
+
+        sat_rows = _enrich_movement_rows(sat_rows, channel_rows)
+        flow_rows = _enrich_movement_rows(flow_rows, channel_rows)
+        util_rows = _enrich_movement_rows(util_rows, channel_rows)
+        metrics = _aggregate_metrics(
+            eval_rows,
+            sat_rows,
+            flow_rows,
+            util_rows,
+            perf_rows,
+            lane_capacity_rows,
+            adjacent_rows=adjacent_rows,
+            channel_rows=channel_rows,
+            lane_flow_rows=lane_flow_rows,
+        )
+        has_dynamic = (
+            _rows_have_positive(eval_rows, "delay_s", "avg_delay_s", "queue_ratio")
+            or _rows_have_positive(sat_rows, "turn_saturation", "lane_saturation")
+            or _rows_have_positive(flow_rows, "turn_flow_total", "turn_flow", "flow_vph")
+            or _rows_have_positive(perf_rows, "queue_len_max", "queue_len_avg", "delay_s")
+            or _rows_have_positive(util_rows, "green_utilization")
+        )
+        metrics["has_dynamic_metrics"] = has_dynamic
         metrics["adjacent_inter_spacing_detail"] = light_scope.get(
             "adjacent_inter_spacing_detail"
         ) or []
-    return {"ok": True, "metrics": metrics, "inter_id": resolved_id, "has_dynamic_metrics": has_dynamic_metrics}
+        return metrics, has_dynamic
+
+    metrics, has_dynamic_metrics = _assemble(day_of_week)
+    result = {
+        "ok": True,
+        "metrics": metrics,
+        "inter_id": resolved_id,
+        "has_dynamic_metrics": has_dynamic_metrics,
+    }
+    if day_of_week is None:
+        metrics_by_day: dict[int, dict[str, Any]] = {}
+        for dow in range(1, 8):
+            day_metrics, day_has_dynamic = _assemble(dow)
+            if day_has_dynamic:
+                metrics_by_day[dow] = day_metrics
+        result["metrics_by_day"] = metrics_by_day
+    return result
 
 
 def build_task_from_pg(task_or_inter_id: Any = None, **kwargs: Any) -> dict[str, Any]:
@@ -1648,36 +1753,56 @@ def _query_channelization(
 def _query_inter_evaluation(
     schema: str,
     inter_id: str,
-    day_of_week: int,
+    day_of_week: int | None,
+    step_index: int | None = None,
+    step_index_end: int | None = None,
 ) -> list[dict[str, Any]]:
+    day_filter = "AND day_of_week BETWEEN 1 AND 7" if day_of_week is None else "AND day_of_week = :dow"
+    step_filter = "AND step_index BETWEEN :step_lo AND :step_hi" if step_index is not None else ""
     sql = f"""
         SELECT inter_id, day_of_week, step_index,
                saturation_max, saturation_avg, unbalance_index,
                level_of_service, turn_count
         FROM {schema}.dws_inter_evaluation_5min_mm
         WHERE inter_id = :inter_id
-          AND day_of_week = :dow
+          {day_filter}
+          {step_filter}
           AND is_deleted = 0
         ORDER BY step_index
     """
-    return _read_pg(sql, {"inter_id": inter_id, "dow": day_of_week}, limit=500)
+    params = {"inter_id": inter_id}
+    if day_of_week is not None:
+        params["dow"] = day_of_week
+    if step_index is not None:
+        params.update(step_lo=min(step_index, step_index_end or step_index), step_hi=max(step_index, step_index_end or step_index))
+    return _read_pg(sql, params, limit=3500 if day_of_week is None else 500)
 
 
 def _query_turn_saturation(
     schema: str,
     inter_id: str,
-    day_of_week: int,
+    day_of_week: int | None,
+    step_index: int | None = None,
+    step_index_end: int | None = None,
 ) -> list[dict[str, Any]]:
+    day_filter = "AND day_of_week BETWEEN 1 AND 7" if day_of_week is None else "AND day_of_week = :dow"
+    step_filter = "AND step_index BETWEEN :step_lo AND :step_hi" if step_index is not None else ""
     sql = f"""
-        SELECT inter_id, link_id, turn_dir_no, step_index,
+        SELECT inter_id, link_id, turn_dir_no, day_of_week, step_index,
                turn_saturation, lane_saturation_detail
         FROM {schema}.dws_turn_saturation_5min_mm
         WHERE inter_id = :inter_id
-          AND day_of_week = :dow
+          {day_filter}
+          {step_filter}
           AND is_deleted = 0
         ORDER BY step_index, turn_saturation DESC NULLS LAST
     """
-    return _read_pg(sql, {"inter_id": inter_id, "dow": day_of_week}, limit=5000)
+    params = {"inter_id": inter_id}
+    if day_of_week is not None:
+        params["dow"] = day_of_week
+    if step_index is not None:
+        params.update(step_lo=min(step_index, step_index_end or step_index), step_hi=max(step_index, step_index_end or step_index))
+    return _read_pg(sql, params, limit=35000 if day_of_week is None else 5000)
 
 
 def _query_flow_correlate(
@@ -1729,42 +1854,66 @@ def _query_flow_correlate(
 def _query_turn_flow(
     schema: str,
     inter_id: str,
-    day_of_week: int,
+    day_of_week: int | None,
+    step_index: int | None = None,
+    step_index_end: int | None = None,
 ) -> list[dict[str, Any]]:
+    day_filter = "AND day_of_week BETWEEN 1 AND 7" if day_of_week is None else "AND day_of_week = :dow"
+    step_filter = "AND step_index BETWEEN :step_lo AND :step_hi" if step_index is not None else ""
     sql = f"""
-        SELECT inter_id, link_id, turn_dir_no, step_index,
+        SELECT inter_id, link_id, turn_dir_no, day_of_week, step_index,
                turn_flow_total, avg_lane_flow_5min, lane_count
         FROM {schema}.dws_inter_link_turn_flow_5min_mm
         WHERE inter_id = :inter_id
-          AND day_of_week = :dow
+          {day_filter}
+          {step_filter}
           AND is_deleted = 0
         ORDER BY step_index, link_id, turn_dir_no
     """
-    return _read_pg(sql, {"inter_id": inter_id, "dow": day_of_week}, limit=5000)
+    params = {"inter_id": inter_id}
+    if day_of_week is not None:
+        params["dow"] = day_of_week
+    if step_index is not None:
+        params.update(step_lo=min(step_index, step_index_end or step_index), step_hi=max(step_index, step_index_end or step_index))
+    return _read_pg(sql, params, limit=35000 if day_of_week is None else 5000)
 
 
 def _query_green_utilization(
     schema: str,
     inter_id: str,
-    day_of_week: int,
+    day_of_week: int | None,
+    step_index: int | None = None,
+    step_index_end: int | None = None,
 ) -> list[dict[str, Any]]:
+    day_filter = "AND day_of_week BETWEEN 1 AND 7" if day_of_week is None else "AND day_of_week = :dow"
+    step_filter = "AND step_index BETWEEN :step_lo AND :step_hi" if step_index is not None else ""
     sql = f"""
-        SELECT inter_id, link_id, turn_dir_no, step_index,
+        SELECT inter_id, link_id, turn_dir_no, day_of_week, step_index,
                green_utilization
         FROM {schema}.dws_turn_green_utilization_5min_mm
         WHERE inter_id = :inter_id
-          AND day_of_week = :dow
+          {day_filter}
+          {step_filter}
           AND is_deleted = 0
         ORDER BY step_index, link_id, turn_dir_no
     """
-    return _read_pg(sql, {"inter_id": inter_id, "dow": day_of_week}, limit=5000)
+    params = {"inter_id": inter_id}
+    if day_of_week is not None:
+        params["dow"] = day_of_week
+    if step_index is not None:
+        params.update(step_lo=min(step_index, step_index_end or step_index), step_hi=max(step_index, step_index_end or step_index))
+    return _read_pg(sql, params, limit=35000 if day_of_week is None else 5000)
 
 
 def _query_turn_perf(
     schema: str,
     inter_id: str,
-    day_of_week: int,
+    day_of_week: int | None,
+    step_index: int | None = None,
+    step_index_end: int | None = None,
 ) -> list[dict[str, Any]]:
+    day_filter = "AND day_of_week BETWEEN 1 AND 7" if day_of_week is None else "AND day_of_week = :dow"
+    step_filter = "AND step_index BETWEEN :step_lo AND :step_hi" if step_index is not None else ""
     primary_sql = f"""
         SELECT inter_id, f_dir_8, turn_dir_no, day_of_week, step_index,
                f_dir_8_label, turn_dir_label,
@@ -1772,12 +1921,18 @@ def _query_turn_perf(
                stop_time, stop_times, delay_index, los
         FROM {schema}.dws_inter_dir_turn_perf_5min_mm
         WHERE inter_id = :inter_id
-          AND day_of_week = :dow
+          {day_filter}
+          {step_filter}
           AND is_deleted = 0
         ORDER BY step_index, f_dir_8, turn_dir_no
     """
-    params = {"inter_id": inter_id, "dow": day_of_week}
-    rows = _read_pg(primary_sql, params, limit=5000)
+    params = {"inter_id": inter_id}
+    if day_of_week is not None:
+        params["dow"] = day_of_week
+    if step_index is not None:
+        params.update(step_lo=min(step_index, step_index_end or step_index), step_hi=max(step_index, step_index_end or step_index))
+    row_limit = 35000 if day_of_week is None else 5000
+    rows = _read_pg(primary_sql, params, limit=row_limit)
     if rows:
         return rows
 
@@ -1788,14 +1943,17 @@ def _query_turn_perf(
                stop_time, stop_times, delay_index, los
         FROM {schema}.dws_inter_approach_turn_perf_5min_mm
         WHERE inter_id = :inter_id
-          AND day_of_week = :dow
+          {day_filter}
+          {step_filter}
           AND is_deleted = 0
         ORDER BY step_index, f_dir_8, turn_dir_no
     """
-    rows = _read_pg(approach_sql, params, limit=5000)
+    rows = _read_pg(approach_sql, params, limit=row_limit)
     if rows:
         return rows
 
+    dwd_step_expr = "(EXTRACT(HOUR FROM stat_time)::int * 12 + FLOOR(EXTRACT(MINUTE FROM stat_time)::int / 5))"
+    dwd_step_filter = f"AND {dwd_step_expr} BETWEEN :step_lo AND :step_hi" if step_index is not None else ""
     dwd_sql = f"""
         SELECT inter_id,
                COALESCE(eight_direction, NULL)::smallint AS f_dir_8,
@@ -1808,10 +1966,11 @@ def _query_turn_perf(
                stop_time, stop_times, delay_index, los
         FROM {schema}.dwd_tfc_inter_dir_perf_5min
         WHERE inter_id = :inter_id
-          AND (((EXTRACT(DOW FROM stat_time)::int + 6) % 7) + 1) = :dow
+          {"AND (((EXTRACT(DOW FROM stat_time)::int + 6) % 7) + 1) = :dow" if day_of_week is not None else ""}
+          {dwd_step_filter}
         ORDER BY stat_time, f_dir_8, turn_dir_no
     """
-    return _read_pg(dwd_sql, params, limit=5000)
+    return _read_pg(dwd_sql, params, limit=row_limit)
 
 
 def _schedule_referenced_plan_nos(schema: str, inter_id: str) -> list[str]:
@@ -2234,6 +2393,7 @@ def _aggregate_metrics(
         "turn_flow_detail": prepared_flow_rows,
         "turn_perf_detail": perf_rows,
         "turn_saturation_detail": sat_rows,
+        "green_utilization_detail": util_rows,
     }
 
 

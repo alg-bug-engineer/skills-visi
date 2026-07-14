@@ -31,7 +31,12 @@ class DataAnalysisDiagnosisSkill(BaseSkill):
             "intent_understanding", {}
         ).get("spatial_objects", {})
 
-        resolved = resolve_diagnosis_inputs(context.task, settings, ticket=ticket)
+        # When the user input was unambiguous, PG/topology reads were started in
+        # parallel with NLU and validated against the authoritative ticket by the
+        # executor.  Fall back to the normal resolver for all other requests.
+        resolved = context.task.pop("_diagnosis_prefetch_resolved", None)
+        if not resolved:
+            resolved = resolve_diagnosis_inputs(context.task, settings, ticket=ticket)
         if not resolved.get("ok"):
             logger.warning(
                 "诊断数据不可用 trace_id=%s reason=%s",

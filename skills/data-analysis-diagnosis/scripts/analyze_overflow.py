@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from app.data.traffic_metrics_logic import DIRECTION_ORDER, TURN_DIR_LABELS
@@ -302,6 +303,7 @@ def analyze_overflow(
     coordination: dict[str, Any] = {"available": False, "reason": "no_topology"}
     downstream_diagnosis: dict[str, Any] = {"available": False}
     map_scenes: dict[str, Any] = {}
+    segment_coverage_map: dict[str, Any] | None = None
 
     if topology:
         downstream_trace = build_downstream_trace(
@@ -310,19 +312,35 @@ def analyze_overflow(
             dir8_code=dir8_code,
             turn_dir_no=turn_dir_no,
         )
-        if downstream_trace.get("available") and pg_raw:
-            from app.data.pg_adapters import (
-                build_adjacent_metrics_loader,
-                enrich_downstream_trace_adjacent_peers,
+        # The large parquet coverage scan is independent of adjacent-peer PG
+        # enrichment.  Execute both branches together on the cold path.
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            segment_future = pool.submit(
+                build_flow_trace_segment_coverage_map_scene,
+                topology=topology,
+                target_profile=target_profile,
+                direction=direction,
+                movement=movement,
+                trace_direction="upstream",
             )
-
-            adjacent_loader = build_adjacent_metrics_loader(ticket)
-            if adjacent_loader:
-                enrich_downstream_trace_adjacent_peers(
-                    downstream_trace,
-                    peer_hints=collect_map_adjacent_peer_hints(pg_raw),
-                    load_pg_metrics=adjacent_loader,
+            peer_future = None
+            if downstream_trace.get("available") and pg_raw:
+                from app.data.pg_adapters import (
+                    build_adjacent_metrics_loader,
+                    enrich_downstream_trace_adjacent_peers,
                 )
+
+                adjacent_loader = build_adjacent_metrics_loader(ticket)
+                if adjacent_loader:
+                    peer_future = pool.submit(
+                        enrich_downstream_trace_adjacent_peers,
+                        downstream_trace,
+                        peer_hints=collect_map_adjacent_peer_hints(pg_raw),
+                        load_pg_metrics=adjacent_loader,
+                    )
+            if peer_future is not None:
+                peer_future.result()
+            segment_coverage_map = segment_future.result()
         flow_trace = build_flow_trace(
             topology=topology,
             dir8_code=dir8_code,
@@ -384,13 +402,7 @@ def analyze_overflow(
                 center=center,
             ),
             # 需求 33：路段覆盖为 act5 主可视化；旧 sniff 暂留兼容，前端不再优先消费
-            "flow_trace_segment_coverage_map": build_flow_trace_segment_coverage_map_scene(
-                topology=topology,
-                target_profile=target_profile,
-                direction=direction,
-                movement=movement,
-                trace_direction="upstream",
-            ),
+            "flow_trace_segment_coverage_map": segment_coverage_map or {},
             "flow_trace_links_sniff_map": build_flow_trace_links_sniff_map_scene(
                 pg_raw=pg_raw,
                 topology=topology,

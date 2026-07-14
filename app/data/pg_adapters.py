@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from concurrent.futures import Future, ThreadPoolExecutor
 import re
+import threading
+import time
 from typing import Any
 
 from app.trace.geometry import orient_path, parse_linestring_wkt, parse_point_wkt
@@ -17,6 +20,17 @@ from app.trace.topology import (
 
 # dir8 进口方向码 → 方向字符串（直行口径），用于反查相邻路口承接进口方向。
 _DIR8_TO_DIRECTION = {pair[0]: label for label, pair in DIRECTION_MOVEMENT.items()}
+
+# A diagnosis may request the same intersection several times (one per receiving
+# movement, then again while enriching adjacent peers).  The SQL payload contains
+# all movements, so keep a short-lived, process-local snapshot and select the
+# requested movement in memory.  The TTL is deliberately short: it only coalesces
+# one pipeline run and does not turn operational traffic data into a long-lived
+# cache.
+_WEEKLY_METRICS_CACHE_TTL_S = 60.0
+_weekly_metrics_cache: dict[tuple[Any, ...], tuple[float, dict[str, Any]]] = {}
+_weekly_metrics_inflight: dict[tuple[Any, ...], Future[dict[str, Any]]] = {}
+_weekly_metrics_lock = threading.Lock()
 
 
 def _direction_for_dir8(dir8: Any) -> str | None:
@@ -653,6 +667,7 @@ def enrich_downstream_metrics(
         *(topology.get("downstream_turn_nodes") or []),
     ]
     seen_nodes: set[int] = set()
+    nodes_to_load: list[tuple[dict[str, Any], str, str | None, str]] = []
     for node in downstream_candidates:
         if not isinstance(node, dict):
             continue
@@ -667,18 +682,37 @@ def enrich_downstream_metrics(
             continue
         receiving_dir8 = node.get("receiving_dir8")
         direction = _direction_for_dir8(receiving_dir8)
+        movement = TURN_LABEL.get(int(node.get("receiving_turn_dir_no") or 2), "直行")
+        nodes_to_load.append((node, str(inter_id), direction, movement))
+
+    def _load_one(inter_id: str, direction: str | None, movement: str):
         try:
+            return load_pg_metrics(inter_id, direction=direction, movement=movement), None
+        except TypeError:
             try:
-                pg_metrics = load_pg_metrics(
-                    str(inter_id),
-                    direction=direction,
-                    movement=TURN_LABEL.get(int(node.get("receiving_turn_dir_no") or 2), "直行"),
-                )
-            except TypeError:
-                pg_metrics = load_pg_metrics(str(inter_id))
-        except Exception as exc:  # noqa: BLE001 - 记录降级原因，不中断主流程
+                return load_pg_metrics(inter_id), None
+            except Exception as exc:  # noqa: BLE001
+                return None, exc
+        except Exception as exc:  # noqa: BLE001
+            return None, exc
+
+    # Different downstream intersections are independent.  Loading them in
+    # parallel changes latency from the sum of remote round trips to roughly the
+    # slowest node; duplicate movements share the weekly single-flight cache.
+    loaded_by_node: dict[int, tuple[dict[str, Any] | None, Exception | None]] = {}
+    if nodes_to_load:
+        with ThreadPoolExecutor(max_workers=min(4, len(nodes_to_load))) as pool:
+            futures = {
+                id(node): pool.submit(_load_one, inter_id, direction, movement)
+                for node, inter_id, direction, movement in nodes_to_load
+            }
+            loaded_by_node = {node_id: future.result() for node_id, future in futures.items()}
+
+    for node, _inter_id, direction, _movement in nodes_to_load:
+        pg_metrics, load_error = loaded_by_node[id(node)]
+        if load_error is not None:
             node["metrics_available"] = False
-            node["metrics_reason"] = f"下游路口指标加载失败：{exc}"
+            node["metrics_reason"] = f"下游路口指标加载失败：{load_error}"
             continue
         if not pg_metrics:
             node["metrics_available"] = False
@@ -767,6 +801,59 @@ def build_adjacent_metrics_loader(ticket: dict[str, Any]):
     return _load
 
 
+def _load_cross_week_metrics_bundle(
+    *,
+    inter_id: str,
+    time_range: str | None,
+) -> dict[str, Any]:
+    """Load all seven day types once, coalescing duplicate concurrent callers."""
+    from app.data.load_intersection_from_pg import load_intersection_metrics_only
+
+    # Include the loader identity so monkeypatched loaders in tests cannot see a
+    # result produced by another test (and hot-reloads naturally invalidate it).
+    key = (
+        id(load_intersection_metrics_only),
+        str(inter_id),
+        parse_time_hhmm(time_range),
+        str(time_range or ""),
+    )
+    now = time.monotonic()
+    owner = False
+    with _weekly_metrics_lock:
+        cached = _weekly_metrics_cache.get(key)
+        if cached and cached[0] > now:
+            return cached[1]
+        future = _weekly_metrics_inflight.get(key)
+        if future is None:
+            future = Future()
+            _weekly_metrics_inflight[key] = future
+            owner = True
+
+    if not owner:
+        return future.result()
+
+    try:
+        loaded = load_intersection_metrics_only(
+            inter_id=str(inter_id),
+            day_of_week=None,
+            time_hhmm=parse_time_hhmm(time_range),
+            time_range=time_range,
+        )
+        with _weekly_metrics_lock:
+            _weekly_metrics_cache[key] = (
+                time.monotonic() + _WEEKLY_METRICS_CACHE_TTL_S,
+                loaded,
+            )
+        future.set_result(loaded)
+        return loaded
+    except BaseException as exc:
+        future.set_exception(exc)
+        raise
+    finally:
+        with _weekly_metrics_lock:
+            _weekly_metrics_inflight.pop(key, None)
+
+
 def load_cross_week_peak_movement_metrics(
     *,
     inter_id: str,
@@ -775,21 +862,13 @@ def load_cross_week_peak_movement_metrics(
     time_range: str | None,
 ) -> dict[str, Any] | None:
     """演示口径：在 1..7 日型中选择目标进口转向 queue_len_avg 峰值最大的一天。"""
-    from app.data.load_intersection_from_pg import load_intersection_metrics_only
-
     dir8, turn = resolve_dir8_turn(direction, movement)
+    loaded = _load_cross_week_metrics_bundle(inter_id=inter_id, time_range=time_range)
+    if not loaded.get("ok"):
+        return None
     best: dict[str, Any] | None = None
     best_queue = -1.0
-    for dow in range(1, 8):
-        loaded = load_intersection_metrics_only(
-            inter_id=str(inter_id),
-            day_of_week=dow,
-            time_hhmm=parse_time_hhmm(time_range),
-            time_range=time_range,
-        )
-        if not loaded.get("ok"):
-            continue
-        metrics = loaded.get("metrics") or {}
+    for dow, metrics in sorted((loaded.get("metrics_by_day") or {}).items()):
         queue_peak = _max_row_metric(
             metrics.get("turn_perf_detail") or [],
             dir8,
@@ -818,41 +897,21 @@ def load_cross_week_mean_movement_metrics(
     同时保留跨周峰值作为安全审计字段，避免“均值可承接”掩盖偶发峰值。
     其他指标明细也合并全部有效日型，供诊断按既有统计规则计算。
     """
-    from app.data.load_intersection_from_pg import load_intersection_metrics_only
-
     dir8, turn = resolve_dir8_turn(direction, movement)
-    merged: dict[str, Any] | None = None
-    detail_keys = (
-        "turn_perf_detail",
-        "turn_saturation_detail",
-        "turn_flow_detail",
-        "green_utilization_detail",
-    )
-    valid_days: list[int] = []
-    for dow in range(1, 8):
-        loaded = load_intersection_metrics_only(
-            inter_id=str(inter_id),
-            day_of_week=dow,
-            time_hhmm=parse_time_hhmm(time_range),
-            time_range=time_range,
-        )
-        if not loaded.get("ok"):
-            continue
-        metrics = loaded.get("metrics") or {}
-        if merged is None:
-            merged = dict(metrics)
-            for key in detail_keys:
-                merged[key] = []
-        day_has_target = False
-        for key in detail_keys:
-            rows = metrics.get(key) or []
-            merged[key].extend(rows)
-            if key == "turn_perf_detail" and _max_row_metric(rows, dir8, turn, ("queue_len_avg",)) is not None:
-                day_has_target = True
-        if day_has_target:
-            valid_days.append(dow)
-    if merged is None:
+    loaded = _load_cross_week_metrics_bundle(inter_id=inter_id, time_range=time_range)
+    if not loaded.get("ok"):
         return None
+    # ``metrics`` was aggregated from the same all-days query result.  Copy the
+    # top-level mapping because selection metadata below is movement-specific.
+    merged = dict(loaded.get("metrics") or {})
+    if not merged:
+        return None
+    valid_days: list[int] = []
+    for dow, metrics in sorted((loaded.get("metrics_by_day") or {}).items()):
+        if _max_row_metric(
+            metrics.get("turn_perf_detail") or [], dir8, turn, ("queue_len_avg",)
+        ) is not None:
+            valid_days.append(dow)
     target_rows = merged.get("turn_perf_detail") or []
     queue_mean = _mean_row_metric(target_rows, dir8, turn, ("queue_len_avg",))
     queue_peak = _max_row_metric(target_rows, dir8, turn, ("queue_len_avg",))
@@ -899,6 +958,36 @@ def enrich_downstream_trace_adjacent_peers(
         if inter_id:
             merged[inter_id] = dict(item)
 
+    peer_loads: dict[str, tuple[dict[str, Any] | None, Exception | None]] = {}
+    peer_requests: dict[str, str] = {}
+    for hint in peer_hints:
+        inter_id = str(hint.get("inter_id") or "")
+        if not inter_id:
+            continue
+        existing = merged.get(inter_id)
+        if existing and _adjacent_profile_has_metrics(existing):
+            continue
+        peer_requests[inter_id] = _direction_for_dir8(hint.get("receiving_dir8")) or "东向西"
+
+    def _load_peer(inter_id: str, direction: str):
+        try:
+            return load_pg_metrics(inter_id, direction=direction, movement="直行"), None
+        except TypeError:
+            try:
+                return load_pg_metrics(inter_id), None
+            except Exception as exc:  # noqa: BLE001
+                return None, exc
+        except Exception as exc:  # noqa: BLE001
+            return None, exc
+
+    if peer_requests:
+        with ThreadPoolExecutor(max_workers=min(4, len(peer_requests))) as pool:
+            futures = {
+                inter_id: pool.submit(_load_peer, inter_id, direction)
+                for inter_id, direction in peer_requests.items()
+            }
+            peer_loads = {inter_id: future.result() for inter_id, future in futures.items()}
+
     for hint in peer_hints:
         inter_id = str(hint.get("inter_id") or "")
         if not inter_id:
@@ -917,11 +1006,10 @@ def enrich_downstream_trace_adjacent_peers(
             "receiving_dir8": receiving_dir8,
             "role": "adjacent_peer",
         }
-        try:
-            pg_metrics = load_pg_metrics(inter_id)
-        except Exception as exc:  # noqa: BLE001
+        pg_metrics, load_error = peer_loads.get(inter_id, (None, None))
+        if load_error is not None:
             node["metrics_available"] = False
-            node["metrics_reason"] = f"相邻路口指标加载失败：{exc}"
+            node["metrics_reason"] = f"相邻路口指标加载失败：{load_error}"
             merged[inter_id] = build_intersection_profile(node)
             continue
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import logging
 from typing import Any
 
@@ -38,31 +39,39 @@ def load_pg_diagnosis_bundle(
     if not inter_id and not inter_name:
         return {"ok": False, "source": "pg", "reason": "缺少 inter_id 或 intersection_name"}
 
-    # The peak day can be resolved from inter_id before the expensive checklist
-    # load.  Previously we loaded the full checklist for the default weekday,
-    # discovered a different peak weekday, then loaded the same 20+ queries a
-    # second time.
+    # Cross-week target metrics and the full static/signal/topology checklist are
+    # independent reads.  Run them together: peak metrics overwrite the dynamic
+    # slice below, while the checklist's requested workday remains the topology
+    # and signal context.  This hides the target metric round trips behind AOI /
+    # signal loading instead of adding them to cold latency.
     resolved_inter_id = str(inter_id or "")
-    peak = (
-        load_cross_week_peak_movement_metrics(
-            inter_id=resolved_inter_id,
-            direction=str(ticket.get("direction") or "东向西"),
-            movement=str(ticket.get("movement") or "直行"),
-            time_range=ticket.get("time_range"),
-        )
-        if resolved_inter_id
-        else None
-    )
-    peak_dow = (peak or {}).get("selected_day_of_week")
     initial_dow = parse_day_of_week(ticket)
-    try:
-        loaded = load_intersection_from_pg(
+
+    def _load_full():
+        return load_intersection_from_pg(
             inter_id=resolved_inter_id or None,
             inter_name=str(inter_name) if inter_name else None,
-            day_of_week=int(peak_dow or initial_dow),
+            day_of_week=int(initial_dow),
             time_hhmm=parse_time_hhmm(ticket.get("time_range")),
             time_range=ticket.get("time_range"),
         )
+
+    try:
+        if resolved_inter_id:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                peak_future = pool.submit(
+                    load_cross_week_peak_movement_metrics,
+                    inter_id=resolved_inter_id,
+                    direction=str(ticket.get("direction") or "东向西"),
+                    movement=str(ticket.get("movement") or "直行"),
+                    time_range=ticket.get("time_range"),
+                )
+                full_future = pool.submit(_load_full)
+                peak = peak_future.result()
+                loaded = full_future.result()
+        else:
+            peak = None
+            loaded = _load_full()
     except Exception as exc:
         logger.exception("PG 加载失败 inter_id=%s", inter_id)
         return {"ok": False, "source": "pg", "reason": str(exc)}
@@ -98,6 +107,17 @@ def load_pg_diagnosis_bundle(
         pg_metrics = {**pg_metrics, **peak_metrics}
         pg_task["metrics"] = pg_metrics
         raw["metrics"] = pg_metrics
+        # The checklist branch intentionally runs with the requested workday so
+        # it can overlap the peak lookup.  Rebind movement-level raw series to
+        # the selected peak day before downstream diagnostics consume them.
+        for raw_key, metric_key in (
+            ("turn_perf", "turn_perf_detail"),
+            ("turn_saturation", "turn_saturation_detail"),
+            ("turn_flow", "turn_flow_detail"),
+            ("green_utilization", "green_utilization_detail"),
+        ):
+            if peak_metrics.get(metric_key):
+                raw[raw_key] = peak_metrics[metric_key]
     metrics = metrics_for_diagnosis(
         pg_metrics,
         ticket,
