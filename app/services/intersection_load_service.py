@@ -17,6 +17,10 @@ from app.data.pg_adapters import (
     parse_time_hhmm,
     topology_from_pg_raw,
 )
+from app.data.typical_intersection_profiles import (
+    metric_options_from_profile,
+    resolve_typical_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -105,12 +109,21 @@ class IntersectionLoadService:
 
         # 演示口径以目标转向跨周峰值日为主日型；配时、时段表和流量优先使用
         # 同一天，避免目标指标与现状方案日型互相错位。
+        # 典型路口命中 profile 时改用配置字段（如 queue_len_max）；否则固定 queue_len_avg。
         resolved_inter_id = str(inter_id or ((loaded.get("task") or {}).get("scope") or {}).get("intersection_id") or "")
+        profile_ticket = {
+            **ticket,
+            "inter_id": resolved_inter_id or ticket.get("inter_id"),
+        }
+        profile_opts = metric_options_from_profile(resolve_typical_profile(profile_ticket))
         peak = load_cross_week_peak_movement_metrics(
             inter_id=resolved_inter_id,
             direction=direction,
             movement=movement,
             time_range=time_range,
+            queue_field=str(profile_opts.get("target_queue_field") or "queue_len_avg"),
+            typical_profile_id=profile_opts.get("typical_profile_id"),
+            typical_profile_label=profile_opts.get("typical_profile_label"),
         ) if resolved_inter_id else None
         peak_dow = (peak or {}).get("selected_day_of_week")
         if peak_dow and int(peak_dow) != int(dow):
@@ -122,7 +135,15 @@ class IntersectionLoadService:
             )
             dow = int(peak_dow)
 
-        task = self._build_agent_task(loaded, ticket, day_of_week=dow, time_hhmm=hhmm, time_range=time_range)
+        task = self._build_agent_task(
+            loaded,
+            ticket,
+            day_of_week=dow,
+            time_hhmm=hhmm,
+            time_range=time_range,
+            peak_metrics=peak,
+            profile_opts=profile_opts,
+        )
         checklist = loaded.get("checklist_queries") or []
         has_data = sum(1 for item in checklist if item.get("status") == "has_data")
         return {
@@ -208,6 +229,8 @@ class IntersectionLoadService:
         day_of_week: int | None = None,
         time_hhmm: str | None = None,
         time_range: str | None = None,
+        peak_metrics: dict[str, Any] | None = None,
+        profile_opts: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         pg_task = loaded.get("task") or {}
         raw = loaded.get("raw") or {}
@@ -218,12 +241,22 @@ class IntersectionLoadService:
         task: dict[str, Any] = {}
         merge_pg_task_into_context(task, pg_task)
         pg_metrics = pg_task.get("metrics") or {}
-        peak_metrics = load_cross_week_peak_movement_metrics(
-            inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
-            direction=str(ticket.get("direction") or "东向西"),
-            movement=str(ticket.get("movement") or "直行"),
-            time_range=time_range or ticket.get("time_range"),
-        )
+        profile_ticket = {
+            **ticket,
+            "inter_id": ticket.get("inter_id") or inter.get("inter_id"),
+            "intersection_name": ticket.get("intersection_name") or inter.get("inter_name"),
+        }
+        opts = profile_opts or metric_options_from_profile(resolve_typical_profile(profile_ticket))
+        if peak_metrics is None:
+            peak_metrics = load_cross_week_peak_movement_metrics(
+                inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
+                direction=str(ticket.get("direction") or "东向西"),
+                movement=str(ticket.get("movement") or "直行"),
+                time_range=time_range or ticket.get("time_range"),
+                queue_field=str(opts.get("target_queue_field") or "queue_len_avg"),
+                typical_profile_id=opts.get("typical_profile_id"),
+                typical_profile_label=opts.get("typical_profile_label"),
+            )
         if peak_metrics:
             pg_metrics = {**pg_metrics, **peak_metrics}
             pg_task["metrics"] = pg_metrics
@@ -233,6 +266,10 @@ class IntersectionLoadService:
             ticket,
             scope=pg_task.get("scope") if isinstance(pg_task.get("scope"), dict) else None,
         )
+        if opts.get("typical_profile_id"):
+            metrics["typical_profile_id"] = opts.get("typical_profile_id")
+            metrics["typical_profile_label"] = opts.get("typical_profile_label")
+            metrics["typical_opt_type"] = opts.get("typical_opt_type")
         topology = topology_from_pg_raw({**raw, "metrics": pg_metrics}, ticket, inter)
         self._enrich_downstream(
             topology,
@@ -240,6 +277,7 @@ class IntersectionLoadService:
             time_hhmm=time_hhmm,
             time_range=time_range,
             target_inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
+            profile_opts=opts,
         )
 
         diagnosis_ticket = {
@@ -261,6 +299,15 @@ class IntersectionLoadService:
                 "checklist_queries": loaded.get("checklist_queries") or [],
                 "pg_raw": raw,
                 "signal_source": "pg",
+                "typical_metric_profile": {
+                    "id": opts.get("typical_profile_id"),
+                    "label": opts.get("typical_profile_label"),
+                    "opt_type": opts.get("typical_opt_type"),
+                    "use_typical_policy": bool(opts.get("use_typical_policy")),
+                    "target_queue_field": opts.get("target_queue_field"),
+                    "downstream_queue_field": opts.get("downstream_queue_field"),
+                    "downstream_peak_disclose_field": opts.get("downstream_peak_disclose_field"),
+                },
             }
         )
         return task
@@ -273,6 +320,7 @@ class IntersectionLoadService:
         time_hhmm: str | None,
         time_range: str | None,
         target_inter_id: str | None = None,
+        profile_opts: dict[str, Any] | None = None,
     ) -> None:
         """为下游相邻节点注入真实 PG 运行指标（修复下游指标恒为 0，BUG-004）。
 
@@ -283,6 +331,8 @@ class IntersectionLoadService:
         except Exception as exc:  # noqa: BLE001
             logger.warning("下游指标加载模块不可用：%s", exc)
             return
+
+        opts = profile_opts or {}
 
         def _adjacent_metrics(
             adj_id: str,
@@ -295,12 +345,19 @@ class IntersectionLoadService:
                 direction=direction or "东向西",
                 movement=movement or "直行",
                 time_range=time_range,
+                queue_field=str(opts.get("downstream_queue_field") or "queue_len_avg"),
+                peak_disclose_field=str(
+                    opts.get("downstream_peak_disclose_field") or "queue_len_avg"
+                ),
+                typical_profile_id=opts.get("typical_profile_id"),
+                typical_profile_label=opts.get("typical_profile_label"),
             )
 
         enrich_downstream_metrics(
             topology,
             load_pg_metrics=_adjacent_metrics,
             target_inter_id=target_inter_id,
+            approach_queue_avg=bool(opts.get("downstream_approach_queue_avg")),
         )
 
     @staticmethod

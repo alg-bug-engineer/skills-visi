@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "description": "典型路口取数策略配置：只声明逻辑，数值一律实时 PG 计算。未命中则走项目固定逻辑。Case A（解放东路×齐川路）刻意不入覆盖表，保持现有固定口径。",
+  "default_policy": "project_fixed",
+  "profiles": [
+    {
+      "id": "point_kunshun_aotixi_west_through",
+      "label": "点治理 · 坤顺路×奥体西路西进口直行",
+      "opt_type": "TYPE1_POINT",
+      "match": {
+        "inter_id": "011wwe28fty00001",
+        "intersection_name": "坤顺路与奥体西路路口",
+        "direction": "西进口",
+        "movement": "直行"
+      },
+      "metrics": {
+        "target_queue_field": "queue_len_max",
+        "target_selection": "cross_week_peak",
+        "downstream_queue_field": "queue_len_avg",
+        "downstream_selection": "cross_week_mean",
+        "downstream_peak_disclose_field": "queue_len_max",
+        "downstream_approach_queue_avg": true
+      }
+    },
+    {
+      "id": "point_kunshun_aotixi_west_left",
+      "label": "点治理 · 坤顺路×奥体西路西进口左转",
+      "opt_type": "TYPE1_POINT",
+      "match": {
+        "inter_id": "011wwe28fty00001",
+        "intersection_name": "坤顺路与奥体西路路口",
+        "direction": "西进口",
+        "movement": "左转"
+      },
+      "metrics": {
+        "target_queue_field": "queue_len_max",
+        "target_selection": "cross_week_peak",
+        "downstream_queue_field": "queue_len_avg",
+        "downstream_selection": "cross_week_mean",
+        "downstream_peak_disclose_field": "queue_len_max",
+        "downstream_approach_queue_avg": true
+      }
+    },
+    {
+      "id": "point_huizhan_aotizhong_east_through",
+      "label": "点治理 · 会展路×奥体中路东进口直行",
+      "opt_type": "TYPE1_POINT",
+      "match": {
+        "inter_id": "011wwe29jbf00001",
+        "intersection_name": "会展路与奥体中路路口",
+        "direction": "东进口",
+        "movement": "直行"
+      },
+      "metrics": {
+        "target_queue_field": "queue_len_max",
+        "target_selection": "cross_week_peak",
+        "downstream_queue_field": "queue_len_avg",
+        "downstream_selection": "cross_week_mean",
+        "downstream_peak_disclose_field": "queue_len_max",
+        "downstream_approach_queue_avg": true
+      }
+    },
+    {
+      "id": "line_caoshanling_north_through",
+      "label": "线治理 · 草山岭中路×草山岭南路北进口直行",
+      "opt_type": "TYPE2_LINE",
+      "match": {
+        "inter_id": "011wwe293wd00001",
+        "intersection_name": "草山岭中路与草山岭南路路口",
+        "direction": "北进口",
+        "movement": "直行"
+      },
+      "metrics": {
+        "target_queue_field": "queue_len_max",
+        "target_selection": "cross_week_peak",
+        "downstream_queue_field": "queue_len_avg",
+        "downstream_selection": "cross_week_mean",
+        "downstream_peak_disclose_field": "queue_len_max",
+        "downstream_approach_queue_avg": true
+      }
+    },
+    {
+      "id": "line_caoshanling_south_left",
+      "label": "线治理 · 草山岭中路×草山岭南路南进口左转",
+      "opt_type": "TYPE2_LINE",
+      "match": {
+        "inter_id": "011wwe293wd00001",
+        "intersection_name": "草山岭中路与草山岭南路路口",
+        "direction": "南进口",
+        "movement": "左转"
+      },
+      "metrics": {
+        "target_queue_field": "queue_len_max",
+        "target_selection": "cross_week_peak",
+        "downstream_queue_field": "queue_len_avg",
+        "downstream_selection": "cross_week_mean",
+        "downstream_peak_disclose_field": "queue_len_max",
+        "downstream_approach_queue_avg": true
+      }
+    },
+    {
+      "id": "line_lvyou_zhuanshanxi_east_through",
+      "label": "线治理 · 旅游路×转山西路东进口直行",
+      "opt_type": "TYPE2_LINE",
+      "match": {
+        "inter_id": "011wwe22xn400001",
+        "intersection_name": "旅游路与转山西路路口",
+        "direction": "东进口",
+        "movement": "直行"
+      },
+      "metrics": {
+        "target_queue_field": "queue_len_max",
+        "target_selection": "cross_week_peak",
+        "downstream_queue_field": "queue_len_avg",
+        "downstream_selection": "cross_week_mean",
+        "downstream_peak_disclose_field": "queue_len_max",
+        "downstream_approach_queue_avg": true
+      }
+    }
+  ],
+  "notes": {
+    "case_a": "解放东路与齐川路北进口直行（011wwe28f7c00001）保持项目固定取数逻辑，不写入覆盖 profile。",
+    "point_typical_ref": "点治理典型1=齐川(CaseA固定)、3=坤顺西直、4=坤顺西左、5=会展东直；跳过典型2二环东路×解放路。",
+    "line_typical_ref": "草山岭中路×草山岭南路、旅游路×转山西路。"
+  }
+}
