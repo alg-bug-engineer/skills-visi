@@ -83,8 +83,8 @@ def parse_time_step_range(time_range: str | None) -> tuple[int | None, int | Non
     return lo, hi
 
 
-# Case A 集合保留兼容；目标指标一律按 movement 绑定（需求 34 G1/G2）。
-CASE_A_APPROACH_QUEUE_TARGET_IDS = frozenset({"011wwe28fty00001"})
+# 历史 Case A 硬编码已迁移到 data/typical_intersections.json；保留空集合兼容旧引用。
+CASE_A_APPROACH_QUEUE_TARGET_IDS = frozenset()
 
 
 def _storage_for_dir8(
@@ -166,10 +166,16 @@ def metrics_for_diagnosis(
     selection_policy = pg_metrics.get("metric_selection_policy")
     peak_demo = selection_policy == "cross_week_movement_peak"
     mean_demo = selection_policy == "cross_week_movement_mean"
-    queue_fields = ("queue_len_avg",) if approach_queue_avg or peak_demo or mean_demo else ("queue_len_avg", "queue_len_max")
+    configured_queue_field = str(pg_metrics.get("target_queue_field") or "").strip()
+    if configured_queue_field not in {"queue_len_avg", "queue_len_max"}:
+        configured_queue_field = "queue_len_avg"
+    if approach_queue_avg or peak_demo or mean_demo:
+        queue_fields = (configured_queue_field,)
+    else:
+        queue_fields = ("queue_len_avg", "queue_len_max")
     queue_fn = _max_row_metric if peak_demo else _mean_row_metric
     queue_m = queue_fn(pg_metrics.get("turn_perf_detail") or [], dir8, turn, queue_fields)
-    if queue_m is None:
+    if queue_m is None and configured_queue_field != "queue_len_max":
         queue_m = queue_fn(pg_metrics.get("turn_perf_detail") or [], dir8, turn, ("queue_len_max",))
     movement_queue_m = queue_m
     queue_source = "movement_window_mean"
@@ -230,6 +236,9 @@ def metrics_for_diagnosis(
         "statistic_scope": "selected_typical_day",
         "selected_day_of_week": pg_metrics.get("selected_day_of_week"),
         "metric_selection_policy": pg_metrics.get("metric_selection_policy"),
+        "target_queue_field": configured_queue_field if (peak_demo or mean_demo or approach_queue_avg) else None,
+        "typical_profile_id": pg_metrics.get("typical_profile_id"),
+        "typical_profile_label": pg_metrics.get("typical_profile_label"),
         "queue_safety_peak_m": pg_metrics.get("selected_movement_queue_peak_m"),
         "queue_safety_peak_ratio": (
             round(float(pg_metrics["selected_movement_queue_peak_m"]) / float(storage_m), 4)
@@ -643,6 +652,7 @@ def enrich_downstream_metrics(
     *,
     load_pg_metrics: Any,
     target_inter_id: str | None = None,
+    approach_queue_avg: bool | None = None,
 ) -> dict[str, Any]:
     """为下游相邻节点注入真实运行指标（修复 BUG-004）。
 
@@ -652,14 +662,17 @@ def enrich_downstream_metrics(
     参数:
         load_pg_metrics: ``callable(inter_id) -> dict | None``，返回相邻路口原始
             聚合指标（``metrics_for_diagnosis`` 入参）；无数据返回 ``None``。
+        approach_queue_avg: 典型路口策略可强制按接收进口均值排队判定。
 
     行为（rule 14/16）：取到真实指标 → ``metrics_available=True``；取不到 →
     ``metrics_available=False`` + ``metrics_reason``，绝不静默回落 0。
 
-    Case A（坤顺×奥体西）额外按下游接收进口道方向用 queue_len_avg 均值判定；
-    其他目标路口保持整路口 queue_m（max）原逻辑。
+    典型路口 profile 可要求下游接收进口按 queue_len_avg 均值判定；
+    未命中 profile 时，若上游已注入 cross_week_mean 策略，同样按均值字段聚合。
     """
-    use_approach_queue = str(target_inter_id or "") in CASE_A_APPROACH_QUEUE_TARGET_IDS
+    use_approach_queue = bool(approach_queue_avg) or (
+        str(target_inter_id or "") in CASE_A_APPROACH_QUEUE_TARGET_IDS
+    )
     # ``downstream_nodes`` 是目标转向兼容视图，元素与全转向列表共享引用；按对象
     # 去重可确保左/直/右全部富化，同时避免目标转向重复查询 PG。
     downstream_candidates = [
@@ -731,10 +744,11 @@ def enrich_downstream_metrics(
             "direction": direction or "东向西",
             "movement": TURN_LABEL.get(receiving_turn, "直行"),
         }
+        mean_policy = str(pg_metrics.get("metric_selection_policy") or "") == "cross_week_movement_mean"
         metrics = metrics_for_diagnosis(
             pg_metrics,
             adj_ticket,
-            approach_queue_avg=use_approach_queue,
+            approach_queue_avg=use_approach_queue or mean_policy,
             scope=pg_metrics if isinstance(pg_metrics.get("adjacent_inter_spacing_detail"), list) else None,
         )
         node["metrics_receiving_direction"] = direction
@@ -777,13 +791,18 @@ def build_adjacent_metrics_loader(ticket: dict[str, Any]):
     """Return ``load_pg_metrics(inter_id)`` when PG is configured; else ``None``."""
     try:
         from app.config import get_settings
-        from app.data.load_intersection_from_pg import load_intersection_metrics_only
+        from app.data.typical_intersection_profiles import (
+            metric_options_from_profile,
+            resolve_typical_profile,
+        )
     except Exception:
         return None
 
     settings = get_settings()
     if not settings.pg_dsn:
         return None
+
+    opts = metric_options_from_profile(resolve_typical_profile(ticket))
 
     def _load(
         inter_id: str,
@@ -796,6 +815,12 @@ def build_adjacent_metrics_loader(ticket: dict[str, Any]):
             direction=direction or ticket.get("direction") or "东向西",
             movement=movement or ticket.get("movement") or "直行",
             time_range=ticket.get("time_range"),
+            queue_field=str(opts.get("downstream_queue_field") or "queue_len_avg"),
+            peak_disclose_field=str(
+                opts.get("downstream_peak_disclose_field") or "queue_len_avg"
+            ),
+            typical_profile_id=opts.get("typical_profile_id"),
+            typical_profile_label=opts.get("typical_profile_label"),
         )
 
     return _load
@@ -860,8 +885,16 @@ def load_cross_week_peak_movement_metrics(
     direction: str,
     movement: str,
     time_range: str | None,
+    queue_field: str = "queue_len_avg",
+    typical_profile_id: str | None = None,
+    typical_profile_label: str | None = None,
 ) -> dict[str, Any] | None:
-    """演示口径：在 1..7 日型中选择目标进口转向 queue_len_avg 峰值最大的一天。"""
+    """跨周日型中选择目标进口转向排队峰值最大的一天，并实时读 PG。
+
+    ``queue_field`` 默认 ``queue_len_avg``（项目固定逻辑）；典型路口可配
+    ``queue_len_max``，以与筛选口径对齐。
+    """
+    field = queue_field if queue_field in {"queue_len_avg", "queue_len_max"} else "queue_len_avg"
     dir8, turn = resolve_dir8_turn(direction, movement)
     loaded = _load_cross_week_metrics_bundle(inter_id=inter_id, time_range=time_range)
     if not loaded.get("ok"):
@@ -873,7 +906,7 @@ def load_cross_week_peak_movement_metrics(
             metrics.get("turn_perf_detail") or [],
             dir8,
             turn,
-            ("queue_len_avg",),
+            (field,),
         )
         if queue_peak is None or queue_peak <= best_queue:
             continue
@@ -882,6 +915,11 @@ def load_cross_week_peak_movement_metrics(
         best["selected_day_of_week"] = dow
         best["selected_movement_queue_peak_m"] = round(best_queue, 2)
         best["metric_selection_policy"] = "cross_week_movement_peak"
+        best["target_queue_field"] = field
+        if typical_profile_id:
+            best["typical_profile_id"] = typical_profile_id
+        if typical_profile_label:
+            best["typical_profile_label"] = typical_profile_label
     return best
 
 
@@ -891,12 +929,22 @@ def load_cross_week_mean_movement_metrics(
     direction: str,
     movement: str,
     time_range: str | None,
+    queue_field: str = "queue_len_avg",
+    peak_disclose_field: str = "queue_len_avg",
+    typical_profile_id: str | None = None,
+    typical_profile_label: str | None = None,
 ) -> dict[str, Any] | None:
-    """演示口径：下游承接进口转向采用一周内同一时间窗的样本均值。
+    """下游承接进口：一周同窗样本均值 + 峰值披露；一律实时 PG。
 
-    同时保留跨周峰值作为安全审计字段，避免“均值可承接”掩盖偶发峰值。
-    其他指标明细也合并全部有效日型，供诊断按既有统计规则计算。
+    默认 mean/peak 都看 ``queue_len_avg``；典型路口可把峰值披露切到
+    ``queue_len_max``，与筛选审计字段对齐。
     """
+    mean_field = queue_field if queue_field in {"queue_len_avg", "queue_len_max"} else "queue_len_avg"
+    peak_field = (
+        peak_disclose_field
+        if peak_disclose_field in {"queue_len_avg", "queue_len_max"}
+        else mean_field
+    )
     dir8, turn = resolve_dir8_turn(direction, movement)
     loaded = _load_cross_week_metrics_bundle(inter_id=inter_id, time_range=time_range)
     if not loaded.get("ok"):
@@ -909,12 +957,15 @@ def load_cross_week_mean_movement_metrics(
     valid_days: list[int] = []
     for dow, metrics in sorted((loaded.get("metrics_by_day") or {}).items()):
         if _max_row_metric(
-            metrics.get("turn_perf_detail") or [], dir8, turn, ("queue_len_avg",)
+            metrics.get("turn_perf_detail") or [],
+            dir8,
+            turn,
+            (mean_field, "queue_len_avg", "queue_len_max"),
         ) is not None:
             valid_days.append(dow)
     target_rows = merged.get("turn_perf_detail") or []
-    queue_mean = _mean_row_metric(target_rows, dir8, turn, ("queue_len_avg",))
-    queue_peak = _max_row_metric(target_rows, dir8, turn, ("queue_len_avg",))
+    queue_mean = _mean_row_metric(target_rows, dir8, turn, (mean_field,))
+    queue_peak = _max_row_metric(target_rows, dir8, turn, (peak_field,))
     if queue_mean is None:
         return None
     merged["selected_day_of_week"] = None
@@ -922,6 +973,12 @@ def load_cross_week_mean_movement_metrics(
     merged["selected_movement_queue_mean_m"] = round(float(queue_mean), 2)
     merged["selected_movement_queue_peak_m"] = round(float(queue_peak), 2) if queue_peak is not None else None
     merged["metric_selection_policy"] = "cross_week_movement_mean"
+    merged["target_queue_field"] = mean_field
+    merged["downstream_peak_disclose_field"] = peak_field
+    if typical_profile_id:
+        merged["typical_profile_id"] = typical_profile_id
+    if typical_profile_label:
+        merged["typical_profile_label"] = typical_profile_label
     return merged
 
 

@@ -17,6 +17,10 @@ from app.data.pg_adapters import (
     parse_time_hhmm,
     topology_from_pg_raw,
 )
+from app.data.typical_intersection_profiles import (
+    metric_options_from_profile,
+    resolve_typical_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +43,7 @@ def load_pg_diagnosis_bundle(
     if not inter_id and not inter_name:
         return {"ok": False, "source": "pg", "reason": "缺少 inter_id 或 intersection_name"}
 
+    profile_opts = metric_options_from_profile(resolve_typical_profile(ticket))
     # Cross-week target metrics and the full static/signal/topology checklist are
     # independent reads.  Run them together: peak metrics overwrite the dynamic
     # slice below, while the checklist's requested workday remains the topology
@@ -65,6 +70,9 @@ def load_pg_diagnosis_bundle(
                     direction=str(ticket.get("direction") or "东向西"),
                     movement=str(ticket.get("movement") or "直行"),
                     time_range=ticket.get("time_range"),
+                    queue_field=str(profile_opts.get("target_queue_field") or "queue_len_avg"),
+                    typical_profile_id=profile_opts.get("typical_profile_id"),
+                    typical_profile_label=profile_opts.get("typical_profile_label"),
                 )
                 full_future = pool.submit(_load_full)
                 peak = peak_future.result()
@@ -87,6 +95,18 @@ def load_pg_diagnosis_bundle(
         resolved_inter_id = str(
             (((loaded.get("task") or {}).get("scope") or {}).get("intersection_id")) or ""
         )
+        if resolved_inter_id and peak is None:
+            resolved_ticket = {**ticket, "inter_id": resolved_inter_id}
+            profile_opts = metric_options_from_profile(resolve_typical_profile(resolved_ticket))
+            peak = load_cross_week_peak_movement_metrics(
+                inter_id=resolved_inter_id,
+                direction=str(ticket.get("direction") or "东向西"),
+                movement=str(ticket.get("movement") or "直行"),
+                time_range=ticket.get("time_range"),
+                queue_field=str(profile_opts.get("target_queue_field") or "queue_len_avg"),
+                typical_profile_id=profile_opts.get("typical_profile_id"),
+                typical_profile_label=profile_opts.get("typical_profile_label"),
+            )
 
     pg_task = loaded.get("task") or {}
     raw = loaded.get("raw") or {}
@@ -102,6 +122,9 @@ def load_pg_diagnosis_bundle(
             direction=str(ticket.get("direction") or "东向西"),
             movement=str(ticket.get("movement") or "直行"),
             time_range=ticket.get("time_range"),
+            queue_field=str(profile_opts.get("target_queue_field") or "queue_len_avg"),
+            typical_profile_id=profile_opts.get("typical_profile_id"),
+            typical_profile_label=profile_opts.get("typical_profile_label"),
         )
     if peak_metrics:
         pg_metrics = {**pg_metrics, **peak_metrics}
@@ -123,10 +146,11 @@ def load_pg_diagnosis_bundle(
         ticket,
         scope=pg_task.get("scope") if isinstance(pg_task.get("scope"), dict) else None,
     )
+    if profile_opts.get("typical_profile_id"):
+        metrics["typical_profile_id"] = profile_opts.get("typical_profile_id")
+        metrics["typical_profile_label"] = profile_opts.get("typical_profile_label")
+        metrics["typical_opt_type"] = profile_opts.get("typical_opt_type")
     topology = topology_from_pg_raw({**raw, "metrics": pg_metrics}, ticket, inter)
-
-    # 轻量指标加载（跳过 AOI/几何/信号昂贵查询），避免逐下游节点整份检查单加载（需求21-R4）。
-    from app.data.load_intersection_from_pg import load_intersection_metrics_only
 
     def _adjacent_metrics(
         adj_id: str,
@@ -139,18 +163,34 @@ def load_pg_diagnosis_bundle(
             direction=direction or "东向西",
             movement=movement or "直行",
             time_range=ticket.get("time_range"),
+            queue_field=str(profile_opts.get("downstream_queue_field") or "queue_len_avg"),
+            peak_disclose_field=str(
+                profile_opts.get("downstream_peak_disclose_field") or "queue_len_avg"
+            ),
+            typical_profile_id=profile_opts.get("typical_profile_id"),
+            typical_profile_label=profile_opts.get("typical_profile_label"),
         )
 
     enrich_downstream_metrics(
         topology,
         load_pg_metrics=_adjacent_metrics,
-        target_inter_id=str(ticket.get("inter_id") or ""),
+        target_inter_id=str(ticket.get("inter_id") or resolved_inter_id or ""),
+        approach_queue_avg=bool(profile_opts.get("downstream_approach_queue_avg")),
     )
 
     merge_pg_task_into_context(task, pg_task)
     task["pg_raw"] = raw
     task["checklist_queries"] = loaded.get("checklist_queries")
     task["signal_source"] = "pg"
+    task["typical_metric_profile"] = {
+        "id": profile_opts.get("typical_profile_id"),
+        "label": profile_opts.get("typical_profile_label"),
+        "opt_type": profile_opts.get("typical_opt_type"),
+        "use_typical_policy": bool(profile_opts.get("use_typical_policy")),
+        "target_queue_field": profile_opts.get("target_queue_field"),
+        "downstream_queue_field": profile_opts.get("downstream_queue_field"),
+        "downstream_peak_disclose_field": profile_opts.get("downstream_peak_disclose_field"),
+    }
 
     quality = _assess_pg_data_quality(pg_metrics, pg_task.get("signal") or {}, raw)
     if not quality["usable"]:
@@ -169,6 +209,7 @@ def load_pg_diagnosis_bundle(
         "signal": pg_task.get("signal") or {},
         "scope": pg_task.get("scope") or {},
         "data_quality": quality,
+        "typical_metric_profile": task["typical_metric_profile"],
     }
 
 
