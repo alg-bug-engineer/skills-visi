@@ -420,7 +420,7 @@ export class MapController {
     this.channelizationLayer.highlightApproach(ticket?.direction, ticket?.movement)
   }
 
-  /** 目标路口一跳下游十字拓扑：所有真实出口 link 下游节点 + 问题转向高亮。 */
+  /** 目标路口一跳下游十字拓扑：所有真实出口 link + 左/直/右关系与承接指标。 */
   private drawDownstreamTopology(resp: RunResponse | null, target: [number, number] | null) {
     const scenes = (resp?.phases?.diagnosis?.map_scenes ?? {}) as Record<string, any>
     const topology = buildDownstreamTopology(scenes, target)

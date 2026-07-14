@@ -13,6 +13,7 @@ export interface DownstreamTopologyNode {
   linkId?: string
   highlighted: boolean
   metrics?: DownstreamTopologyMetrics
+  movements?: DownstreamTopologyMovement[]
 }
 
 export interface DownstreamTopologyEdge {
@@ -26,6 +27,13 @@ export interface DownstreamTopologyMetrics {
   saturation?: number | null
   greenUtilization?: number | null
   remainingStorageM?: number | null
+}
+
+export interface DownstreamTopologyMovement {
+  turnLabel: string
+  sharePct?: number | null
+  selected: boolean
+  blocked: boolean
 }
 
 export interface DownstreamTopology {
@@ -73,6 +81,21 @@ export function buildDownstreamTopology(mapScenes: Record<string, any> | undefin
   const channel = mapScenes?.channelization_map
   const downstream = mapScenes?.downstream_trace_map
   const highlighted = new Set<string>((downstream?.turn_traces ?? []).map(nodeIdFromTrace).filter(Boolean))
+  const movementsByNode = new Map<string, DownstreamTopologyMovement[]>()
+  for (const trace of downstream?.turn_traces ?? []) {
+    const id = nodeIdFromTrace(trace)
+    if (!id) continue
+    const turnLabel = String(trace.turn_label ?? trace.movement ?? '').replace(/^.*进口/, '') || '转向'
+    movementsByNode.set(id, [
+      ...(movementsByNode.get(id) ?? []),
+      {
+        turnLabel,
+        sharePct: num(trace.share_pct),
+        selected: Boolean(trace.selected),
+        blocked: Boolean(trace.capacity?.blocked),
+      },
+    ])
+  }
   const adjacentMetrics = new Map<string, DownstreamTopologyMetrics>()
   for (const item of downstream?.adjacent_intersections ?? []) {
     const id = String(item.inter_id ?? item.adjacent_inter_id ?? '')
@@ -99,6 +122,7 @@ export function buildDownstreamTopology(mapScenes: Record<string, any> | undefin
       linkId: link.link_id,
       highlighted: isHighlighted,
       metrics: mergeMetrics(adjacentMetrics.get(id), metricFromRecord(link)),
+      movements: movementsByNode.get(id),
     })
     edges.push({ id: String(link.link_id ?? id), path, highlighted: isHighlighted })
   }
@@ -116,6 +140,7 @@ export function buildDownstreamTopology(mapScenes: Record<string, any> | undefin
       position: Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : path[path.length - 1],
       highlighted: true,
       metrics: mergeMetrics(adjacentMetrics.get(id), metricFromRecord(trace)),
+      movements: movementsByNode.get(id),
     })
     edges.push({ id: `trace:${id}`, path, highlighted: true })
   }
@@ -173,7 +198,7 @@ export class DownstreamTopologyLayer {
           position: node.position,
           anchor: 'center',
           zIndex: node.highlighted ? 91 : 88,
-          content: `<div class="topology-wrap ${node.highlighted ? 'is-hot' : ''}"><div class="topology-node"></div><div class="topology-label"><strong>${node.name}</strong><span>${formatNodeMetrics(node.metrics)}</span></div></div>`,
+          content: `<div class="topology-wrap ${node.highlighted ? 'is-hot' : ''}"><div class="topology-node"></div><div class="topology-label"><strong>${node.name}</strong><span>${formatMovementSummary(node.movements)}</span><span>${formatNodeMetrics(node.metrics)}</span></div></div>`,
         }),
       )
     }
@@ -204,4 +229,16 @@ export function formatNodeMetrics(metrics: DownstreamTopologyMetrics | undefined
     parts.push(`绿灯 ${fmtPct(metrics.greenUtilization)}`)
   }
   return parts.length ? parts.join(' · ') : '指标暂无'
+}
+
+export function formatMovementSummary(movements: DownstreamTopologyMovement[] | undefined): string {
+  if (!movements?.length) return '转向关系暂无'
+  return movements
+    .map((movement) => {
+      const share = movement.sharePct == null ? '占比暂无' : `${Math.round(movement.sharePct)}%`
+      const selected = movement.selected ? '（目标）' : ''
+      const blocked = movement.blocked ? '·饱和' : ''
+      return `${movement.turnLabel} ${share}${selected}${blocked}`
+    })
+    .join(' · ')
 }

@@ -798,12 +798,23 @@ def build_downstream_map_scene(
         turn_traces.append(
             {
                 "movement": item.get("movement"),
+                "turn_label": item.get("turn_label"),
+                "dir8_code": item.get("dir8_code"),
+                "turn_dir_no": item.get("turn_dir_no"),
+                "selected": item.get("selected"),
+                "exit_dir8": item.get("exit_dir8"),
                 "downstream_inter_id": item.get("downstream_inter_id"),
                 "name": item.get("downstream_inter_name"),
                 "share_pct": item.get("share_pct"),
                 "path": item.get("path"),
+                "path_source": item.get("path_source"),
+                "receiving_dir8": item.get("receiving_dir8"),
+                "receiving_label": item.get("receiving_label"),
                 "lon": item.get("lng"),
                 "lat": item.get("lat"),
+                "metrics_available": item.get("metrics_available"),
+                "metrics_reason": item.get("metrics_reason"),
+                "downstream_metrics": item.get("downstream_metrics"),
                 "capacity": {
                     "blocked": (item.get("capacity") or {}).get("blocked"),
                     "can_release": (item.get("capacity") or {}).get("can_release"),
@@ -824,21 +835,37 @@ def build_downstream_map_scene(
                 "by_turn": node.get("by_turn"),
                 "remaining_storage_m": node.get("remaining_storage_m"),
                 "capacity": node.get("capacity"),
+                "linked_movements": node.get("linked_movements"),
+                "movement_metrics": node.get("movement_metrics"),
             }
         )
 
     governance = downstream_trace.get("governance") or {}
+    movement_summary = downstream_trace.get("movement_summary") or []
     return {
         "action": "map_scene",
         "phase": "downstream_trace_map",
         "available": True,
         "center": center_tuple,
         "trace_direction": "downstream",
+        "scope": downstream_trace.get("scope"),
+        "target_approach": downstream_trace.get("target_approach"),
+        "selected_turn_dir_no": downstream_trace.get("selected_turn_dir_no"),
         "turn_traces": turn_traces,
+        "movement_summary": movement_summary,
         "adjacent_intersections": adjacent,
         "hud": {
             "title": "下游一跳去向",
             "metrics": [
+                {
+                    "label": "已溯源转向",
+                    "value": "/".join(
+                        str(item.get("turn_label"))
+                        for item in movement_summary
+                        if item.get("available") and item.get("turn_label")
+                    )
+                    or "-",
+                },
                 {
                     "label": "治理落点",
                     "value": governance.get("landing", "-"),

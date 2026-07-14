@@ -6,7 +6,7 @@ from typing import Any
 
 from app.metrics.traffic import THRESHOLDS
 from app.trace.intersection_profile import build_intersection_profile
-from app.trace.topology import exit_dir8_for_turn, movement_label
+from app.trace.topology import TURN_LABEL, exit_dir8_for_turn, movement_label
 
 
 def assess_downstream_capacity(
@@ -41,16 +41,28 @@ def build_downstream_trace(
     dir8_code: int,
     turn_dir_no: int,
 ) -> dict[str, Any]:
-    downstream_nodes = topology.get("downstream_nodes") or []
+    downstream_nodes = topology.get("downstream_turn_nodes") or topology.get("downstream_nodes") or []
     if not downstream_nodes:
         return {"available": False, "reason": "no_topology"}
 
-    movement = movement_label(dir8_code, turn_dir_no)
-    exit_dir8 = exit_dir8_for_turn(dir8_code, turn_dir_no)
     turn_traces: list[dict[str, Any]] = []
     adjacent: dict[str, dict[str, Any]] = {}
 
-    for node in downstream_nodes:
+    ordered_nodes = sorted(
+        downstream_nodes,
+        key=lambda node: (
+            int(node.get("origin_turn_dir_no") or turn_dir_no) != int(turn_dir_no),
+            int(node.get("origin_turn_dir_no") or turn_dir_no),
+            -(float(node.get("share_pct")) if node.get("share_pct") is not None else -1.0),
+        ),
+    )
+    for node in ordered_nodes:
+        trace_turn = int(node.get("origin_turn_dir_no") or turn_dir_no)
+        movement = movement_label(dir8_code, trace_turn)
+        exit_dir8 = node.get("exit_dir8")
+        if exit_dir8 is None:
+            exit_dir8 = exit_dir8_for_turn(dir8_code, trace_turn)
+        selected = trace_turn == int(turn_dir_no)
         profile = build_intersection_profile({**node, "role": "downstream"})
         metrics = profile["metrics"]
         capacity = assess_downstream_capacity(
@@ -71,8 +83,10 @@ def build_downstream_trace(
 
         trace_item = {
             "movement": movement,
+            "turn_label": TURN_LABEL.get(trace_turn),
             "dir8_code": dir8_code,
-            "turn_dir_no": turn_dir_no,
+            "turn_dir_no": trace_turn,
+            "selected": selected,
             "exit_dir8": exit_dir8,
             "downstream_inter_id": down_id,
             "downstream_inter_name": down_name,
@@ -81,6 +95,8 @@ def build_downstream_trace(
             "path_source": node.get("path_source", "demo"),
             "receiving_dir8": node.get("receiving_dir8"),
             "receiving_label": node.get("receiving_label"),
+            "metrics_available": profile.get("metrics_available"),
+            "metrics_reason": profile.get("metrics_reason"),
             "lng": node.get("lng"),
             "lat": node.get("lat"),
             "downstream_metrics": profile,
@@ -96,19 +112,70 @@ def build_downstream_trace(
                 "capacity": capacity,
                 "linked_movements": [movement],
                 "share_pct": share,
+                "selected": selected,
+                "movement_metrics": [
+                    {
+                        "movement": movement,
+                        "turn_dir_no": trace_turn,
+                        "selected": selected,
+                        "share_pct": share,
+                        "receiving_dir8": node.get("receiving_dir8"),
+                        "receiving_label": node.get("receiving_label"),
+                        "metrics_available": profile.get("metrics_available"),
+                        "metrics_reason": profile.get("metrics_reason"),
+                        "metrics": metrics,
+                        "capacity": capacity,
+                    }
+                ],
             }
         else:
             adjacent[down_id]["linked_movements"].append(movement)
+            adjacent[down_id]["movement_metrics"].append(
+                {
+                    "movement": movement,
+                    "turn_dir_no": trace_turn,
+                    "selected": selected,
+                    "share_pct": share,
+                    "receiving_dir8": node.get("receiving_dir8"),
+                    "receiving_label": node.get("receiving_label"),
+                    "metrics_available": profile.get("metrics_available"),
+                    "metrics_reason": profile.get("metrics_reason"),
+                    "metrics": metrics,
+                    "capacity": capacity,
+                }
+            )
 
-    any_blocked = any(t["capacity"]["blocked"] for t in turn_traces)
+    selected_traces = [trace for trace in turn_traces if trace["selected"]]
+    any_blocked = any(trace["capacity"]["blocked"] for trace in selected_traces)
+    any_turn_blocked = any(trace["capacity"]["blocked"] for trace in turn_traces)
+    movement_summary = []
+    for trace_turn in (1, 2, 3):
+        traces = [trace for trace in turn_traces if trace["turn_dir_no"] == trace_turn]
+        movement_summary.append(
+            {
+                "movement": movement_label(dir8_code, trace_turn),
+                "turn_label": TURN_LABEL[trace_turn],
+                "turn_dir_no": trace_turn,
+                "selected": trace_turn == int(turn_dir_no),
+                "available": bool(traces),
+                "downstream_count": len(traces),
+                "blocked_count": sum(1 for trace in traces if trace["capacity"]["blocked"]),
+            }
+        )
     return {
         "available": True,
         "trace_direction": "downstream",
+        "scope": "target_approach_all_turns",
+        "target_approach": movement_label(dir8_code, None) or str(dir8_code),
+        "selected_turn_dir_no": turn_dir_no,
         "turn_traces": turn_traces,
+        "movement_summary": movement_summary,
         "adjacent_intersections": list(adjacent.values()),
         "governance": {
             "landing": "upstream_metering" if any_blocked else "local_reallocation",
             "downstream_blocked": any_blocked,
+            "all_turns_downstream_blocked": any_turn_blocked,
+            "basis": "selected_movement",
             "recommendation": (
                 "禁止向下游释放更多流量，优先上游控流或干线协调"
                 if any_blocked

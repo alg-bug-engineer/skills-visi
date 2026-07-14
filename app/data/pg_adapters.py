@@ -387,6 +387,85 @@ def _append_downstream_from_correlate_exit_links(
         )
 
 
+def _downstream_nodes_for_turn(
+    *,
+    geom_rows: list[dict[str, Any]],
+    correlate_rows: list[dict[str, Any]],
+    dir8_code: int,
+    turn_dir_no: int,
+    target_lng: float | None,
+    target_lat: float | None,
+) -> list[dict[str, Any]]:
+    """Build one-hop downstream nodes for one target-approach movement from real PG rows."""
+    exit_dir8 = exit_dir8_for_turn(dir8_code, turn_dir_no)
+    if exit_dir8 is None:
+        return []
+
+    coverage = _coverage_index(correlate_rows, dir8_code, turn_dir_no)
+    preferred_trace = _downstream_correlate_trace_type(turn_dir_no)
+    nodes: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for row in geom_rows:
+        try:
+            link_dir8 = int(row.get("dir8_code"))
+        except (TypeError, ValueError):
+            continue
+        if str(row.get("relation_direction") or "").lower() != "downstream":
+            continue
+        if link_dir8 != exit_dir8:
+            continue
+
+        cor_id = str(row.get("adjacent_inter_id") or "")
+        # 同一下游可能有多条平行出口 link；一跳分析按相邻路口去重。
+        if cor_id and cor_id in seen:
+            continue
+        seen.add(cor_id)
+        adj_lng = row.get("adjacent_lng")
+        adj_lat = row.get("adjacent_lat")
+        path = parse_linestring_wkt(row.get("geom_wkt"))
+        receiving_dir8 = _receiving_dir8_from_exit(exit_dir8)
+        nodes.append(
+            {
+                "inter_id": cor_id or None,
+                "inter_name": row.get("adjacent_inter_name") or "下游信控节点",
+                "role": "downstream",
+                "lng": adj_lng,
+                "lat": adj_lat,
+                "share_pct": _match_coverage(coverage, preferred_trace, cor_id),
+                "link_id": row.get("link_id"),
+                "origin_dir8": dir8_code,
+                "origin_turn_dir_no": turn_dir_no,
+                "origin_movement": movement_label(dir8_code, turn_dir_no),
+                "exit_dir8": exit_dir8,
+                "receiving_dir8": receiving_dir8,
+                "receiving_turn_dir_no": turn_dir_no,
+                "receiving_label": movement_label(receiving_dir8, turn_dir_no),
+                "path": orient_path(path, target_lng, target_lat, adj_lng, adj_lat),
+                "path_source": "link_geom" if len(path) >= 2 else "none",
+            }
+        )
+
+    _append_downstream_from_correlate_exit_links(
+        downstream_nodes=nodes,
+        seen_down=seen,
+        geom_rows=geom_rows,
+        correlate_rows=correlate_rows,
+        coverage=coverage,
+        dir8_code=dir8_code,
+        turn_dir_no=turn_dir_no,
+        target_lng=target_lng,
+        target_lat=target_lat,
+    )
+    for node in nodes:
+        node.setdefault("origin_dir8", dir8_code)
+        node.setdefault("origin_turn_dir_no", turn_dir_no)
+        node.setdefault("origin_movement", movement_label(dir8_code, turn_dir_no))
+        node.setdefault("exit_dir8", exit_dir8)
+    nodes.sort(key=lambda node: (node.get("share_pct") or -1), reverse=True)
+    return nodes
+
+
 def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dict[str, Any]) -> dict[str, Any]:
     """基于真实路网几何（dim_link_info.geom）构建上下游一跳拓扑。
 
@@ -405,9 +484,7 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
     coverage = _coverage_index(correlate_rows, dir8_code, turn_dir_no)
 
     upstream_nodes: list[dict[str, Any]] = []
-    downstream_nodes: list[dict[str, Any]] = []
     seen_up: set[str] = set()
-    seen_down: set[str] = set()
 
     for row in geom_rows:
         try:
@@ -448,44 +525,25 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
                     ],
                 }
             )
-        elif relation == "downstream" and exit_dir8 is not None and link_dir8 == exit_dir8:
-            if cor_id and cor_id in seen_down:
-                continue
-            seen_down.add(cor_id)
-            # 下游去向在 flow_correlate 中 trace_type=UPSTREAM（对齐 map_scene._scene_trace_type）。
-            share = _match_coverage(coverage, "UPSTREAM", cor_id)
-            oriented = orient_path(path, target_lng, target_lat, adj_lng, adj_lat)
-            downstream_nodes.append(
-                {
-                    "inter_id": cor_id or None,
-                    "inter_name": cor_name or "下游信控节点",
-                    "role": "downstream",
-                    "lng": adj_lng,
-                    "lat": adj_lat,
-                    "share_pct": share,
-                    "link_id": row.get("link_id"),
-                    # 出口 dir8 → 下游承接进口 = 对向进口（与筛选 receiving_eight_direction 一致）
-                    "receiving_dir8": _receiving_dir8_from_exit(exit_dir8),
-                    "receiving_turn_dir_no": turn_dir_no,
-                    "receiving_label": movement_label(
-                        _receiving_dir8_from_exit(exit_dir8), turn_dir_no
-                    ),
-                    "path": oriented,
-                    "path_source": "link_geom" if len(oriented) >= 2 else "none",
-                }
+    # 目标进口按左/直/右同时构建一跳去向；selected ``downstream_nodes`` 继续保留
+    # 票据转向口径，避免现有诊断/配时护栏被其他转向污染。
+    downstream_turn_nodes: list[dict[str, Any]] = []
+    for approach_turn in (1, 2, 3):
+        downstream_turn_nodes.extend(
+            _downstream_nodes_for_turn(
+                geom_rows=geom_rows,
+                correlate_rows=correlate_rows,
+                dir8_code=dir8_code,
+                turn_dir_no=approach_turn,
+                target_lng=target_lng,
+                target_lat=target_lat,
             )
-
-    _append_downstream_from_correlate_exit_links(
-        downstream_nodes=downstream_nodes,
-        seen_down=seen_down,
-        geom_rows=geom_rows,
-        correlate_rows=correlate_rows,
-        coverage=coverage,
-        dir8_code=dir8_code,
-        turn_dir_no=turn_dir_no,
-        target_lng=target_lng,
-        target_lat=target_lat,
-    )
+        )
+    downstream_nodes = [
+        node
+        for node in downstream_turn_nodes
+        if int(node.get("origin_turn_dir_no") or 0) == int(turn_dir_no)
+    ]
 
     # 主来向占比降序（真实值优先），无占比排后
     upstream_nodes.sort(
@@ -494,7 +552,7 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
     downstream_nodes.sort(key=lambda n: (n.get("share_pct") or -1), reverse=True)
 
     volume_vph = float(metrics_for_diagnosis(raw.get("metrics") or {}, ticket).get("volume_vph") or 0)
-    has_geometry = bool(upstream_nodes or downstream_nodes)
+    has_geometry = bool(upstream_nodes or downstream_turn_nodes)
 
     from app.data.ticket_nlu_schema import (
         FLOW_TRACE_PERIOD_FILTER_CAVEAT,
@@ -519,6 +577,7 @@ def topology_from_pg_raw(raw: dict[str, Any], ticket: dict[str, Any], inter: dic
         "phase_offset_match": None,
         "upstream_nodes": upstream_nodes,
         "downstream_nodes": downstream_nodes,
+        "downstream_turn_nodes": downstream_turn_nodes,
         "geometry_source": "dim_link_info.geom" if has_geometry else "unavailable",
         "caveat": "PG 拓扑：几何取自 dim_link_info.geom，占比取自 flow_correlate",
         "flow_trace_period_caveat": FLOW_TRACE_PERIOD_FILTER_CAVEAT,
@@ -587,9 +646,20 @@ def enrich_downstream_metrics(
     其他目标路口保持整路口 queue_m（max）原逻辑。
     """
     use_approach_queue = str(target_inter_id or "") in CASE_A_APPROACH_QUEUE_TARGET_IDS
-    for node in topology.get("downstream_nodes") or []:
+    # ``downstream_nodes`` 是目标转向兼容视图，元素与全转向列表共享引用；按对象
+    # 去重可确保左/直/右全部富化，同时避免目标转向重复查询 PG。
+    downstream_candidates = [
+        *(topology.get("downstream_nodes") or []),
+        *(topology.get("downstream_turn_nodes") or []),
+    ]
+    seen_nodes: set[int] = set()
+    for node in downstream_candidates:
         if not isinstance(node, dict):
             continue
+        node_ref = id(node)
+        if node_ref in seen_nodes:
+            continue
+        seen_nodes.add(node_ref)
         inter_id = node.get("inter_id")
         if not inter_id:
             node["metrics_available"] = False

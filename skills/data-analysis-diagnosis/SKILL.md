@@ -33,7 +33,7 @@ metadata:
 - 排队比 = 排队长度 / 进口道蓄车长度
 - 排队比 ≥ 0.8：溢出预警；≥ 1.0：明确溢出风险
 - 目标路口与下游信控节点输出同构 `metrics` / `by_turn`
-- `downstream_trace`：一跳去向、占比、承接能力（对齐 FlowTraceMap）
+- `downstream_trace`：目标进口左转/直行/右转的一跳去向、占比、承接能力（对齐 FlowTraceMap）；治理护栏仍以票据选中转向为准
 - `flow_trace`：上游来源路径、entry_traces、governance_hints
 - `arterial_analysis`：上游到达/放行、剩余空间、控流建议
 - `downstream_diagnosis`：下游信控节点同构对比与放行判断

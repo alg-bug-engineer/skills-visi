@@ -222,9 +222,17 @@ export interface Coordination {
 
 export interface MapSceneTurnTrace {
   movement?: string | null
+  turn_label?: string | null
+  dir8_code?: number | null
+  turn_dir_no?: number | null
+  selected?: boolean | null
+  exit_dir8?: number | null
   name?: string | null
   share_pct?: number | null
   path?: LngLat[]
+  path_source?: string | null
+  receiving_dir8?: number | null
+  receiving_label?: string | null
   lon?: number | null
   lat?: number | null
   trace_kind?: string | null
@@ -237,7 +245,19 @@ export interface MapScene {
   available?: boolean
   center?: LngLat | null
   trace_direction?: string
+  scope?: string
+  target_approach?: string
+  selected_turn_dir_no?: number | null
   turn_traces?: MapSceneTurnTrace[]
+  movement_summary?: Array<{
+    movement?: string | null
+    turn_label?: string | null
+    turn_dir_no?: number | null
+    selected?: boolean
+    available?: boolean
+    downstream_count?: number
+    blocked_count?: number
+  }>
   adjacent_intersections?: Array<{
     inter_id?: string | null
     inter_name?: string | null

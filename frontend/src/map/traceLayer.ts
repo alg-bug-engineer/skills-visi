@@ -71,6 +71,9 @@ export interface DownstreamTraceItem {
   downstream_inter_id?: string | null
   name?: string | null
   movement?: string | null
+  turn_label?: string | null
+  turn_dir_no?: number | null
+  selected?: boolean | null
   share_pct?: number | null
   path?: LngLat[]
   lon?: number | null
@@ -324,27 +327,48 @@ export class TraceLayer {
 
   /** 下游一跳去向：青蓝发光路径 + 节点 + 占比标签（无占比显示「拓扑」；饱和显示为治理绿）。 */
   renderDownstreamTraces(traces: DownstreamTraceItem[]): void {
-    for (const item of traces) {
+    const byNode = new Map<string, DownstreamTraceItem[]>()
+    traces.forEach((item, index) => {
       const path = (item.path ?? []).filter(Boolean) as LngLat[]
       const nodeId = String(item.downstream_inter_id ?? item.movement ?? path.length)
-      const blocked = Boolean(item.capacity?.blocked)
       if (path.length >= 2) {
-        this.revealEdge(`down:${nodeId}`, path, {
+        // 同一下游可能由多个目标转向到达；边 ID 必须包含转向，避免幂等注册吞掉关系。
+        const relationId = `${item.turn_dir_no ?? item.turn_label ?? item.movement ?? 'turn'}:${nodeId}:${index}`
+        this.revealEdge(`down:${relationId}`, path, {
           flowPct: item.share_pct ?? undefined,
           traceKind: 'downstream',
         })
       }
-      if (item.lon != null && item.lat != null) {
-        this.revealNode(nodeId, item.lon, item.lat, {
+      byNode.set(nodeId, [...(byNode.get(nodeId) ?? []), item])
+    })
+
+    for (const [nodeId, items] of byNode) {
+      const anchor = items.find((item) => item.selected) ?? items[0]
+      if (anchor.lon != null && anchor.lat != null) {
+        const blocked = items.some((item) => Boolean(item.capacity?.blocked))
+        const coverage = items.reduce<number | null>((max, item) => {
+          const value = item.share_pct
+          return value != null && Number.isFinite(value) && (max == null || value > max) ? value : max
+        }, null)
+        this.revealNode(nodeId, anchor.lon, anchor.lat, {
           role: blocked ? 'governance' : 'downstream',
-          coverage: item.share_pct ?? undefined,
+          coverage,
           clickable: true,
           onClick: () => this.toggleLabel(nodeId),
         })
-        const move = turnLabelFromMovement(item.movement)
-        const share = formatTargetFlowShareLabel(item.share_pct ?? null)
-        const text = `${move ? `${move}→` : ''}${item.name ?? '下游'} ${share}${blocked ? ' · 饱和' : ''}`
-        this.ensureLabel(nodeId, item.lon, item.lat, `<div class="trace-label is-downstream">${text}</div>`, false)
+        const details = items.map((item) => {
+          const move = item.turn_label ?? turnLabelFromMovement(item.movement)
+          const share = formatTargetFlowShareLabel(item.share_pct ?? null)
+          return `${move ? `${move} ` : ''}${share}${item.capacity?.blocked ? ' · 饱和' : ''}`
+        })
+        const text = `${anchor.name ?? '下游'}<br>${details.join('<br>')}`
+        this.ensureLabel(
+          nodeId,
+          anchor.lon,
+          anchor.lat,
+          `<div class="trace-label is-downstream">${text}</div>`,
+          false,
+        )
       }
     }
   }

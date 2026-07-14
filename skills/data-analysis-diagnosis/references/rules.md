@@ -5,7 +5,7 @@
 1. 计算目标方向排队比
 2. 结合饱和度与绿灯利用率判断放行能力
 3. 对下游信控节点输出与目标路口同构的 `metrics` / `by_turn`
-4. 通过 `downstream_trace` 完成一跳去向与承接能力判断
+4. 通过 `downstream_trace` 完成目标进口左转/直行/右转的一跳去向与承接能力判断
 5. 通过 `flow_trace` + `arterial_analysis` 完成干线协调分析
 6. 区分「本路口放不出去」与「下游接不住」
 
@@ -18,7 +18,9 @@
 
 ## 可视化契约（references/流量溯源）
 
-- `map_scenes.downstream_trace_map`：`turn_traces`、`adjacent_intersections`、`trace_direction=downstream`
+- `map_scenes.downstream_trace_map`：`turn_traces`、`movement_summary`、`adjacent_intersections`、`trace_direction=downstream`
+- `turn_traces[]` 必须携带 `turn_dir_no/turn_label/selected/exit_dir8/receiving_dir8/path`；仅呈现后端真实拓扑，缺失时不得前端合成
+- 左转/直行/右转共同用于展示绿灯调节影响面；`governance.basis=selected_movement`，现有治理与配时护栏只由票据选中转向决定
 - `map_scenes.arterial_analysis`：`entry_traces`、干线 HUD 指标
 - 字段命名对齐 `frontend/types/map.ts`
 
