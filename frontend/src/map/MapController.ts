@@ -19,7 +19,7 @@ import {
   TraceLayer,
 } from './traceLayer'
 import { ChannelizationLayer } from './channelizationLayer'
-import { DownstreamTopologyLayer, buildDownstreamTopology } from './downstreamTopologyLayer'
+import { DownstreamTopologyLayer, buildDownstreamTopology, resolvePrimaryDownstreamFocus } from './downstreamTopologyLayer'
 import { sceneEvidencePolicy } from './sceneEvidencePolicy'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -30,8 +30,8 @@ const JINAN_CENTER: [number, number] = [117.02, 36.66]
 /** 渠化详情镜头（连贯下钻终点）与干线镜头（平滑抬升终点）。 */
 const CHANNELIZATION_ZOOM = 18
 const ARTERIAL_ZOOM = 17
-/** 流量溯源走廊视角：需比车道级更拉远，才能看见主路径走向。 */
-const FLOW_TRACE_MAX_ZOOM = 15.2
+/** 流量溯源走廊视角：固定路口中心上拉，展开上下游全貌。 */
+const FLOW_TRACE_ZOOM = 15.5
 
 export interface ApplySceneOptions {
   showMetrics?: boolean
@@ -199,16 +199,37 @@ export class MapController {
       case 'lane': {
         if (!target) break
         const z = clampZoomUp(this.currentZoom, scene.zoom ?? CHANNELIZATION_ZOOM)
-        await drillToIntersection(this.map, target, z)
-        this.currentZoom = z
         if (stage === 'downstream_topology') {
-          const pts = this.collectDiagnosisComparePoints(resp)
+          // 承接判别：先对准目标，再框住「本路口↔主要下游」，最后轻微落到下游图钉
+          await drillToIntersection(this.map, target, Math.min(z, 17.5))
+          this.currentZoom = this.map.getZoom?.() ?? Math.min(z, 17.5)
+          const primary = resolvePrimaryDownstreamFocus(resp)
+          const pts = this.collectDownstreamFocusPoints(resp, target)
           if (pts.length >= 2) {
-            await fitBoundsForPoints(this.map, pts, { maxZoom: 17.8, duration: 900, AMap: this.AMap })
+            await fitBoundsForPoints(this.map, pts, {
+              maxZoom: 17.4,
+              duration: 950,
+              padding: [110, 120, 140, 120],
+              AMap: this.AMap,
+            })
             this.currentZoom = this.map.getZoom?.() ?? this.currentZoom
-            break
           }
+          if (primary) {
+            const focusZoom = Math.min(17.2, Math.max(16.2, this.currentZoom))
+            await flyTo(this.map, primary.position, focusZoom, 750)
+            panToVisualCenter(this.map, primary.position)
+            this.currentZoom = focusZoom
+          }
+          break
         }
+        // 案例校验等：从溯源 15.5 丝滑下钻回车道级
+        if (this.currentZoom + 0.3 < z) {
+          await drillToIntersection(this.map, target, z)
+        } else {
+          await flyTo(this.map, target, z, 900)
+          panToVisualCenter(this.map, target)
+        }
+        this.currentZoom = z
         const bearing = bearingFromDirectionLabel(resp?.diagnosis_ticket?.direction)
         if (bearing != null && (stage === 'overflow_validation' || stage === 'cause_annotation')) {
           this.currentZoom = await microDollyToApproach(this.map, target, bearing, this.currentZoom)
@@ -219,23 +240,26 @@ export class MapController {
       case 'corridor': {
         if (!target) break
         const isFlowTrace = stage === 'flow_trace'
+        if (isFlowTrace) {
+          // 镜头中心保持目标路口，只丝滑上拉到 15.5，展示溯源全貌
+          const z = FLOW_TRACE_ZOOM
+          const dur = Math.abs(this.currentZoom - z) > 0.8 ? 1300 : 1000
+          await smoothPullback(this.map, target, z, dur)
+          panToVisualCenter(this.map, target)
+          this.currentZoom = z
+          break
+        }
         const tracePts = this.collectTraceBoundsPoints(resp, target)
         if (tracePts.length >= 2) {
-          if (isFlowTrace && this.currentZoom > FLOW_TRACE_MAX_ZOOM + 0.5) {
-            await smoothPullback(this.map, target, FLOW_TRACE_MAX_ZOOM + 0.8, 850)
-            this.currentZoom = this.map.getZoom?.() ?? this.currentZoom
-          }
           await fitBoundsForPoints(this.map, tracePts, {
-            maxZoom: isFlowTrace ? FLOW_TRACE_MAX_ZOOM : (scene.zoom ?? ARTERIAL_ZOOM),
-            padding: isFlowTrace ? [96, 96, 128, 96] : [80, 80, 80, 80],
-            duration: isFlowTrace ? 1200 : 1000,
+            maxZoom: scene.zoom ?? ARTERIAL_ZOOM,
+            padding: [80, 80, 80, 80],
+            duration: 1000,
             AMap: this.AMap,
           })
           this.currentZoom = this.map.getZoom?.() ?? this.currentZoom
         } else {
-          const z = isFlowTrace
-            ? FLOW_TRACE_MAX_ZOOM
-            : Math.max(scene.zoom ?? ARTERIAL_ZOOM, ARTERIAL_ZOOM)
+          const z = Math.max(scene.zoom ?? ARTERIAL_ZOOM, ARTERIAL_ZOOM)
           const dur = Math.abs(this.currentZoom - z) > 1 ? 1100 : 850
           await smoothPullback(this.map, target, z, dur)
           panToVisualCenter(this.map, target)
@@ -260,13 +284,30 @@ export class MapController {
   }
 
   private collectDiagnosisComparePoints(resp: RunResponse | null): [number, number][] {
-    const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.diagnosis_compare
-    if (!scene?.available) return []
     const pts: [number, number][] = []
-    for (const node of [scene.target, scene.downstream]) {
+    const scene = (resp?.phases?.diagnosis?.map_scenes as any)?.diagnosis_compare
+    for (const node of [scene?.target, scene?.downstream]) {
       if (node && hasCoord(node.lng, node.lat)) pts.push([node.lng, node.lat])
     }
+    const primary = resolvePrimaryDownstreamFocus(resp)
+    if (primary) pts.push(primary.position)
     return pts
+  }
+
+  /** 承接判别框选点：diagnosis_compare + 主要下游锚点。 */
+  private collectDownstreamFocusPoints(
+    resp: RunResponse | null,
+    target: [number, number] | null,
+  ): [number, number][] {
+    const pts = this.collectDiagnosisComparePoints(resp)
+    if (target) pts.unshift(target)
+    const primary = resolvePrimaryDownstreamFocus(resp)
+    if (primary) pts.push(primary.position)
+    const uniq: [number, number][] = []
+    for (const p of pts) {
+      if (!uniq.some((q) => Math.abs(q[0] - p[0]) < 1e-8 && Math.abs(q[1] - p[1]) < 1e-8)) uniq.push(p)
+    }
+    return uniq
   }
 
   private collectTraceBoundsPoints(resp: RunResponse | null, target: [number, number]): [number, number][] {
@@ -353,7 +394,8 @@ export class MapController {
         fillOpacity: overflow ? 0.08 : 0.04,
       }),
     )
-    this.add(this.pulseMarker(center, overflow ? '#ff5050' : '#00e5ff', '目标路口'))
+    // 仅保留目标脉冲点；上下游路口名改由拓扑卡片呈现，避免黄色文字 marker 与卡片重叠冗余
+    this.add(this.pulseDot(center, overflow ? '#ff5050' : '#00e5ff'))
 
     const path = validPath(resp?.phases?.intent?.spatial_scene?.highlight_path)
     if (path.length >= 2) {
@@ -366,14 +408,6 @@ export class MapController {
           showDir: true,
         }),
       )
-    }
-    for (const n of resp?.phases?.intent?.spatial_scene?.upstream_nodes ?? []) {
-      if (hasCoord(n.lng, n.lat))
-        this.add(this.pulseMarker([n.lng as number, n.lat as number], '#f5a623', String(n.inter_name ?? '上游')))
-    }
-    for (const n of resp?.phases?.intent?.spatial_scene?.downstream_nodes ?? []) {
-      if (hasCoord(n.lng, n.lat))
-        this.add(this.pulseMarker([n.lng as number, n.lat as number], '#38bdf8', String(n.inter_name ?? '下游')))
     }
   }
 
@@ -424,7 +458,11 @@ export class MapController {
   /** 目标路口一跳下游十字拓扑：所有真实出口 link + 左/直/右关系与承接指标。 */
   private drawDownstreamTopology(resp: RunResponse | null, target: [number, number] | null) {
     const scenes = (resp?.phases?.diagnosis?.map_scenes ?? {}) as Record<string, any>
-    const topology = buildDownstreamTopology(scenes, target)
+    const primary = resolvePrimaryDownstreamFocus(resp)
+    const topology = buildDownstreamTopology(scenes, target, {
+      primaryId: primary?.id,
+      primaryFocus: primary,
+    })
     if (!topology.nodes.length && !topology.edges.length) return
     this.downstreamTopologyLayer = new DownstreamTopologyLayer(this.AMap, this.map)
     this.downstreamTopologyLayer.render(topology)
@@ -474,21 +512,8 @@ export class MapController {
       const lng = (p as any).lng
       const lat = (p as any).lat
       if (hasCoord(lng, lat)) {
-        const pos: [number, number] = [lng, lat]
-        this.add(
-          new this.AMap.Marker({
-            position: pos,
-            content: markerHtml({
-              position: pos,
-              kind: 'evidence',
-              title: '下游保护',
-              value: (p as any).label ?? '保护节点',
-              severity: 'medium',
-            }),
-            offset: new this.AMap.Pixel(-40, -28),
-            anchor: 'center',
-          }),
-        )
+        // 策略阶段：只保留保护节点定位点，不再叠黄色「保护节点」文字卡片
+        this.add(this.pulseDot([lng, lat], '#f5a623'))
       }
     }
     for (const edge of (csm as any)?.coordination_paths ?? []) {
@@ -552,7 +577,7 @@ export class MapController {
           anchor: 'center',
         }),
       )
-      this.add(this.pulseMarker(pos, color, node.inter_name ?? title))
+      this.add(this.pulseDot(pos, color))
     }
     if (positions.length >= 2) {
       this.add(
@@ -580,21 +605,26 @@ export class MapController {
       if (ann.kind === 'case_ref') continue
       const color = ann.color ?? '#00e5ff'
       const pos: [number, number] = [ann.lng as number, ann.lat as number]
-      const label = ann.label ?? ann.case_id ?? '标注'
-      this.add(
-        new this.AMap.Marker({
-          position: pos,
-          content: markerHtml({
+      // 案例校验：下游不再叠黄色文字卡片，只保留问题进口卡片 + 下游连线
+      if (ann.kind === 'downstream') {
+        this.add(this.pulseDot(pos, color === '#f5a623' ? '#38bdf8' : color))
+      } else {
+        const label = ann.label ?? ann.case_id ?? '标注'
+        this.add(
+          new this.AMap.Marker({
             position: pos,
-            kind: 'metric',
-            title: ann.kind === 'approach' ? '问题进口' : ann.kind === 'downstream' ? '下游' : '案例',
-            value: label,
-            severity: ann.kind === 'approach' ? 'high' : 'medium',
+            content: markerHtml({
+              position: pos,
+              kind: 'metric',
+              title: ann.kind === 'approach' ? '问题进口' : '标注',
+              value: label,
+              severity: ann.kind === 'approach' ? 'high' : 'medium',
+            }),
+            offset: new this.AMap.Pixel(-36, -28),
+            anchor: 'center',
           }),
-          offset: new this.AMap.Pixel(-36, -28),
-          anchor: 'center',
-        }),
-      )
+        )
+      }
       if (!reduced && ann.kind === 'downstream' && ann.inter_id) {
         const target = resp?.diagnosis_ticket
         if (target && hasCoord(target.lng, target.lat)) {
@@ -646,6 +676,16 @@ export class MapController {
       content: `<div class="us-node" style="--c:${color}"><span>${label}</span></div>`,
       offset: new this.AMap.Pixel(-8, -8),
       clickable: true,
+    })
+  }
+
+  /** 无文字脉冲点，避免与路口卡片重复堆叠路口名。 */
+  private pulseDot(pos: [number, number], color: string) {
+    return new this.AMap.Marker({
+      position: pos,
+      content: `<div class="us-pulse-dot" style="--c:${color}"></div>`,
+      offset: new this.AMap.Pixel(-7, -7),
+      clickable: false,
     })
   }
 

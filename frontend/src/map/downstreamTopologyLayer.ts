@@ -13,6 +13,8 @@ export interface DownstreamTopologyNode {
   position: LngLat
   linkId?: string
   highlighted: boolean
+  /** 承接判别镜头聚焦的主要下游。 */
+  primary?: boolean
   metrics?: DownstreamTopologyMetrics
   movements?: DownstreamTopologyMovement[]
 }
@@ -41,6 +43,81 @@ export interface DownstreamTopology {
   target: LngLat | null
   nodes: DownstreamTopologyNode[]
   edges: DownstreamTopologyEdge[]
+  primaryId?: string | null
+}
+
+export interface PrimaryDownstreamFocus {
+  id: string
+  name: string
+  position: LngLat
+}
+
+/** 从诊断结果解析主要下游锚点（承接判别镜头聚焦用）。 */
+export function resolvePrimaryDownstreamFocus(resp: {
+  phases?: {
+    diagnosis?: {
+      downstream_diagnosis?: { primary_downstream?: { inter_id?: string | null; inter_name?: string | null } | null }
+      map_scenes?: Record<string, any>
+    } | null
+  } | null
+} | null): PrimaryDownstreamFocus | null {
+  const diagnosis = resp?.phases?.diagnosis
+  const primary = diagnosis?.downstream_diagnosis?.primary_downstream
+  const scenes = (diagnosis?.map_scenes ?? {}) as Record<string, any>
+  const compare = scenes.diagnosis_compare?.downstream
+  const id = String(primary?.inter_id ?? compare?.inter_id ?? '').trim()
+  const name = String(primary?.inter_name ?? compare?.inter_name ?? '主要下游')
+
+  const candidates: Array<{ id?: string; name?: string; lng?: unknown; lat?: unknown; lon?: unknown }> = []
+  if (compare) candidates.push(compare)
+  for (const item of scenes.downstream_trace_map?.adjacent_intersections ?? []) candidates.push(item)
+  for (const item of scenes.downstream_trace_map?.turn_traces ?? []) {
+    candidates.push({
+      id: item.downstream_inter_id ?? item.inter_id,
+      name: item.downstream_inter_name ?? item.name,
+      lng: item.lng ?? item.lon,
+      lat: item.lat,
+      lon: item.lon,
+    })
+  }
+  for (const link of scenes.channelization_map?.links ?? []) {
+    if (String(link.link_role ?? '').toLowerCase() !== 'exit') continue
+    candidates.push({
+      id: link.adjacent_inter_id,
+      name: link.adjacent_inter_name,
+      lng: link.adjacent_lng,
+      lat: link.adjacent_lat,
+    })
+  }
+
+  for (const item of candidates) {
+    const itemId = String(item.id ?? '').trim()
+    if (id && itemId && itemId !== id) continue
+    const lng = Number(item.lng ?? item.lon)
+    const lat = Number(item.lat)
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+    if (id && itemId && itemId !== id) continue
+    return {
+      id: id || itemId || 'primary-downstream',
+      name: String(item.name ?? name),
+      position: [lng, lat],
+    }
+  }
+
+  // 有 id 但坐标只在 compare 外匹配失败时，仍尝试任意同名节点
+  if (!id) {
+    for (const item of candidates) {
+      const lng = Number(item.lng ?? item.lon)
+      const lat = Number(item.lat)
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+      return {
+        id: String(item.id ?? 'primary-downstream'),
+        name: String(item.name ?? name),
+        position: [lng, lat],
+      }
+    }
+  }
+  return null
 }
 
 function nodeIdFromTrace(trace: Record<string, unknown>): string {
@@ -78,10 +155,16 @@ function mergeMetrics(
   return Object.values(merged).some((v) => v != null) ? merged : undefined
 }
 
-export function buildDownstreamTopology(mapScenes: Record<string, any> | undefined, target: LngLat | null): DownstreamTopology {
+export function buildDownstreamTopology(
+  mapScenes: Record<string, any> | undefined,
+  target: LngLat | null,
+  opts: { primaryId?: string | null; primaryFocus?: PrimaryDownstreamFocus | null } = {},
+): DownstreamTopology {
   const channel = mapScenes?.channelization_map
   const downstream = mapScenes?.downstream_trace_map
+  const primaryId = String(opts.primaryId ?? opts.primaryFocus?.id ?? '').trim()
   const highlighted = new Set<string>((downstream?.turn_traces ?? []).map(nodeIdFromTrace).filter(Boolean))
+  if (primaryId) highlighted.add(primaryId)
   const movementsByNode = new Map<string, DownstreamTopologyMovement[]>()
   for (const trace of downstream?.turn_traces ?? []) {
     const id = nodeIdFromTrace(trace)
@@ -115,13 +198,15 @@ export function buildDownstreamTopology(mapScenes: Record<string, any> | undefin
     const lng = Number(link.adjacent_lng)
     const lat = Number(link.adjacent_lat)
     const position: LngLat = Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : path[path.length - 1]
-    const isHighlighted = highlighted.has(id)
+    const isPrimary = Boolean(primaryId && id === primaryId)
+    const isHighlighted = highlighted.has(id) || isPrimary
     nodes.set(id, {
       id,
       name: String(link.adjacent_inter_name ?? link.dir8_label ?? '下游路口'),
       position,
       linkId: link.link_id,
       highlighted: isHighlighted,
+      primary: isPrimary,
       metrics: mergeMetrics(adjacentMetrics.get(id), metricFromRecord(link)),
       movements: movementsByNode.get(id),
     })
@@ -133,20 +218,40 @@ export function buildDownstreamTopology(mapScenes: Record<string, any> | undefin
     if (path.length < 2) continue
     const id = nodeIdFromTrace(trace)
     if (!id || nodes.has(id)) continue
-    const lng = Number(trace.lon)
+    const lng = Number(trace.lon ?? trace.lng)
     const lat = Number(trace.lat)
+    const isPrimary = Boolean(primaryId && id === primaryId)
     nodes.set(id, {
       id,
-      name: String(trace.name ?? '下游路口'),
+      name: String(trace.name ?? trace.downstream_inter_name ?? '下游路口'),
       position: Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : path[path.length - 1],
       highlighted: true,
+      primary: isPrimary,
       metrics: mergeMetrics(adjacentMetrics.get(id), metricFromRecord(trace)),
       movements: movementsByNode.get(id),
     })
     edges.push({ id: `trace:${id}`, path, highlighted: true })
   }
 
-  return { target, nodes: [...nodes.values()], edges }
+  const focus = opts.primaryFocus
+  if (focus && !nodes.has(focus.id)) {
+    nodes.set(focus.id, {
+      id: focus.id,
+      name: focus.name,
+      position: focus.position,
+      highlighted: true,
+      primary: true,
+      metrics: adjacentMetrics.get(focus.id),
+      movements: movementsByNode.get(focus.id),
+    })
+  } else if (focus && nodes.has(focus.id)) {
+    const node = nodes.get(focus.id)!
+    node.primary = true
+    node.highlighted = true
+    node.name = focus.name || node.name
+  }
+
+  return { target, nodes: [...nodes.values()], edges, primaryId: primaryId || null }
 }
 
 export class DownstreamTopologyLayer {
@@ -194,12 +299,25 @@ export class DownstreamTopologyLayer {
     }
 
     for (const node of topology.nodes) {
+      const offsetClass = topologyLabelOffsetClass(topology.target, node.position)
+      const hotClass = node.highlighted || node.primary ? 'is-hot' : ''
+      const primaryClass = node.primary ? 'is-primary' : ''
       this.add(
         new this.amap.Marker({
           position: node.position,
           anchor: 'center',
-          zIndex: node.highlighted ? 91 : 88,
-          content: `<div class="topology-wrap ${node.highlighted ? 'is-hot' : ''}"><div class="topology-node"></div><div class="topology-label"><strong>${node.name}</strong><span>${formatMovementSummary(node.movements)}</span><span>${formatNodeMetrics(node.metrics)}</span></div></div>`,
+          zIndex: node.primary ? 95 : node.highlighted ? 91 : 88,
+          content:
+            `<div class="topology-wrap ${hotClass} ${primaryClass} ${offsetClass}">` +
+            (node.primary
+              ? `<div class="downstream-pin" aria-hidden="true"><div class="downstream-pin__head"></div><div class="downstream-pin__stem"></div></div>`
+              : `<div class="topology-node"></div>`) +
+            `<div class="topology-label">` +
+            (node.primary ? `<em class="topology-label__tag">主要下游</em>` : '') +
+            `<strong>${node.name}</strong>` +
+            `<span>${formatMovementSummary(node.movements)}</span>` +
+            `<span>${formatNodeMetrics(node.metrics)}</span>` +
+            `</div></div>`,
         }),
       )
     }
@@ -238,4 +356,15 @@ export function formatMovementSummary(movements: DownstreamTopologyMovement[] | 
       return `${movement.turnLabel} ${share}${selected}${blocked}`
     })
     .join(' · ')
+}
+
+/** 相对目标路口方位，把卡片推到连线外侧，减少与箭头叠压。 */
+export function topologyLabelOffsetClass(target: LngLat | null, position: LngLat): string {
+  if (!target) return 'is-offset-s'
+  const dLng = position[0] - target[0]
+  const dLat = position[1] - target[1]
+  if (Math.abs(dLng) >= Math.abs(dLat)) {
+    return dLng >= 0 ? 'is-offset-e' : 'is-offset-w'
+  }
+  return dLat >= 0 ? 'is-offset-n' : 'is-offset-s'
 }

@@ -240,6 +240,17 @@ watch(
   box-shadow: 0 0 10px color-mix(in srgb, var(--c) 60%, transparent);
   transform: translate(-50%, -50%);
 }
+:global(.us-pulse-dot) {
+  --c: var(--primary);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c) 70%, transparent);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
 :global(.us-particle) {
   width: 8px;
   height: 8px;
@@ -368,21 +379,39 @@ watch(
 :global(.topology-label) {
   position: absolute;
   left: 50%;
-  top: 18px;
+  top: 22px;
   transform: translateX(-50%);
-  min-width: 96px;
-  max-width: 160px;
-  padding: 4px 7px;
+  min-width: 108px;
+  max-width: 168px;
+  padding: 5px 8px;
   border: 1px solid rgba(138, 160, 184, 0.45);
   border-radius: 6px;
-  background: rgba(6, 12, 24, 0.9);
+  background: rgba(6, 12, 24, 0.94);
   color: rgba(232, 244, 255, 0.92);
   font-size: 10px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.3;
   text-align: center;
   white-space: normal;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+:global(.topology-wrap.is-offset-n .topology-label) {
+  top: auto;
+  bottom: 22px;
+}
+:global(.topology-wrap.is-offset-e .topology-label) {
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+:global(.topology-wrap.is-offset-w .topology-label) {
+  left: auto;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+:global(.topology-wrap.is-offset-s .topology-label) {
+  top: 22px;
 }
 :global(.topology-label strong) {
   display: block;
@@ -402,18 +431,58 @@ watch(
 :global(.topology-wrap.is-hot .topology-label span) {
   color: #bae6fd;
 }
+:global(.topology-wrap.is-primary .topology-node),
+:global(.downstream-pin) {
+  position: relative;
+  width: 18px;
+  height: 26px;
+  margin: 0 auto;
+  transform: translateY(-4px);
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.85));
+}
+:global(.downstream-pin__head) {
+  width: 16px;
+  height: 16px;
+  margin: 0 auto;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #38bdf8;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 0 0 3px rgba(14, 165, 233, 0.35);
+}
+:global(.downstream-pin__stem) {
+  width: 2px;
+  height: 8px;
+  margin: -2px auto 0;
+  background: rgba(56, 189, 248, 0.95);
+  border-radius: 1px;
+}
+:global(.topology-label__tag) {
+  display: block;
+  margin-bottom: 2px;
+  color: #7dd3fc;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+:global(.topology-wrap.is-primary .topology-label) {
+  border-color: rgba(56, 189, 248, 0.85);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25), 0 8px 22px rgba(0, 0, 0, 0.5);
+}
 :global(.channel-metric-label) {
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -110%);
   min-width: 112px;
-  padding: 4px 7px;
+  max-width: 150px;
+  padding: 5px 8px;
   border: 1px solid currentColor;
   border-radius: 4px;
-  background: rgba(0, 6, 14, 0.9);
+  background: rgba(0, 6, 14, 0.92);
   font-size: 9px;
-  line-height: 1.25;
+  line-height: 1.3;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 :global(.channel-metric-label strong),
 :global(.channel-metric-label span) {
@@ -424,16 +493,25 @@ watch(
   color: rgba(225, 238, 252, 0.88);
 }
 :global(.channel-approach-badge) {
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: 6px;
   border: 1px solid var(--c, #ff5050);
-  background: rgba(2, 8, 16, 0.92);
+  background: rgba(2, 8, 16, 0.94);
   color: var(--c, #ff5050);
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
   box-shadow: 0 0 12px color-mix(in srgb, var(--c) 50%, transparent);
   animation: marker-pop 0.35s ease-out;
+  transform: translate(-50%, -120%);
+  line-height: 1.35;
+  text-align: center;
+}
+:global(.channel-approach-badge__metric) {
+  margin-top: 2px;
+  color: rgba(248, 250, 252, 0.88);
+  font-size: 9px;
+  font-weight: 600;
 }
 :global(.map-marker) {
   padding: 6px 10px;

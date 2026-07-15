@@ -35,10 +35,8 @@ export function sceneEvidencePolicy(
       stage === 'plan_output' ||
       stage === 'cause_annotation',
     downstreamTopology:
-      stage === 'downstream_topology' ||
-      stage === 'control_scope' ||
-      stage === 'cause_annotation' ||
-      stage === 'feedback',
+      // 仅承接判别幕展示下游拓扑卡片；案例校验/策略阶段不再叠下游文字卡片
+      stage === 'downstream_topology' || stage === 'feedback',
     trace: stage === 'flow_trace' || stage === 'control_scope' || stage === 'feedback',
     controlScope: stage === 'control_scope',
     // 下游对比改由 BottleneckCard + 下游拓扑层呈现，地图不再叠「直接下游饱和」重复 callout

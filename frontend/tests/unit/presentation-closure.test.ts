@@ -92,7 +92,15 @@ describe('presentation closure semantics', () => {
     const cause = sceneEvidencePolicy(act('act4_attribution').scene, { showMetrics: true })
     expect(cause.trace).toBe(false)
     expect(cause.causeAnnotation).toBe(true)
-    expect(cause.downstreamTopology).toBe(true)
+    expect(cause.downstreamTopology).toBe(false)
+
+    const cases = sceneEvidencePolicy(act('act7_cases').scene, { showMetrics: true })
+    expect(cases.causeAnnotation).toBe(true)
+    expect(cases.downstreamTopology).toBe(false)
+
+    const strategy = sceneEvidencePolicy(act('act8_strategy').scene, { showMetrics: true })
+    expect(strategy.controlScope).toBe(true)
+    expect(strategy.downstreamTopology).toBe(false)
 
     const plan = sceneEvidencePolicy(act('act9_plan').scene, { showMetrics: true })
     expect(plan.planPreview).toBe(true)

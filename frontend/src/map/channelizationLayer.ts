@@ -62,6 +62,7 @@ export class ChannelizationLayer {
   private base: Array<{ lod: 'L0' | 'L1' | 'L2'; o: Overlay }> = []
   private labels: Overlay[] = []
   private highlights: Overlay[] = []
+  private metricLabelsByArm = new Map<ChannelArm, Overlay>()
   private currentLevel: string | null = null
 
   constructor(amap: AMapNS, map: AMapMap, scene: ChannelizationScene) {
@@ -95,7 +96,8 @@ export class ChannelizationLayer {
     if (!this.arms.length) return
     this.buildHalo()
     this.buildRoadCenterlines()
-    for (const arm of this.arms) this.buildArm(arm)
+    const labeledArms = selectArmsForMetricLabels(this.arms)
+    for (const arm of this.arms) this.buildArm(arm, labeledArms.has(arm))
     this.applyLOD(this.map.getZoom?.() ?? 18)
   }
 
@@ -139,7 +141,7 @@ export class ChannelizationLayer {
     }
   }
 
-  private buildArm(arm: ChannelArm) {
+  private buildArm(arm: ChannelArm, showMetricLabel = true) {
     const b = arm.angle
     const inLanes = arm.inLink ? parseLaneInfo(arm.inLink) : []
     const nIn = inLanes.length
@@ -194,19 +196,19 @@ export class ChannelizationLayer {
           }),
         )
       }
-      const ac = this.ll(u0 + 9, (vIn + vOut) / 2, b)
+      const ac = this.ll(u0 + 14, (vIn + vOut) / 2, b)
       this.addBase(
         'L2',
         new this.amap.Marker({
           position: ac,
-          offset: new this.amap.Pixel(-16, -22),
+          offset: new this.amap.Pixel(-14, -18),
           bubble: true,
           zIndex: 30,
           angle: (b + 180) % 360,
           icon: new this.amap.Icon({
             image: arrowSvg(code, '#f8fafc'),
-            size: new this.amap.Size(32, 44),
-            imageSize: new this.amap.Size(32, 44),
+            size: new this.amap.Size(28, 38),
+            imageSize: new this.amap.Size(28, 38),
           }),
         }),
       )
@@ -289,10 +291,10 @@ export class ChannelizationLayer {
       )
     }
 
-    this.buildMetricLabels(arm)
+    this.buildMetricLabels(arm, showMetricLabel)
   }
 
-  private buildMetricLabels(arm: ChannelArm) {
+  private buildMetricLabels(arm: ChannelArm, showMetricLabel = true) {
     const link = arm.inLink
     if (!link) return
     const metrics = link.metrics ?? {}
@@ -322,19 +324,22 @@ export class ChannelizationLayer {
       }),
     )
 
-    const labelPos = this.ll(u0 + Math.min(fillLen, ARM_LEN * 0.48), -wIn / 2, arm.angle)
+    if (!showMetricLabel) return
+
+    // 标签放到臂外侧中段，避开停靠线箭头与进口角标
+    const labelPos = this.ll(u0 + ARM_LEN * 0.78, -wIn - MEDIAN_W - 8, arm.angle)
     const laneSummary = lanes.map(laneLabel).slice(0, 3).join('/')
-    this.addLabel(
-      new this.amap.Marker({
-        position: labelPos,
-        content:
-          `<div class="channel-metric-label" style="border-color:${color};color:${color}">` +
-          `<strong>${link.dir8_label ?? '进口'} ${laneSummary}</strong><span>${text}</span></div>`,
-        offset: new this.amap.Pixel(0, 0),
-        bubble: true,
-        zIndex: 62,
-      }),
-    )
+    const marker = new this.amap.Marker({
+      position: labelPos,
+      content:
+        `<div class="channel-metric-label" style="border-color:${color};color:${color}">` +
+        `<strong>${link.dir8_label ?? '进口'} ${laneSummary}</strong><span>${text}</span></div>`,
+      offset: new this.amap.Pixel(...labelScreenOffset(arm.angle)),
+      bubble: true,
+      zIndex: 62,
+    })
+    this.addLabel(marker)
+    this.metricLabelsByArm.set(arm, marker)
   }
 
   applyLOD(zoom: number) {
@@ -372,6 +377,14 @@ export class ChannelizationLayer {
     const mov = String(movement ?? '直行')
     const path = this.rect(arm, u0 - 2, u1 + 4, -wIn - MEDIAN_W - 1.2, MEDIAN_W + 1.2)
 
+    // 高亮进口只保留角标，隐藏同臂指标卡，避免重叠
+    const metricLabel = this.metricLabelsByArm.get(arm)
+    if (metricLabel) {
+      metricLabel.hide?.()
+      this.labels = this.labels.filter((marker) => marker !== metricLabel)
+      this.metricLabelsByArm.delete(arm)
+    }
+
     this.highlights.push(
       new this.amap.Polygon({
         path,
@@ -386,14 +399,18 @@ export class ChannelizationLayer {
     )
     this.map.add(this.highlights[this.highlights.length - 1])
 
-    const labelPos = this.ll(u0 + ARM_LEN * 0.35, -wIn / 2, b)
+    const metrics = arm.inLink.metrics ?? {}
+    const metricHint = metricText(metrics)
+    const labelPos = this.ll(u0 + ARM_LEN * 0.55, -wIn - MEDIAN_W - 12, b)
     this.highlights.push(
       new this.amap.Marker({
         position: labelPos,
         content:
           `<div class="channel-approach-badge" style="--c:#ff5050">` +
-          `${arm.inLink.dir8_label ?? direction ?? '进口'} · ${mov}</div>`,
-        offset: new this.amap.Pixel(0, -8),
+          `<div>${arm.inLink.dir8_label ?? direction ?? '进口'} · ${mov}</div>` +
+          (metricHint ? `<div class="channel-approach-badge__metric">${metricHint}</div>` : '') +
+          `</div>`,
+        offset: new this.amap.Pixel(...labelScreenOffset(b, 18)),
         bubble: true,
         zIndex: 66,
       }),
@@ -407,6 +424,34 @@ export class ChannelizationLayer {
     this.base = []
     this.labels = []
     this.highlights = []
+    this.metricLabelsByArm.clear()
     this.currentLevel = null
   }
+}
+
+/** 按进口方位把卡片推到道路外侧像素位，减少与箭头/几何叠压。 */
+function labelScreenOffset(bearingDeg: number, magnitude = 14): [number, number] {
+  const a = ((bearingDeg % 360) + 360) % 360
+  if (a >= 315 || a < 45) return [0, -magnitude] // 北向进口 → 标签再上推
+  if (a < 135) return [magnitude, -4] // 东
+  if (a < 225) return [0, magnitude] // 南
+  return [-magnitude, -4] // 西
+}
+
+function armMetricSeverity(arm: ChannelArm): number {
+  const metrics = arm.inLink?.metrics
+  if (!metrics || !metricText(metrics)) return -1
+  const sat = Number(metrics.saturation ?? 0)
+  const queue = Number(metrics.queue_m ?? 0)
+  const green = Number(metrics.green_utilization ?? 1)
+  return Math.max(sat, queue / 180, green < 0.55 ? 0.7 : 0)
+}
+
+/** 最多保留 2 张进口指标卡，优先展示更严重的进口，降低路口中心重叠。 */
+export function selectArmsForMetricLabels(arms: ChannelArm[], limit = 2): Set<ChannelArm> {
+  const ranked = arms
+    .map((arm) => ({ arm, score: armMetricSeverity(arm) }))
+    .filter((item) => item.score >= 0)
+    .sort((a, b) => b.score - a.score)
+  return new Set(ranked.slice(0, limit).map((item) => item.arm))
 }

@@ -67,7 +67,7 @@ export const ACT_DEFS: ActDef[] = [
   { index: 3, id: 'act4_attribution', phase: 'cause', pipelineNode: '归因分析', processTitle: '归因分析', reveal: 'attribution', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'cause_annotation' } },
   { index: 4, id: 'act5_bottleneck', phase: 'diagnosis', pipelineNode: '下游承接', processTitle: '下游承接能力判别', reveal: 'bottleneck', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'downstream_topology' } },
   // 干线溯源：从 18 平滑抬升到 17（干线级）
-  { index: 5, id: 'act6_corridor', phase: 'diagnosis', pipelineNode: '流向溯源', processTitle: '上下游流向溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 15, evidence: 'flow_trace' } },
+  { index: 5, id: 'act6_corridor', phase: 'diagnosis', pipelineNode: '流向溯源', processTitle: '上下游流向溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 15.5, evidence: 'flow_trace' } },
   { index: 6, id: 'act7_cases', phase: 'cause', pipelineNode: '案例校验', processTitle: '案例校验', reveal: 'cause', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'cause_annotation' } },
   // 治理策略：在干线级(17)基础上 +1 放大（需求21-R3），聚焦控制范围
   { index: 7, id: 'act8_strategy', phase: 'strategy', pipelineNode: '策略约束', processTitle: '治理策略与边界约束', reveal: 'governance', scene: { kind: 'control', pitch: 45, zoom: 18, evidence: 'control_scope' } },
