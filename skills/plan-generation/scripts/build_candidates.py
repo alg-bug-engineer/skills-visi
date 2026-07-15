@@ -7,7 +7,7 @@ PLAN_DEFINITIONS = [
     {
         "plan_id": "downstream_protection",
         "name": "下游保护方案",
-        "scenario_template": "{downstream}承接不足，目标路口不宜继续强放",
+        "scenario_template": "{downstream}承接空间不足，目标路口不宜继续强放",
         "risk": "目标进口排队缓解速度较慢，需配合上游控流",
         "expected_effect": "抑制向下游继续送车，避免外溢扩散",
         "execution_order": ["先保护下游", "维持目标方向保守放行", "持续监测排队比"],
@@ -23,10 +23,26 @@ PLAN_DEFINITIONS = [
     {
         "plan_id": "arterial_coordination",
         "name": "干线联控方案",
-        "scenario_template": "{downstream}接不住，上游持续来车，目标路口接近溢出",
+        "scenario_template": "上游持续来车且目标接近溢出，与{downstream}协同控流",
         "risk": "上游控流幅度不能过大，否则可能造成上游新溢出",
         "expected_effect": "上游削峰+目标小步释放，降低干线传导风险",
         "execution_order": ["先保护下游", "再平滑上游来车", "最后小步释放目标方向"],
+    },
+    {
+        "plan_id": "verification_plan",
+        "name": "先验核验方案",
+        "scenario_template": "{direction}放行效率异常待核验；直接下游{downstream}初步有余量",
+        "risk": "核验未完成前不得实施可执行配时",
+        "expected_effect": "确认绿灯末端队列、出口通行与检测有效性后再决策",
+        "execution_order": ["出口与检测核验", "绿灯末端队列核验", "再决定是否小步增绿"],
+    },
+    {
+        "plan_id": "conditional_incremental_release",
+        "name": "条件性小步增绿方案",
+        "scenario_template": "在完成核验后，对{direction}试行小步增绿；监测{downstream}",
+        "risk": "核验未通过或下游排队增长时立即回滚",
+        "expected_effect": "条件满足后小幅缓解目标进口排队",
+        "execution_order": ["确认核验前提", "目标有效绿小步增加", "观察周期并准备回滚"],
     },
 ]
 
@@ -53,10 +69,28 @@ def build_plan_candidates(
         or "下游信控节点"
     )
     case_lessons = strategy.get("case_references") or {}
+    decision = strategy.get("decision") if isinstance(strategy.get("decision"), dict) else {}
+    allowed_plan_types = decision.get("allowed_plan_types")
+    if allowed_plan_types:
+        allowed_set = {str(x) for x in allowed_plan_types}
+        definitions = [d for d in PLAN_DEFINITIONS if d["plan_id"] in allowed_set]
+    else:
+        # 无 DecisionContract 时保持历史三包，避免打断既有护栏回归
+        definitions = [
+            d
+            for d in PLAN_DEFINITIONS
+            if d["plan_id"] in {"downstream_protection", "incremental_release", "arterial_coordination"}
+        ]
+
+    plan_status = decision.get("plan_status")
+    executable = decision.get("executable")
+    if plan_status is None and not decision:
+        plan_status = None
+        executable = None
 
     candidates: list[dict[str, Any]] = []
     optimizer_engine: str | None = None
-    for definition in PLAN_DEFINITIONS:
+    for definition in definitions:
         plan_id = definition["plan_id"]
         strategy_instruction = build_strategy_instruction(strategy, plan_id)
         draft = generate_timing_plan(
@@ -145,36 +179,44 @@ def build_plan_candidates(
             pass
         guardrail_pass = len(validation_errors) == 0
 
-        candidates.append(
-            {
-                "plan_id": plan_id,
-                "name": definition["name"],
-                "status": "valid" if guardrail_pass else "rejected",
-                "scenario": definition["scenario_template"].format(
-                    downstream=downstream_name,
-                    direction=direction,
-                ),
-                "case_basis": {
-                    "failure_lesson": case_lessons.get("failure_lesson"),
-                    "success_lesson": case_lessons.get("success_lesson"),
-                    "matched_count": case_lessons.get("matched_count", 0),
-                },
-                "timing": adjusted["timing"],
-                "upstream_control": adjusted["upstream_control"],
-                "phase_offset_sec": adjusted.get("phase_offset_sec", 0),
-                "pedestrian_constraints": adjusted["pedestrian_constraints"],
-                "downstream_risk": adjusted["downstream_risk"],
-                "expected_effect": definition["expected_effect"],
-                "risk": definition["risk"],
-                "rollback_condition": plan_body["rollback_condition"],
-                "validation_errors": validation_errors,
-                "guardrail_pass": guardrail_pass,
-                "execution_order": definition.get("execution_order"),
-                "timing_source": timing_source,
-                "optimizer_degraded": optimizer_degraded_reason is not None,
-                "optimizer_degraded_reason": optimizer_degraded_reason,
-            }
-        )
+        candidate = {
+            "plan_id": plan_id,
+            "name": definition["name"],
+            "status": "valid" if guardrail_pass else "rejected",
+            "scenario": definition["scenario_template"].format(
+                downstream=downstream_name,
+                direction=direction,
+            ),
+            "case_basis": {
+                "failure_lesson": case_lessons.get("failure_lesson"),
+                "success_lesson": case_lessons.get("success_lesson"),
+                "matched_count": case_lessons.get("matched_count", 0),
+            },
+            "timing": adjusted["timing"],
+            "upstream_control": adjusted["upstream_control"],
+            "phase_offset_sec": adjusted.get("phase_offset_sec", 0),
+            "pedestrian_constraints": adjusted["pedestrian_constraints"],
+            "downstream_risk": adjusted["downstream_risk"],
+            "expected_effect": definition["expected_effect"],
+            "risk": definition["risk"],
+            "rollback_condition": plan_body["rollback_condition"],
+            "validation_errors": validation_errors,
+            "guardrail_pass": guardrail_pass,
+            "execution_order": definition.get("execution_order"),
+            "timing_source": timing_source,
+            "optimizer_degraded": optimizer_degraded_reason is not None,
+            "optimizer_degraded_reason": optimizer_degraded_reason,
+        }
+        if plan_status is not None:
+            candidate["plan_status"] = plan_status
+        if executable is not None:
+            candidate["executable"] = bool(executable) and plan_id != "verification_plan"
+            if plan_id in {"verification_plan", "conditional_incremental_release"} and not decision.get(
+                "preconditions_satisfied"
+            ):
+                candidate["executable"] = False
+                candidate["plan_status"] = decision.get("plan_status") or "conditional"
+        candidates.append(candidate)
     return candidates, optimizer_engine
 
 

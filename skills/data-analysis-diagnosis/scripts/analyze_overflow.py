@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from app.data.traffic_metrics_logic import DIRECTION_ORDER, TURN_DIR_LABELS
+from app.decision.overflow_mechanism import classify_overflow_mechanism
 from app.metrics.traffic import (
     THRESHOLDS,
     assess_overflow_risk,
@@ -13,6 +14,7 @@ from app.metrics.traffic import (
     level_of_service,
 )
 from app.trace.coordination import build_coordination_diagram
+from app.trace.downstream_decision import decide_downstream_state
 from app.trace.downstream_diagnosis import build_downstream_diagnosis
 from app.trace.downstream_trace import build_downstream_trace
 from app.trace.flow_trace import build_arterial_analysis, build_flow_trace
@@ -464,6 +466,37 @@ def analyze_overflow(
     approach_count = len(by_approach) or (scope or {}).get("leg_count") or None
     lane_count = _distinct_lane_count(pg_raw or {}, scope or {})
 
+    downstream_state = downstream_trace.get("downstream_state")
+    if not isinstance(downstream_state, dict):
+        downstream_state = decide_downstream_state(
+            saturation=downstream_metrics_raw.get("saturation_rate"),
+            queue_ratio=downstream_metrics_raw.get("queue_storage_ratio_max"),
+            direct_downstream_inter_id=primary_downstream.get("inter_id"),
+            direct_downstream_inter_name=primary_downstream.get("inter_name"),
+        )
+    upstream_intensity = None
+    if topology:
+        upstream_intensity = topology.get("upstream_arrival_intensity")
+    if upstream_intensity is None:
+        upstream_intensity = metrics_input.get("upstream_arrival_intensity")
+    upstream_intense = False
+    if isinstance(upstream_intensity, (int, float)):
+        upstream_intense = float(upstream_intensity) >= 0.75
+    elif isinstance(upstream_intensity, str):
+        upstream_intense = upstream_intensity.lower() in {"high", "intense", "strong"}
+
+    overflow_mechanism = classify_overflow_mechanism(
+        downstream_state=downstream_state,
+        target_queue_ratio=queue_ratio,
+        target_saturation=saturation,
+        target_green_utilization=metrics_input.get("green_utilization"),
+        upstream_arrival_intense=upstream_intense,
+        green_end_queue_remains=(ticket.get("verification") or {}).get("queue_remains_at_green_end")
+        if isinstance(ticket.get("verification"), dict)
+        else None,
+        signal_available=bool(signal),
+    )
+
     return {
         "metrics": {
             "queue_length_m": metrics_input.get("queue_length_m"),
@@ -521,6 +554,8 @@ def analyze_overflow(
         "target_intersection": target_profile,
         "spatial_topology": spatial_objects or {},
         "downstream_trace": downstream_trace,
+        "downstream_state": downstream_state,
+        "overflow_mechanism": overflow_mechanism,
         "flow_trace": flow_trace,
         "arterial_analysis": arterial_analysis,
         "coordination": coordination,

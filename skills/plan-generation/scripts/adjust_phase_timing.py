@@ -26,12 +26,31 @@ PACKAGE_STRATEGIES = {
         "upstream_control": True,
         "rollback_condition": "下游排队比持续上升、上游排队超过安全边界时回滚",
     },
+    "verification_plan": {
+        "strategy": "verification_plan",
+        "target_green_delta": 0,
+        "cycle_delta": 0,
+        "upstream_control": False,
+        "rollback_condition": "核验未通过时不实施配时调整",
+    },
+    "conditional_incremental_release": {
+        "strategy": "conditional_incremental_release",
+        "target_green_delta": 5,
+        "cycle_delta": 0,
+        "upstream_control": False,
+        "rollback_condition": "核验未通过或下游排队比持续上升时回滚至原方案",
+    },
 }
 
 
 def build_strategy_instruction(strategy: dict[str, Any], plan_id: str) -> dict[str, Any]:
-    package = strategy.get("strategy_package") or plan_id
-    base = copy.deepcopy(PACKAGE_STRATEGIES.get(package, PACKAGE_STRATEGIES["downstream_protection"]))
+    # 候选必须按自身 plan_id 取参，禁止共享上游 strategy_package 导致三案同参
+    package = plan_id
+    base = copy.deepcopy(
+        PACKAGE_STRATEGIES.get(package)
+        or PACKAGE_STRATEGIES.get(strategy.get("strategy_package") or "", PACKAGE_STRATEGIES["downstream_protection"])
+    )
+    base["strategy"] = package
     base["package"] = package
     base["plan_id"] = plan_id
     return base

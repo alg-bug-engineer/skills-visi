@@ -100,10 +100,14 @@ class StrategyGenerationSkill(BaseSkill):
                 ticket=ticket,
             ),
         }
+        if profile.get("decision"):
+            output["decision"] = profile["decision"]
+            output["decision_mode"] = profile.get("decision_mode")
         logger.info(
-            "策略生成完成 trace_id=%s package=%s",
+            "策略生成完成 trace_id=%s package=%s decision_mode=%s",
             context.trace_id,
             output["strategy_package"],
+            output.get("decision_mode"),
         )
         return SkillResult(
             skill_id=self.meta.skill_id,

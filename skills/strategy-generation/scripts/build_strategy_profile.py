@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.decision.overflow_mechanism import map_mechanism_to_decision
+
 PACKAGE_DEFINITIONS = {
     "downstream_protection": {
         "name": "下游保护方案",
@@ -105,7 +107,27 @@ def build_strategy_profile(
     constraints: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     package_scores = score_strategy_packages(cause, diagnosis)
-    package = select_strategy_package(cause, diagnosis)
+    mechanism = (
+        (diagnosis.get("overflow_mechanism") or {}).get("primary")
+        or (cause.get("overflow_mechanism") or {}).get("primary")
+    )
+    verification = (
+        (diagnosis.get("verification") if isinstance(diagnosis.get("verification"), dict) else None)
+        or (cause.get("verification") if isinstance(cause.get("verification"), dict) else None)
+        or {}
+    )
+    verification_passed = bool(verification.get("passed"))
+
+    decision: dict[str, Any] | None = None
+    if mechanism:
+        decision = map_mechanism_to_decision(
+            primary_mechanism=str(mechanism),
+            verification_passed=verification_passed,
+        )
+        package = decision["strategy_package"]
+    else:
+        package = select_strategy_package(cause, diagnosis)
+
     instruction = build_strategy_instruction(package, cause=cause, diagnosis=diagnosis)
     llm_strategy = llm_strategy or {}
 
@@ -121,7 +143,17 @@ def build_strategy_profile(
         or _hard_constraints(package, diagnosis)
     ) + quantitative["constraints"]
     recommended = _as_str_list(llm_strategy.get("recommended")) or _recommended_for_package(package)
-    return {
+    if decision and decision.get("decision_mode") == "verify_then_adjust":
+        recommended = [
+            "先验后调：先核验出口通行、检测有效性与绿灯末端队列",
+            "核验通过前不输出可直接执行配时",
+            *recommended,
+        ]
+        hard_constraints = [
+            "禁止在放行效率异常未核验时强行大幅增绿",
+            *hard_constraints,
+        ]
+    profile = {
         "strategy_package": package,
         "package_scores": package_scores,
         "strategy_instruction": instruction,
@@ -138,6 +170,14 @@ def build_strategy_profile(
             "source": llm_strategy.get("source", "hybrid"),
         },
     }
+    if decision:
+        profile["decision"] = decision
+        profile["decision_mode"] = decision["decision_mode"]
+        profile["strategy"]["decision_mode"] = decision["decision_mode"]
+        profile["strategy"]["allowed_plan_types"] = decision["allowed_plan_types"]
+        profile["strategy"]["plan_status"] = decision["plan_status"]
+        profile["strategy"]["executable"] = decision["executable"]
+    return profile
 
 
 def _principles_for_package(package: str) -> list[str]:
