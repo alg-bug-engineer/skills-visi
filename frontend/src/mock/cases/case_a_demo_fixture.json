@@ -1647,7 +1647,7 @@
       "downstream_diagnosis": {
         "available": true,
         "scenario": "queue_high_green_underused",
-        "release_answer": "绿灯给了也用不上",
+        "release_answer": "放行效率异常，待核验",
         "can_simple_add_green": false,
         "primary_downstream": {
           "inter_id": "011wwe28f5f00001",
@@ -1704,7 +1704,7 @@
           "downstream_near_saturation": false,
           "add_green_spillback_risk": false
         },
-        "narrative": "目标方向排队高但绿灯利用率不高，需关注下游阻塞、出口不畅、渠化不匹配或检测异常，不宜简单加绿。",
+        "narrative": "目标方向排队高但绿灯利用率不高，需优先核验出口通行、检测有效性与绿灯末端队列，不宜在未完成先验前简单加绿。",
         "expert_question": "加绿以后，车有没有地方去？"
       },
       "map_scenes": {
@@ -13445,7 +13445,7 @@
           "phase": "cause_spatial",
           "available": true,
           "reason": null,
-          "primary_cause": "信号控制不当",
+          "primary_cause": "放行效率异常，待核验",
           "annotations": [
             {
               "kind": "approach",
@@ -13473,47 +13473,10 @@
             117.108428,
             36.662959
           ],
-          "plan_id": "incremental_release",
-          "plan_name": "目标路口小步释放方案",
-          "cycle_delta_s": -46,
-          "phase_changes": [
-            {
-              "phase_stage_id": "1",
-              "phase_stage_name": "西直、东直、南行人、北行人",
-              "green_delta_s": -35,
-              "label": "西直、东直、南行人、北行人"
-            },
-            {
-              "phase_stage_id": "6",
-              "phase_stage_name": "东直、北行人",
-              "green_delta_s": 14,
-              "label": "东直、北行人"
-            },
-            {
-              "phase_stage_id": "5",
-              "phase_stage_name": "空阶段5",
-              "green_delta_s": 4,
-              "label": "空阶段5"
-            },
-            {
-              "phase_stage_id": "2",
-              "phase_stage_name": "东左、西左",
-              "green_delta_s": -12,
-              "label": "东左、西左"
-            },
-            {
-              "phase_stage_id": "7",
-              "phase_stage_name": "南直、东行人",
-              "green_delta_s": -10,
-              "label": "南直、东行人"
-            },
-            {
-              "phase_stage_id": "3",
-              "phase_stage_name": "南直、北直、北左、东行人、西行人",
-              "green_delta_s": -13,
-              "label": "南直、北直、北左、东行人、西行人"
-            }
-          ]
+          "plan_id": "verification_plan",
+          "plan_name": "先验核验方案",
+          "cycle_delta_s": 0,
+          "phase_changes": []
         }
       },
       "overflow_verification": {
@@ -13982,7 +13945,7 @@
     },
     "cause": {
       "cause_analysis": {
-        "primary_cause": "信号控制不当",
+        "primary_cause": "放行效率异常，待核验",
         "secondary_causes": [
           "交通需求压力"
         ],
@@ -13991,44 +13954,29 @@
           "优化配时以缓解排队比0.9731接近溢出风险"
         ],
         "data_gaps": [
-          "下游路口奥体西路与解放东路路口queue_ratio与saturation缺失",
+          "下游路口永绥路与齐音路路口queue_ratio与saturation缺失",
           "历史相似案例字段为空无法佐证",
           "车道流量数据不足",
           "投诉台账数据不足",
           "现场调研数据不足",
           "强吸引点上下文标签数据不足"
         ],
-        "narrative": "主因信号控制不当，排队比0.9731但绿灯利用率仅0.2731，呈高排队低放行特征。次因交通需求压力。需排查下游阻塞或渠化问题，不宜简单加绿。下游关键指标缺失，历史案例为空。",
+        "narrative": "溢出机制为放行效率异常，待核验：排队比 0.9731 与绿灯利用率 0.2731 呈高排队低放行特征。直接下游 永绥路与齐音路路口 初步有余量，需先完成出口/检测/绿灯末端队列核验，不宜在未核验前加绿。",
         "cause_ranking": [
           {
             "rank": 1,
-            "cause": "信号控制不当",
-            "role": "主因"
+            "role": "主因",
+            "cause": "放行效率异常，待核验"
           },
           {
             "rank": 2,
-            "cause": "交通需求压力",
-            "role": "次因"
+            "role": "次因",
+            "cause": "交通需求压力"
           },
           {
             "rank": 3,
-            "cause": "通行供给不足",
-            "role": "诱因"
-          },
-          {
-            "rank": 4,
-            "cause": "交通秩序干扰",
-            "role": "诱因"
-          },
-          {
-            "rank": 5,
-            "cause": "事件与阻塞",
-            "role": "诱因"
-          },
-          {
-            "rank": 6,
-            "cause": "协调联动不足",
-            "role": "诱因"
+            "role": "诱因",
+            "cause": "通行供给不足"
           }
         ]
       },
@@ -14096,33 +14044,18 @@
       "cause_ranking": [
         {
           "rank": 1,
-          "cause": "信号控制不当",
-          "role": "主因"
+          "role": "主因",
+          "cause": "放行效率异常，待核验"
         },
         {
           "rank": 2,
-          "cause": "交通需求压力",
-          "role": "次因"
+          "role": "次因",
+          "cause": "交通需求压力"
         },
         {
           "rank": 3,
-          "cause": "通行供给不足",
-          "role": "诱因"
-        },
-        {
-          "rank": 4,
-          "cause": "交通秩序干扰",
-          "role": "诱因"
-        },
-        {
-          "rank": 5,
-          "cause": "事件与阻塞",
-          "role": "诱因"
-        },
-        {
-          "rank": 6,
-          "cause": "协调联动不足",
-          "role": "诱因"
+          "role": "诱因",
+          "cause": "通行供给不足"
         }
       ],
       "similar_cases": [
@@ -14818,10 +14751,9 @@
     "strategy": {
       "strategy": {
         "principles": [
-          "先通后增：优先排查并消除下游阻塞或渠化瓶颈，确认通行能力恢复后再考虑增加绿灯时长",
-          "供需匹配：信号配时调整需与下游实际承载能力动态匹配，避免无效绿灯资源浪费",
-          "数据驱动补盲：在关键指标缺失情况下，采用小步快跑式试探性优化，同步建立监测反馈闭环",
-          "防溢出优先：高排队比场景下以防止队列溢出为首要目标，兼顾放行效率提升"
+          "先验后调：先核验出口/检测/绿灯末端队列，再决定是否小步增绿",
+          "核验通过前维持现状配时，不直接改绿信比",
+          "绿灯调节以目标有效绿微增为主，周期尽量不变，并监测直接下游排队比"
         ],
         "not_recommended": [
           "直接大幅增加北向南直行绿灯时长",
@@ -14830,14 +14762,13 @@
           "忽视渠化与流向匹配问题单纯延长绿灯"
         ],
         "recommended": [
-          "开展下游奥体西路与解放东路路口实地踏勘或视频巡检，确认是否存在出口阻塞、车道功能不匹配或检测器故障",
-          "实施短时增量测试（如5-8秒级微调），观察绿灯利用率变化及下游排队响应，作为诊断依据",
-          "优化北向南直行相位启亮时序，尝试提前截断上游来车以缓解本路口排队压力",
-          "联动下游路口信号方案，评估是否可通过协调控制释放下游蓄车空间",
-          "增设临时人工观测或移动检测设备，补齐queue_ratio与saturation数据缺口"
+          "开展直接下游 永绥路与齐音路路口 出口通行与检测有效性核验",
+          "记录绿灯末端目标队列是否仍残留，确认放行效率异常根因",
+          "核验通过后再评估是否对北向南直行试行小步增绿（+5s，周期不变）",
+          "联动监测直接下游排队比与剩余蓄车空间"
         ],
         "hard_constraints": [
-          "任何配时调整不得导致下游奥体西路与解放东路路口排队比超过0.9",
+          "任何配时调整不得导致下游永绥路与齐音路路口排队比超过0.9",
           "单次绿灯时长调整幅度不得超过原时长的15%",
           "未获取下游实时排队或饱和度数据前，禁止执行超过两轮的连续加绿操作",
           "所有优化动作须保留回退预案，确保30秒内可恢复原方案",
@@ -14877,7 +14808,163 @@
         ],
         "decision_mode": "verify_then_adjust",
         "plan_status": "conditional",
-        "executable": false
+        "executable": false,
+        "action_package": {
+          "available": true,
+          "road_profile": {
+            "labels": [
+              "城市次干道",
+              "城市主干道"
+            ],
+            "groups": [
+              "主干路",
+              "次干路"
+            ],
+            "primary_group": "主干路",
+            "is_small_road_context": false,
+            "is_arterial_context": true,
+            "mix_summary": "城市次干道／城市主干道"
+          },
+          "decision_mode": "verify_then_adjust",
+          "mechanism": "discharge_anomaly",
+          "schemes": {
+            "signal_control": [
+              {
+                "kind": "timing",
+                "action": "目标相位（北向南直行）绿灯 +5s",
+                "where": "解放东路与齐川路路口",
+                "green_delta_s": 5,
+                "gate": "verification_passed",
+                "executable_now": false
+              },
+              {
+                "kind": "timing",
+                "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+                "where": "解放东路与齐川路路口",
+                "green_delta_s": -5,
+                "gate": "verification_passed",
+                "executable_now": false
+              },
+              {
+                "kind": "timing",
+                "action": "信号周期 ±0s",
+                "where": "解放东路与齐川路路口",
+                "cycle_delta_s": 0
+              },
+              {
+                "kind": "gate",
+                "action": "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "monitor",
+                "action": "试验 5 周期；永绥路与齐音路路口排队比>0.9 立即回滚原方案",
+                "where": "永绥路与齐音路路口"
+              }
+            ],
+            "organization": [
+              {
+                "kind": "organization",
+                "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "organization",
+                "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "organization",
+                "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+                "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+              }
+            ],
+            "management": [
+              {
+                "kind": "management",
+                "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+                "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+              },
+              {
+                "kind": "management",
+                "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "management",
+                "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+                "where": "解放东路与齐川路路口"
+              }
+            ]
+          },
+          "layers": {
+            "proposed_timing": [
+              {
+                "kind": "timing",
+                "action": "目标相位（北向南直行）绿灯 +5s",
+                "where": "解放东路与齐川路路口",
+                "green_delta_s": 5,
+                "gate": "verification_passed",
+                "executable_now": false
+              },
+              {
+                "kind": "timing",
+                "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+                "where": "解放东路与齐川路路口",
+                "green_delta_s": -5,
+                "gate": "verification_passed",
+                "executable_now": false
+              },
+              {
+                "kind": "timing",
+                "action": "信号周期 ±0s",
+                "where": "解放东路与齐川路路口",
+                "cycle_delta_s": 0
+              }
+            ],
+            "organization": [
+              {
+                "kind": "organization",
+                "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "organization",
+                "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "organization",
+                "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+                "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+              }
+            ],
+            "management": [
+              {
+                "kind": "management",
+                "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+                "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+              },
+              {
+                "kind": "management",
+                "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "management",
+                "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+                "where": "解放东路与齐川路路口"
+              }
+            ]
+          },
+          "headline": "目标相位（北向南直行）绿灯 +5s；非目标最长相位绿灯 -5s（相位内借绿）；信号周期 ±0s",
+          "execution_order": [
+            "目标相位（北向南直行）绿灯 +5s",
+            "非目标最长相位绿灯 -5s（相位内借绿）",
+            "信号周期 ±0s",
+            "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录"
+          ]
+        }
       },
       "strategy_package": "incremental_release",
       "package_scores": {
@@ -15004,11 +15091,11 @@
           {
             "dimension": "策略选择",
             "without_experience": {
-              "summary": "仅依赖实时指标评分 → 小步释放方案",
+              "summary": "仅依赖实时指标可能直接小步释放",
               "source": "package_scores"
             },
             "with_experience": {
-              "summary": "小步释放方案（参考 5 条经验/案例）",
+              "summary": "先验后调 → 核验通过后再小步增绿",
               "refs": [
                 {
                   "type": "user_experience",
@@ -15045,11 +15132,11 @@
           {
             "dimension": "成因判断",
             "without_experience": {
-              "summary": "control",
+              "summary": "信号控制不当",
               "source": "cause_scores"
             },
             "with_experience": {
-              "summary": "信号控制不当",
+              "summary": "放行效率异常，待核验",
               "refs": [
                 {
                   "type": "user_experience",
@@ -15105,7 +15192,7 @@
               "source": "diagnosis.metrics"
             },
             "with_experience": {
-              "summary": "绿灯给了也用不上",
+              "summary": "放行效率异常，待核验",
               "refs": [
                 {
                   "type": "user_experience",
@@ -15136,7 +15223,163 @@
         "strategy_package": "incremental_release",
         "reason": "下游有余量，但目标进口放行效率异常尚未确认"
       },
-      "decision_mode": "verify_then_adjust"
+      "decision_mode": "verify_then_adjust",
+      "action_package": {
+        "available": true,
+        "road_profile": {
+          "labels": [
+            "城市次干道",
+            "城市主干道"
+          ],
+          "groups": [
+            "主干路",
+            "次干路"
+          ],
+          "primary_group": "主干路",
+          "is_small_road_context": false,
+          "is_arterial_context": true,
+          "mix_summary": "城市次干道／城市主干道"
+        },
+        "decision_mode": "verify_then_adjust",
+        "mechanism": "discharge_anomaly",
+        "schemes": {
+          "signal_control": [
+            {
+              "kind": "timing",
+              "action": "目标相位（北向南直行）绿灯 +5s",
+              "where": "解放东路与齐川路路口",
+              "green_delta_s": 5,
+              "gate": "verification_passed",
+              "executable_now": false
+            },
+            {
+              "kind": "timing",
+              "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+              "where": "解放东路与齐川路路口",
+              "green_delta_s": -5,
+              "gate": "verification_passed",
+              "executable_now": false
+            },
+            {
+              "kind": "timing",
+              "action": "信号周期 ±0s",
+              "where": "解放东路与齐川路路口",
+              "cycle_delta_s": 0
+            },
+            {
+              "kind": "gate",
+              "action": "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "monitor",
+              "action": "试验 5 周期；永绥路与齐音路路口排队比>0.9 立即回滚原方案",
+              "where": "永绥路与齐音路路口"
+            }
+          ],
+          "organization": [
+            {
+              "kind": "organization",
+              "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "organization",
+              "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "organization",
+              "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+              "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+            }
+          ],
+          "management": [
+            {
+              "kind": "management",
+              "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+              "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+            },
+            {
+              "kind": "management",
+              "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "management",
+              "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+              "where": "解放东路与齐川路路口"
+            }
+          ]
+        },
+        "layers": {
+          "proposed_timing": [
+            {
+              "kind": "timing",
+              "action": "目标相位（北向南直行）绿灯 +5s",
+              "where": "解放东路与齐川路路口",
+              "green_delta_s": 5,
+              "gate": "verification_passed",
+              "executable_now": false
+            },
+            {
+              "kind": "timing",
+              "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+              "where": "解放东路与齐川路路口",
+              "green_delta_s": -5,
+              "gate": "verification_passed",
+              "executable_now": false
+            },
+            {
+              "kind": "timing",
+              "action": "信号周期 ±0s",
+              "where": "解放东路与齐川路路口",
+              "cycle_delta_s": 0
+            }
+          ],
+          "organization": [
+            {
+              "kind": "organization",
+              "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "organization",
+              "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "organization",
+              "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+              "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+            }
+          ],
+          "management": [
+            {
+              "kind": "management",
+              "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+              "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+            },
+            {
+              "kind": "management",
+              "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "management",
+              "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+              "where": "解放东路与齐川路路口"
+            }
+          ]
+        },
+        "headline": "目标相位（北向南直行）绿灯 +5s；非目标最长相位绿灯 -5s（相位内借绿）；信号周期 ±0s",
+        "execution_order": [
+          "目标相位（北向南直行）绿灯 +5s",
+          "非目标最长相位绿灯 -5s（相位内借绿）",
+          "信号周期 ±0s",
+          "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录"
+        ]
+      }
     },
     "plan": {
       "candidates": [
@@ -20271,13 +20514,13 @@
           "reason": null,
           "missing_fields": [],
           "current_cycle_s": 224,
-          "cycle_s": 178,
-          "cycle_delta_s": -46,
+          "cycle_s": 224,
+          "cycle_delta_s": 0,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "1",
               "phase_stage_name": "西直、东直、南行人、北行人",
-              "green_time_s": 54,
+              "green_time_s": 89,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 54,
@@ -20296,13 +20539,13 @@
                 "stage_total_s": 94
               },
               "optimized_timing": {
-                "green_time_s": 54,
+                "green_time_s": 89,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 59.0
+                "stage_total_s": 94
               },
-              "green_delta_s": -35,
-              "stage_delta_s": -35.0,
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
               "movements": [
                 {
                   "movement_key": "d6_t2",
@@ -20401,7 +20644,7 @@
             {
               "phase_stage_id": "6",
               "phase_stage_name": "东直、北行人",
-              "green_time_s": 14,
+              "green_time_s": 0,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 14,
@@ -20420,13 +20663,13 @@
                 "stage_total_s": 5
               },
               "optimized_timing": {
-                "green_time_s": 14,
+                "green_time_s": 0,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 19.0
+                "stage_total_s": 5
               },
-              "green_delta_s": 14,
-              "stage_delta_s": 14.0,
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
               "movements": [
                 {
                   "movement_key": "d2_t2",
@@ -20482,7 +20725,7 @@
             {
               "phase_stage_id": "5",
               "phase_stage_name": "空阶段5",
-              "green_time_s": 7,
+              "green_time_s": 3,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 7,
@@ -20501,13 +20744,13 @@
                 "stage_total_s": 8
               },
               "optimized_timing": {
-                "green_time_s": 7,
+                "green_time_s": 3,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 12.0
+                "stage_total_s": 8
               },
-              "green_delta_s": 4,
-              "stage_delta_s": 4.0,
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
               "movements": [
                 {
                   "movement_key": "d2_t2",
@@ -20529,7 +20772,7 @@
             {
               "phase_stage_id": "2",
               "phase_stage_name": "东左、西左",
-              "green_time_s": 20,
+              "green_time_s": 32,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 20,
@@ -20548,13 +20791,13 @@
                 "stage_total_s": 37
               },
               "optimized_timing": {
-                "green_time_s": 20,
+                "green_time_s": 32,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 25.0
+                "stage_total_s": 37
               },
-              "green_delta_s": -12,
-              "stage_delta_s": -12.0,
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
               "movements": [
                 {
                   "movement_key": "d2_t1",
@@ -20621,7 +20864,7 @@
             {
               "phase_stage_id": "7",
               "phase_stage_name": "南直、东行人",
-              "green_time_s": 14,
+              "green_time_s": 24,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 14,
@@ -20640,13 +20883,13 @@
                 "stage_total_s": 29
               },
               "optimized_timing": {
-                "green_time_s": 14,
+                "green_time_s": 24,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 19.0
+                "stage_total_s": 29
               },
-              "green_delta_s": -10,
-              "stage_delta_s": -10.0,
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
               "movements": [
                 {
                   "movement_key": "d4_t2",
@@ -20702,7 +20945,7 @@
             {
               "phase_stage_id": "3",
               "phase_stage_name": "南直、北直、北左、东行人、西行人",
-              "green_time_s": 20,
+              "green_time_s": 33,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 20,
@@ -20721,13 +20964,13 @@
                 "stage_total_s": 38
               },
               "optimized_timing": {
-                "green_time_s": 20,
+                "green_time_s": 33,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 25.0
+                "stage_total_s": 38
               },
-              "green_delta_s": -13,
-              "stage_delta_s": -13.0,
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
               "movements": [
                 {
                   "movement_key": "d4_t2",
@@ -20854,7 +21097,7 @@
             {
               "phase_stage_id": "8",
               "phase_stage_name": "北直、北左、西行人",
-              "green_time_s": 14,
+              "green_time_s": 8,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 14,
@@ -20873,13 +21116,13 @@
                 "stage_total_s": 13
               },
               "optimized_timing": {
-                "green_time_s": 14,
+                "green_time_s": 8,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 19.0
+                "stage_total_s": 13
               },
-              "green_delta_s": 6,
-              "stage_delta_s": 6.0,
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
               "movements": [
                 {
                   "movement_key": "d0_t2",
@@ -21036,7 +21279,9 @@
             "period_plan_no": "14",
             "period_label": "晚高峰",
             "period_match_method": "explicit_time_range_schedule_overlap"
-          }
+          },
+          "verification_baseline": true,
+          "timing_source": "baseline_no_change"
         },
         "upstream_control": {
           "enabled": false,
@@ -21059,11 +21304,13 @@
         "validation_errors": [],
         "guardrail_pass": true,
         "execution_order": [
-          "出口与检测核验",
-          "绿灯末端队列核验",
-          "再决定是否小步增绿"
+          "目标相位（北向南直行）绿灯 +5s",
+          "非目标最长相位绿灯 -5s（相位内借绿）",
+          "信号周期 ±0s",
+          "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录",
+          "试验 5 周期；永绥路与齐音路路口排队比>0.9 立即回滚原方案"
         ],
-        "timing_source": "signal_optimization_engine",
+        "timing_source": "baseline_no_change",
         "optimizer_degraded": false,
         "optimizer_degraded_reason": null,
         "user_experience_basis": "在下游可承接前提下生成单点优化配时方案",
@@ -21074,7 +21321,933 @@
           }
         },
         "executable": false,
-        "plan_status": "conditional"
+        "plan_status": "conditional",
+        "action_package": {
+          "available": true,
+          "road_profile": {
+            "labels": [
+              "城市次干道",
+              "城市主干道"
+            ],
+            "groups": [
+              "主干路",
+              "次干路"
+            ],
+            "primary_group": "主干路",
+            "is_small_road_context": false,
+            "is_arterial_context": true,
+            "mix_summary": "城市次干道／城市主干道"
+          },
+          "decision_mode": "verify_then_adjust",
+          "mechanism": "discharge_anomaly",
+          "schemes": {
+            "signal_control": [
+              {
+                "kind": "timing",
+                "action": "目标相位（北向南直行）绿灯 +5s",
+                "where": "解放东路与齐川路路口",
+                "green_delta_s": 5,
+                "gate": "verification_passed",
+                "executable_now": false
+              },
+              {
+                "kind": "timing",
+                "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+                "where": "解放东路与齐川路路口",
+                "green_delta_s": -5,
+                "gate": "verification_passed",
+                "executable_now": false
+              },
+              {
+                "kind": "timing",
+                "action": "信号周期 ±0s",
+                "where": "解放东路与齐川路路口",
+                "cycle_delta_s": 0
+              },
+              {
+                "kind": "gate",
+                "action": "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "monitor",
+                "action": "试验 5 周期；永绥路与齐音路路口排队比>0.9 立即回滚原方案",
+                "where": "永绥路与齐音路路口"
+              }
+            ],
+            "organization": [
+              {
+                "kind": "organization",
+                "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "organization",
+                "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "organization",
+                "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+                "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+              }
+            ],
+            "management": [
+              {
+                "kind": "management",
+                "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+                "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+              },
+              {
+                "kind": "management",
+                "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "management",
+                "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+                "where": "解放东路与齐川路路口"
+              }
+            ]
+          },
+          "layers": {
+            "proposed_timing": [
+              {
+                "kind": "timing",
+                "action": "目标相位（北向南直行）绿灯 +5s",
+                "where": "解放东路与齐川路路口",
+                "green_delta_s": 5,
+                "gate": "verification_passed",
+                "executable_now": false
+              },
+              {
+                "kind": "timing",
+                "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+                "where": "解放东路与齐川路路口",
+                "green_delta_s": -5,
+                "gate": "verification_passed",
+                "executable_now": false
+              },
+              {
+                "kind": "timing",
+                "action": "信号周期 ±0s",
+                "where": "解放东路与齐川路路口",
+                "cycle_delta_s": 0
+              }
+            ],
+            "organization": [
+              {
+                "kind": "organization",
+                "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "organization",
+                "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "organization",
+                "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+                "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+              }
+            ],
+            "management": [
+              {
+                "kind": "management",
+                "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+                "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+              },
+              {
+                "kind": "management",
+                "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+                "where": "解放东路与齐川路路口"
+              },
+              {
+                "kind": "management",
+                "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+                "where": "解放东路与齐川路路口"
+              }
+            ]
+          },
+          "headline": "目标相位（北向南直行）绿灯 +5s；非目标最长相位绿灯 -5s（相位内借绿）；信号周期 ±0s",
+          "execution_order": [
+            "目标相位（北向南直行）绿灯 +5s",
+            "非目标最长相位绿灯 -5s（相位内借绿）",
+            "信号周期 ±0s",
+            "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录"
+          ]
+        },
+        "proposed_timing": {
+          "cycle_s": 224,
+          "current_cycle_s": 224,
+          "cycle_delta_s": 0,
+          "phase_stage_timing_list": [
+            {
+              "phase_stage_id": "1",
+              "phase_stage_name": "西直、东直、南行人、北行人",
+              "green_time_s": 84,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 54,
+              "max_green_time_s": 116,
+              "greenTime": 84,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 54,
+              "maxGreenTime": 116,
+              "split_ratio": 0.375,
+              "movement_key": null,
+              "current_timing": {
+                "green_time_s": 89,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 94
+              },
+              "optimized_timing": {
+                "green_time_s": 84,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 89
+              },
+              "green_delta_s": -5,
+              "stage_delta_s": -5,
+              "movements": [
+                {
+                  "movement_key": "d6_t2",
+                  "movementKey": "d6_t2",
+                  "label": "西进口直行",
+                  "dir8No": 6,
+                  "turnDirNo": 2,
+                  "turnFlowTotal": 0.0,
+                  "laneCount": 2,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                },
+                {
+                  "movement_key": "d2_t2",
+                  "movementKey": "d2_t2",
+                  "label": "东进口直行",
+                  "dir8No": 2,
+                  "turnDirNo": 2,
+                  "turnFlowTotal": 0.0,
+                  "laneCount": 2,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                }
+              ],
+              "source_stage_atoms": [
+                "西直",
+                "东直",
+                "南行人",
+                "北行人"
+              ],
+              "flow_combo": [
+                {
+                  "turn_set": [
+                    "直"
+                  ],
+                  "f_dir8_no": "6",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "西",
+                  "signal_atom": "西直",
+                  "source_type": "",
+                  "flow_type_no": 1,
+                  "from_link_id": "",
+                  "movement_key": "atom:西直:NA",
+                  "flow_type_name": "机动车直行"
+                },
+                {
+                  "turn_set": [
+                    "直"
+                  ],
+                  "f_dir8_no": "2",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "东",
+                  "signal_atom": "东直",
+                  "source_type": "",
+                  "flow_type_no": 1,
+                  "from_link_id": "",
+                  "movement_key": "atom:东直:NA",
+                  "flow_type_name": "机动车直行"
+                },
+                {
+                  "turn_set": [],
+                  "f_dir8_no": "4",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "南",
+                  "signal_atom": "南行人",
+                  "source_type": "",
+                  "flow_type_no": 5,
+                  "from_link_id": "",
+                  "movement_key": "atom:南行人:NA",
+                  "flow_type_name": "行人"
+                },
+                {
+                  "turn_set": [],
+                  "f_dir8_no": "0",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "北",
+                  "signal_atom": "北行人",
+                  "source_type": "",
+                  "flow_type_no": 5,
+                  "from_link_id": "",
+                  "movement_key": "atom:北行人:NA",
+                  "flow_type_name": "行人"
+                }
+              ],
+              "phase_saturation": 0.82,
+              "role": "donor"
+            },
+            {
+              "phase_stage_id": "6",
+              "phase_stage_name": "东直、北行人",
+              "green_time_s": 0,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 60,
+              "greenTime": 0,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 60,
+              "split_ratio": 0.0,
+              "movement_key": null,
+              "current_timing": {
+                "green_time_s": 0,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 5
+              },
+              "optimized_timing": {
+                "green_time_s": 0,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 5
+              },
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
+              "movements": [
+                {
+                  "movement_key": "d2_t2",
+                  "movementKey": "d2_t2",
+                  "label": "东进口直行",
+                  "dir8No": 2,
+                  "turnDirNo": 2,
+                  "turnFlowTotal": 0.0,
+                  "laneCount": 2,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                }
+              ],
+              "source_stage_atoms": [
+                "东直",
+                "北行人"
+              ],
+              "flow_combo": [
+                {
+                  "turn_set": [
+                    "直"
+                  ],
+                  "f_dir8_no": "2",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "东",
+                  "signal_atom": "东直",
+                  "source_type": "",
+                  "flow_type_no": 1,
+                  "from_link_id": "",
+                  "movement_key": "atom:东直:NA",
+                  "flow_type_name": "机动车直行"
+                },
+                {
+                  "turn_set": [],
+                  "f_dir8_no": "0",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "北",
+                  "signal_atom": "北行人",
+                  "source_type": "",
+                  "flow_type_no": 5,
+                  "from_link_id": "",
+                  "movement_key": "atom:北行人:NA",
+                  "flow_type_name": "行人"
+                }
+              ],
+              "phase_saturation": 0.82
+            },
+            {
+              "phase_stage_id": "5",
+              "phase_stage_name": "空阶段5",
+              "green_time_s": 3,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 7,
+              "max_green_time_s": 60,
+              "greenTime": 3,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 7,
+              "maxGreenTime": 60,
+              "split_ratio": 0.0134,
+              "movement_key": null,
+              "current_timing": {
+                "green_time_s": 3,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 8
+              },
+              "optimized_timing": {
+                "green_time_s": 3,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 8
+              },
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
+              "movements": [
+                {
+                  "movement_key": "d2_t2",
+                  "movementKey": "d2_t2",
+                  "label": "东进口直行",
+                  "dir8No": 2,
+                  "turnDirNo": 2,
+                  "turnFlowTotal": null,
+                  "laneCount": null,
+                  "saturation": null,
+                  "flow_available": null,
+                  "source": null
+                }
+              ],
+              "source_stage_atoms": [
+                "空阶段5"
+              ],
+              "phase_saturation": 0.82
+            },
+            {
+              "phase_stage_id": "2",
+              "phase_stage_name": "东左、西左",
+              "green_time_s": 32,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 20,
+              "max_green_time_s": 60,
+              "greenTime": 32,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 20,
+              "maxGreenTime": 60,
+              "split_ratio": 0.1429,
+              "movement_key": null,
+              "current_timing": {
+                "green_time_s": 32,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 37
+              },
+              "optimized_timing": {
+                "green_time_s": 32,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 37
+              },
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
+              "movements": [
+                {
+                  "movement_key": "d2_t1",
+                  "movementKey": "d2_t1",
+                  "label": "东进口左转",
+                  "dir8No": 2,
+                  "turnDirNo": 1,
+                  "turnFlowTotal": 0.0,
+                  "laneCount": 1,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                },
+                {
+                  "movement_key": "d6_t1",
+                  "movementKey": "d6_t1",
+                  "label": "西进口左转",
+                  "dir8No": 6,
+                  "turnDirNo": 1,
+                  "turnFlowTotal": 0.0,
+                  "laneCount": 1,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                }
+              ],
+              "source_stage_atoms": [
+                "东左",
+                "西左"
+              ],
+              "flow_combo": [
+                {
+                  "turn_set": [
+                    "左"
+                  ],
+                  "f_dir8_no": "2",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "东",
+                  "signal_atom": "东左",
+                  "source_type": "",
+                  "flow_type_no": 2,
+                  "from_link_id": "",
+                  "movement_key": "atom:东左:NA",
+                  "flow_type_name": "机动车左转"
+                },
+                {
+                  "turn_set": [
+                    "左"
+                  ],
+                  "f_dir8_no": "6",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "西",
+                  "signal_atom": "西左",
+                  "source_type": "",
+                  "flow_type_no": 2,
+                  "from_link_id": "",
+                  "movement_key": "atom:西左:NA",
+                  "flow_type_name": "机动车左转"
+                }
+              ],
+              "phase_saturation": 0.82
+            },
+            {
+              "phase_stage_id": "7",
+              "phase_stage_name": "南直、东行人",
+              "green_time_s": 24,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 60,
+              "greenTime": 24,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 60,
+              "split_ratio": 0.1071,
+              "movement_key": null,
+              "current_timing": {
+                "green_time_s": 24,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 29
+              },
+              "optimized_timing": {
+                "green_time_s": 24,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 29
+              },
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
+              "movements": [
+                {
+                  "movement_key": "d4_t2",
+                  "movementKey": "d4_t2",
+                  "label": "南进口直行",
+                  "dir8No": 4,
+                  "turnDirNo": 2,
+                  "turnFlowTotal": 0.0,
+                  "laneCount": 1,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                }
+              ],
+              "source_stage_atoms": [
+                "南直",
+                "东行人"
+              ],
+              "flow_combo": [
+                {
+                  "turn_set": [
+                    "直"
+                  ],
+                  "f_dir8_no": "4",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "南",
+                  "signal_atom": "南直",
+                  "source_type": "",
+                  "flow_type_no": 1,
+                  "from_link_id": "",
+                  "movement_key": "atom:南直:NA",
+                  "flow_type_name": "机动车直行"
+                },
+                {
+                  "turn_set": [],
+                  "f_dir8_no": "2",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "东",
+                  "signal_atom": "东行人",
+                  "source_type": "",
+                  "flow_type_no": 5,
+                  "from_link_id": "",
+                  "movement_key": "atom:东行人:NA",
+                  "flow_type_name": "行人"
+                }
+              ],
+              "phase_saturation": 0.82
+            },
+            {
+              "phase_stage_id": "3",
+              "phase_stage_name": "南直、北直、北左、东行人、西行人",
+              "green_time_s": 38,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 20,
+              "max_green_time_s": 60,
+              "greenTime": 38,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 20,
+              "maxGreenTime": 60,
+              "split_ratio": 0.1696,
+              "movement_key": null,
+              "current_timing": {
+                "green_time_s": 33,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 38
+              },
+              "optimized_timing": {
+                "green_time_s": 38,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 43
+              },
+              "green_delta_s": 5,
+              "stage_delta_s": 5,
+              "movements": [
+                {
+                  "movement_key": "d4_t2",
+                  "movementKey": "d4_t2",
+                  "label": "南进口直行",
+                  "dir8No": 4,
+                  "turnDirNo": 2,
+                  "turnFlowTotal": 0.0,
+                  "laneCount": 1,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                },
+                {
+                  "movement_key": "d0_t2",
+                  "movementKey": "d0_t2",
+                  "label": "北进口直行",
+                  "dir8No": 0,
+                  "turnDirNo": 2,
+                  "turnFlowTotal": 140.0,
+                  "laneCount": 2,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                },
+                {
+                  "movement_key": "d0_t1",
+                  "movementKey": "d0_t1",
+                  "label": "北进口左转",
+                  "dir8No": 0,
+                  "turnDirNo": 1,
+                  "turnFlowTotal": 58.0,
+                  "laneCount": 1,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                }
+              ],
+              "source_stage_atoms": [
+                "南直",
+                "北直",
+                "北左",
+                "东行人",
+                "西行人"
+              ],
+              "flow_combo": [
+                {
+                  "turn_set": [
+                    "直"
+                  ],
+                  "f_dir8_no": "4",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "南",
+                  "signal_atom": "南直",
+                  "source_type": "",
+                  "flow_type_no": 1,
+                  "from_link_id": "",
+                  "movement_key": "atom:南直:NA",
+                  "flow_type_name": "机动车直行"
+                },
+                {
+                  "turn_set": [
+                    "直"
+                  ],
+                  "f_dir8_no": "0",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "北",
+                  "signal_atom": "北直",
+                  "source_type": "",
+                  "flow_type_no": 1,
+                  "from_link_id": "",
+                  "movement_key": "atom:北直:NA",
+                  "flow_type_name": "机动车直行"
+                },
+                {
+                  "turn_set": [
+                    "左"
+                  ],
+                  "f_dir8_no": "0",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "北",
+                  "signal_atom": "北左",
+                  "source_type": "",
+                  "flow_type_no": 2,
+                  "from_link_id": "",
+                  "movement_key": "atom:北左:NA",
+                  "flow_type_name": "机动车左转"
+                },
+                {
+                  "turn_set": [],
+                  "f_dir8_no": "2",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "东",
+                  "signal_atom": "东行人",
+                  "source_type": "",
+                  "flow_type_no": 5,
+                  "from_link_id": "",
+                  "movement_key": "atom:东行人:NA",
+                  "flow_type_name": "行人"
+                },
+                {
+                  "turn_set": [],
+                  "f_dir8_no": "6",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "西",
+                  "signal_atom": "西行人",
+                  "source_type": "",
+                  "flow_type_no": 5,
+                  "from_link_id": "",
+                  "movement_key": "atom:西行人:NA",
+                  "flow_type_name": "行人"
+                }
+              ],
+              "phase_saturation": 0.82,
+              "role": "target"
+            },
+            {
+              "phase_stage_id": "8",
+              "phase_stage_name": "北直、北左、西行人",
+              "green_time_s": 8,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "min_green_time_s": 14,
+              "max_green_time_s": 60,
+              "greenTime": 8,
+              "yellowTime": 3,
+              "allRedTime": 2,
+              "minGreenTime": 14,
+              "maxGreenTime": 60,
+              "split_ratio": 0.0357,
+              "movement_key": null,
+              "current_timing": {
+                "green_time_s": 8,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 13
+              },
+              "optimized_timing": {
+                "green_time_s": 8,
+                "yellow_time_s": 3,
+                "all_red_time_s": 2,
+                "stage_total_s": 13
+              },
+              "green_delta_s": 0,
+              "stage_delta_s": 0,
+              "movements": [
+                {
+                  "movement_key": "d0_t2",
+                  "movementKey": "d0_t2",
+                  "label": "北进口直行",
+                  "dir8No": 0,
+                  "turnDirNo": 2,
+                  "turnFlowTotal": 140.0,
+                  "laneCount": 2,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                },
+                {
+                  "movement_key": "d0_t1",
+                  "movementKey": "d0_t1",
+                  "label": "北进口左转",
+                  "dir8No": 0,
+                  "turnDirNo": 1,
+                  "turnFlowTotal": 58.0,
+                  "laneCount": 1,
+                  "saturation": null,
+                  "flow_available": true,
+                  "source": null
+                }
+              ],
+              "source_stage_atoms": [
+                "北直",
+                "北左",
+                "西行人"
+              ],
+              "flow_combo": [
+                {
+                  "turn_set": [
+                    "直"
+                  ],
+                  "f_dir8_no": "0",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "北",
+                  "signal_atom": "北直",
+                  "source_type": "",
+                  "flow_type_no": 1,
+                  "from_link_id": "",
+                  "movement_key": "atom:北直:NA",
+                  "flow_type_name": "机动车直行"
+                },
+                {
+                  "turn_set": [
+                    "左"
+                  ],
+                  "f_dir8_no": "0",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "北",
+                  "signal_atom": "北左",
+                  "source_type": "",
+                  "flow_type_no": 2,
+                  "from_link_id": "",
+                  "movement_key": "atom:北左:NA",
+                  "flow_type_name": "机动车左转"
+                },
+                {
+                  "turn_set": [],
+                  "f_dir8_no": "6",
+                  "source_key": "",
+                  "vendor_tag": "",
+                  "f_dir8_name": "西",
+                  "signal_atom": "西行人",
+                  "source_type": "",
+                  "flow_type_no": 5,
+                  "from_link_id": "",
+                  "movement_key": "atom:西行人:NA",
+                  "flow_type_name": "行人"
+                }
+              ],
+              "phase_saturation": 0.82
+            }
+          ],
+          "target_stage_index": 5,
+          "donor_stage_index": 0,
+          "requested_target_green_delta_s": 5,
+          "target_green_delta_s": 5,
+          "donor_green_delta_s": -5,
+          "available": true,
+          "gate": "verification_passed",
+          "label": "门控通过后拟实施",
+          "meta": {
+            "solver": "scipy_slsqp_document_model",
+            "target_saturation": 0.82,
+            "max_phase_saturation": 0.82,
+            "total_turn_flow_vph": 198.0,
+            "direction_intensity_list": [
+              {
+                "movementKey": "d6_t2",
+                "label": "西-直行",
+                "dir8No": 6,
+                "turnDirNo": 2,
+                "intensity": 0.82
+              },
+              {
+                "movementKey": "d2_t2",
+                "label": "东-直行",
+                "dir8No": 2,
+                "turnDirNo": 2,
+                "intensity": 0.82
+              },
+              {
+                "movementKey": "d2_t1",
+                "label": "东-左转",
+                "dir8No": 2,
+                "turnDirNo": 1,
+                "intensity": 0.82
+              },
+              {
+                "movementKey": "d6_t1",
+                "label": "西-左转",
+                "dir8No": 6,
+                "turnDirNo": 1,
+                "intensity": 0.82
+              },
+              {
+                "movementKey": "d4_t2",
+                "label": "南-直行",
+                "dir8No": 4,
+                "turnDirNo": 2,
+                "intensity": 0.82
+              },
+              {
+                "movementKey": "d0_t2",
+                "label": "北-直行",
+                "dir8No": 0,
+                "turnDirNo": 2,
+                "intensity": 0.82
+              },
+              {
+                "movementKey": "d0_t1",
+                "label": "北-左转",
+                "dir8No": 0,
+                "turnDirNo": 1,
+                "intensity": 0.82
+              }
+            ],
+            "notes": [
+              "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+              "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+              "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：西-直行 139vph（现状放行89s，平均比值2.17）、东-左转 50vph（现状放行32s，平均比值0.78）、西-左转 50vph（现状放行32s，平均比值0.78）、南-直行 89vph（现状放行57s，平均比值1.39）。",
+              "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直、南行人、北行人 60s→116s。",
+              "已启用搭接保形惩罚：以现状方案搭接深度比与组内绿信比为参照（深度权重 5.0、比例权重 5.0、容差 ±15%），识别迟启/早断结构 0 处、搭接组 1 个。",
+              "已对零流量阶段注入最小绿对应的虚拟流量，避免优化结果丢失服务。",
+              "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+            ],
+            "data_quality": {
+              "current_timing_source": "pg_signal_plan",
+              "movement_source": "pg_turn_flow+pg_turn_saturation"
+            },
+            "target_periods": [
+              "16:30-19:30"
+            ],
+            "period_plan_no": "14",
+            "period_label": "晚高峰",
+            "period_match_method": "explicit_time_range_schedule_overlap"
+          }
+        },
+        "proposed_timing_source": "conditional_incremental_release"
       },
       {
         "plan_id": "conditional_incremental_release",
@@ -21912,13 +23085,13 @@
         "reason": null,
         "missing_fields": [],
         "current_cycle_s": 224,
-        "cycle_s": 178,
-        "cycle_delta_s": -46,
+        "cycle_s": 224,
+        "cycle_delta_s": 0,
         "phase_stage_timing_list": [
           {
             "phase_stage_id": "1",
             "phase_stage_name": "西直、东直、南行人、北行人",
-            "green_time_s": 54,
+            "green_time_s": 89,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
             "min_green_time_s": 54,
@@ -21937,13 +23110,13 @@
               "stage_total_s": 94
             },
             "optimized_timing": {
-              "green_time_s": 54,
+              "green_time_s": 89,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "stage_total_s": 59.0
+              "stage_total_s": 94
             },
-            "green_delta_s": -35,
-            "stage_delta_s": -35.0,
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
             "movements": [
               {
                 "movement_key": "d6_t2",
@@ -22042,7 +23215,7 @@
           {
             "phase_stage_id": "6",
             "phase_stage_name": "东直、北行人",
-            "green_time_s": 14,
+            "green_time_s": 0,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
             "min_green_time_s": 14,
@@ -22061,13 +23234,13 @@
               "stage_total_s": 5
             },
             "optimized_timing": {
-              "green_time_s": 14,
+              "green_time_s": 0,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "stage_total_s": 19.0
+              "stage_total_s": 5
             },
-            "green_delta_s": 14,
-            "stage_delta_s": 14.0,
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
             "movements": [
               {
                 "movement_key": "d2_t2",
@@ -22123,7 +23296,7 @@
           {
             "phase_stage_id": "5",
             "phase_stage_name": "空阶段5",
-            "green_time_s": 7,
+            "green_time_s": 3,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
             "min_green_time_s": 7,
@@ -22142,13 +23315,13 @@
               "stage_total_s": 8
             },
             "optimized_timing": {
-              "green_time_s": 7,
+              "green_time_s": 3,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "stage_total_s": 12.0
+              "stage_total_s": 8
             },
-            "green_delta_s": 4,
-            "stage_delta_s": 4.0,
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
             "movements": [
               {
                 "movement_key": "d2_t2",
@@ -22170,7 +23343,7 @@
           {
             "phase_stage_id": "2",
             "phase_stage_name": "东左、西左",
-            "green_time_s": 20,
+            "green_time_s": 32,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
             "min_green_time_s": 20,
@@ -22189,13 +23362,13 @@
               "stage_total_s": 37
             },
             "optimized_timing": {
-              "green_time_s": 20,
+              "green_time_s": 32,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "stage_total_s": 25.0
+              "stage_total_s": 37
             },
-            "green_delta_s": -12,
-            "stage_delta_s": -12.0,
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
             "movements": [
               {
                 "movement_key": "d2_t1",
@@ -22262,7 +23435,7 @@
           {
             "phase_stage_id": "7",
             "phase_stage_name": "南直、东行人",
-            "green_time_s": 14,
+            "green_time_s": 24,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
             "min_green_time_s": 14,
@@ -22281,13 +23454,13 @@
               "stage_total_s": 29
             },
             "optimized_timing": {
-              "green_time_s": 14,
+              "green_time_s": 24,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "stage_total_s": 19.0
+              "stage_total_s": 29
             },
-            "green_delta_s": -10,
-            "stage_delta_s": -10.0,
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
             "movements": [
               {
                 "movement_key": "d4_t2",
@@ -22343,7 +23516,7 @@
           {
             "phase_stage_id": "3",
             "phase_stage_name": "南直、北直、北左、东行人、西行人",
-            "green_time_s": 20,
+            "green_time_s": 33,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
             "min_green_time_s": 20,
@@ -22362,13 +23535,13 @@
               "stage_total_s": 38
             },
             "optimized_timing": {
-              "green_time_s": 20,
+              "green_time_s": 33,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "stage_total_s": 25.0
+              "stage_total_s": 38
             },
-            "green_delta_s": -13,
-            "stage_delta_s": -13.0,
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
             "movements": [
               {
                 "movement_key": "d4_t2",
@@ -22495,7 +23668,7 @@
           {
             "phase_stage_id": "8",
             "phase_stage_name": "北直、北左、西行人",
-            "green_time_s": 14,
+            "green_time_s": 8,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
             "min_green_time_s": 14,
@@ -22514,13 +23687,13 @@
               "stage_total_s": 13
             },
             "optimized_timing": {
-              "green_time_s": 14,
+              "green_time_s": 8,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "stage_total_s": 19.0
+              "stage_total_s": 13
             },
-            "green_delta_s": 6,
-            "stage_delta_s": 6.0,
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
             "movements": [
               {
                 "movement_key": "d0_t2",
@@ -22677,7 +23850,9 @@
           "period_plan_no": "14",
           "period_label": "晚高峰",
           "period_match_method": "explicit_time_range_schedule_overlap"
-        }
+        },
+        "verification_baseline": true,
+        "timing_source": "baseline_no_change"
       },
       "upstream_control": {
         "enabled": false,
@@ -22700,11 +23875,13 @@
       "validation_errors": [],
       "guardrail_pass": true,
       "execution_order": [
-        "出口与检测核验",
-        "绿灯末端队列核验",
-        "再决定是否小步增绿"
+        "目标相位（北向南直行）绿灯 +5s",
+        "非目标最长相位绿灯 -5s（相位内借绿）",
+        "信号周期 ±0s",
+        "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录",
+        "试验 5 周期；永绥路与齐音路路口排队比>0.9 立即回滚原方案"
       ],
-      "timing_source": "signal_optimization_engine",
+      "timing_source": "baseline_no_change",
       "optimizer_degraded": false,
       "optimizer_degraded_reason": null,
       "user_experience_basis": "在下游可承接前提下生成单点优化配时方案",
@@ -22715,16 +23892,942 @@
         }
       },
       "executable": false,
-      "plan_status": "conditional"
+      "plan_status": "conditional",
+      "action_package": {
+        "available": true,
+        "road_profile": {
+          "labels": [
+            "城市次干道",
+            "城市主干道"
+          ],
+          "groups": [
+            "主干路",
+            "次干路"
+          ],
+          "primary_group": "主干路",
+          "is_small_road_context": false,
+          "is_arterial_context": true,
+          "mix_summary": "城市次干道／城市主干道"
+        },
+        "decision_mode": "verify_then_adjust",
+        "mechanism": "discharge_anomaly",
+        "schemes": {
+          "signal_control": [
+            {
+              "kind": "timing",
+              "action": "目标相位（北向南直行）绿灯 +5s",
+              "where": "解放东路与齐川路路口",
+              "green_delta_s": 5,
+              "gate": "verification_passed",
+              "executable_now": false
+            },
+            {
+              "kind": "timing",
+              "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+              "where": "解放东路与齐川路路口",
+              "green_delta_s": -5,
+              "gate": "verification_passed",
+              "executable_now": false
+            },
+            {
+              "kind": "timing",
+              "action": "信号周期 ±0s",
+              "where": "解放东路与齐川路路口",
+              "cycle_delta_s": 0
+            },
+            {
+              "kind": "gate",
+              "action": "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "monitor",
+              "action": "试验 5 周期；永绥路与齐音路路口排队比>0.9 立即回滚原方案",
+              "where": "永绥路与齐音路路口"
+            }
+          ],
+          "organization": [
+            {
+              "kind": "organization",
+              "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "organization",
+              "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "organization",
+              "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+              "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+            }
+          ],
+          "management": [
+            {
+              "kind": "management",
+              "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+              "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+            },
+            {
+              "kind": "management",
+              "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "management",
+              "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+              "where": "解放东路与齐川路路口"
+            }
+          ]
+        },
+        "layers": {
+          "proposed_timing": [
+            {
+              "kind": "timing",
+              "action": "目标相位（北向南直行）绿灯 +5s",
+              "where": "解放东路与齐川路路口",
+              "green_delta_s": 5,
+              "gate": "verification_passed",
+              "executable_now": false
+            },
+            {
+              "kind": "timing",
+              "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+              "where": "解放东路与齐川路路口",
+              "green_delta_s": -5,
+              "gate": "verification_passed",
+              "executable_now": false
+            },
+            {
+              "kind": "timing",
+              "action": "信号周期 ±0s",
+              "where": "解放东路与齐川路路口",
+              "cycle_delta_s": 0
+            }
+          ],
+          "organization": [
+            {
+              "kind": "organization",
+              "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "organization",
+              "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "organization",
+              "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+              "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+            }
+          ],
+          "management": [
+            {
+              "kind": "management",
+              "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+              "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+            },
+            {
+              "kind": "management",
+              "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+              "where": "解放东路与齐川路路口"
+            },
+            {
+              "kind": "management",
+              "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+              "where": "解放东路与齐川路路口"
+            }
+          ]
+        },
+        "headline": "目标相位（北向南直行）绿灯 +5s；非目标最长相位绿灯 -5s（相位内借绿）；信号周期 ±0s",
+        "execution_order": [
+          "目标相位（北向南直行）绿灯 +5s",
+          "非目标最长相位绿灯 -5s（相位内借绿）",
+          "信号周期 ±0s",
+          "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录"
+        ]
+      },
+      "proposed_timing": {
+        "cycle_s": 224,
+        "current_cycle_s": 224,
+        "cycle_delta_s": 0,
+        "phase_stage_timing_list": [
+          {
+            "phase_stage_id": "1",
+            "phase_stage_name": "西直、东直、南行人、北行人",
+            "green_time_s": 84,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 54,
+            "max_green_time_s": 116,
+            "greenTime": 84,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 54,
+            "maxGreenTime": 116,
+            "split_ratio": 0.375,
+            "movement_key": null,
+            "current_timing": {
+              "green_time_s": 89,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 94
+            },
+            "optimized_timing": {
+              "green_time_s": 84,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 89
+            },
+            "green_delta_s": -5,
+            "stage_delta_s": -5,
+            "movements": [
+              {
+                "movement_key": "d6_t2",
+                "movementKey": "d6_t2",
+                "label": "西进口直行",
+                "dir8No": 6,
+                "turnDirNo": 2,
+                "turnFlowTotal": 0.0,
+                "laneCount": 2,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              },
+              {
+                "movement_key": "d2_t2",
+                "movementKey": "d2_t2",
+                "label": "东进口直行",
+                "dir8No": 2,
+                "turnDirNo": 2,
+                "turnFlowTotal": 0.0,
+                "laneCount": 2,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              }
+            ],
+            "source_stage_atoms": [
+              "西直",
+              "东直",
+              "南行人",
+              "北行人"
+            ],
+            "flow_combo": [
+              {
+                "turn_set": [
+                  "直"
+                ],
+                "f_dir8_no": "6",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "西",
+                "signal_atom": "西直",
+                "source_type": "",
+                "flow_type_no": 1,
+                "from_link_id": "",
+                "movement_key": "atom:西直:NA",
+                "flow_type_name": "机动车直行"
+              },
+              {
+                "turn_set": [
+                  "直"
+                ],
+                "f_dir8_no": "2",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "东",
+                "signal_atom": "东直",
+                "source_type": "",
+                "flow_type_no": 1,
+                "from_link_id": "",
+                "movement_key": "atom:东直:NA",
+                "flow_type_name": "机动车直行"
+              },
+              {
+                "turn_set": [],
+                "f_dir8_no": "4",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "南",
+                "signal_atom": "南行人",
+                "source_type": "",
+                "flow_type_no": 5,
+                "from_link_id": "",
+                "movement_key": "atom:南行人:NA",
+                "flow_type_name": "行人"
+              },
+              {
+                "turn_set": [],
+                "f_dir8_no": "0",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "北",
+                "signal_atom": "北行人",
+                "source_type": "",
+                "flow_type_no": 5,
+                "from_link_id": "",
+                "movement_key": "atom:北行人:NA",
+                "flow_type_name": "行人"
+              }
+            ],
+            "phase_saturation": 0.82,
+            "role": "donor"
+          },
+          {
+            "phase_stage_id": "6",
+            "phase_stage_name": "东直、北行人",
+            "green_time_s": 0,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 14,
+            "max_green_time_s": 60,
+            "greenTime": 0,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 14,
+            "maxGreenTime": 60,
+            "split_ratio": 0.0,
+            "movement_key": null,
+            "current_timing": {
+              "green_time_s": 0,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 5
+            },
+            "optimized_timing": {
+              "green_time_s": 0,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 5
+            },
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
+            "movements": [
+              {
+                "movement_key": "d2_t2",
+                "movementKey": "d2_t2",
+                "label": "东进口直行",
+                "dir8No": 2,
+                "turnDirNo": 2,
+                "turnFlowTotal": 0.0,
+                "laneCount": 2,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              }
+            ],
+            "source_stage_atoms": [
+              "东直",
+              "北行人"
+            ],
+            "flow_combo": [
+              {
+                "turn_set": [
+                  "直"
+                ],
+                "f_dir8_no": "2",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "东",
+                "signal_atom": "东直",
+                "source_type": "",
+                "flow_type_no": 1,
+                "from_link_id": "",
+                "movement_key": "atom:东直:NA",
+                "flow_type_name": "机动车直行"
+              },
+              {
+                "turn_set": [],
+                "f_dir8_no": "0",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "北",
+                "signal_atom": "北行人",
+                "source_type": "",
+                "flow_type_no": 5,
+                "from_link_id": "",
+                "movement_key": "atom:北行人:NA",
+                "flow_type_name": "行人"
+              }
+            ],
+            "phase_saturation": 0.82
+          },
+          {
+            "phase_stage_id": "5",
+            "phase_stage_name": "空阶段5",
+            "green_time_s": 3,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 7,
+            "max_green_time_s": 60,
+            "greenTime": 3,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 7,
+            "maxGreenTime": 60,
+            "split_ratio": 0.0134,
+            "movement_key": null,
+            "current_timing": {
+              "green_time_s": 3,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 8
+            },
+            "optimized_timing": {
+              "green_time_s": 3,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 8
+            },
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
+            "movements": [
+              {
+                "movement_key": "d2_t2",
+                "movementKey": "d2_t2",
+                "label": "东进口直行",
+                "dir8No": 2,
+                "turnDirNo": 2,
+                "turnFlowTotal": null,
+                "laneCount": null,
+                "saturation": null,
+                "flow_available": null,
+                "source": null
+              }
+            ],
+            "source_stage_atoms": [
+              "空阶段5"
+            ],
+            "phase_saturation": 0.82
+          },
+          {
+            "phase_stage_id": "2",
+            "phase_stage_name": "东左、西左",
+            "green_time_s": 32,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 20,
+            "max_green_time_s": 60,
+            "greenTime": 32,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 20,
+            "maxGreenTime": 60,
+            "split_ratio": 0.1429,
+            "movement_key": null,
+            "current_timing": {
+              "green_time_s": 32,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 37
+            },
+            "optimized_timing": {
+              "green_time_s": 32,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 37
+            },
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
+            "movements": [
+              {
+                "movement_key": "d2_t1",
+                "movementKey": "d2_t1",
+                "label": "东进口左转",
+                "dir8No": 2,
+                "turnDirNo": 1,
+                "turnFlowTotal": 0.0,
+                "laneCount": 1,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              },
+              {
+                "movement_key": "d6_t1",
+                "movementKey": "d6_t1",
+                "label": "西进口左转",
+                "dir8No": 6,
+                "turnDirNo": 1,
+                "turnFlowTotal": 0.0,
+                "laneCount": 1,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              }
+            ],
+            "source_stage_atoms": [
+              "东左",
+              "西左"
+            ],
+            "flow_combo": [
+              {
+                "turn_set": [
+                  "左"
+                ],
+                "f_dir8_no": "2",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "东",
+                "signal_atom": "东左",
+                "source_type": "",
+                "flow_type_no": 2,
+                "from_link_id": "",
+                "movement_key": "atom:东左:NA",
+                "flow_type_name": "机动车左转"
+              },
+              {
+                "turn_set": [
+                  "左"
+                ],
+                "f_dir8_no": "6",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "西",
+                "signal_atom": "西左",
+                "source_type": "",
+                "flow_type_no": 2,
+                "from_link_id": "",
+                "movement_key": "atom:西左:NA",
+                "flow_type_name": "机动车左转"
+              }
+            ],
+            "phase_saturation": 0.82
+          },
+          {
+            "phase_stage_id": "7",
+            "phase_stage_name": "南直、东行人",
+            "green_time_s": 24,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 14,
+            "max_green_time_s": 60,
+            "greenTime": 24,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 14,
+            "maxGreenTime": 60,
+            "split_ratio": 0.1071,
+            "movement_key": null,
+            "current_timing": {
+              "green_time_s": 24,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 29
+            },
+            "optimized_timing": {
+              "green_time_s": 24,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 29
+            },
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
+            "movements": [
+              {
+                "movement_key": "d4_t2",
+                "movementKey": "d4_t2",
+                "label": "南进口直行",
+                "dir8No": 4,
+                "turnDirNo": 2,
+                "turnFlowTotal": 0.0,
+                "laneCount": 1,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              }
+            ],
+            "source_stage_atoms": [
+              "南直",
+              "东行人"
+            ],
+            "flow_combo": [
+              {
+                "turn_set": [
+                  "直"
+                ],
+                "f_dir8_no": "4",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "南",
+                "signal_atom": "南直",
+                "source_type": "",
+                "flow_type_no": 1,
+                "from_link_id": "",
+                "movement_key": "atom:南直:NA",
+                "flow_type_name": "机动车直行"
+              },
+              {
+                "turn_set": [],
+                "f_dir8_no": "2",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "东",
+                "signal_atom": "东行人",
+                "source_type": "",
+                "flow_type_no": 5,
+                "from_link_id": "",
+                "movement_key": "atom:东行人:NA",
+                "flow_type_name": "行人"
+              }
+            ],
+            "phase_saturation": 0.82
+          },
+          {
+            "phase_stage_id": "3",
+            "phase_stage_name": "南直、北直、北左、东行人、西行人",
+            "green_time_s": 38,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 20,
+            "max_green_time_s": 60,
+            "greenTime": 38,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 20,
+            "maxGreenTime": 60,
+            "split_ratio": 0.1696,
+            "movement_key": null,
+            "current_timing": {
+              "green_time_s": 33,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 38
+            },
+            "optimized_timing": {
+              "green_time_s": 38,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 43
+            },
+            "green_delta_s": 5,
+            "stage_delta_s": 5,
+            "movements": [
+              {
+                "movement_key": "d4_t2",
+                "movementKey": "d4_t2",
+                "label": "南进口直行",
+                "dir8No": 4,
+                "turnDirNo": 2,
+                "turnFlowTotal": 0.0,
+                "laneCount": 1,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              },
+              {
+                "movement_key": "d0_t2",
+                "movementKey": "d0_t2",
+                "label": "北进口直行",
+                "dir8No": 0,
+                "turnDirNo": 2,
+                "turnFlowTotal": 140.0,
+                "laneCount": 2,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              },
+              {
+                "movement_key": "d0_t1",
+                "movementKey": "d0_t1",
+                "label": "北进口左转",
+                "dir8No": 0,
+                "turnDirNo": 1,
+                "turnFlowTotal": 58.0,
+                "laneCount": 1,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              }
+            ],
+            "source_stage_atoms": [
+              "南直",
+              "北直",
+              "北左",
+              "东行人",
+              "西行人"
+            ],
+            "flow_combo": [
+              {
+                "turn_set": [
+                  "直"
+                ],
+                "f_dir8_no": "4",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "南",
+                "signal_atom": "南直",
+                "source_type": "",
+                "flow_type_no": 1,
+                "from_link_id": "",
+                "movement_key": "atom:南直:NA",
+                "flow_type_name": "机动车直行"
+              },
+              {
+                "turn_set": [
+                  "直"
+                ],
+                "f_dir8_no": "0",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "北",
+                "signal_atom": "北直",
+                "source_type": "",
+                "flow_type_no": 1,
+                "from_link_id": "",
+                "movement_key": "atom:北直:NA",
+                "flow_type_name": "机动车直行"
+              },
+              {
+                "turn_set": [
+                  "左"
+                ],
+                "f_dir8_no": "0",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "北",
+                "signal_atom": "北左",
+                "source_type": "",
+                "flow_type_no": 2,
+                "from_link_id": "",
+                "movement_key": "atom:北左:NA",
+                "flow_type_name": "机动车左转"
+              },
+              {
+                "turn_set": [],
+                "f_dir8_no": "2",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "东",
+                "signal_atom": "东行人",
+                "source_type": "",
+                "flow_type_no": 5,
+                "from_link_id": "",
+                "movement_key": "atom:东行人:NA",
+                "flow_type_name": "行人"
+              },
+              {
+                "turn_set": [],
+                "f_dir8_no": "6",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "西",
+                "signal_atom": "西行人",
+                "source_type": "",
+                "flow_type_no": 5,
+                "from_link_id": "",
+                "movement_key": "atom:西行人:NA",
+                "flow_type_name": "行人"
+              }
+            ],
+            "phase_saturation": 0.82,
+            "role": "target"
+          },
+          {
+            "phase_stage_id": "8",
+            "phase_stage_name": "北直、北左、西行人",
+            "green_time_s": 8,
+            "yellow_time_s": 3,
+            "all_red_time_s": 2,
+            "min_green_time_s": 14,
+            "max_green_time_s": 60,
+            "greenTime": 8,
+            "yellowTime": 3,
+            "allRedTime": 2,
+            "minGreenTime": 14,
+            "maxGreenTime": 60,
+            "split_ratio": 0.0357,
+            "movement_key": null,
+            "current_timing": {
+              "green_time_s": 8,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 13
+            },
+            "optimized_timing": {
+              "green_time_s": 8,
+              "yellow_time_s": 3,
+              "all_red_time_s": 2,
+              "stage_total_s": 13
+            },
+            "green_delta_s": 0,
+            "stage_delta_s": 0,
+            "movements": [
+              {
+                "movement_key": "d0_t2",
+                "movementKey": "d0_t2",
+                "label": "北进口直行",
+                "dir8No": 0,
+                "turnDirNo": 2,
+                "turnFlowTotal": 140.0,
+                "laneCount": 2,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              },
+              {
+                "movement_key": "d0_t1",
+                "movementKey": "d0_t1",
+                "label": "北进口左转",
+                "dir8No": 0,
+                "turnDirNo": 1,
+                "turnFlowTotal": 58.0,
+                "laneCount": 1,
+                "saturation": null,
+                "flow_available": true,
+                "source": null
+              }
+            ],
+            "source_stage_atoms": [
+              "北直",
+              "北左",
+              "西行人"
+            ],
+            "flow_combo": [
+              {
+                "turn_set": [
+                  "直"
+                ],
+                "f_dir8_no": "0",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "北",
+                "signal_atom": "北直",
+                "source_type": "",
+                "flow_type_no": 1,
+                "from_link_id": "",
+                "movement_key": "atom:北直:NA",
+                "flow_type_name": "机动车直行"
+              },
+              {
+                "turn_set": [
+                  "左"
+                ],
+                "f_dir8_no": "0",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "北",
+                "signal_atom": "北左",
+                "source_type": "",
+                "flow_type_no": 2,
+                "from_link_id": "",
+                "movement_key": "atom:北左:NA",
+                "flow_type_name": "机动车左转"
+              },
+              {
+                "turn_set": [],
+                "f_dir8_no": "6",
+                "source_key": "",
+                "vendor_tag": "",
+                "f_dir8_name": "西",
+                "signal_atom": "西行人",
+                "source_type": "",
+                "flow_type_no": 5,
+                "from_link_id": "",
+                "movement_key": "atom:西行人:NA",
+                "flow_type_name": "行人"
+              }
+            ],
+            "phase_saturation": 0.82
+          }
+        ],
+        "target_stage_index": 5,
+        "donor_stage_index": 0,
+        "requested_target_green_delta_s": 5,
+        "target_green_delta_s": 5,
+        "donor_green_delta_s": -5,
+        "available": true,
+        "gate": "verification_passed",
+        "label": "门控通过后拟实施",
+        "meta": {
+          "solver": "scipy_slsqp_document_model",
+          "target_saturation": 0.82,
+          "max_phase_saturation": 0.82,
+          "total_turn_flow_vph": 198.0,
+          "direction_intensity_list": [
+            {
+              "movementKey": "d6_t2",
+              "label": "西-直行",
+              "dir8No": 6,
+              "turnDirNo": 2,
+              "intensity": 0.82
+            },
+            {
+              "movementKey": "d2_t2",
+              "label": "东-直行",
+              "dir8No": 2,
+              "turnDirNo": 2,
+              "intensity": 0.82
+            },
+            {
+              "movementKey": "d2_t1",
+              "label": "东-左转",
+              "dir8No": 2,
+              "turnDirNo": 1,
+              "intensity": 0.82
+            },
+            {
+              "movementKey": "d6_t1",
+              "label": "西-左转",
+              "dir8No": 6,
+              "turnDirNo": 1,
+              "intensity": 0.82
+            },
+            {
+              "movementKey": "d4_t2",
+              "label": "南-直行",
+              "dir8No": 4,
+              "turnDirNo": 2,
+              "intensity": 0.82
+            },
+            {
+              "movementKey": "d0_t2",
+              "label": "北-直行",
+              "dir8No": 0,
+              "turnDirNo": 2,
+              "intensity": 0.82
+            },
+            {
+              "movementKey": "d0_t1",
+              "label": "北-左转",
+              "dir8No": 0,
+              "turnDirNo": 1,
+              "intensity": 0.82
+            }
+          ],
+          "notes": [
+            "使用文档 SQP 模型（20次多初值，seed=42）：各方向供需强度 I_dir 与目标强度 I_obj 综合偏差最小。",
+            "目标函数：min Σ[(1+(I/I_obj)³)·abs(I−I_obj)] + 10.000·std(I) + 20.000·Σmax(0,(I−I_obj)³)，共 7 个方向。",
+            "以下无流量数据车流已按现状放行时间比值推算虚拟流量（与最小绿虚拟流量取较大者参与求解）：西-直行 139vph（现状放行89s，平均比值2.17）、东-左转 50vph（现状放行32s，平均比值0.78）、西-左转 50vph（现状放行32s，平均比值0.78）、南-直行 89vph（现状放行57s，平均比值1.39）。",
+            "普通阶段最大绿已按原方案绿灯的1.3倍下限放宽（迟启/早断切片阶段除外）：西直、东直、南行人、北行人 60s→116s。",
+            "已启用搭接保形惩罚：以现状方案搭接深度比与组内绿信比为参照（深度权重 5.0、比例权重 5.0、容差 ±15%），识别迟启/早断结构 0 处、搭接组 1 个。",
+            "已对零流量阶段注入最小绿对应的虚拟流量，避免优化结果丢失服务。",
+            "存在阶段饱和度高于目标值，建议复核流量或放宽周期上限。"
+          ],
+          "data_quality": {
+            "current_timing_source": "pg_signal_plan",
+            "movement_source": "pg_turn_flow+pg_turn_saturation"
+          },
+          "target_periods": [
+            "16:30-19:30"
+          ],
+          "period_plan_no": "14",
+          "period_label": "晚高峰",
+          "period_match_method": "explicit_time_range_schedule_overlap"
+        }
+      },
+      "proposed_timing_source": "conditional_incremental_release"
     },
     "recommended_plan_id": "verification_plan",
     "recommendation": {
       "recommended_plan_id": "verification_plan",
-      "rationale": "当前北向南直行呈现高排队比与低绿灯利用率并存特征，表明瓶颈在于下游承接能力而非单纯绿灯不足。已接受的小步释放方案严格遵循‘防溢出优先’与‘供需匹配’原则，通过5秒级微调试探下游承载力，并内置下游排队比>0.9即回滚的安全护栏，完全契合用户‘避免加重下游拥堵’的核心约束及数据补盲策略要求。",
+      "rationale": "当前北向南直行处于溢出预警，直接下游具备承接余量，但放行效率异常尚未核验。推荐先验核验方案：维持现状配时，完成出口/检测/绿灯末端队列核验后再决定是否小步增绿。监测窗口内重点关注 永绥路与齐音路路口 排队比，超过 0.9 即回滚。",
       "execution_order": [
-        "确认下游奥体西路与解放东路路口余量及渠化匹配状态",
-        "执行北向南直行相位5秒增量测试",
-        "实时监测下游排队比与目标方向绿灯利用率变化",
+        "核验 永绥路与齐音路路口 出口通行与剩余蓄车空间",
+        "确认检测器有效性与绿灯末端目标队列",
+        "连续观察 5 个周期后再评估条件性小步增绿",
         "触发回滚条件时立即恢复原方案"
       ]
     },
@@ -22737,7 +24840,7 @@
       "行人或安全约束异常"
     ],
     "signal_source": "pg",
-    "optimizer_engine": "signal_optimization_engine",
+    "optimizer_engine": null,
     "all_guardrails_passed": true,
     "plan_status": "conditional",
     "executable": false,
@@ -22791,6 +24894,162 @@
         "result": "accepted | rejected | rolled_back",
         "expert_comment": ""
       }
+    },
+    "action_package": {
+      "available": true,
+      "road_profile": {
+        "labels": [
+          "城市次干道",
+          "城市主干道"
+        ],
+        "groups": [
+          "主干路",
+          "次干路"
+        ],
+        "primary_group": "主干路",
+        "is_small_road_context": false,
+        "is_arterial_context": true,
+        "mix_summary": "城市次干道／城市主干道"
+      },
+      "decision_mode": "verify_then_adjust",
+      "mechanism": "discharge_anomaly",
+      "schemes": {
+        "signal_control": [
+          {
+            "kind": "timing",
+            "action": "目标相位（北向南直行）绿灯 +5s",
+            "where": "解放东路与齐川路路口",
+            "green_delta_s": 5,
+            "gate": "verification_passed",
+            "executable_now": false
+          },
+          {
+            "kind": "timing",
+            "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+            "where": "解放东路与齐川路路口",
+            "green_delta_s": -5,
+            "gate": "verification_passed",
+            "executable_now": false
+          },
+          {
+            "kind": "timing",
+            "action": "信号周期 ±0s",
+            "where": "解放东路与齐川路路口",
+            "cycle_delta_s": 0
+          },
+          {
+            "kind": "gate",
+            "action": "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录",
+            "where": "解放东路与齐川路路口"
+          },
+          {
+            "kind": "monitor",
+            "action": "试验 5 周期；永绥路与齐音路路口排队比>0.9 立即回滚原方案",
+            "where": "永绥路与齐音路路口"
+          }
+        ],
+        "organization": [
+          {
+            "kind": "organization",
+            "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+            "where": "解放东路与齐川路路口"
+          },
+          {
+            "kind": "organization",
+            "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+            "where": "解放东路与齐川路路口"
+          },
+          {
+            "kind": "organization",
+            "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+            "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+          }
+        ],
+        "management": [
+          {
+            "kind": "management",
+            "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+            "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+          },
+          {
+            "kind": "management",
+            "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+            "where": "解放东路与齐川路路口"
+          },
+          {
+            "kind": "management",
+            "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+            "where": "解放东路与齐川路路口"
+          }
+        ]
+      },
+      "layers": {
+        "proposed_timing": [
+          {
+            "kind": "timing",
+            "action": "目标相位（北向南直行）绿灯 +5s",
+            "where": "解放东路与齐川路路口",
+            "green_delta_s": 5,
+            "gate": "verification_passed",
+            "executable_now": false
+          },
+          {
+            "kind": "timing",
+            "action": "非目标最长相位绿灯 -5s（相位内借绿）",
+            "where": "解放东路与齐川路路口",
+            "green_delta_s": -5,
+            "gate": "verification_passed",
+            "executable_now": false
+          },
+          {
+            "kind": "timing",
+            "action": "信号周期 ±0s",
+            "where": "解放东路与齐川路路口",
+            "cycle_delta_s": 0
+          }
+        ],
+        "organization": [
+          {
+            "kind": "organization",
+            "action": "核查并优化北向南直行进口车道功能（直/左/直右）与高峰流量匹配",
+            "where": "解放东路与齐川路路口"
+          },
+          {
+            "kind": "organization",
+            "action": "高峰时段评估可变导向车道或临时借道组织，减少绿灯放空",
+            "where": "解放东路与齐川路路口"
+          },
+          {
+            "kind": "organization",
+            "action": "核对解放东路与齐川路路口至永绥路与齐音路路口走廊车队到达与相位差是否错峰",
+            "where": "解放东路与齐川路路口—永绥路与齐音路路口"
+          }
+        ],
+        "management": [
+          {
+            "kind": "management",
+            "action": "晚高峰对北向南直行出口及永绥路与齐音路路口进口开展视频巡检，清除违停占道",
+            "where": "解放东路与齐川路路口出口 / 永绥路与齐音路路口"
+          },
+          {
+            "kind": "management",
+            "action": "加强机非隔离与借道冲突劝导，保障绿灯有效放行",
+            "where": "解放东路与齐川路路口"
+          },
+          {
+            "kind": "management",
+            "action": "同步核对检测器工作状态，异常立即报修，避免误导配时加绿",
+            "where": "解放东路与齐川路路口"
+          }
+        ]
+      },
+      "headline": "目标相位（北向南直行）绿灯 +5s；非目标最长相位绿灯 -5s（相位内借绿）；信号周期 ±0s",
+      "execution_order": [
+        "目标相位（北向南直行）绿灯 +5s",
+        "非目标最长相位绿灯 -5s（相位内借绿）",
+        "信号周期 ±0s",
+        "下发前完成：出口畅通核验、检测有效、绿灯末端队列记录"
+      ]
     }
   },
   "phase_results": [

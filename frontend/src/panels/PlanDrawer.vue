@@ -26,25 +26,54 @@ const selected = computed<PlanCandidate | null>(() => {
   return candidates.value.find((c) => c.plan_id === id) ?? (store.plan?.recommended as PlanCandidate) ?? candidates.value[0] ?? null
 })
 const hasTiming = computed(() => Boolean(selected.value?.timing?.cycle_s && selected.value?.timing?.phase_stage_timing_list?.length))
+
+type SchemeItem = { action?: string; where?: string; kind?: string; target?: string }
+type ActionPackage = {
+  schemes?: {
+    signal_control?: SchemeItem[]
+    organization?: SchemeItem[]
+    management?: SchemeItem[]
+  }
+  execution_order?: string[]
+}
+
 function strategyItemText(item: unknown): string {
   if (item && typeof item === 'object') {
     const row = item as Record<string, unknown>
     const action = String(row.action ?? row.title ?? row.name ?? '').trim()
-    const target = String(row.target_node ?? row.target ?? '').trim()
-    return [action, target ? `实施位置：${target}` : ''].filter(Boolean).join('；')
+    const target = String(row.target_node ?? row.target ?? row.where ?? '').trim()
+    return [action, target && !action.includes(target) ? `位置：${target}` : ''].filter(Boolean).join('；')
   }
   const raw = String(item ?? '').trim()
   if (!raw.startsWith('{')) return productCopy(raw)
-  // 模型偶尔把结构化策略以 Python 字典字符串返回，只展示其中的业务含义。
   const action = raw.match(/["']action["']\s*:\s*["']([^"']+)["']/)?.[1] ?? ''
-  const target = raw.match(/["']target_node["']\s*:\s*["']([^"']+)["']/)?.[1] ?? ''
-  if (action || target) return [action, target ? `实施位置：${target}` : ''].filter(Boolean).join('；')
+  const target = raw.match(/["'](?:target_node|where)["']\s*:\s*["']([^"']+)["']/)?.[1] ?? ''
+  if (action || target) return [action, target ? `位置：${target}` : ''].filter(Boolean).join('；')
   return '按方案要求执行并持续监测关键指标'
 }
+
+function schemeActions(items: SchemeItem[] | undefined): string[] {
+  return (items ?? [])
+    .map((item) => productCopy(strategyItemText(item)))
+    .filter(Boolean)
+    .slice(0, 6)
+}
+
+const actionPackage = computed(
+  () =>
+    (store.plan as { action_package?: ActionPackage } | null)?.action_package ??
+    (store.strategy as { action_package?: ActionPackage } | null)?.action_package ??
+    null,
+)
+const signalControlItems = computed(() => schemeActions(actionPackage.value?.schemes?.signal_control))
+const organizationItems = computed(() => schemeActions(actionPackage.value?.schemes?.organization))
+const managementItems = computed(() => schemeActions(actionPackage.value?.schemes?.management))
 const strategyItems = computed(() => {
-  const fromStrategy = store.strategy?.strategy?.recommended ?? []
-  const fromPlan = selected.value?.execution_order ?? []
-  return [...fromStrategy, ...fromPlan].filter(Boolean).map((item) => productCopy(strategyItemText(item))).filter(Boolean).slice(0, 6)
+  if (actionPackage.value?.schemes) return []
+  return (selected.value?.execution_order ?? [])
+    .map((item) => productCopy(strategyItemText(item)))
+    .filter(Boolean)
+    .slice(0, 6)
 })
 const redLines = computed(() => {
   const constraints = store.strategy?.strategy?.hard_constraints ?? []
@@ -158,16 +187,31 @@ async function onReject() {
               <li v-if="trialLoop.direct_downstream_inter_name">
                 监测下游：{{ trialLoop.direct_downstream_inter_name }}
               </li>
-              <li v-for="(m, i) in (trialLoop.monitoring_metrics || []).slice(0, 4)" :key="`m-${i}`">
-                监测：{{ m }}
-              </li>
-              <li v-for="(r, i) in (trialLoop.rollback_rules || []).slice(0, 3)" :key="`r-${i}`">
+              <li v-for="(r, i) in (trialLoop.rollback_rules || []).slice(0, 2)" :key="`r-${i}`">
                 回滚：{{ productCopy(String(r)) }}
               </li>
             </ul>
           </div>
+          <div v-if="signalControlItems.length" class="list-box" data-testid="scheme-signal-control">
+            <span class="kpi__k">信控方案</span>
+            <ul>
+              <li v-for="(item, i) in signalControlItems" :key="`sc-${i}`">{{ item }}</li>
+            </ul>
+          </div>
+          <div v-if="organizationItems.length" class="list-box" data-testid="scheme-organization">
+            <span class="kpi__k">交通组织优化</span>
+            <ul>
+              <li v-for="(item, i) in organizationItems" :key="`org-${i}`">{{ item }}</li>
+            </ul>
+          </div>
+          <div v-if="managementItems.length" class="list-box" data-testid="scheme-management">
+            <span class="kpi__k">交通管理建议</span>
+            <ul>
+              <li v-for="(item, i) in managementItems" :key="`mgmt-${i}`">{{ item }}</li>
+            </ul>
+          </div>
           <div v-if="strategyItems.length" class="list-box">
-            <span class="kpi__k">执行策略</span>
+            <span class="kpi__k">执行动作</span>
             <ul>
               <li v-for="(item, i) in strategyItems" :key="i">{{ item }}</li>
             </ul>

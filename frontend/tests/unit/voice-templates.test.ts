@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACT_DEFS, summaryFor } from '@/composables/useTimeline'
+import { ACT_DEFS } from '@/composables/useTimeline'
 import { composeVoiceAnnounce, renderVoiceTemplate, VOICE_TEMPLATES, voiceMethodFor } from '@/config/voiceTemplates'
 import { voiceSlotsForAct } from '@/services/voiceSlotFillers'
 import { buildVoiceCue, voiceTextForAct } from '@/services/voiceStepSync'
@@ -87,15 +87,41 @@ describe('voice templates', () => {
     if (narrative) expect(text).not.toContain(narrative)
   })
 
-  it('strategy and plan acts omit voice conclusion', () => {
-    for (const id of ['act8_strategy', 'act9_plan'] as const) {
-      const act = ACT_DEFS.find((item) => item.id === id)!
-      const text = voiceTextForAct(act, fx)
-      const summary = summaryFor(act, fx)
-
-      expect(text).not.toContain('核心结论')
-      expect(text).not.toContain(summary)
+  it('attribution act voice prefers overflow mechanism when present', () => {
+    const act = ACT_DEFS.find((item) => item.id === 'act4_attribution')!
+    const withMech: RunResponse = {
+      ...fx,
+      phases: {
+        ...fx.phases,
+        diagnosis: {
+          ...(fx.phases?.diagnosis ?? {}),
+          overflow_mechanism: { primary: 'discharge_anomaly', status: 'hypothesis' },
+        } as RunResponse['phases']['diagnosis'],
+        cause: {
+          ...(fx.phases?.cause ?? {}),
+          overflow_mechanism: { primary: 'discharge_anomaly', status: 'hypothesis' },
+          cause_analysis: {
+            ...(fx.phases?.cause?.cause_analysis ?? {}),
+            primary_cause: '信号控制不当',
+          },
+        } as RunResponse['phases']['cause'],
+      },
     }
+    const text = voiceTextForAct(act, withMech)
+    expect(text).toContain('放行效率异常，待核验')
+    expect(text).not.toContain('信号控制不当')
+  })
+
+  it('strategy and plan acts include voice conclusion aligned with decision contract', () => {
+    const strategyAct = ACT_DEFS.find((item) => item.id === 'act8_strategy')!
+    const planAct = ACT_DEFS.find((item) => item.id === 'act9_plan')!
+    const strategyText = voiceTextForAct(strategyAct, fx)
+    const planText = voiceTextForAct(planAct, fx)
+
+    expect(strategyText).toContain('治理策略与边界约束')
+    expect(strategyText).not.toContain('干线联控约束')
+    expect(planText).toContain('配时方案生成')
+    expect(planText).not.toContain('核心结论')
   })
 
   it('feedback act has no voice cue', () => {
@@ -132,7 +158,7 @@ describe('voice templates', () => {
     const act = ACT_DEFS.find((item) => item.id === 'act4_attribution')!
     const text = voiceTextForAct(act, fx)
     expect(text).toContain('归因分析')
-    expect(text).toContain('证据核验之后')
+    expect(text).toContain('证据核验基础上')
   })
 })
 

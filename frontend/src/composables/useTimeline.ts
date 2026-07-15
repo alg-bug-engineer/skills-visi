@@ -110,7 +110,6 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
       )
     case 'act3_overflow':
       return lines(
-        ...domainIntroFor('act3_overflow'),
         `指标研判：排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${ratio(saturationOf(diag?.metrics))}｜绿灯利用率 ${ratio(diag?.metrics?.green_utilization)}`,
         diag?.healthy
           ? '结论：各项指标均在正常区间，路口运行平稳、无溢出风险，无需干预'
@@ -128,13 +127,21 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         upstream_arrival_shock: '上游冲击',
         evidence_insufficient: '证据不足',
       }
+      const primary = cause?.cause_analysis?.primary_cause
+      const narrative = cause?.cause_analysis?.narrative
+      if (mech) {
+        return lines(
+          `溢出机制：${mechLabel[mech] ?? mech}`,
+          narrative && `说明：${productCopy(narrative)}`,
+          !narrative &&
+            primary &&
+            primary !== (mechLabel[mech] ?? mech) &&
+            `次因线索：${productCopy(primary)}`,
+        )
+      }
       return lines(
-        ...domainIntroFor('act4_attribution'),
-        mech && `溢出机制：${mechLabel[mech] ?? mech}`,
-        cause?.cause_analysis?.primary_cause && `解释：${cause.cause_analysis.primary_cause}`,
-        cause?.cause_ranking?.[0]?.cause &&
-          cause.cause_ranking[0].cause !== cause?.cause_analysis?.primary_cause &&
-          `辅因：${cause.cause_ranking[0].cause}`,
+        primary && `主因：${productCopy(primary)}`,
+        narrative && `说明：${productCopy(narrative)}`,
       )
     }
     case 'act5_bottleneck': {
@@ -163,18 +170,20 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
           `下游 ${pd.inter_name}：饱和度 ${ratio(dm?.saturation_rate ?? dm?.saturation)}｜服务水平 ${dm?.level_of_service ?? '—'}${storage}`,
         slackLine,
         !slackLine && `结论：${downstreamConclusion(dd)}`,
+        ds?.decision === 'slack' &&
+          '绿灯调节路径：下游有余量 → 先核验目标放行效率，核验通过后再评估小步增绿',
+        ds?.decision === 'blocked' &&
+          '绿灯调节路径：下游承接收紧 → 优先下游保护，不宜本路口直接拉长绿灯',
       )
     }
     case 'act6_corridor':
       return lines(
-        ...domainIntroFor('act6_corridor'),
         diag?.arterial_analysis?.upstream_arrival_flow_vph != null &&
           `上游到达流量 ${meters(diag.arterial_analysis.upstream_arrival_flow_vph)}，正在比对放行强度与干线瓶颈位置`,
         diag?.arterial_analysis?.summary && `结论：${diag.arterial_analysis.summary}`,
       )
     case 'act7_cases':
       return lines(
-        ...domainIntroFor('act7_cases'),
         cause?.case_cards?.matched_count != null &&
           `案例校验：匹配同类案例 ${cause.case_cards.matched_count} 个，高度相似 ${cause.case_cards.high_similarity_count ?? 0} 个`,
       )
@@ -183,30 +192,33 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         ?.decision
       return lines(
         ...domainIntroFor('act8_strategy'),
-        decision?.decision_mode === 'verify_then_adjust' && '治理决策：先验后调',
+        decision?.decision_mode === 'verify_then_adjust' &&
+          '治理决策：先验后调｜绿灯路径 = 核验通过 → 目标有效绿小步增加（周期尽量不变）',
+        decision?.decision_mode === 'protect_downstream' &&
+          '治理决策：下游保护｜绿灯路径 = 本路口保守放行或不增绿',
+        decision?.decision_mode &&
+          !['verify_then_adjust', 'protect_downstream'].includes(decision.decision_mode) &&
+          `治理决策：${productCopy(decision.decision_mode)}`,
         decision?.reason && `说明：${productCopy(decision.reason)}`,
-        strategy?.strategy_package && `策略包：${t('strategy_package', strategy.strategy_package)}`,
-        strategy?.strategy?.principles?.[0] && `原则：${strategy.strategy.principles[0]}`,
-        strategy?.strategy?.hard_constraints?.[0] && `红线：${strategy.strategy.hard_constraints[0]}`,
-        strategy?.strategy?.coordination_scope &&
-          `协调范围：${productCopy(strategy.strategy.coordination_scope)}`,
+        strategy?.strategy?.hard_constraints?.[0] &&
+          `红线：${productCopy(String(strategy.strategy.hard_constraints[0]))}`,
       )
     }
     case 'act9_plan': {
-      const trial = (plan as { trial_loop?: { observation_cycles?: number; executable?: boolean } } | undefined)
-        ?.trial_loop
-      const executable = (plan as { executable?: boolean } | undefined)?.executable ?? plan?.recommended?.executable
-      const planStatus = (plan as { plan_status?: string } | undefined)?.plan_status ?? plan?.recommended?.plan_status
+      const planId = plan?.recommendation?.recommended_plan_id
+      const pkg = (plan as { action_package?: { schemes?: { signal_control?: Array<{ action?: string }> } } } | undefined)
+        ?.action_package
+      const phaseLines = (pkg?.schemes?.signal_control || [])
+        .map((x) => x?.action)
+        .filter((t): t is string => Boolean(t && /绿灯|[+\-±]\d+s|周期/.test(t)))
+        .slice(0, 3)
       return lines(
-        ...domainIntroFor('act9_plan'),
-        planStatus === 'conditional' && '方案状态：条件性方案，当前不可直接执行',
-        executable === false && '执行前提未满足：需完成出口、检测与绿灯末端队列核验',
-        plan?.recommendation?.recommended_plan_id &&
-          `推荐方案：${translatePlanId(plan.recommendation.recommended_plan_id)}`,
-        trial?.observation_cycles != null && `监测窗口：连续观察 ${trial.observation_cycles} 个周期`,
-        plan?.all_guardrails_passed != null &&
-          `护栏校验：${plan.all_guardrails_passed ? '最小绿、周期与协调约束全部通过' : '存在未通过项，需人工复核'}`,
-        plan?.recommendation?.rationale && `推荐理由：${productCopy(plan.recommendation.rationale)}`,
+        planId && `推荐：${translatePlanId(planId)}`,
+        phaseLines.length > 0 && `信控：${phaseLines.join('；')}`,
+        !phaseLines.length &&
+          planId === 'verification_plan' &&
+          '信控：目标相位 +5s，借绿相位 −5s，周期 ±0s（门控后下发）',
+        plan?.executable === false && '状态：条件性，过闸前不下发',
       )
     }
     case 'act10_feedback':
@@ -240,22 +252,45 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
     case 'act3_overflow':
       if (diag?.healthy) return '运行平稳，无溢出风险，无需干预'
       return productCopy(diag?.overflow_verification?.message ?? `排队比 ${ratio(diag?.metrics?.queue_ratio)}，饱和度 ${ratio(saturationOf(diag?.metrics))}`)
-    case 'act4_attribution':
+    case 'act4_attribution': {
+      const mech = (cause as { overflow_mechanism?: { primary?: string } } | undefined)?.overflow_mechanism
+        ?.primary
+      if (mech === 'discharge_anomaly') {
+        return productCopy(cause?.cause_analysis?.narrative ?? '溢出机制：放行效率异常，待核验')
+      }
       return productCopy(cause?.cause_analysis?.primary_cause ?? '归因分析完成')
-    case 'act5_bottleneck':
+    }
+    case 'act5_bottleneck': {
+      const ds = (diag as { downstream_state?: { decision?: string; direct_downstream_inter_name?: string } } | undefined)
+        ?.downstream_state
+      if (ds?.decision === 'slack') {
+        return productCopy(
+          `${ds.direct_downstream_inter_name || '直接下游'}初步有承接余量，先核验目标放行效率`,
+        )
+      }
+      if (ds?.decision === 'blocked') {
+        return productCopy(`${ds.direct_downstream_inter_name || '直接下游'}承接受限，优先下游保护`)
+      }
       return productCopy(downstreamConclusion(diag?.downstream_diagnosis))
+    }
     case 'act6_corridor':
       return productCopy(diag?.arterial_analysis?.summary ?? '干线溯源完成')
     case 'act7_cases':
       return cause?.case_cards?.matched_count != null
         ? `匹配案例 ${cause.case_cards.matched_count} 个`
         : '案例校验完成'
-    case 'act8_strategy':
+    case 'act8_strategy': {
+      const decision = (strategy as { decision?: { decision_mode?: string; reason?: string } } | undefined)?.decision
+      if (decision?.decision_mode === 'verify_then_adjust') {
+        return productCopy(decision.reason || '先验后调：核验通过后再小步增绿')
+      }
       return productCopy(strategy?.strategy?.principles?.[0] ?? '策略推荐完成')
-    case 'act9_plan':
-      return plan?.recommendation?.recommended_plan_id
-        ? `推荐方案 ${translatePlanId(plan.recommendation.recommended_plan_id)}`
-        : '方案生成完成'
+    }
+    case 'act9_plan': {
+      const planId = plan?.recommendation?.recommended_plan_id
+      if (planId === 'verification_plan') return '先验核验方案，维持现状配时'
+      return planId ? `推荐方案 ${translatePlanId(planId)}` : '方案生成完成'
+    }
     case 'act10_feedback':
       return '等待方案确认或退回修改'
     default:

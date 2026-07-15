@@ -15,14 +15,15 @@ const strategy = computed(() => store.strategy?.strategy ?? null)
 const refBasis = computed(() => store.strategy?.reference_basis ?? null)
 const experienceContrast = computed(() => store.strategy?.experience_contrast ?? null)
 
-/** 治理建议要点：原则优先，回落到推荐项，去重后取前 3 条。 */
+/** 治理建议要点：原则优先，回落到推荐项，去重后取前 3 条；过滤演示性分析文案。 */
 const points = computed<string[]>(() => {
+  const blocked = /分析亮点|道路等级画像|本例价值|眼前一亮|三叉诊断/
   const src = [...(strategy.value?.principles ?? []), ...(strategy.value?.recommended ?? [])]
   const seen = new Set<string>()
   const out: string[] = []
   for (const raw of src) {
     const s = productCopy(raw)
-    if (!s || seen.has(s)) continue
+    if (!s || seen.has(s) || blocked.test(s)) continue
     seen.add(s)
     out.push(s)
     if (out.length >= 3) break

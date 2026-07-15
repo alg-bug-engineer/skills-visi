@@ -8,6 +8,24 @@ _PACKAGE_LABELS = {
     "downstream_protection": "下游保护方案",
     "incremental_release": "小步释放方案",
     "arterial_coordination": "干线联控方案",
+    "verification_plan": "先验核验方案",
+}
+
+_CAUSE_DIM_LABELS = {
+    "demand": "交通需求压力",
+    "supply": "通行供给不足",
+    "control": "信号控制不当",
+    "order": "交通秩序干扰",
+    "event": "事件与阻塞",
+    "coordination": "协调联动不足",
+}
+
+_MECHANISM_LABELS = {
+    "downstream_blocked": "下游回堵",
+    "local_release_insufficient": "本路口放行不足",
+    "discharge_anomaly": "放行效率异常，待核验",
+    "upstream_arrival_shock": "上游冲击",
+    "evidence_insufficient": "证据不足，待补盲",
 }
 
 
@@ -94,11 +112,34 @@ def build_experience_contrast(
     if not isinstance(scores, dict):
         scores = cause.get("cause_scores") if isinstance(cause.get("cause_scores"), dict) else {}
 
-    primary = _clean(cause_analysis.get("primary_cause"))
+    mechanism = (
+        (diagnosis.get("overflow_mechanism") or {}).get("primary")
+        or (cause.get("overflow_mechanism") or {}).get("primary")
+    )
+    primary = _MECHANISM_LABELS.get(str(mechanism)) if mechanism else None
+    primary = primary or _clean(cause_analysis.get("primary_cause"))
     top_score_cause = None
     if scores:
-        top_score_cause = max(scores, key=lambda k: float(scores.get(k) or 0))
-    baseline_cause = top_score_cause or (ranking[0].get("cause") if ranking and isinstance(ranking[0], dict) else None)
+        top_key = max(scores, key=lambda k: float(scores.get(k) or 0))
+        top_score_cause = _CAUSE_DIM_LABELS.get(str(top_key), top_key)
+    baseline_cause = top_score_cause or (
+        ranking[0].get("cause") if ranking and isinstance(ranking[0], dict) else None
+    )
+    if baseline_cause in _CAUSE_DIM_LABELS:
+        baseline_cause = _CAUSE_DIM_LABELS[str(baseline_cause)]
+
+    decision = strategy.get("decision") if isinstance(strategy.get("decision"), dict) else {}
+    if decision.get("decision_mode") == "verify_then_adjust":
+        # 先验后调场景：策略对照应强调核验后再增绿，而非直接小步释放包装名
+        if items and items[0].get("dimension") == "策略选择":
+            items[0]["with_experience"] = {
+                **(items[0].get("with_experience") or {}),
+                "summary": "先验后调 → 核验通过后再小步增绿",
+            }
+            items[0]["without_experience"] = {
+                "summary": "仅依赖实时指标可能直接小步释放",
+                "source": "package_scores",
+            }
 
     if primary or baseline_cause:
         diag_refs = [_ref_from_experience(r) for r in exp_refs if r.get("experience_type") == "diagnostic"][:3]

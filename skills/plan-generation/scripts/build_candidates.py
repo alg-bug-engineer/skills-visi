@@ -137,7 +137,7 @@ def build_plan_candidates(
 
         timing_source = "adjust_phase_timing"
         optimizer_degraded_reason: str | None = None
-        if run_single_point_optimizer is not None:
+        if plan_id != "verification_plan" and run_single_point_optimizer is not None:
             optimized = run_single_point_optimizer(
                 signal=signal,
                 ticket=ticket,
@@ -161,6 +161,40 @@ def build_plan_candidates(
                     reason=optimizer_degraded_reason or "优化器结果退化，无法生产级展示",
                     missing_fields=optimized.get("missing_fields"),
                 )
+
+        proposed_timing: dict[str, Any] | None = None
+        if plan_id == "verification_plan":
+            # 现状门控外，另挂一门控后拟实施借绿预览（绿差读实际计算结果，禁止用 instruction 盖写）
+            trial_instr = build_strategy_instruction(strategy, "conditional_incremental_release")
+            trial = adjust_phase_timing(
+                signal=signal,
+                strategy_instruction=trial_instr,
+                ticket=ticket,
+                diagnosis=diagnosis,
+            )
+            if trial.get("ok"):
+                timing_body = dict(trial.get("timing") or {})
+                proposed_timing = {
+                    **timing_body,
+                    "available": True,
+                    "gate": "verification_passed",
+                    "label": "门控通过后拟实施",
+                    "requested_target_green_delta_s": int(trial_instr.get("target_green_delta") or 5),
+                }
+            else:
+                proposed_timing = {
+                    "available": False,
+                    "gate": "verification_passed",
+                    "label": "门控通过后拟实施",
+                    "reason": trial.get("reason") or "未能生成拟实施借绿配时",
+                    "target_green_delta_s": 0,
+                    "donor_green_delta_s": 0,
+                    "cycle_delta_s": 0,
+                }
+            timing_source = "baseline_no_change"
+            adjusted["timing"] = _mark_verification_baseline_timing(adjusted.get("timing") or {}, signal)
+            if adjusted["timing"].get("cycle_s") is not None:
+                adjusted["cycle_s"] = adjusted["timing"]["cycle_s"]
 
         plan_body = {
             **draft,
@@ -278,8 +312,66 @@ def build_plan_candidates(
             candidate["plan_status"] = draft_status
         if draft_executable is not None:
             candidate["executable"] = draft_executable
+        if proposed_timing is not None:
+            candidate["proposed_timing"] = proposed_timing
+            candidate["proposed_timing_source"] = "conditional_incremental_release"
         candidates.append(candidate)
     return candidates, optimizer_engine
+
+
+def _mark_verification_baseline_timing(
+    timing: dict[str, Any],
+    signal: dict[str, Any],
+) -> dict[str, Any]:
+    """核验方案维持现状配时，禁止展示优化器周期变化。"""
+    stages = timing.get("phase_stage_timing_list") or []
+    if not stages:
+        current_cycle = _as_dict(signal).get("current_cycle_s")
+        return {
+            **timing,
+            "available": True,
+            "current_cycle_s": current_cycle,
+            "cycle_s": current_cycle,
+            "cycle_delta_s": 0,
+            "verification_baseline": True,
+        }
+    normalized: list[dict[str, Any]] = []
+    for stage in stages:
+        row = dict(stage)
+        current = _as_dict(row.get("current_timing"))
+        if current:
+            row["optimized_timing"] = dict(current)
+            row["green_time_s"] = current.get("green_time_s", row.get("green_time_s"))
+            row["green_delta_s"] = 0
+            row["stage_delta_s"] = 0
+        else:
+            row["green_delta_s"] = 0
+            row["stage_delta_s"] = 0
+        normalized.append(row)
+    current_cycle = timing.get("current_cycle_s") or _sum_cycle_from_stages(normalized)
+    return {
+        **timing,
+        "available": True,
+        "phase_stage_timing_list": normalized,
+        "current_cycle_s": current_cycle,
+        "cycle_s": current_cycle,
+        "cycle_delta_s": 0,
+        "verification_baseline": True,
+    }
+
+
+def _sum_cycle_from_stages(stages: list[dict[str, Any]]) -> int | None:
+    total = 0
+    for stage in stages:
+        ct = _as_dict(stage.get("current_timing"))
+        if ct.get("stage_total_s") is not None:
+            total += int(float(ct["stage_total_s"]))
+            continue
+        for key in ("green_time_s", "yellow_time_s", "all_red_time_s"):
+            if stage.get(key) is not None:
+                total += int(stage[key])
+                break
+    return total or None
 
 
 def _mark_timing_unavailable(

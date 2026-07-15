@@ -540,6 +540,7 @@ export interface PlanTimingEvidence {
   current_cycle_s?: number | null
   cycle_s?: number | null
   cycle_delta_s?: number | null
+  verification_baseline?: boolean
   phase_stage_timing_list?: PhaseStageTiming[]
   meta?: OptimizationMeta | null
 }

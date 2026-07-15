@@ -415,6 +415,14 @@ def analyze_overflow(
         else {}
     )
     downstream_metrics_raw = primary_downstream.get("metrics") or {}
+    downstream_state = downstream_trace.get("downstream_state")
+    if not isinstance(downstream_state, dict):
+        downstream_state = decide_downstream_state(
+            saturation=downstream_metrics_raw.get("saturation_rate"),
+            queue_ratio=downstream_metrics_raw.get("queue_storage_ratio_max"),
+            direct_downstream_inter_id=primary_downstream.get("inter_id"),
+            direct_downstream_inter_name=primary_downstream.get("inter_name"),
+        )
     bottleneck = classify_release_bottleneck(
         target_saturation=saturation or 0,
         target_green_utilization=metrics_input.get("green_utilization", 0),
@@ -447,6 +455,7 @@ def analyze_overflow(
                 target_profile=target_profile,
                 downstream_trace=downstream_trace,
                 bottleneck=bottleneck,
+                downstream_state=downstream_state,
             )
             map_scenes["downstream_trace_map"] = build_downstream_map_scene(
                 downstream_trace=downstream_trace,
@@ -466,14 +475,6 @@ def analyze_overflow(
     approach_count = len(by_approach) or (scope or {}).get("leg_count") or None
     lane_count = _distinct_lane_count(pg_raw or {}, scope or {})
 
-    downstream_state = downstream_trace.get("downstream_state")
-    if not isinstance(downstream_state, dict):
-        downstream_state = decide_downstream_state(
-            saturation=downstream_metrics_raw.get("saturation_rate"),
-            queue_ratio=downstream_metrics_raw.get("queue_storage_ratio_max"),
-            direct_downstream_inter_id=primary_downstream.get("inter_id"),
-            direct_downstream_inter_name=primary_downstream.get("inter_name"),
-        )
     upstream_intensity = None
     if topology:
         upstream_intensity = topology.get("upstream_arrival_intensity")

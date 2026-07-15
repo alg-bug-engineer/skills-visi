@@ -27,6 +27,21 @@ def _load_script_module(script_name: str):
     return module
 
 
+def _load_script_module_from_strategy(script_name: str):
+    """跨 skill 加载策略侧动作包脚本（同仓相对路径）。"""
+    script_path = (
+        Path(__file__).resolve().parents[1] / "strategy-generation" / "scripts" / script_name
+    )
+    if not script_path.exists():
+        return None
+    spec = importlib.util.spec_from_file_location(script_name.replace(".py", ""), script_path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class PlanGenerationSkill(BaseSkill):
     async def run(self, context: SkillContext, **deps: Any) -> SkillResult:
         settings: Settings = deps.get("settings") or get_settings()
@@ -233,11 +248,71 @@ class PlanGenerationSkill(BaseSkill):
             ticket=ticket,
         )
 
+        action_mod = _load_script_module_from_strategy("build_action_package.py")
+        action_package = strategy.get("action_package")
+        if not isinstance(action_package, dict):
+            if action_mod is not None:
+                action_package = action_mod.build_action_package(
+                    diagnosis=diagnosis,
+                    strategy=strategy,
+                    ticket=ticket,
+                )
+            else:
+                action_package = {"available": False}
+
+        # 门控方案也要挂上「拟实施配时」预览：用条件增绿 instruction 生成，摘要读实际绿差
+        if recommended.get("plan_id") == "verification_plan":
+            trial_instr = adjust_module.build_strategy_instruction(strategy, "conditional_incremental_release")
+            proposed = adjust_module.adjust_phase_timing(
+                signal=signal_resolved["signal"],
+                strategy_instruction=trial_instr,
+                ticket=ticket,
+                diagnosis=diagnosis,
+            )
+            if proposed.get("ok"):
+                recommended["proposed_timing"] = adjust_module.attach_proposed_timing_fields(
+                    proposed.get("timing") or {},
+                    requested_target_green_delta=int(trial_instr.get("target_green_delta") or 5),
+                )
+                recommended["proposed_timing_source"] = "conditional_incremental_release"
+                if action_mod is not None and isinstance(action_package, dict):
+                    action_package = action_mod.enrich_signal_control_from_timing(
+                        action_package,
+                        recommended["proposed_timing"],
+                    )
+            else:
+                recommended["proposed_timing"] = {
+                    "available": False,
+                    "gate": "verification_passed",
+                    "label": "门控通过后拟实施",
+                    "reason": proposed.get("reason") or "未能生成拟实施借绿配时",
+                    "target_green_delta_s": 0,
+                    "donor_green_delta_s": 0,
+                    "cycle_delta_s": 0,
+                }
+                recommended["proposed_timing_source"] = "adjust_failed"
+
+        if isinstance(action_package, dict) and action_package.get("available"):
+            recommended["action_package"] = action_package
+            # 对外执行顺序：信控相位加减优先，再组织/管理，控制长度
+            schemes = action_package.get("schemes") or {}
+            merged_order: list[str] = []
+            for key in ("signal_control", "organization", "management"):
+                for item in schemes.get(key) or []:
+                    if isinstance(item, dict) and item.get("action"):
+                        merged_order.append(str(item["action"]))
+            recommended["execution_order"] = merged_order[:8]
+            llm_result = dict(llm_result)
+            llm_result["execution_order"] = recommended["execution_order"]
+            # 旁白只用短标题，禁止把长 rationale 打进打字机
+            llm_result["rationale"] = action_package.get("headline") or "已生成信控/组织/管理三类方案"
+
         output = {
             "candidates": candidates,
             "recommended": recommended,
             "recommended_plan_id": recommended["plan_id"],
             "recommendation": llm_result,
+            "action_package": action_package,
             "all_guardrails_passed": all_candidates_passed,
             "has_feasible_candidate": has_feasible_candidate,
             "all_candidates_passed": all_candidates_passed,

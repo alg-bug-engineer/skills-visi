@@ -143,6 +143,10 @@ def build_strategy_profile(
         or _hard_constraints(package, diagnosis)
     ) + quantitative["constraints"]
     recommended = _as_str_list(llm_strategy.get("recommended")) or _recommended_for_package(package)
+    direct_downstream = (diagnosis.get("downstream_state") or {}).get("direct_downstream_inter_name")
+    if direct_downstream:
+        hard_constraints = _sanitize_downstream_references(hard_constraints, direct_downstream)
+        recommended = _sanitize_downstream_references(recommended, direct_downstream)
     if decision and decision.get("decision_mode") == "verify_then_adjust":
         recommended = [
             "先验后调：先核验出口通行、检测有效性与绿灯末端队列",
@@ -153,12 +157,24 @@ def build_strategy_profile(
             "禁止在放行效率异常未核验时强行大幅增绿",
             *hard_constraints,
         ]
+        if direct_downstream:
+            hard_constraints = _replace_downstream_queue_constraint(
+                hard_constraints,
+                direct_downstream,
+            )
+        principles = [
+            "分层交付：即刻动作（现场/检测/渠化）+ 门控后默认配时试验，禁止只给核验空话",
+            "拟实施默认动作：目标流向有效绿 +5s（周期不变，相位内借绿），试验 5 周期",
+            "道路等级决定侧重点：干路看协调与微调控绿，小路优先组织/秩序/渠化",
+        ]
+    else:
+        principles = _as_str_list(llm_strategy.get("principles")) or instruction["principles"]
     profile = {
         "strategy_package": package,
         "package_scores": package_scores,
         "strategy_instruction": instruction,
         "strategy": {
-            "principles": _as_str_list(llm_strategy.get("principles")) or instruction["principles"],
+            "principles": principles,
             "not_recommended": _as_str_list(llm_strategy.get("not_recommended"))
             or instruction["not_recommended"],
             "recommended": recommended,
@@ -205,6 +221,32 @@ def _recommended_for_package(package: str) -> list[str]:
         "arterial_coordination": ["上游控流 + 目标小步释放 + 下游保护"],
     }
     return mapping.get(package, mapping["downstream_protection"])
+
+
+def _sanitize_downstream_references(items: list[str], direct_downstream: str) -> list[str]:
+    """将 LLM 误引用的非直接下游路口名替换为 downstream_state 单一真源。"""
+    wrong_names = ("奥体西路与解放东路路口", "奥体西路×解放东路", "奥体西路与解放东路")
+    out: list[str] = []
+    for text in items:
+        row = text
+        for wrong in wrong_names:
+            if wrong in row and direct_downstream not in row:
+                row = row.replace(wrong, direct_downstream)
+        out.append(row)
+    return out
+
+
+def _replace_downstream_queue_constraint(items: list[str], direct_downstream: str) -> list[str]:
+    """确保排队比红线指向直接下游。"""
+    out: list[str] = []
+    for text in items:
+        if "排队比超过" in text and direct_downstream not in text:
+            out.append(
+                f"任何配时调整不得导致下游{direct_downstream}排队比超过0.9"
+            )
+        else:
+            out.append(text)
+    return out
 
 
 def _as_str_list(value: Any) -> list[str]:

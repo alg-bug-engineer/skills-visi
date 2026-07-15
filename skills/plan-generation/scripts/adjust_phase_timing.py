@@ -63,11 +63,46 @@ def adjust_phase_timing(
     ticket: dict[str, Any],
     diagnosis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Lightweight deterministic phase adjustment with min/max green bounds."""
+    """Lightweight deterministic phase adjustment with min/max green bounds.
+
+    输出带 current_timing / optimized_timing / green_delta_s，便于前端阶段卡展示借绿。
+    """
     diagnosis = diagnosis or {}
-    stages = [copy.deepcopy(s) for s in signal.get("phase_stage_timing_list") or []]
+    raw_stages = signal.get("phase_stage_timing_list") or []
+    stages = [copy.deepcopy(s) for s in raw_stages]
     if not stages:
         return {"ok": False, "reason": "signal 缺少 phase_stage_timing_list"}
+
+    # 统一字段，便于借绿计算。
+    # 注意：部分上游会把 greenTime 写成等于 minGreen，真实绿时应优先读 current_timing / green_time_s。
+    for stage in stages:
+        stage["greenTime"] = _read_green_s(stage)
+        if stage.get("minGreenTime") is None and stage.get("min_green_time_s") is not None:
+            stage["minGreenTime"] = int(stage["min_green_time_s"])
+        if stage.get("maxGreenTime") is None and stage.get("max_green_time_s") is not None:
+            stage["maxGreenTime"] = int(stage["max_green_time_s"])
+        cur = stage.get("current_timing") if isinstance(stage.get("current_timing"), dict) else {}
+        if stage.get("yellowTime") is None:
+            stage["yellowTime"] = int(
+                cur.get("yellow_time_s") or stage.get("yellow_time_s") or 3
+            )
+        if stage.get("allRedTime") is None:
+            stage["allRedTime"] = int(
+                cur.get("all_red_time_s") or stage.get("all_red_time_s") or 2
+            )
+
+    baselines = [
+        {
+            "green": int(s.get("greenTime") or s.get("green_time_s") or 0),
+            "yellow": int(s.get("yellowTime") or s.get("yellow_time_s") or 3),
+            "all_red": int(s.get("allRedTime") or s.get("all_red_time_s") or 2),
+            "movements": s.get("movements"),
+            "source_stage_atoms": s.get("source_stage_atoms"),
+            "flow_combo": s.get("flow_combo"),
+            "phase_saturation": s.get("phase_saturation"),
+        }
+        for s in stages
+    ]
 
     direction = ticket.get("direction", "东向西")
     movement = ticket.get("movement", "直行")
@@ -91,18 +126,65 @@ def adjust_phase_timing(
     if donor_idx is not None:
         _clamp_stage(stages[donor_idx])
 
+    current_cycle_s = sum(
+        b["green"] + b["yellow"] + b["all_red"] for b in baselines
+    )
     cycle_s = _sum_cycle(stages) + cycle_delta
-    timing_list = [_normalize_stage(stage, cycle_s) for stage in stages]
+    timing_list = []
+    for idx, stage in enumerate(stages):
+        row = _normalize_stage(stage, cycle_s)
+        base = baselines[idx]
+        opt_green = int(row["green_time_s"])
+        cur_green = int(base["green"])
+        yellow = int(base["yellow"])
+        all_red = int(base["all_red"])
+        cur_total = cur_green + yellow + all_red
+        opt_total = opt_green + int(row["yellow_time_s"]) + int(row["all_red_time_s"])
+        row["current_timing"] = {
+            "green_time_s": cur_green,
+            "yellow_time_s": yellow,
+            "all_red_time_s": all_red,
+            "stage_total_s": cur_total,
+        }
+        row["optimized_timing"] = {
+            "green_time_s": opt_green,
+            "yellow_time_s": int(row["yellow_time_s"]),
+            "all_red_time_s": int(row["all_red_time_s"]),
+            "stage_total_s": opt_total,
+        }
+        row["green_delta_s"] = opt_green - cur_green
+        row["stage_delta_s"] = opt_total - cur_total
+        if base.get("movements") is not None:
+            row["movements"] = base["movements"]
+        if base.get("source_stage_atoms") is not None:
+            row["source_stage_atoms"] = base["source_stage_atoms"]
+        if base.get("flow_combo") is not None:
+            row["flow_combo"] = base["flow_combo"]
+        if base.get("phase_saturation") is not None:
+            row["phase_saturation"] = base["phase_saturation"]
+        if idx == target_idx:
+            row["role"] = "target"
+        elif donor_idx is not None and idx == donor_idx:
+            row["role"] = "donor"
+        timing_list.append(row)
 
     upstream_control = _build_upstream_control(strategy_instruction, diagnosis)
     downstream_risk = _assess_downstream_risk(diagnosis)
 
+    timing_out = {
+        "cycle_s": cycle_s,
+        "current_cycle_s": current_cycle_s,
+        "cycle_delta_s": cycle_s - current_cycle_s,
+        "phase_stage_timing_list": timing_list,
+        "target_stage_index": target_idx,
+        "donor_stage_index": donor_idx,
+        "requested_target_green_delta_s": target_delta,
+    }
+    timing_out.update(summarize_proposed_deltas(timing_out))
+
     return {
         "ok": True,
-        "timing": {
-            "cycle_s": cycle_s,
-            "phase_stage_timing_list": timing_list,
-        },
+        "timing": timing_out,
         "phaseStageTimingList": timing_list,
         "cycle_s": cycle_s,
         "upstream_control": upstream_control,
@@ -112,35 +194,148 @@ def adjust_phase_timing(
     }
 
 
+def _read_green_s(stage: dict[str, Any]) -> int:
+    cur = stage.get("current_timing") if isinstance(stage.get("current_timing"), dict) else {}
+    for source in (cur.get("green_time_s"), stage.get("green_time_s"), stage.get("greenTime")):
+        if source is None:
+            continue
+        try:
+            return int(source)
+        except (TypeError, ValueError):
+            continue
+    return 0
+
+
+def _opposite_dir_char(dir_char: str) -> str:
+    return {"北": "南", "南": "北", "东": "西", "西": "东"}.get(dir_char, "")
+
+
 def _find_target_stage_index(stages: list[dict[str, Any]], target_key: str) -> int | None:
+    """匹配目标方向相位；多命中时优先「专向、绿时长」更高的阶段。"""
+    if not stages:
+        return None
+    dir_char = target_key[0] if target_key else ""
+    turn_token = "直" if "直行" in target_key else ("左" if "左" in target_key else ("右" if "右" in target_key else ""))
+    atom_key = f"{dir_char}{turn_token}" if dir_char and turn_token else ""
+    aliases = [target_key]
+    if atom_key:
+        aliases.append(atom_key)
+    opp = _opposite_dir_char(dir_char)
+    opp_atom = f"{opp}{turn_token}" if opp and turn_token else ""
+
+    scored: list[tuple[int, int]] = []
     for idx, stage in enumerate(stages):
         movement_key = str(stage.get("movement_key") or "")
         name = str(stage.get("phase_stage_name") or stage.get("phaseStageName") or "")
-        if movement_key == target_key or target_key in name or target_key[:2] in name:
-            return idx
-    return 0 if stages else None
+        atoms = [str(x) for x in (stage.get("source_stage_atoms") or [])]
+        atom_blob = " ".join(atoms)
+        blob = f"{movement_key} {name} {atom_blob}"
+        matched = movement_key == target_key or any(a and a in blob for a in aliases)
+        if not matched and dir_char and turn_token:
+            matched = any(dir_char in a and turn_token in a for a in atoms) or (
+                dir_char in name and turn_token in name
+            )
+        if not matched:
+            continue
+        green = int(stage.get("greenTime") or _read_green_s(stage) or 0)
+        if green <= 0:
+            continue
+        min_green = int(stage.get("minGreenTime") or stage.get("min_green_time_s") or 0)
+        max_green = int(stage.get("maxGreenTime") or stage.get("max_green_time_s") or green + 30)
+        score = green
+        if atom_key and (atom_key in atoms or atom_key in name):
+            score += 500
+        if opp_atom and (opp_atom in atoms or opp_atom in name):
+            score -= 200  # 共享对向直行相位降权
+        if min_green and green < min_green:
+            score -= 1000  # 现状已低于最小绿的残余相位，不宜作加绿目标
+        if max_green and green >= max_green:
+            score -= 800  # 已达上限无法再加
+        scored.append((score, idx))
+    if scored:
+        scored.sort(reverse=True)
+        return scored[0][1]
+    # 禁止静默落到阶段 0：匹配失败应由上游显式降级
+    return None
+
+
+def summarize_proposed_deltas(timing: dict[str, Any] | None) -> dict[str, int]:
+    """从拟实施配时阶段列表读取实际目标绿差、借绿差、周期差（禁止用 instruction 盖写）。"""
+    timing = timing or {}
+    stages = timing.get("phase_stage_timing_list") or []
+    target_d = 0
+    donor_d = 0
+    saw_target_role = False
+    saw_donor_role = False
+    for stage in stages:
+        if not isinstance(stage, dict):
+            continue
+        try:
+            delta = int(stage.get("green_delta_s") or 0)
+        except (TypeError, ValueError):
+            delta = 0
+        role = stage.get("role")
+        if role == "target":
+            target_d = delta
+            saw_target_role = True
+        elif role == "donor":
+            donor_d = delta
+            saw_donor_role = True
+        elif not saw_target_role and delta > target_d:
+            target_d = delta
+        elif not saw_donor_role and delta < donor_d:
+            donor_d = delta
+    try:
+        cycle_d = int(timing.get("cycle_delta_s") or 0)
+    except (TypeError, ValueError):
+        cycle_d = 0
+    return {
+        "target_green_delta_s": target_d,
+        "donor_green_delta_s": donor_d,
+        "cycle_delta_s": cycle_d,
+    }
+
+
+def attach_proposed_timing_fields(
+    timing: dict[str, Any] | None,
+    *,
+    requested_target_green_delta: int | None = None,
+) -> dict[str, Any]:
+    """为门控后拟实施配时补齐可展示摘要字段。"""
+    base = dict(timing or {})
+    summary = summarize_proposed_deltas(base)
+    out = {
+        **base,
+        **summary,
+        "available": True,
+        "gate": "verification_passed",
+        "label": "门控通过后拟实施",
+    }
+    if requested_target_green_delta is not None:
+        out["requested_target_green_delta_s"] = int(requested_target_green_delta)
+    return out
 
 
 def _find_donor_stage_index(stages: list[dict[str, Any]], *, skip_idx: int) -> int | None:
     best_idx = None
-    best_green = None
+    best_rank = None
     for idx, stage in enumerate(stages):
         if idx == skip_idx:
             continue
-        green = int(stage.get("greenTime") or 0)
-        min_green = int(stage.get("minGreenTime") or 0)
-        spare = green - min_green
+        spare = _borrowable(stage)
         if spare <= 0:
             continue
-        if best_green is None or green > best_green:
-            best_green = green
+        green = int(stage.get("greenTime") or 0)
+        rank = (spare, green)
+        if best_rank is None or rank > best_rank:
+            best_rank = rank
             best_idx = idx
     return best_idx
 
 
 def _borrowable(stage: dict[str, Any]) -> int:
     green = int(stage.get("greenTime") or 0)
-    min_green = int(stage.get("minGreenTime") or 0)
+    min_green = int(stage.get("minGreenTime") or stage.get("min_green_time_s") or 0)
     return max(0, green - min_green)
 
 
