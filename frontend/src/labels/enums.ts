@@ -125,6 +125,8 @@ const bottleneck_type: Dict = {
 
 const release_guard: Dict = {
   downstream_has_slack: '下游有承接余量',
+  downstream_blocked: '下游承接受限',
+  downstream_metrics_unknown: '下游指标暂无',
 }
 
 const strategy_action: Dict = {

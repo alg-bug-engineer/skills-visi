@@ -490,6 +490,11 @@ export const usePresentationStore = defineStore('presentation', {
       const next = this.acts[this.currentAct + 1]
       if (this.mode === 'batch' || phaseReady(this.response, next.phase)) {
         this.currentAct += 1
+      } else if (this.response?.pipeline_complete) {
+        // 典型 Case 截断产物（仅诊断）或健康收尾后缺少后续幕：正常结束，避免空等。
+        this.waiting = false
+        this.computingPhase = null
+        this.status = 'done'
       } else {
         this.waiting = true
         this.computingPhase = next.phase

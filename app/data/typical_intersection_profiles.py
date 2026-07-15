@@ -27,6 +27,78 @@ def normalize_selection(value: Any, *, default: str) -> str:
     return raw if raw in ALLOWED_SELECTIONS else default
 
 
+def normalize_screening_anchor(raw: Any) -> dict[str, Any] | None:
+    """筛查尖峰锚点：溢流判定优先于工单时段周型剖面。
+
+    硬门槛：目标与直接下游都必须具备排队样本；缺下游排队则整锚点作废
+   （与 cycle-signal 筛选「下游必须有排队」一致，禁止仅凭饱和度入典型）。
+    """
+    if not isinstance(raw, dict):
+        return None
+    try:
+        queue_m = float(raw.get("queue_length_m"))
+        storage_m = float(raw.get("storage_length_m"))
+    except (TypeError, ValueError):
+        return None
+    if queue_m < 0 or storage_m <= 0:
+        return None
+    try:
+        ratio = float(raw.get("queue_ratio"))
+    except (TypeError, ValueError):
+        ratio = round(queue_m / storage_m, 4)
+    if ratio < 0:
+        return None
+
+    down_queue = _optional_float(raw.get("downstream_queue_length_m"))
+    down_storage = _optional_float(raw.get("downstream_storage_length_m"))
+    down_ratio = _optional_float(raw.get("downstream_queue_ratio"))
+    if down_ratio is None and down_queue is not None and down_storage is not None and down_storage > 0:
+        down_ratio = round(down_queue / down_storage, 4)
+    # 典型 Case 闸门：下游排队样本不可缺
+    if down_queue is None and down_ratio is None:
+        logger.warning(
+            "screening_anchor 缺少下游排队，已拒绝入典型 case_id=%s",
+            raw.get("case_id"),
+        )
+        return None
+
+    return {
+        "queue_length_m": round(queue_m, 4),
+        "storage_length_m": round(storage_m, 4),
+        "queue_ratio": round(ratio, 4),
+        "downstream_queue_length_m": down_queue,
+        "downstream_storage_length_m": down_storage,
+        "downstream_queue_ratio": down_ratio,
+        "event_date": str(raw.get("event_date") or "").strip() or None,
+        "peak_time": str(raw.get("peak_time") or "").strip() or None,
+        "case_id": str(raw.get("case_id") or "").strip() or None,
+        "source": str(raw.get("source") or "screening_anchor").strip(),
+    }
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return round(float(value), 4)
+    except (TypeError, ValueError):
+        return None
+
+
+def validate_typical_profiles(*, path: str | None = None) -> list[str]:
+    """校验典型配置：带 screening_anchor 的条目必须通过下游排队闸门。"""
+    errors: list[str] = []
+    for profile in list_typical_profiles(path=path):
+        pid = str(profile.get("id") or "?")
+        metrics = profile.get("metrics") or {}
+        raw_anchor = metrics.get("screening_anchor") or profile.get("screening_anchor")
+        if not raw_anchor:
+            continue
+        if normalize_screening_anchor(raw_anchor) is None:
+            errors.append(f"{pid}: screening_anchor 缺少下游排队，不得作为典型 Case")
+    return errors
+
+
 def _norm_text(value: Any) -> str:
     return str(value or "").strip().lower().replace(" ", "")
 
@@ -163,6 +235,9 @@ def resolve_typical_profile(
             "downstream_approach_queue_avg": bool(
                 metrics.get("downstream_approach_queue_avg", True)
             ),
+            "screening_anchor": normalize_screening_anchor(
+                metrics.get("screening_anchor") or profile.get("screening_anchor")
+            ),
             "raw": profile,
         }
     return None
@@ -180,6 +255,7 @@ def metric_options_from_profile(profile: dict[str, Any] | None) -> dict[str, Any
             "downstream_peak_disclose_field": "queue_len_avg",
             "downstream_approach_queue_avg": False,
             "use_typical_policy": False,
+            "screening_anchor": None,
         }
     return {
         "typical_profile_id": profile.get("id"),
@@ -197,4 +273,43 @@ def metric_options_from_profile(profile: dict[str, Any] | None) -> dict[str, Any
         or "queue_len_avg",
         "downstream_approach_queue_avg": bool(profile.get("downstream_approach_queue_avg")),
         "use_typical_policy": True,
+        "screening_anchor": normalize_screening_anchor(profile.get("screening_anchor")),
     }
+
+
+def apply_screening_anchor_to_metrics(
+    metrics: dict[str, Any],
+    anchor: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """筛查尖峰溢流优先：覆盖队列主证据，周型窗值保留为审计字段。"""
+    if not metrics or not anchor:
+        return metrics
+    ratio = float(anchor.get("queue_ratio") or 0)
+    if ratio < 0.8:
+        return metrics
+    out = dict(metrics)
+    out["window_queue_length_m"] = out.get("queue_length_m")
+    out["window_storage_length_m"] = out.get("storage_length_m")
+    try:
+        wq = out.get("queue_length_m")
+        ws = out.get("storage_length_m")
+        out["window_queue_ratio"] = (
+            round(float(wq) / float(ws), 4) if wq is not None and ws and float(ws) > 0 else None
+        )
+    except (TypeError, ValueError):
+        out["window_queue_ratio"] = None
+    out["queue_length_m"] = float(anchor["queue_length_m"])
+    out["storage_length_m"] = float(anchor["storage_length_m"])
+    out["queue_available"] = True
+    out["storage_available"] = True
+    out["queue_statistic"] = "screening_event_peak"
+    out["queue_source"] = "screening_anchor"
+    out["metric_selection_policy"] = "screening_event_anchor"
+    out["statistic_scope"] = "screening_event"
+    out["screening_anchor"] = dict(anchor)
+    out["screening_queue_ratio"] = ratio
+    if anchor.get("peak_time"):
+        out["screening_peak_time"] = anchor.get("peak_time")
+    if anchor.get("event_date"):
+        out["screening_event_date"] = anchor.get("event_date")
+    return out

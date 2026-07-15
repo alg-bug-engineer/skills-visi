@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "description": "真实数据演示案例；含点/线典型 Case A/B，以及新增四处进口直行 live 采集 Case C–F。",
+  "description": "真实数据演示案例；含点/线典型 Case A/B，以及通过下游排队门槛的 Case C/E/F。奥体中路×经十路东直因下游无排队样本已剔除。",
   "default_case_id": "case_a",
   "cases": [
     {
@@ -41,22 +41,10 @@
       "query": "草山岭中路与草山岭南路路口，晚高峰五点到七点，北进口直行经常排队外溢，帮忙看看配时怎么调，并核验直接下游是否接得住。"
     },
     {
-      "id": "case_d",
-      "code": "D",
-      "label": "奥体中路×经十路",
-      "display_name": "奥体中路×经十路 · 东进口直行",
-      "inter_id": "011wwe291ey00001",
-      "intersection_name": "奥体中路与经十路路口",
-      "opt_type": "TYPE1_POINT",
-      "fixture": "case_d_aotizhong-jingshi-east-through_fixture.json",
-      "live_validation": "aotizhong-jingshi-east-through.json",
-      "query": "奥体中路与经十路路口，晚高峰五点到七点，东进口直行经常排队外溢，帮忙看看配时怎么调，并核验直接下游是否接得住。"
-    },
-    {
       "id": "case_e",
       "code": "E",
       "label": "会展路×奥体中路",
-      "display_name": "会展路×奥体中路 · 西进口直行",
+      "display_name": "点治理 · 会展路×奥体中路西进口直行",
       "inter_id": "011wwe29jbf00001",
       "intersection_name": "会展路与奥体中路路口",
       "opt_type": "TYPE1_POINT",

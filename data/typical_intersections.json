@@ -57,7 +57,19 @@
         "downstream_queue_field": "queue_len_avg",
         "downstream_selection": "cross_week_mean",
         "downstream_peak_disclose_field": "queue_len_max",
-        "downstream_approach_queue_avg": true
+        "downstream_approach_queue_avg": true,
+        "screening_anchor": {
+          "case_id": "011wwe29jbf00001_20260608_72_1938",
+          "event_date": "2026-06-08",
+          "peak_time": "2026-06-08 19:38:00",
+          "queue_length_m": 210.4,
+          "storage_length_m": 194.1,
+          "queue_ratio": 1.084,
+          "downstream_queue_length_m": 4.6,
+          "downstream_storage_length_m": 396.5,
+          "downstream_queue_ratio": 0.012,
+          "source": "screening_case_summary"
+        }
       }
     },
     {
@@ -120,8 +132,9 @@
   ],
   "notes": {
     "case_a": "解放东路与齐川路北进口直行（011wwe28f7c00001）保持项目固定取数逻辑，不写入覆盖 profile。",
-    "point_typical_ref": "点治理典型1=齐川(CaseA固定)、3=坤顺西直、4=坤顺西左、5=会展西直(Case E)；跳过典型2二环东路×解放路。",
-    "line_typical_ref": "草山岭中路×草山岭南路(Case C)、旅游路×转山西路(Case F)。",
-    "frontend_cases": "manifest 中 metric_profile_id 对齐：case_c=line_caoshanling_north_through、case_e=point_huizhan_aotizhong_west_through、case_f=line_lvyou_zhuanshanxi_east_through；Case A/B/D 保持项目固定口径。"
+    "point_typical_ref": "点治理典型1=齐川(CaseA固定)、3=坤顺西直、4=坤顺西左、5=会展西直(Case E，含筛查尖峰锚点且下游有排队)；跳过典型2二环东路×解放路。",
+    "line_typical_ref": "草山岭中路×草山岭南路(Case C)、旅游路×转山西路(Case F)。奥体中路×经十路东直不得入典型：下游无排队样本（仅有饱和度），不满足排队门槛。",
+    "frontend_cases": "manifest 中 metric_profile_id 对齐：case_c=line_caoshanling_north_through、case_e=point_huizhan_aotizhong_west_through、case_f=line_lvyou_zhuanshanxi_east_through；Case A/B 保持项目固定口径。screening_anchor 必须同时具备目标与下游排队字段。",
+    "qualification_gate": "典型 Case 硬门槛：目标转向有排队溢流证据，且直接下游接收转向有真实排队样本；禁止仅凭下游饱和度或指标缺失进入典型清单。"
   }
 }

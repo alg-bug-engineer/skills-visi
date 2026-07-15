@@ -17,6 +17,7 @@ from app.data.pg_adapters import (
     topology_from_pg_raw,
 )
 from app.data.typical_intersection_profiles import (
+    apply_screening_anchor_to_metrics,
     metric_options_from_profile,
     resolve_typical_profile,
 )
@@ -267,6 +268,7 @@ class IntersectionLoadService:
             ticket,
             scope=pg_task.get("scope") if isinstance(pg_task.get("scope"), dict) else None,
         )
+        metrics = apply_screening_anchor_to_metrics(metrics, opts.get("screening_anchor"))
         if opts.get("typical_profile_id"):
             metrics["typical_profile_id"] = opts.get("typical_profile_id")
             metrics["typical_profile_label"] = opts.get("typical_profile_label")

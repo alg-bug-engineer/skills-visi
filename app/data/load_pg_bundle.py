@@ -17,6 +17,7 @@ from app.data.pg_adapters import (
     topology_from_pg_raw,
 )
 from app.data.typical_intersection_profiles import (
+    apply_screening_anchor_to_metrics,
     metric_options_from_profile,
     resolve_typical_profile,
 )
@@ -147,6 +148,10 @@ def load_pg_diagnosis_bundle(
         pg_metrics,
         ticket,
         scope=pg_task.get("scope") if isinstance(pg_task.get("scope"), dict) else None,
+    )
+    # 典型 Case：筛查尖峰溢流优先于工单时段周型剖面，避免 live「健康」与嗅探矛盾。
+    metrics = apply_screening_anchor_to_metrics(
+        metrics, profile_opts.get("screening_anchor")
     )
     if profile_opts.get("typical_profile_id"):
         metrics["typical_profile_id"] = profile_opts.get("typical_profile_id")

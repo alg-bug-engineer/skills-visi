@@ -12,6 +12,7 @@ const CRITERIA_LABELS: Record<string, string> = {
   target_green_utilization_high: '目标绿灯利用率偏高',
   downstream_queue_high: '下游排队偏高',
   downstream_near_saturation: '下游接近饱和',
+  downstream_metrics_unknown: '下游排队/饱和度指标不足',
   add_green_spillback_risk: '加绿存在溢出风险',
 }
 
@@ -31,6 +32,9 @@ export function downstreamCriteria(dd: DownstreamDiagnosis | null | undefined): 
 export function downstreamConclusion(dd: DownstreamDiagnosis | null | undefined): string {
   if (!dd) return '下游承接能力待核验'
   const c = dd.judgment_criteria ?? {}
+  if (c.downstream_metrics_unknown || dd.primary_downstream?.capacity?.unknown) {
+    return '下游排队/饱和度指标不足，无法判定承接，不得进入典型点线治理'
+  }
   const can = dd.can_simple_add_green
   const downstreamTight = Boolean(
     c.downstream_queue_high || c.downstream_near_saturation || c.add_green_spillback_risk,

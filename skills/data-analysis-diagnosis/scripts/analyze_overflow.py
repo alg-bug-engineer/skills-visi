@@ -33,6 +33,35 @@ from app.trace.topology import resolve_dir8_turn
 _OVERSATURATION_LEVEL = 1.0
 
 
+def _is_healthy_diagnosis(
+    *,
+    overflow: dict[str, Any],
+    saturation: float | None,
+    metrics_input: dict[str, Any],
+) -> bool:
+    """健康提前收尾条件；筛查尖峰与饱和度缺失不得伪装健康。"""
+    if overflow.get("verified") is not True or overflow.get("risk_level") != "low":
+        return False
+    if float(metrics_input.get("screening_queue_ratio") or 0) >= 0.8:
+        return False
+    if metrics_input.get("metrics_available") is False:
+        return False
+    explicit = metrics_input.get("saturation_rate")
+    if explicit is None:
+        explicit = metrics_input.get("saturation")
+    sat = _to_float_or_none(explicit)
+    if sat is None:
+        # volume/capacity 回算会把缺失饱和度变成 0，不得据此判健康
+        vol = _to_float_or_none(metrics_input.get("volume_vph")) or 0.0
+        cap = _to_float_or_none(metrics_input.get("capacity_vph")) or 0.0
+        if vol <= 0 or cap <= 0:
+            return False
+        sat = _to_float_or_none(saturation)
+    if sat is None or sat >= THRESHOLDS["saturation_high"]:
+        return False
+    return True
+
+
 def _to_float_or_none(value: Any) -> float | None:
     if value is None or value == "":
         return None
@@ -503,10 +532,11 @@ def analyze_overflow(
         and overflow.get("risk_level") in ("warning", "high"),
         # 健康核验：已取到数据且溢出风险低、饱和度未过高，判为无问题（可提前正常收尾）。
         # 注意：数据缺失（risk_level=unknown）不算健康，仍走完整链路核验。
-        "healthy": bool(
-            overflow.get("verified") is True
-            and overflow.get("risk_level") == "low"
-            and (saturation or 0) < THRESHOLDS["saturation_high"]
+        # 饱和度源缺失时禁止用 0 冒充；筛查锚点溢流时禁止 healthy。
+        "healthy": _is_healthy_diagnosis(
+            overflow=overflow,
+            saturation=saturation,
+            metrics_input=metrics_input,
         ),
         "target": {
             "intersection": ticket.get("intersection_name"),

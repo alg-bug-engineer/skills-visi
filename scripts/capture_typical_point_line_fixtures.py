@@ -78,6 +78,12 @@ async def capture_one(case: dict, *, relax: bool) -> int:
     if not public.get("completed"):
         print("⚠️  流水线未完整完成；仍尝试写入（可加 --relax-evidence）。")
 
+    # 典型 Case 硬门槛：直接下游须有真实排队；禁止仅靠饱和度/指标缺失入清单。
+    gate_err = _reject_missing_downstream_queue(public, case)
+    if gate_err:
+        print(f"✗ {gate_err}")
+        return 3
+
     if live_name:
         LIVE_DIR.mkdir(parents=True, exist_ok=True)
         live_path = LIVE_DIR / live_name
@@ -85,6 +91,26 @@ async def capture_one(case: dict, *, relax: bool) -> int:
         print(f"  live-validation → {live_path.relative_to(PROJECT_ROOT)}")
 
     return write_if_valid(public, out_path, relax=relax)
+
+
+def _reject_missing_downstream_queue(public: dict, case: dict) -> str | None:
+    diag = ((public.get("phases") or {}).get("diagnosis")) or {}
+    dd = diag.get("downstream_diagnosis") or {}
+    primary = dd.get("primary_downstream") or {}
+    metrics = primary.get("metrics") or {}
+    capacity = primary.get("capacity") or {}
+    queue = metrics.get("avg_queue_m")
+    if queue is None:
+        queue = metrics.get("max_queue_m")
+    ratio = metrics.get("queue_storage_ratio_max")
+    has_queue = queue is not None or ratio is not None
+    if capacity.get("unknown") or not has_queue:
+        return (
+            f"[{case.get('code')}] 下游无排队样本，不得写入典型 Case "
+            f"(inter={case.get('intersection_name')}). "
+            "请换有排队证据的目标-下游对，或从 screening cycle-signal 候选中选取。"
+        )
+    return None
 
 
 async def main_async(args: argparse.Namespace) -> int:

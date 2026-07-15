@@ -142,7 +142,7 @@ watch(
 .zoom-debug {
   position: absolute;
   top: 58px;
-  left: 16px;
+  left: calc(var(--insight-w) + 32px);
   z-index: 19;
   padding: 4px 10px;
   border-radius: 6px;
@@ -156,7 +156,7 @@ watch(
 }
 .map-hud {
   position: absolute;
-  top: 64px;
+  top: 88px;
   left: calc(var(--insight-w) + 32px);
   z-index: 18;
   padding: 10px 14px;

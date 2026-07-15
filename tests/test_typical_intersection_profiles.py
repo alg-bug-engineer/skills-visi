@@ -180,12 +180,18 @@ def test_typical_intersections_json_lists_expected_ids():
     assert "point_kunshun_aotixi_west_left" in ids
     assert "point_huizhan_aotizhong_west_through" in ids
     assert "point_huizhan_aotizhong_east_through" not in ids
+    assert "line_aotizhong_jingshi_east_through" not in ids
     assert "line_caoshanling_north_through" in ids
     assert "line_caoshanling_south_left" in ids
     assert "line_lvyou_zhuanshanxi_east_through" in ids
     # Case A 明确不写入覆盖 profile
     assert "case_a" not in "".join(ids).lower()
     assert "28f7c00001" not in json.dumps(catalog["profiles"])
+    # Case E 筛查锚点必须含下游排队
+    by_id = {p["id"]: p for p in catalog["profiles"]}
+    anchor = by_id["point_huizhan_aotizhong_west_through"]["metrics"]["screening_anchor"]
+    assert float(anchor["queue_ratio"]) >= 0.8
+    assert anchor.get("downstream_queue_length_m") is not None
 
 
 def test_frontend_manifest_metric_profiles_align_with_catalog():
@@ -202,10 +208,136 @@ def test_frontend_manifest_metric_profiles_align_with_catalog():
         if c.get("metric_profile_id")
     }
     assert declared["case_c"] == "line_caoshanling_north_through"
+    assert "case_d" not in declared
     assert declared["case_e"] == "point_huizhan_aotizhong_west_through"
     assert declared["case_f"] == "line_lvyou_zhuanshanxi_east_through"
     for case_id, profile_id in declared.items():
         assert profile_id in profile_ids, f"{case_id} → {profile_id} 不在 typical_intersections.json"
+
+
+def test_screening_anchor_requires_downstream_queue():
+    """筛查锚点缺下游排队时必须拒绝，防止无排队 Case 混入典型清单。"""
+    from app.data.typical_intersection_profiles import (
+        normalize_screening_anchor,
+        validate_typical_profiles,
+    )
+
+    assert (
+        normalize_screening_anchor(
+            {
+                "queue_length_m": 150.4,
+                "storage_length_m": 116.2,
+                "queue_ratio": 1.2943,
+                "case_id": "no-down-queue",
+            }
+        )
+        is None
+    )
+    ok = normalize_screening_anchor(
+        {
+            "queue_length_m": 210.4,
+            "storage_length_m": 194.1,
+            "queue_ratio": 1.084,
+            "downstream_queue_length_m": 4.6,
+            "downstream_storage_length_m": 396.5,
+            "downstream_queue_ratio": 0.012,
+        }
+    )
+    assert ok is not None
+    assert ok["downstream_queue_length_m"] == 4.6
+    assert validate_typical_profiles() == []
+
+
+def test_screening_anchor_overrides_window_metrics_for_overflow_cases():
+    """筛查尖峰溢流优先于晚高峰周型剖面，避免 healthy 误判。"""
+    import importlib.util
+    from pathlib import Path
+
+    from app.data.typical_intersection_profiles import apply_screening_anchor_to_metrics
+
+    root = Path(__file__).resolve().parents[1]
+    path = root / "skills" / "data-analysis-diagnosis" / "scripts" / "analyze_overflow.py"
+    spec = importlib.util.spec_from_file_location("analyze_overflow_screening", path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(mod)
+
+    clear_typical_profile_cache()
+    case_e = resolve_typical_profile(
+        {
+            "inter_id": "011wwe29jbf00001",
+            "direction": "西进口",
+            "movement": "直行",
+        }
+    )
+    assert case_e is not None
+    assert case_e["id"] == "point_huizhan_aotizhong_west_through"
+    opts = metric_options_from_profile(case_e)
+    anchor = opts["screening_anchor"]
+    assert anchor is not None
+    assert float(anchor["queue_ratio"]) >= 0.8
+    assert anchor.get("downstream_queue_length_m") is not None
+
+    window_metrics = {
+        "queue_length_m": 88.0,
+        "storage_length_m": 194.14,
+        "saturation": None,
+        "saturation_rate": None,
+        "volume_vph": 800.0,
+        "capacity_vph": 1200.0,
+        "green_utilization": 0.5,
+    }
+    merged = apply_screening_anchor_to_metrics(window_metrics, anchor)
+    assert merged["queue_length_m"] == anchor["queue_length_m"]
+    assert merged["storage_length_m"] == anchor["storage_length_m"]
+    assert merged["metric_selection_policy"] == "screening_event_anchor"
+
+    out = mod.analyze_overflow(
+        merged,
+        {
+            "intersection_name": "会展路与奥体中路路口",
+            "direction": "西进口",
+            "movement": "直行",
+        },
+    )
+    assert out["healthy"] is False
+    assert out["problem_confirmed"] is True
+    assert out["overflow_verification"]["risk_level"] == "high"
+    assert abs(float(out["metrics"]["queue_ratio"]) - float(anchor["queue_ratio"])) < 0.01
+
+
+def test_healthy_requires_known_saturation():
+    """饱和度缺失时不得因 (sat or 0) 被判健康。"""
+    import importlib.util
+    from pathlib import Path
+
+    from app.metrics.traffic import assess_overflow_risk
+
+    root = Path(__file__).resolve().parents[1]
+    path = root / "skills" / "data-analysis-diagnosis" / "scripts" / "analyze_overflow.py"
+    spec = importlib.util.spec_from_file_location("analyze_overflow_healthy", path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(mod)
+
+    out = mod.analyze_overflow(
+        {
+            "queue_length_m": 35.6,
+            "storage_length_m": 116.18,
+            "saturation": None,
+            "volume_vph": 0,
+            "capacity_vph": 0,
+            "green_utilization": 0.4,
+        },
+        {
+            "intersection_name": "奥体中路与经十路路口",
+            "direction": "东进口",
+            "movement": "直行",
+        },
+    )
+    assert out["overflow_verification"]["risk_level"] == "low"
+    assert out["healthy"] is False
+    assert assess_overflow_risk(0.3)["risk_level"] == "low"
 
 
 def test_load_movement_metrics_respects_selection_policy(monkeypatch):

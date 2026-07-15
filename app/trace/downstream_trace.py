@@ -18,6 +18,15 @@ def assess_downstream_capacity(
 ) -> dict[str, Any]:
     spillback_threshold = spillback_threshold or THRESHOLDS["queue_ratio_warning"]
     sat_threshold = sat_threshold or 0.85
+    # 排队与饱和度双缺：指标不足，禁止伪装「有余量」或「承接受限」
+    if queue_ratio is None and saturation is None:
+        return {
+            "can_release": None,
+            "blocked": False,
+            "unknown": True,
+            "reasons": ["downstream_queue_and_saturation_unavailable"],
+            "release_guard": "downstream_metrics_unknown",
+        }
     blocked = False
     reasons: list[str] = []
     if queue_ratio is not None and queue_ratio >= spillback_threshold:
@@ -29,6 +38,7 @@ def assess_downstream_capacity(
     return {
         "can_release": not blocked,
         "blocked": blocked,
+        "unknown": False,
         "reasons": reasons,
         "release_guard": "downstream_blocked" if blocked else "downstream_has_slack",
     }

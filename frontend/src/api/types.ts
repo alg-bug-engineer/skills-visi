@@ -162,8 +162,9 @@ export interface PrimaryDownstream {
   by_turn?: DownstreamTurnMetric[]
   remaining_storage_m?: number | null
   capacity?: {
-    can_release?: boolean
+    can_release?: boolean | null
     blocked?: boolean
+    unknown?: boolean
     reasons?: string[]
     release_guard?: string
   }

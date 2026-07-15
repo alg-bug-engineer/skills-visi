@@ -16,8 +16,9 @@ const conclusion = computed(() => productCopy(downstreamConclusion(dd.value)))
 /** 结论语义色：可加绿=protected，受限=alarm，未定=evidence。 */
 const tone = computed(() => {
   const c = dd.value?.judgment_criteria ?? {}
-  const tight = Boolean(c.downstream_queue_high || c.downstream_near_saturation || c.add_green_spillback_risk)
   const capacity = dd.value?.primary_downstream?.capacity
+  if (capacity?.unknown || c.downstream_metrics_unknown) return 'unknown'
+  const tight = Boolean(c.downstream_queue_high || c.downstream_near_saturation || c.add_green_spillback_risk)
   if (tight || capacity?.blocked) return 'no'
   if (capacity?.can_release) return 'yes'
   return 'unknown'
@@ -38,6 +39,7 @@ const capacity = computed(() => primary.value?.capacity ?? null)
 const capacityText = computed(() => {
   const c = capacity.value
   if (!c) return null
+  if (c.unknown || c.release_guard === 'downstream_metrics_unknown') return '指标暂无'
   if (c.blocked) return '已阻塞'
   if (c.can_release) return downstreamIdle.value ? '空闲·有承接余量' : '有承接余量'
   return '承接受限'

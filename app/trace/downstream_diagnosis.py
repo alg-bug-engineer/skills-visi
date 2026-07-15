@@ -32,8 +32,13 @@ def build_downstream_diagnosis(
     )
     high_queue = (target_queue or 0) >= THRESHOLDS["queue_ratio_warning"]
     low_green_util = (target_green or 1) < THRESHOLDS["green_utilization_low"]
+    down_unknown = bool(down_capacity.get("unknown")) or (
+        down_queue is None and down_sat is None and "blocked" not in down_capacity
+    )
     # 有 capacity 时以 blocked 为准，避免与 assess_downstream_capacity 双口径（BUG-007）
-    if "blocked" in down_capacity:
+    if down_unknown:
+        downstream_blocked = False
+    elif "blocked" in down_capacity:
         downstream_blocked = bool(down_capacity.get("blocked"))
     else:
         downstream_blocked = (down_queue or 0) >= THRESHOLDS["queue_ratio_warning"] or (
@@ -46,10 +51,18 @@ def build_downstream_diagnosis(
         "target_green_utilization_high": (target_green or 0) >= THRESHOLDS["green_utilization_high"],
         "downstream_queue_high": (down_queue or 0) >= THRESHOLDS["queue_ratio_warning"],
         "downstream_near_saturation": (down_sat or 0) >= THRESHOLDS["downstream_saturation_high"],
+        "downstream_metrics_unknown": down_unknown,
         "add_green_spillback_risk": downstream_blocked and high_demand,
     }
 
-    if high_demand and downstream_blocked:
+    if down_unknown:
+        scenario = "downstream_metrics_unknown"
+        narrative = (
+            "直接下游缺少真实排队/饱和度样本，无法判定承接能力；"
+            "按典型 Case 门槛不得据此进入点/线治理闭环。"
+        )
+        release_answer = "下游指标不足"
+    elif high_demand and downstream_blocked:
         scenario = "high_demand_downstream_blocked"
         narrative = (
             "目标方向排队高、饱和度高、绿灯利用率高，同时下游排队比也高，"
@@ -85,7 +98,7 @@ def build_downstream_diagnosis(
         "available": bool(downstream_nodes),
         "scenario": scenario,
         "release_answer": release_answer,
-        "can_simple_add_green": bottleneck.get("can_simple_add_green", False),
+        "can_simple_add_green": False if down_unknown else bottleneck.get("can_simple_add_green", False),
         "primary_downstream": {
             "inter_id": primary.get("inter_id"),
             "inter_name": down_name,
