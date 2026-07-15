@@ -87,6 +87,47 @@ def test_borrow_summary_uses_actual_deltas_not_requested():
     assert attached["requested_target_green_delta_s"] == 5
 
 
+def test_trial_does_not_clamp_preexisting_donor_above_stale_max_green():
+    mod = _load()
+    result = mod.adjust_phase_timing(
+        signal={
+            "phase_stage_timing_list": [
+                {
+                    "phase_stage_id": "1",
+                    "phase_stage_name": "西直、东直",
+                    "source_stage_atoms": ["西直", "东直"],
+                    "greenTime": 85,
+                    "minGreenTime": 7,
+                    "maxGreenTime": 60,  # PG 存量边界小于真实现状
+                    "yellowTime": 3,
+                    "allRedTime": 2,
+                },
+                {
+                    "phase_stage_id": "3",
+                    "phase_stage_name": "南直、北直、北左",
+                    "source_stage_atoms": ["南直", "北直", "北左"],
+                    "greenTime": 34,
+                    "minGreenTime": 14,
+                    "maxGreenTime": 60,
+                    "yellowTime": 3,
+                    "allRedTime": 2,
+                },
+            ]
+        },
+        strategy_instruction=mod.build_strategy_instruction({}, "conditional_incremental_release"),
+        ticket={"direction": "北向南", "movement": "直行"},
+    )
+
+    assert result["ok"] is True
+    timing = result["timing"]
+    assert timing["target_green_delta_s"] == 5
+    assert timing["donor_green_delta_s"] == -5
+    assert timing["cycle_delta_s"] == 0
+    stages = timing["phase_stage_timing_list"]
+    assert stages[0]["current_timing"]["green_time_s"] == 85
+    assert stages[0]["optimized_timing"]["green_time_s"] == 80
+
+
 def test_pg_phase_dir_fields_are_kept_as_auditable_trial_evidence():
     mod = _load()
     result = mod.adjust_phase_timing(

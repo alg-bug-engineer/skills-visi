@@ -91,6 +91,49 @@ def test_validate_rejects_net_negative_when_contract_requires_plus_five():
     assert any("有效绿" in e for e in errors)
 
 
+def test_validate_rejects_plus_twenty_five_when_contract_requires_plus_five():
+    """策略的 +5s 是双向定量契约，不能只当作最低增绿量。"""
+    v = _load("validate_overflow_plan.py")
+    before = [
+        {"phase_stage_id": "target", "green_time_s": 40, "movements": [{"dir8_code": 0, "turn_dir_no": 2}]},
+        {"phase_stage_id": "donor", "green_time_s": 100, "movements": [{"dir8_code": 2, "turn_dir_no": 1}]},
+    ]
+    after = [
+        {**before[0], "green_time_s": 65},
+        {**before[1], "green_time_s": 75},
+    ]
+
+    errors = v.validate_overflow_plan(
+        candidate={
+            "plan_id": "incremental_release",
+            "name": "小步增绿试运行方案",
+            "scenario": "目标方向小步增绿",
+            "timing": {"current_cycle_s": 150, "cycle_s": 150, "phase_stage_timing_list": after},
+            "cycle_s": 150,
+            "executable": True,
+            "plan_status": "trial_ready",
+        },
+        baseline_signal={"cycle_s": 150, "phase_stage_timing_list": before},
+        decision={
+            "decision_mode": "incremental_release_trial",
+            "allowed_plan_types": ["incremental_release"],
+            "preconditions_satisfied": True,
+            "executable": True,
+            "plan_status": "trial_ready",
+        },
+        plan_contract={
+            "target_movement_key": "d0_t2",
+            "target_effective_green_delta_s": 5,
+            "cycle_delta_s": 0,
+            "max_stage_change_ratio": 1.0,
+        },
+        diagnosis={"downstream_state": {"decision": "slack"}},
+        ticket={"dir8_code": 0, "turn_dir_no": 2},
+    )
+
+    assert any("期望 +5s" in e and "实际 +25.0s" in e for e in errors)
+
+
 def test_validate_accepts_case_a_plus_five_cycle_unchanged():
     v = _load("validate_overflow_plan.py")
     before = [

@@ -88,13 +88,11 @@ def validate_overflow_plan(
             errors.append(
                 f"目标有效绿净减少：契约要求增加，实际 {actual:+.1f}s（movement={movement_key}）"
             )
-        elif expected > 0 and actual < expected - 1.0:
+        elif abs(actual - expected) > 1.0:
+            qualifier = "不足" if abs(actual) < abs(expected) else "超出"
             errors.append(
-                f"目标有效绿净变化不足：契约 +{expected:.0f}s，实际 {actual:+.1f}s（movement={movement_key}）"
-            )
-        elif expected < 0 and actual > expected + 1.0:
-            errors.append(
-                f"目标有效绿净变化偏离契约：期望 {expected:+.0f}s，实际 {actual:+.1f}s"
+                f"目标有效绿净变化{qualifier}契约：期望 {expected:+.0f}s，实际 {actual:+.1f}s"
+                f"（movement={movement_key}）"
             )
 
     cycle_delta = plan_contract.get("cycle_delta_s")

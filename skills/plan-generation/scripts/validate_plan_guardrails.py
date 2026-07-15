@@ -36,10 +36,24 @@ def validate_plan_guardrails(plan: dict[str, Any], constraints: dict[str, Any] |
             green = _to_float(stage.get("greenTime") or stage.get("green_time_s"))
             min_green = _to_float(stage.get("minGreenTime") or stage.get("min_green_time_s"))
             max_green = _to_float(stage.get("maxGreenTime") or stage.get("max_green_time_s"))
+            current_timing = _as_dict(stage.get("current_timing"))
+            current_green = _to_float(current_timing.get("green_time_s"))
             name = stage.get("phaseStageName") or stage.get("phase_stage_name") or stage.get("phaseStageId") or "未知阶段"
-            if green is not None and min_green is not None and green + 1e-6 < min_green:
+            # 真实控制器现状偶尔已在数据库 min/max 外。微调方案若正把该存量
+            # 越界往安全方向收敛，不作为硬拒绝。
+            below_min_worsened = _lower_bound_violation_worsened(
+                current=current_green,
+                proposed=green,
+                lower=min_green,
+            )
+            above_max_worsened = _upper_bound_violation_worsened(
+                current=current_green,
+                proposed=green,
+                upper=max_green,
+            )
+            if below_min_worsened:
                 errors.append(f"{name} 绿灯 {green:.0f}s 小于最小绿 {min_green:.0f}s")
-            if green is not None and max_green is not None and green - 1e-6 > max_green:
+            if above_max_worsened:
                 errors.append(f"{name} 绿灯 {green:.0f}s 超过最大绿 {max_green:.0f}s")
     elif plan.get("parameters", {}).get("optimization_engine"):
         errors.append("优化引擎未返回可用单路口方案")
@@ -83,6 +97,28 @@ def _to_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _lower_bound_violation_worsened(
+    *,
+    current: float | None,
+    proposed: float | None,
+    lower: float | None,
+) -> bool:
+    if proposed is None or lower is None or proposed + 1e-6 >= lower:
+        return False
+    return current is None or current + 1e-6 >= lower or proposed < current - 1e-6
+
+
+def _upper_bound_violation_worsened(
+    *,
+    current: float | None,
+    proposed: float | None,
+    upper: float | None,
+) -> bool:
+    if proposed is None or upper is None or proposed - 1e-6 <= upper:
+        return False
+    return current is None or current - 1e-6 <= upper or proposed > current + 1e-6
 
 
 def _as_dict(value: Any) -> dict[str, Any]:

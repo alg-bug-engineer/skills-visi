@@ -230,15 +230,17 @@ def adjust_phase_timing(
     donor_idx = _find_donor_stage_index(stages, skip_idx=target_idx)
 
     if target_delta > 0 and donor_idx is not None:
-        borrow = min(target_delta, _borrowable(stages[donor_idx]))
+        borrow = min(
+            target_delta,
+            _borrowable(stages[donor_idx]),
+            _increase_capacity(stages[target_idx]),
+        )
         stages[donor_idx]["greenTime"] = int(stages[donor_idx]["greenTime"]) - borrow
         stages[target_idx]["greenTime"] = int(stages[target_idx]["greenTime"]) + borrow
     elif target_delta != 0:
-        stages[target_idx]["greenTime"] = int(stages[target_idx]["greenTime"]) + target_delta
-
-    _clamp_stage(stages[target_idx])
-    if donor_idx is not None:
-        _clamp_stage(stages[donor_idx])
+        stages[target_idx]["greenTime"] = _apply_delta_with_directional_bounds(
+            stages[target_idx], target_delta
+        )
 
     current_cycle_s = sum(
         b["green"] + b["yellow"] + b["all_red"] for b in baselines
@@ -463,11 +465,23 @@ def _borrowable(stage: dict[str, Any]) -> int:
     return max(0, green - min_green)
 
 
-def _clamp_stage(stage: dict[str, Any]) -> None:
+def _increase_capacity(stage: dict[str, Any]) -> int:
+    """只计算本次可增量，不用过小的历史 max 反向改写现状绿灯。"""
     green = int(stage.get("greenTime") or 0)
-    min_green = int(stage.get("minGreenTime") or 0)
-    max_green = int(stage.get("maxGreenTime") or green + 30)
-    stage["greenTime"] = max(min_green, min(max_green, green))
+    max_green = int(stage.get("maxGreenTime") or stage.get("max_green_time_s") or green + 30)
+    return max(0, max_green - green)
+
+
+def _apply_delta_with_directional_bounds(stage: dict[str, Any], delta: int) -> int:
+    """约束本次调整方向；基线已越界时不顺手消除存量差额。"""
+    green = int(stage.get("greenTime") or 0)
+    desired = green + int(delta)
+    if delta > 0:
+        return green + min(int(delta), _increase_capacity(stage))
+    if delta < 0:
+        min_green = int(stage.get("minGreenTime") or stage.get("min_green_time_s") or 0)
+        return max(min_green, desired) if green >= min_green else green
+    return green
 
 
 def _sum_cycle(stages: list[dict[str, Any]]) -> int:

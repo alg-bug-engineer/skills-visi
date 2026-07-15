@@ -137,9 +137,16 @@ def build_plan_candidates(
 
         timing_source = "adjust_phase_timing"
         optimizer_degraded_reason: str | None = None
-        # 条件性小步方案是受控 A/B 试运行，必须严格保持 +5/-5、周期不变；
-        # 全局优化器会改动多个阶段和周期，不适用于这种微调试验。
-        if plan_id not in {"verification_plan", "conditional_incremental_release"} and run_single_point_optimizer is not None:
+        # 所有小步释放方案都必须严格执行自身定量契约（目标 +5s、相位内
+        # 借绿、周期不变）。旧逻辑只排除了 conditional_incremental_release，
+        # 普通 incremental_release 仍会被全局优化器改写成整套相位重分配。
+        # 现在两种名称统一走同一确定性路径，避免按 decision_mode/plan_id 组合漏判。
+        use_deterministic_timing = plan_id in {
+            "verification_plan",
+            "incremental_release",
+            "conditional_incremental_release",
+        }
+        if not use_deterministic_timing and run_single_point_optimizer is not None:
             optimized = run_single_point_optimizer(
                 signal=signal,
                 ticket=ticket,

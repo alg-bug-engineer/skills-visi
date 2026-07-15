@@ -89,6 +89,62 @@ def test_guardrail_rejects_over_max_cycle(signal_plan):
     assert any("周期" in e for e in errors)
 
 
+def test_guardrail_allows_preexisting_over_max_to_move_toward_bound():
+    import importlib.util
+
+    path = PROJECT_ROOT / "skills/plan-generation/scripts/validate_plan_guardrails.py"
+    spec = importlib.util.spec_from_file_location("guardrails", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    plan = {
+        "rollback_condition": "异常时回滚",
+        "timing": {
+            "cycle_s": 150,
+            "phase_stage_timing_list": [
+                {
+                    "phase_stage_name": "东西直行",
+                    "green_time_s": 80,
+                    "min_green_time_s": 7,
+                    "max_green_time_s": 60,
+                    "current_timing": {"green_time_s": 85},
+                }
+            ],
+        },
+    }
+
+    errors = mod.validate_plan_guardrails(plan, {"max_cycle_s": 180})
+    assert not any("最大绿" in e for e in errors)
+
+
+def test_guardrail_rejects_preexisting_over_max_when_adjustment_worsens_it():
+    import importlib.util
+
+    path = PROJECT_ROOT / "skills/plan-generation/scripts/validate_plan_guardrails.py"
+    spec = importlib.util.spec_from_file_location("guardrails", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    plan = {
+        "rollback_condition": "异常时回滚",
+        "timing": {
+            "cycle_s": 150,
+            "phase_stage_timing_list": [
+                {
+                    "phase_stage_name": "东西直行",
+                    "green_time_s": 90,
+                    "min_green_time_s": 7,
+                    "max_green_time_s": 60,
+                    "current_timing": {"green_time_s": 85},
+                }
+            ],
+        },
+    }
+
+    errors = mod.validate_plan_guardrails(plan, {"max_cycle_s": 180})
+    assert any("最大绿" in e for e in errors)
+
+
 def test_build_candidates_produces_phase_timing(signal_plan, overflow_fixtures):
     import importlib.util
 

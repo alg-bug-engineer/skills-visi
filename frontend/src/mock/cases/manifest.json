@@ -13,7 +13,7 @@
       "opt_type": "TYPE1_POINT",
       "fixture": "case_a_demo_fixture.json",
       "live_validation": "demo-point-jiefangdong-qichuan-north-through.json",
-      "query": "解放东路与齐川路路口，晚高峰五点到七点，北进口直行经常排队外溢，帮忙看看配时怎么调。下游永绥路与齐音路北口平时还能走，高峰接不接得住也一起看看，别加重下游拥堵。"
+      "query": "解放东路齐川路口，晚高峰那两小时，北口直行老往外溢，看看本口配时还能不能抠点绿。注意别这边加绿把拥堵甩下游去。"
     },
     {
       "id": "case_b",
