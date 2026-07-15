@@ -30,7 +30,7 @@ type VoiceTemplatesFile = {
 
 const config = raw as VoiceTemplatesFile
 
-/** 处置闭环逐步触发模板，键对齐 ActDef.id；act10_feedback 故意不配置（不播报）。 */
+/** 处置闭环逐步触发模板，键对齐 ActDef.id。 */
 export const VOICE_TEMPLATES: Record<string, VoiceTemplateDef> = config.acts
 
 /** 各步骤固定方法词槽文案（填入 {method}） */

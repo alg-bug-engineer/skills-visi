@@ -48,6 +48,9 @@ const partialEvidenceWarning = computed(() => {
   const shown = displayTiming.value
   const missing = shown?.missing_fields ?? []
   if (shown?.available !== false && !missing.length) return null
+  if (isVerificationBaseline.value) {
+    return '已展示后端返回的真实现状配时；释放方向或供需强度证据不完整，因此本轮不生成调整量。'
+  }
   return '已展示后端返回的真实配时；缺少的释放方向或供需强度将在对应位置单独标注，不影响现状与试运行秒数对照。'
 })
 
@@ -78,11 +81,11 @@ function delta(value?: number | null) {
       <p v-if="partialEvidenceWarning" class="audit-warning" data-testid="partial-evidence-warning">
         {{ partialEvidenceWarning }}
       </p>
-      <div class="banner trial">
+      <div class="banner trial" :class="{ baseline: isVerificationBaseline }">
         <div>
-          <b>建议试运行方案</b>
+          <b>{{ isVerificationBaseline ? '现状配时（本轮不调整）' : '建议试运行方案' }}</b>
           <span v-if="periodLabel">时段 {{ periodLabel }}</span>
-          <span v-else>现状配时 → 试运行配时</span>
+          <span v-else>{{ isVerificationBaseline ? '证据不足，不增加目标绿灯' : '现状配时 → 试运行配时' }}</span>
         </div>
         <p>
           <span class="old">{{ sec(displayTiming?.current_cycle_s) }}</span>
@@ -93,7 +96,7 @@ function delta(value?: number | null) {
       </div>
       <StageCards
         :stages="stages"
-        hint="现状 → 试运行（目标加绿 / 其他相位借绿）"
+        :hint="isVerificationBaseline ? '现状配时保持不变（不下发调整）' : '现状 → 试运行（目标加绿 / 其他相位借绿）'"
       />
       <DirectionIntensityPanel :meta="displayTiming?.meta || timing?.meta" />
     </template>

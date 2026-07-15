@@ -98,6 +98,20 @@ def test_enrich_signal_control_uses_real_phase_names():
     assert any("阶段1" in a and "-5s" in a for a in actions)
 
 
+def test_evidence_insufficient_keeps_current_timing_without_plus_five_preview():
+    mod = _load()
+    package = mod.build_action_package(
+        diagnosis={"overflow_mechanism": {"primary": "evidence_insufficient"}},
+        strategy={"decision": {"decision_mode": "verification_required"}},
+        ticket={"intersection_name": "解放东路与奥体中路路口", "movement": "直行"},
+    )
+
+    actions = [row.get("action") or "" for row in package["schemes"]["signal_control"]]
+    assert any("保持现状配时" in action for action in actions)
+    assert not any("+5s" in action or "-5s" in action or "−5s" in action for action in actions)
+    assert not any("试验 5 周期" in action for action in actions)
+
+
 def test_small_road_organization_and_management():
     mod = _load()
     package = mod.build_action_package(

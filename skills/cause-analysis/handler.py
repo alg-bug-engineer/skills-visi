@@ -17,7 +17,7 @@ MECHANISM_CAUSE_LABEL: dict[str, str] = {
     "local_release_insufficient": "本路口放行不足",
     "discharge_anomaly": "放行效率异常，待核验",
     "upstream_arrival_shock": "上游冲击",
-    "evidence_insufficient": "证据不足，待补盲",
+    "evidence_insufficient": "证据不足，待补充更多证据",
 }
 
 

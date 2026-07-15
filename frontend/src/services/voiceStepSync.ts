@@ -31,8 +31,6 @@ export function voiceTextForAct(act: ActDef, resp: RunResponse | null): string {
 /** 构建语音 cue（不占用去重位，供预合成使用）。 */
 export function buildVoiceCue(act: ActDef | null, runKey: string, resp: RunResponse | null): VoiceCue | null {
   if (!act) return null
-  // 方案确认与经验沉淀：不播报，避免与人工决策界面抢注意力。
-  if (act.id === 'act10_feedback') return null
   if (!VOICE_TEMPLATES[act.id]) return null
   const key = `${runKey}:${act.id}`
   return {
@@ -52,7 +50,6 @@ export function voiceCueForAct(
   resp: RunResponse | null,
 ): VoiceCue | null {
   if (!act) return null
-  if (act.id === 'act10_feedback') return null
   const key = `${runKey}:${act.id}`
   if (spokenKeys.has(key)) return null
   spokenKeys.add(key)

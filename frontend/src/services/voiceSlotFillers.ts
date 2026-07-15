@@ -17,7 +17,7 @@ const MECHANISM_VOICE: Record<string, string> = {
   local_release_insufficient: '本路口放行不足',
   downstream_blocked: '下游回堵',
   upstream_arrival_shock: '上游冲击',
-  evidence_insufficient: '证据不足，待补盲',
+  evidence_insufficient: '证据不足，待补充更多证据',
 }
 
 export function voiceConclusionOnly(act: ActDef): boolean {
@@ -79,12 +79,11 @@ function bottleneckVoiceConclusion(resp: RunResponse | null): string {
   return productCopy(downstreamConclusion(diag?.downstream_diagnosis))
 }
 
-/** 案例校验：播报命中与高相似数量，不再夹带主因叙述。 */
+/** 案例校验：数量只在界面展示，语音仅给定性用途，避免无价值报数。 */
 function casesVoiceConclusion(resp: RunResponse | null): string {
   const cards = resp?.phases?.cause?.case_cards
-  if (!cards || cards.matched_count == null) return '案例校验完成'
-  const high = cards.high_similarity_count ?? 0
-  return `匹配同类案例 ${cards.matched_count} 个，高度相似 ${high} 个`
+  if (!cards) return '案例校验完成，未发现可用于改变当前判断的新证据'
+  return '相似案例已完成校验，仅提取可借鉴动作，不直接套用历史方案'
 }
 
 /** 治理策略：对齐决策契约中的绿灯路径。 */

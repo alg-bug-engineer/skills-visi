@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from typing import Any
 
 _EW_DIR8 = frozenset({2, 6})
@@ -41,6 +42,29 @@ def _dir8_code(row: dict[str, Any]) -> int | None:
         return None
 
 
+def _known_road_from_text(text: str | None, road_pair: tuple[str | None, str | None]) -> str | None:
+    """Pick a target-intersection road mentioned by a topology label.
+
+    Direction labels such as ``西进口`` are deliberately excluded: they describe
+    an approach bearing, not a road name.
+    """
+    if not text:
+        return None
+    value = str(text).strip()
+    if not value:
+        return None
+    matches = [road for road in road_pair if road and road in value]
+    # A label that contains both target roads is usually the target intersection
+    # itself and cannot prove either axis.
+    return matches[0] if len(matches) == 1 else None
+
+
+def _most_common(values: list[str]) -> str | None:
+    if not values:
+        return None
+    return Counter(values).most_common(1)[0][0]
+
+
 def build_axis_roads(
     *,
     intersection_name: str | None = None,
@@ -49,10 +73,12 @@ def build_axis_roads(
 ) -> dict[str, Any]:
     """Return axis road labels for voice / spatial cognition.
 
-    Priority: channelization entrance links → intersection name pair (unordered).
+    Priority: channelization road_name / adjacent-intersection topology →
+    intersection name pair (unordered).
     """
-    ew: str | None = None
-    ns: str | None = None
+    road_pair = parse_road_pair_from_intersection(intersection_name)
+    ew_votes: list[str] = []
+    ns_votes: list[str] = []
     source = "none"
 
     rows = list(channel_rows or []) + list(link_rows or [])
@@ -61,27 +87,51 @@ def build_axis_roads(
         if role and role != "entrance":
             continue
         dir8 = _dir8_code(row)
-        label = _road_head(row.get("road_name")) or str(row.get("dir8_label") or "").replace("进口", "").strip()
+        road_name = _road_head(row.get("road_name"))
+        label = _known_road_from_text(road_name, road_pair)
+        if not label:
+            label = _known_road_from_text(row.get("adjacent_inter_name"), road_pair)
+        # When the intersection name cannot be parsed, a real road_name remains
+        # useful. Never fall back to dir8_label ("西进口"/"北进口").
+        if not label and not any(road_pair):
+            label = road_name
         if not label:
             continue
-        if dir8 in _EW_DIR8 and not ew:
-            ew = label
-            source = "channelization"
-        elif dir8 in _NS_DIR8 and not ns:
-            ns = label
-            source = "channelization"
+        if dir8 in _EW_DIR8:
+            ew_votes.append(label)
+        elif dir8 in _NS_DIR8:
+            ns_votes.append(label)
+
+    ew = _most_common(ew_votes)
+    ns = _most_common(ns_votes)
+    if ew or ns:
+        source = "road_topology"
+
+    # One reliable axis determines the other road at a two-road intersection.
+    known_pair = [road for road in road_pair if road]
+    if len(known_pair) == 2:
+        if ew and not ns:
+            ns = next((road for road in known_pair if road != ew), None)
+        elif ns and not ew:
+            ew = next((road for road in known_pair if road != ns), None)
+        if ew and ew == ns:
+            other = next((road for road in known_pair if road != ew), None)
+            if other:
+                if len(ew_votes) >= len(ns_votes):
+                    ns = other
+                else:
+                    ew = other
 
     if not ew and not ns:
-        a, b = parse_road_pair_from_intersection(intersection_name)
+        a, b = road_pair
         if a and b:
-            # Name pair only — assign arbitrarily to ew/ns slots for TTS; voice layer uses generic wording.
-            ew, ns = a, b
-            source = "intersection_name"
+            source = "intersection_name_unordered"
 
-    available = bool(ew or ns)
+    available = bool(ew or ns or all(road_pair))
     return {
         "ew_road": ew,
         "ns_road": ns,
+        "road_pair": [road for road in road_pair if road],
         "available": available,
         "source": source if available else "none",
     }

@@ -166,33 +166,35 @@ def build_plan_candidates(
 
         proposed_timing: dict[str, Any] | None = None
         if plan_id == "verification_plan":
-            # 现状门控外，另挂一门控后拟实施借绿预览（绿差读实际计算结果，禁止用 instruction 盖写）
-            trial_instr = build_strategy_instruction(strategy, "conditional_incremental_release")
-            trial = adjust_phase_timing(
-                signal=signal,
-                strategy_instruction=trial_instr,
-                ticket=ticket,
-                diagnosis=diagnosis,
-            )
-            if trial.get("ok"):
-                timing_body = dict(trial.get("timing") or {})
-                proposed_timing = {
-                    **timing_body,
-                    "available": True,
-                    "gate": "verification_passed",
-                    "label": "门控通过后拟实施",
-                    "requested_target_green_delta_s": int(trial_instr.get("target_green_delta") or 5),
-                }
-            else:
-                proposed_timing = {
-                    "available": False,
-                    "gate": "verification_passed",
-                    "label": "门控通过后拟实施",
-                    "reason": trial.get("reason") or "未能生成拟实施借绿配时",
-                    "target_green_delta_s": 0,
-                    "donor_green_delta_s": 0,
-                    "cycle_delta_s": 0,
-                }
+            # 证据不足（verification_required）只返回现状，不预设 +5s。
+            # 仅旧式“核验通过后调整”契约允许携带门控后的拟实施预览。
+            if decision.get("decision_mode") == "verify_then_adjust":
+                trial_instr = build_strategy_instruction(strategy, "conditional_incremental_release")
+                trial = adjust_phase_timing(
+                    signal=signal,
+                    strategy_instruction=trial_instr,
+                    ticket=ticket,
+                    diagnosis=diagnosis,
+                )
+                if trial.get("ok"):
+                    timing_body = dict(trial.get("timing") or {})
+                    proposed_timing = {
+                        **timing_body,
+                        "available": True,
+                        "gate": "verification_passed",
+                        "label": "核验通过后拟实施",
+                        "requested_target_green_delta_s": int(trial_instr.get("target_green_delta") or 5),
+                    }
+                else:
+                    proposed_timing = {
+                        "available": False,
+                        "gate": "verification_passed",
+                        "label": "核验通过后拟实施",
+                        "reason": trial.get("reason") or "未能生成拟实施借绿配时",
+                        "target_green_delta_s": 0,
+                        "donor_green_delta_s": 0,
+                        "cycle_delta_s": 0,
+                    }
             timing_source = "baseline_no_change"
             adjusted["timing"] = _mark_verification_baseline_timing(adjusted.get("timing") or {}, signal)
             if adjusted["timing"].get("cycle_s") is not None:

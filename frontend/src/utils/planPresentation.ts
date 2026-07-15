@@ -6,11 +6,17 @@ export type TrialTiming = PlanTimingEvidence & {
   reason?: string | null
 }
 
-/** 兼容历史响应：旧 verification_plan 将真正要执行的配时放在 proposed_timing。 */
+/** 只对已经可执行的候选读取拟实施配时；核验方案始终展示现状基线。 */
 export function trialTimingOf(candidate: PlanCandidate | null | undefined): TrialTiming | null {
   if (!candidate) return null
   const proposed = (candidate as PlanCandidate & { proposed_timing?: TrialTiming }).proposed_timing
-  if (proposed?.available !== false && proposed?.phase_stage_timing_list?.length) return proposed
+  const canUseProposed =
+    candidate.plan_id !== 'verification_plan' &&
+    candidate.executable === true &&
+    candidate.plan_status === 'trial_ready'
+  if (canUseProposed && proposed?.available !== false && proposed?.phase_stage_timing_list?.length) {
+    return proposed
+  }
   return candidate.timing ?? null
 }
 

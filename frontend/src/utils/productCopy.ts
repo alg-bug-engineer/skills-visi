@@ -1,6 +1,9 @@
 import { labelAny } from '@/labels/enums'
 
 const REPLACEMENTS: Array<[RegExp, string]> = [
+  [/待补盲/g, '待补充更多证据'],
+  [/数据补盲/g, '补充数据证据'],
+  [/补盲/g, '补充证据'],
   [/校验问题：?\s*/g, '核验项：'],
   [/加绿以后，车有没有地方去？/g, '下游承接空间是否充足'],
   [/车有没有地方去/g, '下游承接空间是否充足'],

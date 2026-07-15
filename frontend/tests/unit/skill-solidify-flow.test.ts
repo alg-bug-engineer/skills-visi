@@ -80,4 +80,35 @@ describe('Skill solidify flow', () => {
     expect(store.solidifyPhase).toBe('idle')
     expect(store.dock).toBe('input')
   })
+
+  it('holds absorption visuals and the next phase behind their corresponding voice barriers', async () => {
+    const store = usePresentationStore()
+    store.traceId = 't-sync'
+    store.pendingSolidifyPlanId = 'downstream_protection'
+    store.solidifyPhase = 'prompt'
+
+    let finishIntro!: () => void
+    let finishSummary!: () => void
+    const introDone = new Promise<void>((resolve) => { finishIntro = resolve })
+    const summaryDone = new Promise<void>((resolve) => { finishSummary = resolve })
+    const barrier = vi.fn()
+      .mockImplementationOnce(() => introDone)
+      .mockImplementationOnce(() => summaryDone)
+    store.setVoiceBarrier(barrier)
+
+    const overlay = mount(SkillSolidifyOverlay, { global: { stubs: { teleport: true } } })
+    mount(ProcessPanel)
+    await overlay.find('[data-testid="solidify-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(store.solidifyPhase).toBe('absorbing')
+    finishIntro()
+    await flushPromises()
+    expect(store.solidifyPhase).toBe('absorbing')
+    expect(barrier).toHaveBeenCalledTimes(2)
+
+    finishSummary()
+    await flushPromises()
+    expect(store.solidifyPhase).toBe('building')
+  })
 })

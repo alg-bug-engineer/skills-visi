@@ -75,6 +75,7 @@ export interface SpatialScene {
   axis_roads?: {
     ew_road?: string | null
     ns_road?: string | null
+    road_pair?: string[]
     available?: boolean
     source?: string
   }

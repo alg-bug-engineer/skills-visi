@@ -85,6 +85,41 @@ describe('PlanEvidencePanel', () => {
     expect(wrapper.text()).toContain('现状周期')
   })
 
+  it('never turns a verification baseline plus legacy proposed timing into a +5s trial', () => {
+    const candidate = candidateWithEvidence() as PlanCandidate & { proposed_timing?: PlanCandidate['timing'] }
+    candidate.plan_id = 'verification_plan'
+    candidate.name = '先验核验方案'
+    candidate.executable = false
+    candidate.plan_status = 'requires_verification'
+    candidate.timing!.verification_baseline = true
+    candidate.timing!.cycle_s = candidate.timing!.current_cycle_s
+    candidate.timing!.cycle_delta_s = 0
+    candidate.timing!.phase_stage_timing_list![0].optimized_timing = {
+      ...candidate.timing!.phase_stage_timing_list![0].current_timing!,
+    }
+    candidate.timing!.phase_stage_timing_list![0].green_time_s = 60
+    candidate.timing!.phase_stage_timing_list![0].green_delta_s = 0
+    candidate.proposed_timing = {
+      current_cycle_s: 130,
+      cycle_s: 130,
+      phase_stage_timing_list: [
+        {
+          ...candidate.timing!.phase_stage_timing_list![0],
+          green_time_s: 65,
+          optimized_timing: { green_time_s: 65 },
+          green_delta_s: 5,
+        },
+      ],
+    }
+
+    const wrapper = mount(PlanEvidencePanel, { props: { candidate } })
+
+    expect(wrapper.text()).toContain('现状配时（本轮不调整）')
+    expect(wrapper.text()).toContain('现状配时保持不变')
+    expect(wrapper.text()).not.toContain('+5s')
+    expect(wrapper.text()).not.toContain('建议试运行方案')
+  })
+
   it('does not hide real timing when only optional movement/intensity evidence is incomplete', () => {
     const candidate = candidateWithEvidence()
     candidate.timing!.available = false

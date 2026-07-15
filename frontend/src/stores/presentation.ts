@@ -618,6 +618,12 @@ export const usePresentationStore = defineStore('presentation', {
       this.toast = '方案已下发，已返回主页。'
     },
 
+    /** 无需下发或方案不可执行：确认保持现状并退出方案页。 */
+    returnHomeFromPlan() {
+      this.reset(true)
+      this.toast = '本轮保持现状配时，已返回主页。'
+    },
+
     /** 确认固化：透传真实快照调用后端，成功后由 overlay 驱动吸收→构建→完成。 */
     async confirmSolidify() {
       if (!this.traceId) return

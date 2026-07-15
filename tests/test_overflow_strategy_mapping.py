@@ -118,6 +118,69 @@ def test_build_candidates_respects_allowed_plan_types():
         assert "承接不足" not in text
 
 
+def test_evidence_insufficient_candidate_has_baseline_only_without_proposed_plus_five():
+    build = _load_build_candidates()
+    adjust = _load_adjust()
+
+    def generate_timing_plan(instruction, ctx, signal, diagnosis):
+        return {"rollback_condition": "保持现状", "timing": {}}
+
+    def adjust_phase_timing(**kwargs):
+        return {
+            "ok": True,
+            "timing": {
+                "current_cycle_s": 120,
+                "cycle_s": 120,
+                "phase_stage_timing_list": [
+                    {
+                        "phase_stage_id": "1",
+                        "phase_stage_name": "北直",
+                        "green_time_s": 30,
+                        "current_timing": {"green_time_s": 30},
+                        "optimized_timing": {"green_time_s": 30},
+                        "green_delta_s": 0,
+                    }
+                ],
+            },
+            "cycle_s": 120,
+            "upstream_control": {"enabled": False},
+            "phase_offset_sec": 0,
+            "pedestrian_constraints": {"satisfied": True, "violations": []},
+            "downstream_risk": {},
+        }
+
+    strategy = {
+        "strategy_package": "verification_plan",
+        "decision": {
+            "decision_mode": "verification_required",
+            "allowed_plan_types": ["verification_plan"],
+            "forbidden_plan_types": ["conditional_incremental_release", "incremental_release"],
+            "preconditions_satisfied": False,
+            "executable": False,
+            "plan_status": "requires_verification",
+        },
+        "case_references": {},
+    }
+    candidates, _ = build.build_plan_candidates(
+        strategy,
+        {"direction": "南向北", "movement": "直行"},
+        {"overflow_mechanism": {"primary": "evidence_insufficient"}},
+        signal={"current_cycle_s": 120, "cycle_s": 120},
+        constraints={"max_cycle_s": 180},
+        generate_timing_plan=generate_timing_plan,
+        adjust_phase_timing=adjust_phase_timing,
+        build_strategy_instruction=adjust.build_strategy_instruction,
+        validate_plan_guardrails=lambda plan, constraints: [],
+    )
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate["plan_id"] == "verification_plan"
+    assert candidate["executable"] is False
+    assert candidate["timing"]["verification_baseline"] is True
+    assert "proposed_timing" not in candidate
+
+
 def test_build_strategy_instruction_uses_plan_id_not_shared_package():
     adjust = _load_adjust()
     strategy = {"strategy_package": "incremental_release"}

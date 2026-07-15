@@ -3,6 +3,7 @@ import type { RunResponse } from '@/api/types'
 export interface AxisRoads {
   ew_road?: string | null
   ns_road?: string | null
+  road_pair?: string[]
   available?: boolean
   source?: string
 }
@@ -20,5 +21,7 @@ export function voiceSpatialCognition(resp: RunResponse | null): string | null {
   if (ew && ns) return `${name}，东西向是${ew}，南北向是${ns}`
   if (ew) return `${name}，东西向是${ew}，南北向道路信息待补全`
   if (ns) return `${name}，南北向是${ns}，东西向道路信息待补全`
+  const pair = (axis.road_pair ?? []).map((road) => road.trim()).filter(Boolean)
+  if (pair.length >= 2) return `${name}，由${pair[0]}与${pair[1]}相交`
   return null
 }

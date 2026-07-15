@@ -260,8 +260,11 @@ class PlanGenerationSkill(BaseSkill):
             else:
                 action_package = {"available": False}
 
-        # 门控方案也要挂上「拟实施配时」预览：用条件增绿 instruction 生成，摘要读实际绿差
-        if recommended.get("plan_id") == "verification_plan":
+        # 只有明确的“核验通过后调整”契约才挂拟实施预览；证据不足时严禁预设 +5s。
+        if (
+            recommended.get("plan_id") == "verification_plan"
+            and decision.get("decision_mode") == "verify_then_adjust"
+        ):
             trial_instr = adjust_module.build_strategy_instruction(strategy, "conditional_incremental_release")
             proposed = adjust_module.adjust_phase_timing(
                 signal=signal_resolved["signal"],

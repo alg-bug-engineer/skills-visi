@@ -53,4 +53,66 @@ describe('PlanDrawer · 可控试运行闭环', () => {
     expect(wrapper.find('[data-testid="plan-evidence-stub"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('需要后端补齐配时明细')
   })
+
+  it('证据不足时不升级成 +5s 试运行，并可返回主页', async () => {
+    const response = structuredClone(fixture) as unknown as RunResponse
+    const source = response.plan?.recommended
+    const baseline = structuredClone(source?.timing)
+    if (!source || !baseline) throw new Error('fixture missing recommended timing')
+    baseline.verification_baseline = true
+    baseline.cycle_s = baseline.current_cycle_s
+    baseline.cycle_delta_s = 0
+    for (const stage of baseline.phase_stage_timing_list ?? []) {
+      stage.optimized_timing = stage.current_timing ? { ...stage.current_timing } : undefined
+      stage.green_time_s = stage.current_timing?.green_time_s ?? stage.green_time_s
+      stage.green_delta_s = 0
+    }
+    const proposed = structuredClone(source.timing)
+    const verification = {
+      ...source,
+      plan_id: 'verification_plan',
+      name: '先验核验方案',
+      timing: baseline,
+      proposed_timing: proposed,
+      executable: false,
+      plan_status: 'requires_verification',
+      risk: '当前排队未达到溢出条件，不支持增加绿灯时长',
+    }
+    response.plan = {
+      ...response.plan!,
+      candidates: [verification],
+      recommended: verification,
+      recommended_plan_id: 'verification_plan',
+      recommendation: {
+        ...(response.plan?.recommendation ?? {}),
+        recommended_plan_id: 'verification_plan',
+      },
+      executable: false,
+      plan_status: 'requires_verification',
+    }
+
+    const store = usePresentationStore()
+    store.applySnapshot(response)
+    const wrapper = mount(PlanDrawer, {
+      global: {
+        stubs: {
+          PlanEvidencePanel: { template: '<div data-testid="plan-evidence-stub" />' },
+          CoordinationDiagram: { template: '<div />' },
+        },
+      },
+    })
+
+    const home = wrapper.get('[data-testid="plan-return-home"]')
+    expect(home.attributes('disabled')).toBeUndefined()
+    expect(home.text()).toBe('返回主页')
+    expect(wrapper.text()).toContain('为什么不调整')
+    expect(wrapper.get('[data-testid="scheme-signal-control"]').text()).toContain('保持现状配时')
+    expect(wrapper.get('[data-testid="scheme-signal-control"]').text()).not.toContain('+5s')
+
+    await home.trigger('click')
+    expect(store.dock).toBe('input')
+    expect(store.status).toBe('idle')
+    expect(store.response).toBeNull()
+    expect(store.toast).toContain('已返回主页')
+  })
 })

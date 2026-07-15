@@ -37,7 +37,6 @@ export type CardKey =
   | 'cause'
   | 'strategy'
   | 'plan'
-  | 'feedback'
   | 'verification'
   | 'governance'
   | 'healthy'
@@ -74,7 +73,6 @@ export const ACT_DEFS: ActDef[] = [
   // 治理策略：在干线级(17)基础上 +1 放大（需求21-R3），聚焦控制范围
   { index: 7, id: 'act8_strategy', phase: 'strategy', pipelineNode: '策略约束', processTitle: '治理策略与边界约束', reveal: 'governance', extraCards: ['overflow_chain'], scene: { kind: 'control', pitch: 45, zoom: 18, evidence: 'control_scope' } },
   { index: 8, id: 'act9_plan', phase: 'plan', pipelineNode: '方案交付', processTitle: '配时方案生成', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 18, evidence: 'plan_output' } },
-  { index: 9, id: 'act10_feedback', phase: 'plan', pipelineNode: '反馈沉淀', processTitle: '方案确认与经验沉淀', reveal: 'feedback', scene: { kind: 'corridor', pitch: 50, zoom: 17, evidence: 'feedback' } },
 ]
 
 function lines(...xs: (string | null | undefined | false)[]): string[] {
@@ -233,15 +231,6 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         plan?.executable === false && '状态：数据不足，暂不生成可下发配时',
       )
     }
-    case 'act10_feedback':
-      return lines(
-        resp?.completion_status === 'completed_conditional' &&
-          '当前数据不足，方案需补充数据后再生成',
-        resp?.completion_status === 'completed_with_trial_plan' &&
-          `试运行方案已就绪：下发后运行 ${plan?.trial_loop?.observation_cycles ?? 5} 个周期，系统监测并自动回滚`,
-        '记录本次处置结果，形成后续复用依据…',
-        '请确认下发、退回修改或提交再生成。',
-      )
     default:
       return []
   }
@@ -307,8 +296,6 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
       if (planId === 'verification_plan') return '当前数据不足，尚未形成可下发配时'
       return planId ? `推荐方案 ${translatePlanId(planId)}` : '方案生成完成'
     }
-    case 'act10_feedback':
-      return '等待方案确认或退回修改'
     default:
       return act.processTitle
   }

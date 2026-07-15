@@ -37,22 +37,10 @@ const selected = computed<PlanCandidate | null>(() => {
   const base = recommended && (!id || recommended.plan_id === id)
     ? recommended
     : candidates.value.find((c) => c.plan_id === id) ?? recommended ?? candidates.value[0] ?? null
-  const trial = trialTimingOf(base)
-  if (base && isLegacyVerificationPlan(base) && trial?.phase_stage_timing_list?.some((s) => (s.green_delta_s ?? 0) !== 0)) {
-    return {
-      ...base,
-      plan_id: 'conditional_incremental_release',
-      name: '小步增绿试运行方案',
-      timing: trial,
-      executable: true,
-      plan_status: 'trial_ready',
-      expected_effect: '用 5 个周期验证并缓解目标进口排队，不加重下游拥堵',
-      risk: '目标排队未改善或下游排队增长时自动回滚',
-    }
-  }
   return base
 })
 const hasTiming = computed(() => hasCoreTimingEvidence(trialTimingOf(selected.value)))
+const isVerificationBaseline = computed(() => isLegacyVerificationPlan(selected.value))
 
 type SchemeItem = { action?: string; where?: string; kind?: string; target?: string }
 type ActionPackage = {
@@ -93,6 +81,7 @@ const actionPackage = computed(
     null,
 )
 const signalControlItems = computed(() => {
+  if (isVerificationBaseline.value) return ['保持现状配时，本轮不下发绿灯调整']
   const actual = timingActionLines(selected.value)
   return actual.length ? actual : schemeActions(actionPackage.value?.schemes?.signal_control)
 })
@@ -105,11 +94,21 @@ const strategyItems = computed(() => {
     .filter(Boolean)
     .slice(0, 6)
 })
+
+function isUserFacingRedLine(value: unknown): boolean {
+  const text = String(value ?? '').trim()
+  if (!text) return false
+  return ![
+    /信号周期不得超过\s*\d+s/i,
+    /单相位绿灯不得超过\s*\d+s/i,
+  ].some((pattern) => pattern.test(text))
+}
+
 const redLines = computed(() => {
   const constraints = store.strategy?.strategy?.hard_constraints ?? []
   const risks = selected.value?.downstream_risk?.reasons ?? []
   const validation = selected.value?.validation_errors ?? []
-  return [...constraints, ...risks, ...validation].filter(Boolean).slice(0, 5)
+  return [...constraints, ...risks, ...validation].filter(isUserFacingRedLine).slice(0, 5)
 })
 const strategyTarget = computed(() => store.strategy?.strategy?.target_intersection ?? null)
 const targetTitle = computed(() => {
@@ -123,6 +122,7 @@ const busy = ref(false)
 
 const planExecutable = computed(() => {
   const rec = selected.value
+  if (isVerificationBaseline.value) return false
   if (rec?.executable === true && rec?.plan_status === 'trial_ready' && rec.guardrail_pass !== false) {
     return true
   }
@@ -138,12 +138,20 @@ const planExecutable = computed(() => {
 const trialLoop = computed(() => store.plan?.trial_loop ?? null)
 const isTrialPlan = computed(
   () =>
-    selected.value?.plan_status === 'trial_ready' ||
-    store.plan?.plan_status === 'trial_ready' ||
-    store.response?.completion_status === 'completed_with_trial_plan',
+    !isVerificationBaseline.value &&
+    (selected.value?.plan_status === 'trial_ready' ||
+      store.plan?.plan_status === 'trial_ready' ||
+      store.response?.completion_status === 'completed_with_trial_plan'),
 )
 const trialCycles = computed(() => trialLoop.value?.observation_cycles ?? 5)
 const timingSummary = computed(() => compactTimingSummary(selected.value))
+const noAdjustmentReason = computed(() => {
+  if (!isVerificationBaseline.value) return ''
+  const decision = (store.strategy as { decision?: { reason?: string } } | null)?.decision
+  return productCopy(
+    decision?.reason || selected.value?.risk || '现有证据不足，或排队尚未达到溢出条件，当前不支持增加绿灯时长',
+  )
+})
 
 const decisionBasis = computed(() => {
   const metrics = store.diagnosis?.metrics
@@ -185,7 +193,9 @@ async function onReject() {
         <p>
           {{
             !planExecutable
-              ? '当前数据不足以安全生成配时，请退回补充数据'
+              ? isVerificationBaseline
+                ? '本轮维持现状配时：证据不足或未达到溢出条件时，不生成 +5s 调整'
+                : '当前方案未满足安全约束，不能下发'
               : isTrialPlan
                 ? `可下发试运行 ${trialCycles} 个周期，系统持续监测并支持自动回滚`
                 : hasTiming
@@ -239,14 +249,15 @@ async function onReject() {
             <span class="kpi__k">风险</span>
             <span class="kpi__v warn">{{ productCopy(selected.risk) || '—' }}</span>
           </div>
-          <div v-if="decisionBasis.length" class="list-box decision-box" data-testid="decision-basis">
-            <span class="kpi__k">为什么这样调</span>
+          <div v-if="decisionBasis.length || noAdjustmentReason" class="list-box decision-box" data-testid="decision-basis">
+            <span class="kpi__k">{{ isVerificationBaseline ? '为什么不调整' : '为什么这样调' }}</span>
             <ul>
               <li v-for="(item, i) in decisionBasis" :key="`basis-${i}`">{{ item }}</li>
             </ul>
-            <strong v-if="timingSummary">因此采用：{{ timingSummary }}</strong>
+            <strong v-if="noAdjustmentReason">因此本轮保持现状：{{ noAdjustmentReason }}</strong>
+            <strong v-else-if="timingSummary">因此采用：{{ timingSummary }}</strong>
           </div>
-          <div v-if="trialLoop" class="list-box">
+          <div v-if="trialLoop && isTrialPlan" class="list-box">
             <span class="kpi__k">下发后的试运行闭环</span>
             <ul>
               <li>立即执行：下发后运行 {{ trialCycles }} 个周期</li>
@@ -299,12 +310,22 @@ async function onReject() {
       <template v-if="!rejecting">
         <button class="btn btn--ghost" :disabled="busy" @click="rejecting = true">退回修改</button>
         <button
+          v-if="planExecutable"
           class="btn btn--primary"
-          :disabled="busy || !selected || !planExecutable"
-          :title="planExecutable ? '' : '当前数据不足以安全生成配时，请退回补充数据'"
+          :disabled="busy || !selected"
           @click="onAccept"
         >
-          {{ busy ? '下发中…' : planExecutable && isTrialPlan ? `下发并试运行 ${trialCycles} 周期` : planExecutable ? '接受并下发' : '数据不足，无法下发' }}
+          {{ busy ? '下发中…' : isTrialPlan ? `下发并试运行 ${trialCycles} 周期` : '接受并下发' }}
+        </button>
+        <button
+          v-else
+          type="button"
+          class="btn btn--primary"
+          data-testid="plan-return-home"
+          :disabled="busy"
+          @click="store.returnHomeFromPlan()"
+        >
+          返回主页
         </button>
       </template>
       <template v-else>

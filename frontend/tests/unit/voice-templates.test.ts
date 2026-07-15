@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { ACT_DEFS } from '@/composables/useTimeline'
 import { composeVoiceAnnounce, renderVoiceTemplate, VOICE_TEMPLATES, voiceMethodFor } from '@/config/voiceTemplates'
 import { voiceSlotsForAct } from '@/services/voiceSlotFillers'
-import { buildVoiceCue, voiceTextForAct } from '@/services/voiceStepSync'
+import { voiceTextForAct } from '@/services/voiceStepSync'
 import { voiceSpatialCognition } from '@/services/voiceSpatialCognition'
 import {
   resetAbsorptionVoiceKeys,
-  voiceCueForAbsorptionStage,
+  voiceCueForAbsorptionDone,
   voiceCueForAbsorptionStart,
 } from '@/services/voiceAbsorptionSync'
-import { ABSORPTION_STAGE_VOICE, ABSORPTION_VOICE_GUIDE } from '@/config/voiceTemplates'
+import { ABSORPTION_VOICE_GUIDE } from '@/config/voiceTemplates'
 import { downstreamConclusion } from '@/utils/downstream'
 import fixture from '@/mock/run_1_fixture.json'
 import type { RunResponse } from '@/api/types'
@@ -112,6 +112,19 @@ describe('voice templates', () => {
     expect(text).not.toContain('信号控制不当')
   })
 
+  it('evidence-insufficient voice asks for more evidence without jargon', () => {
+    const act = ACT_DEFS.find((item) => item.id === 'act4_attribution')!
+    const response = structuredClone(fx)
+    response.phases.diagnosis = {
+      ...(response.phases.diagnosis ?? {}),
+      overflow_mechanism: { primary: 'evidence_insufficient', status: 'hypothesis' },
+    } as RunResponse['phases']['diagnosis']
+    const text = voiceTextForAct(act, response)
+
+    expect(text).toContain('待补充更多证据')
+    expect(text).not.toContain('补盲')
+  })
+
   it('strategy and plan acts include voice conclusion aligned with decision contract', () => {
     const strategyAct = ACT_DEFS.find((item) => item.id === 'act8_strategy')!
     const planAct = ACT_DEFS.find((item) => item.id === 'act9_plan')!
@@ -124,15 +137,8 @@ describe('voice templates', () => {
     expect(planText).not.toContain('核心结论')
   })
 
-  it('feedback act has no voice cue', () => {
-    const act = ACT_DEFS.find((item) => item.id === 'act10_feedback')!
-    expect(buildVoiceCue(act, 'run-1', fx)).toBeNull()
-    expect(VOICE_TEMPLATES[act.id]).toBeUndefined()
-  })
-
   it('voice step titles stay aligned with process titles for all speakable acts', () => {
     for (const act of ACT_DEFS) {
-      if (act.id === 'act10_feedback') continue
       const def = VOICE_TEMPLATES[act.id]
       expect(def, `missing voice template for ${act.id}`).toBeTruthy()
       expect(def!.stepTitle).toBe(act.processTitle)
@@ -141,16 +147,14 @@ describe('voice templates', () => {
     }
   })
 
-  it('cases act voice reports match counts without primary-cause narration', () => {
+  it('cases act voice gives a qualitative result without reading counts', () => {
     const act = ACT_DEFS.find((item) => item.id === 'act7_cases')!
     const text = voiceTextForAct(act, fx)
     const primary = fx.phases?.cause?.cause_analysis?.primary_cause ?? ''
-    const matched = fx.phases?.cause?.case_cards?.matched_count
-    const high = fx.phases?.cause?.case_cards?.high_similarity_count ?? 0
 
     expect(text).toContain('案例校验')
-    if (matched != null) expect(text).toContain(`匹配同类案例 ${matched} 个`)
-    expect(text).toContain(`高度相似 ${high} 个`)
+    expect(text).toContain('不直接套用历史方案')
+    expect(text).not.toMatch(/匹配同类案例\s*\d+|高度相似\s*\d+/)
     if (primary) expect(text).not.toContain(primary.split(/[（(]/)[0]?.trim() ?? primary)
   })
 
@@ -205,17 +209,48 @@ describe('voiceSpatialCognition', () => {
     expect(text).toContain('东西向是经十路')
     expect(text).toContain('南北向是转山西路')
   })
+
+  it('uses neutral intersection wording when road axes are not proven', () => {
+    const resp = {
+      diagnosis_ticket: { intersection_name: '解放东路与奥体中路路口' },
+      phases: {
+        intent: {
+          spatial_scene: {
+            target: { inter_name: '解放东路与奥体中路路口' },
+            axis_roads: {
+              ew_road: null,
+              ns_road: null,
+              road_pair: ['解放东路', '奥体中路'],
+              available: true,
+            },
+          },
+        },
+      },
+    } as unknown as RunResponse
+
+    expect(voiceSpatialCognition(resp)).toBe('解放东路与奥体中路路口，由解放东路与奥体中路相交')
+  })
 })
 
 describe('voiceAbsorptionSync', () => {
-  it('播报经验吸收开始与阶段文案', () => {
+  it('吸收过程只播一句引导，并在完成时播报实际吸收内容', () => {
     resetAbsorptionVoiceKeys()
     const start = voiceCueForAbsorptionStart('run-1')
     expect(start?.text).toBe(ABSORPTION_VOICE_GUIDE.absorptionStart)
     expect(voiceCueForAbsorptionStart('run-1')).toBeNull()
-
-    const recap = voiceCueForAbsorptionStage('run-1', 'recap')
-    expect(recap?.text).toBe(ABSORPTION_STAGE_VOICE.recap)
-    expect(voiceCueForAbsorptionStage('run-1', 'decompose')).toBeNull()
+    const result = {
+      ...({} as Parameters<typeof voiceCueForAbsorptionDone>[1]),
+      skill_id: 'skill-test',
+      absorption: {
+        value_snapshot: {
+          what: { title: '固化技能', bullets: ['路口：测试路口', '沉淀约束：4 条'] },
+          why_rows: [{ key: 'reuse', label: '复用方式', before: '手工检索', after: '按标签自动命中' }],
+          delta_rows: [],
+        },
+      },
+    } as unknown as Parameters<typeof voiceCueForAbsorptionDone>[1]
+    const done = voiceCueForAbsorptionDone('run-1', result)
+    expect(done?.text).toContain('测试路口')
+    expect(done?.text).toContain('按标签自动命中')
   })
 })

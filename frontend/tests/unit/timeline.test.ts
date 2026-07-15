@@ -6,8 +6,8 @@ import fixture from '@/mock/run_1_fixture.json'
 const fx = fixture as unknown as RunResponse
 
 describe('ACT_DEFS', () => {
-  it('defines ten acts with evidence → attribution → cases order', () => {
-    expect(ACT_DEFS).toHaveLength(10)
+  it('defines nine acts with evidence → attribution → cases → plan order', () => {
+    expect(ACT_DEFS).toHaveLength(9)
     expect(ACT_DEFS[0].reveal).toBe('ticket')
     expect(ACT_DEFS[0].phase).toBe('intent')
     expect(ACT_DEFS[2].processTitle).toBe('证据核验')
@@ -17,7 +17,7 @@ describe('ACT_DEFS', () => {
     expect(ACT_DEFS[6].processTitle).toBe('案例校验')
     expect(ACT_DEFS[8].reveal).toBe('plan')
     expect(ACT_DEFS[8].phase).toBe('plan')
-    expect(ACT_DEFS[9].id).toBe('act10_feedback')
+    expect(ACT_DEFS.some((act) => act.processTitle === '方案确认与经验沉淀')).toBe(false)
   })
 })
 

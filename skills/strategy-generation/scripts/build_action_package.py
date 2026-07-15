@@ -307,7 +307,7 @@ def _signal_control_scheme(
     movement = target["movement"]
     if phase_items:
         rows = list(phase_items)
-    elif decision_mode in {"verify_then_adjust", "verification_required"}:
+    elif decision_mode == "verify_then_adjust":
         rows = [
             {
                 "kind": "timing",
@@ -331,6 +331,17 @@ def _signal_control_scheme(
                 "where": target["inter_name"],
                 "cycle_delta_s": 0,
             },
+        ]
+    elif decision_mode == "verification_required":
+        rows = [
+            {
+                "kind": "timing",
+                "action": "保持现状配时，本轮不下发绿灯调整",
+                "where": target["inter_name"],
+                "green_delta_s": 0,
+                "cycle_delta_s": 0,
+                "executable_now": False,
+            }
         ]
     elif decision_mode in {"incremental_release", "incremental_release_trial"}:
         rows = [
@@ -382,13 +393,14 @@ def _signal_control_scheme(
                 "where": target["inter_name"],
             }
         )
-        rows.append(
-            {
-                "kind": "monitor",
-                "action": f"试验 5 周期；{downstream}排队比>0.9 立即回滚原方案",
-                "where": downstream,
-            }
-        )
+        if decision_mode == "verify_then_adjust":
+            rows.append(
+                {
+                    "kind": "monitor",
+                    "action": f"核验通过后试验 5 周期；{downstream}排队比>0.9 立即回滚原方案",
+                    "where": downstream,
+                }
+            )
     elif decision_mode in {"incremental_release", "incremental_release_trial"}:
         rows.append(
             {

@@ -18,7 +18,6 @@ import ExperienceAbsorptionPanel from '@/panels/ExperienceAbsorptionPanel.vue'
 import { useExperienceAbsorption } from '@/composables/useExperienceAbsorption'
 import {
   voiceCueForAbsorptionDone,
-  voiceCueForAbsorptionStage,
   voiceCueForAbsorptionStart,
 } from '@/services/voiceAbsorptionSync'
 import { DEMO_TYPING_MS, actDwellMs } from '@/config/demoPacing'
@@ -77,17 +76,9 @@ function visibleLines(lines: string[]): string[] {
 
 const absorptionRunKey = computed(() => `${store.mapResetSeq}:${store.skillResult?.skill_id ?? 'absorption'}`)
 
-function enqueueAbsorptionVoice(stageKey: string) {
+function enqueueAbsorptionStartVoice() {
   const runKey = absorptionRunKey.value
-  if (stageKey === '__start__') {
-    store.enqueueVoice(voiceCueForAbsorptionStart(runKey))
-    return
-  }
-  if (stageKey === '__done__') {
-    store.enqueueVoice(voiceCueForAbsorptionDone(runKey))
-    return
-  }
-  store.enqueueVoice(voiceCueForAbsorptionStage(runKey, stageKey))
+  store.enqueueVoice(voiceCueForAbsorptionStart(runKey))
 }
 
 watch(
@@ -95,17 +86,29 @@ watch(
   ([phase, result]) => {
     if (phase === 'absorbing' && result && !absorptionStarted.value) {
       absorptionStarted.value = true
-      absorption.start(result.absorption, {
-        instant,
-        skillId: result.skill_id,
-        intersection: result.intersection ?? '',
-        onStart: () => enqueueAbsorptionVoice('__start__'),
-        onStageStart: (key) => enqueueAbsorptionVoice(key),
-        onDone: () => {
-          enqueueAbsorptionVoice('__done__')
-          store.setSolidifyPhase('building')
-        },
-      })
+      void (async () => {
+        // 先用一句话交代吸收过程，播完再启动原有步骤动画，避免“语音说开始、
+        // 界面已结束”的错位；步骤本身不逐条播报。
+        enqueueAbsorptionStartVoice()
+        await nextTick()
+        await store.waitForVoiceBarrier()
+        if (store.solidifyPhase !== 'absorbing') return
+        absorption.start(result.absorption, {
+          instant,
+          skillId: result.skill_id,
+          intersection: result.intersection ?? '',
+          onDone: () => {
+            const runKey = absorptionRunKey.value
+            store.enqueueVoice(voiceCueForAbsorptionDone(runKey, result))
+            // 吸收结果是本段最有价值的播报；等它真正结束后再切换技能构建画面。
+            void (async () => {
+              await nextTick()
+              await store.waitForVoiceBarrier()
+              if (store.solidifyPhase === 'absorbing') store.setSolidifyPhase('building')
+            })()
+          },
+        })
+      })()
     }
   },
   { immediate: true },
