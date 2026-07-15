@@ -40,6 +40,7 @@ export type CardKey =
   | 'verification'
   | 'governance'
   | 'healthy'
+  | 'overflow_chain'
 
 /** 公开 phase 名（对齐后端快照 phases 键）。 */
 export type PhaseKey = 'intent' | 'diagnosis' | 'cause' | 'strategy' | 'plan'
@@ -65,12 +66,12 @@ export const ACT_DEFS: ActDef[] = [
   { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '证据核验', processTitle: '证据核验', reveal: 'metrics', scene: { kind: 'lane', pitch: 0, zoom: 18, evidence: 'overflow_validation' } },
   // 证据核验后立刻给出归因分析（门控 cause phase）
   { index: 3, id: 'act4_attribution', phase: 'cause', pipelineNode: '归因分析', processTitle: '归因分析', reveal: 'attribution', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'cause_annotation' } },
-  { index: 4, id: 'act5_bottleneck', phase: 'diagnosis', pipelineNode: '下游承接', processTitle: '下游承接能力判别', reveal: 'bottleneck', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'downstream_topology' } },
+  { index: 4, id: 'act5_bottleneck', phase: 'diagnosis', pipelineNode: '下游承接', processTitle: '下游承接能力判别', reveal: 'bottleneck', extraCards: ['overflow_chain'], scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'downstream_topology' } },
   // 干线溯源：从 18 平滑抬升到 17（干线级）
   { index: 5, id: 'act6_corridor', phase: 'diagnosis', pipelineNode: '流向溯源', processTitle: '上下游流向溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 15.5, evidence: 'flow_trace' } },
   { index: 6, id: 'act7_cases', phase: 'cause', pipelineNode: '案例校验', processTitle: '案例校验', reveal: 'cause', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'cause_annotation' } },
   // 治理策略：在干线级(17)基础上 +1 放大（需求21-R3），聚焦控制范围
-  { index: 7, id: 'act8_strategy', phase: 'strategy', pipelineNode: '策略约束', processTitle: '治理策略与边界约束', reveal: 'governance', scene: { kind: 'control', pitch: 45, zoom: 18, evidence: 'control_scope' } },
+  { index: 7, id: 'act8_strategy', phase: 'strategy', pipelineNode: '策略约束', processTitle: '治理策略与边界约束', reveal: 'governance', extraCards: ['overflow_chain'], scene: { kind: 'control', pitch: 45, zoom: 18, evidence: 'control_scope' } },
   { index: 8, id: 'act9_plan', phase: 'plan', pipelineNode: '方案交付', processTitle: '配时方案生成', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 18, evidence: 'plan_output' } },
   { index: 9, id: 'act10_feedback', phase: 'plan', pipelineNode: '反馈沉淀', processTitle: '方案确认与经验沉淀', reveal: 'feedback', scene: { kind: 'corridor', pitch: 50, zoom: 17, evidence: 'feedback' } },
 ]
@@ -113,17 +114,32 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         `指标研判：排队比 ${ratio(diag?.metrics?.queue_ratio)}｜饱和度 ${ratio(saturationOf(diag?.metrics))}｜绿灯利用率 ${ratio(diag?.metrics?.green_utilization)}`,
         diag?.healthy
           ? '结论：各项指标均在正常区间，路口运行平稳、无溢出风险，无需干预'
-          : diag?.overflow_verification?.message && `结论：${diag.overflow_verification.message}`,
+          : diag?.overflow_verification?.risk_level === 'warning'
+            ? '结论：排队接近进口道空间边界，处于溢出预警'
+            : diag?.overflow_verification?.message && `结论：${diag.overflow_verification.message}`,
       )
-    case 'act4_attribution':
+    case 'act4_attribution': {
+      const mech = (diag as { overflow_mechanism?: { primary?: string } } | undefined)?.overflow_mechanism
+        ?.primary
+      const mechLabel: Record<string, string> = {
+        discharge_anomaly: '放行效率异常，待核验',
+        local_release_insufficient: '本路口放行不足',
+        downstream_blocked: '下游回堵',
+        upstream_arrival_shock: '上游冲击',
+        evidence_insufficient: '证据不足',
+      }
       return lines(
         ...domainIntroFor('act4_attribution'),
-        cause?.cause_analysis?.primary_cause && `主因：${cause.cause_analysis.primary_cause}`,
+        mech && `溢出机制：${mechLabel[mech] ?? mech}`,
+        cause?.cause_analysis?.primary_cause && `解释：${cause.cause_analysis.primary_cause}`,
         cause?.cause_ranking?.[0]?.cause &&
           cause.cause_ranking[0].cause !== cause?.cause_analysis?.primary_cause &&
           `辅因：${cause.cause_ranking[0].cause}`,
       )
+    }
     case 'act5_bottleneck': {
+      const ds = (diag as { downstream_state?: { decision?: string; direct_downstream_inter_name?: string; confidence?: number } } | undefined)
+        ?.downstream_state
       const dd = diag?.downstream_diagnosis
       const pd = dd?.primary_downstream
       const dm = pd?.metrics
@@ -131,13 +147,22 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
       const storage = typeof pd?.remaining_storage_m === 'number' && pd.remaining_storage_m > 0
         ? `｜剩余蓄车 ${meters(pd.remaining_storage_m)}`
         : ''
+      const slackLine =
+        ds?.decision === 'slack'
+          ? `下游状态：slack｜${ds.direct_downstream_inter_name || pd?.inter_name || '直接下游'} 初步有承接余量`
+          : ds?.decision === 'blocked'
+            ? `下游状态：blocked｜${ds.direct_downstream_inter_name || pd?.inter_name || '直接下游'} 承接受限`
+            : ds?.decision === 'unknown'
+              ? '下游状态：unknown｜指标不足，暂不判定承接能力'
+              : null
       return lines(
         ...domainIntroFor('act5_bottleneck'),
         tm &&
           `本路口：饱和度 ${ratio(tm.saturation)}｜绿灯利用率 ${ratio(tm.green_utilization)}｜服务水平 ${tm.los ?? '—'}`,
         pd?.inter_name &&
           `下游 ${pd.inter_name}：饱和度 ${ratio(dm?.saturation_rate ?? dm?.saturation)}｜服务水平 ${dm?.level_of_service ?? '—'}${storage}`,
-        `结论：${downstreamConclusion(dd)}`,
+        slackLine,
+        !slackLine && `结论：${downstreamConclusion(dd)}`,
       )
     }
     case 'act6_corridor':
@@ -153,26 +178,44 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         cause?.case_cards?.matched_count != null &&
           `案例校验：匹配同类案例 ${cause.case_cards.matched_count} 个，高度相似 ${cause.case_cards.high_similarity_count ?? 0} 个`,
       )
-    case 'act8_strategy':
+    case 'act8_strategy': {
+      const decision = (strategy as { decision?: { decision_mode?: string; reason?: string } } | undefined)
+        ?.decision
       return lines(
         ...domainIntroFor('act8_strategy'),
+        decision?.decision_mode === 'verify_then_adjust' && '治理决策：先验后调',
+        decision?.reason && `说明：${productCopy(decision.reason)}`,
         strategy?.strategy_package && `策略包：${t('strategy_package', strategy.strategy_package)}`,
         strategy?.strategy?.principles?.[0] && `原则：${strategy.strategy.principles[0]}`,
         strategy?.strategy?.hard_constraints?.[0] && `红线：${strategy.strategy.hard_constraints[0]}`,
         strategy?.strategy?.coordination_scope &&
           `协调范围：${productCopy(strategy.strategy.coordination_scope)}`,
       )
-    case 'act9_plan':
+    }
+    case 'act9_plan': {
+      const trial = (plan as { trial_loop?: { observation_cycles?: number; executable?: boolean } } | undefined)
+        ?.trial_loop
+      const executable = (plan as { executable?: boolean } | undefined)?.executable ?? plan?.recommended?.executable
+      const planStatus = (plan as { plan_status?: string } | undefined)?.plan_status ?? plan?.recommended?.plan_status
       return lines(
         ...domainIntroFor('act9_plan'),
+        planStatus === 'conditional' && '方案状态：条件性方案，当前不可直接执行',
+        executable === false && '执行前提未满足：需完成出口、检测与绿灯末端队列核验',
         plan?.recommendation?.recommended_plan_id &&
           `推荐方案：${translatePlanId(plan.recommendation.recommended_plan_id)}`,
+        trial?.observation_cycles != null && `监测窗口：连续观察 ${trial.observation_cycles} 个周期`,
         plan?.all_guardrails_passed != null &&
           `护栏校验：${plan.all_guardrails_passed ? '最小绿、周期与协调约束全部通过' : '存在未通过项，需人工复核'}`,
         plan?.recommendation?.rationale && `推荐理由：${productCopy(plan.recommendation.rationale)}`,
       )
+    }
     case 'act10_feedback':
-      return lines('记录本次处置结果，形成后续复用依据…', '请确认下发、退回修改或提交再生成。')
+      return lines(
+        resp?.completion_status === 'completed_conditional' &&
+          '当前为条件性闭环：先核验再决定是否小步增绿',
+        '记录本次处置结果，形成后续复用依据…',
+        '请确认下发、退回修改或提交再生成。',
+      )
     default:
       return []
   }

@@ -12,6 +12,7 @@ import AttributionCard from '@/cards/AttributionCard.vue'
 import CauseCard from '@/cards/CauseCard.vue'
 import ProblemVerificationCard from '@/cards/ProblemVerificationCard.vue'
 import GovernanceStrategyCard from '@/cards/GovernanceStrategyCard.vue'
+import OverflowChainCard from '@/cards/OverflowChainCard.vue'
 import HealthyConclusionCard from '@/cards/HealthyConclusionCard.vue'
 import ExperienceAbsorptionPanel from '@/panels/ExperienceAbsorptionPanel.vue'
 import { useExperienceAbsorption } from '@/composables/useExperienceAbsorption'
@@ -34,6 +35,7 @@ const INSIGHT_CARDS: Record<string, unknown> = {
   cause: CauseCard,
   verification: ProblemVerificationCard,
   governance: GovernanceStrategyCard,
+  overflow_chain: OverflowChainCard,
   healthy: HealthyConclusionCard,
 }
 

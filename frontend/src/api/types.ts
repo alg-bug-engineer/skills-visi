@@ -403,6 +403,38 @@ export interface ExperienceContrast {
   items?: ExperienceContrastItem[]
 }
 
+export interface OverflowDecision {
+  decision_mode?: string
+  allowed_plan_types?: string[]
+  forbidden_plan_types?: string[]
+  preconditions_satisfied?: boolean
+  executable?: boolean
+  plan_status?: string
+  strategy_package?: string
+  reason?: string
+  [k: string]: unknown
+}
+
+export interface TrialLoop {
+  plan_status?: string | null
+  executable?: boolean
+  decision_mode?: string | null
+  mechanism?: string | null
+  observation_cycles?: number
+  monitoring_metrics?: string[]
+  success_conditions?: string[]
+  rollback_rules?: string[]
+  preconditions?: string[]
+  preconditions_satisfied?: boolean
+  target_effective_green_delta_s?: number | null
+  cycle_delta_s?: number | null
+  max_stage_change_ratio?: number | null
+  direct_downstream_inter_id?: string | null
+  direct_downstream_inter_name?: string | null
+  target_label?: string | null
+  [k: string]: unknown
+}
+
 export interface StrategyPhase {
   strategy?: {
     principles?: string[]
@@ -411,6 +443,9 @@ export interface StrategyPhase {
     hard_constraints?: string[]
     coordination_scope?: string
     trigger_exit_rules?: Record<string, unknown>
+    decision_mode?: string
+    plan_status?: string
+    executable?: boolean
     target_intersection?: {
       inter_id?: string | null
       inter_name?: string | null
@@ -420,6 +455,8 @@ export interface StrategyPhase {
     user_constraints?: unknown[]
   }
   strategy_package?: string
+  decision?: OverflowDecision
+  decision_mode?: string
   // 需求13：治理策略卡「参考依据」（可选，缺失即降级不展示）
   reference_basis?: ReferenceBasis | null
   control_scope_map?: MapScene & {
@@ -537,6 +574,9 @@ export interface PlanBlock {
     rationale?: string
   } | null
   rollback_conditions: string[] | null
+  trial_loop?: TrialLoop | null
+  plan_status?: string | null
+  executable?: boolean | null
   signal_source: string | null
   optimizer_engine: string | null
   all_guardrails_passed: boolean | null
@@ -549,10 +589,20 @@ export interface PhaseResult {
   errors: string[]
 }
 
+export type CompletionStatus =
+  | 'completed_with_trial_plan'
+  | 'completed_conditional'
+  | 'completed_requires_verification'
+  | 'completed_no_action'
+  | 'failed'
+  | string
+
 export interface RunResponse {
   trace_id: string | null
   completed: boolean | null
   pipeline_complete: boolean
+  healthy?: boolean | null
+  completion_status?: CompletionStatus | null
   diagnosis_ticket: DiagnosisTicket | null
   phases: {
     intent?: IntentPhase

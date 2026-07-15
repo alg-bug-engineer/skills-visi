@@ -188,16 +188,28 @@ class PlanGenerationSkill(BaseSkill):
                 errors=["所有候选方案未通过护栏校验"],
             )
 
-        recommended_id = llm_result.get("recommended_plan_id") or strategy.get(
-            "strategy_package", "arterial_coordination"
-        )
-        recommended = next(
-            (c for c in valid_candidates if c["plan_id"] == recommended_id),
-            valid_candidates[-1],
-        )
+        decision = strategy.get("decision") if isinstance(strategy.get("decision"), dict) else {}
+        allowed = [str(x) for x in (decision.get("allowed_plan_types") or [])]
+        # 决策优先：先验后调优先推荐核验方案，而非共享 strategy_package
+        preferred_ids: list[str] = []
+        llm_pref = llm_result.get("recommended_plan_id")
+        if llm_pref and (not allowed or str(llm_pref) in allowed):
+            preferred_ids.append(str(llm_pref))
+        if decision.get("decision_mode") == "verify_then_adjust":
+            preferred_ids.extend(["verification_plan", "conditional_incremental_release"])
+        preferred_ids.extend(allowed)
+        preferred_ids.append(str(strategy.get("strategy_package") or "arterial_coordination"))
+
+        recommended = None
+        for pid in preferred_ids:
+            recommended = next((c for c in valid_candidates if c.get("plan_id") == pid), None)
+            if recommended:
+                break
+        if recommended is None:
+            recommended = valid_candidates[-1]
 
         rejected_ids = {item.get("plan_id") for item in rejected_plan_avoidance}
-        if recommended_id in rejected_ids or recommended["plan_id"] in rejected_ids:
+        if recommended["plan_id"] in rejected_ids:
             recommended["risk_warning"] = "该策略类型曾被专家否决，请谨慎采用"
         for candidate in candidates:
             if candidate.get("plan_id") in rejected_ids:
@@ -212,6 +224,15 @@ class PlanGenerationSkill(BaseSkill):
                     }
                 }
 
+        from app.runtime.overflow_completion import build_trial_loop
+
+        trial_loop = build_trial_loop(
+            decision=decision,
+            diagnosis=diagnosis,
+            recommended=recommended,
+            ticket=ticket,
+        )
+
         output = {
             "candidates": candidates,
             "recommended": recommended,
@@ -225,12 +246,21 @@ class PlanGenerationSkill(BaseSkill):
             "user_solution_refs": user_solution_refs,
             "accepted_plan_refs": accepted_plan_refs,
             "rejected_plan_avoidance": rejected_plan_avoidance,
-            "rollback_conditions": [
-                recommended.get("rollback_condition"),
-                "下游排队比持续上升",
-                "上游排队超过安全边界",
-                "目标方向绿灯利用率异常下降",
-            ],
+            "plan_status": recommended.get("plan_status") or decision.get("plan_status"),
+            "executable": recommended.get("executable")
+            if recommended.get("executable") is not None
+            else decision.get("executable"),
+            "trial_loop": trial_loop,
+            "rollback_conditions": list(
+                dict.fromkeys(
+                    [
+                        *(trial_loop.get("rollback_rules") or []),
+                        recommended.get("rollback_condition"),
+                        "下游排队比持续上升",
+                        "目标方向绿灯利用率异常下降",
+                    ]
+                )
+            ),
         }
         logger.info(
             "方案生成完成 trace_id=%s recommended=%s valid=%d/%d",

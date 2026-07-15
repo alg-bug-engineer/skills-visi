@@ -5,6 +5,7 @@ import logging
 import time
 from typing import Any, AsyncIterator
 
+from app.runtime.overflow_completion import derive_completion_status
 from app.runtime.overflow_transition_validation import apply_overflow_transition
 from app.runtime.pipeline_validation import (
     compute_pipeline_complete,
@@ -213,18 +214,28 @@ class SkillExecutor:
 
         merged_artifacts = {**prefilled, **context.artifacts}
         task["artifacts"] = merged_artifacts
+        completed = all(r.success for r in results)
+        strategy_art = merged_artifacts.get("strategy_generation") or {}
+        plan_art = merged_artifacts.get("plan_generation") or {}
+        completion_status = derive_completion_status(
+            completed=completed,
+            healthy=healthy_stop,
+            decision=strategy_art.get("decision") if isinstance(strategy_art, dict) else None,
+            plan=plan_art if isinstance(plan_art, dict) else None,
+        )
         yield {
             "type": "final",
             "trace_id": trace_id,
             "pipeline": pipeline,
             "artifacts": merged_artifacts,
             "results": _serialize_results(results),
-            "completed": all(r.success for r in results),
+            "completed": completed,
             # 健康提前收尾视为完成（无需成因/策略/方案）。
             "pipeline_complete": True
             if healthy_stop
             else compute_pipeline_complete(task, context.artifacts),
             "healthy": healthy_stop,
+            "completion_status": completion_status,
         }
 
     async def run_pipeline(

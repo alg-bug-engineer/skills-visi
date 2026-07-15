@@ -71,6 +71,15 @@ async def test_full_pipeline_with_mock_llm(script_user_input):
     assert candidate_ids <= allowed
     assert plan["recommended"]["plan_id"] in allowed
     assert len(plan["candidates"]) == len(allowed)
+    assert plan.get("trial_loop")
+    assert "observation_cycles" in plan["trial_loop"]
+    assert result.get("completion_status") in {
+        "completed_with_trial_plan",
+        "completed_conditional",
+        "completed_requires_verification",
+        "completed_no_action",
+        "failed",
+    }
 
 
 @pytest.mark.asyncio
