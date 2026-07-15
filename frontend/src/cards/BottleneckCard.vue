@@ -83,7 +83,12 @@ const reconcile = computed(() => {
   return ''
 })
 
-const criteria = computed(() => downstreamCriteria(dd.value))
+const downstreamState = computed(
+  () =>
+    (store.diagnosis as { downstream_state?: { decision?: string } } | undefined)?.downstream_state ??
+    null,
+)
+const criteria = computed(() => downstreamCriteria(dd.value, downstreamState.value))
 const expertCheck = computed(() => productCopy(dd.value?.expert_question).replace(/^核验项：?/, ''))
 </script>
 

@@ -17,12 +17,29 @@ const CRITERIA_LABELS: Record<string, string> = {
 }
 
 /** 评判依据：将后端 judgment_criteria 布尔判据映射为可读命中项，展示结论推导过程。 */
-export function downstreamCriteria(dd: DownstreamDiagnosis | null | undefined): DownstreamCriterion[] {
+export function downstreamCriteria(
+  dd: DownstreamDiagnosis | null | undefined,
+  downstreamState?: { decision?: string } | null,
+): DownstreamCriterion[] {
   const c = dd?.judgment_criteria
   if (!c || typeof c !== 'object' || Array.isArray(c)) return []
+  const slack = downstreamState?.decision === 'slack'
   return Object.entries(CRITERIA_LABELS)
     .filter(([key]) => key in c)
-    .map(([key, label]) => ({ key, label, hit: Boolean(c[key]) }))
+    .map(([key, label]) => {
+      let hit = Boolean(c[key])
+      // 与 downstream_state 单一真源对齐：slack 时不展示「下游排队偏高/接近饱和/加绿溢出风险」命中
+      if (
+        slack &&
+        (key === 'downstream_queue_high' ||
+          key === 'downstream_near_saturation' ||
+          key === 'add_green_spillback_risk')
+      ) {
+        hit = false
+      }
+      return { key, label, hit }
+    })
+    .filter((item) => item.hit)
 }
 
 /**

@@ -49,13 +49,37 @@ async def test_full_pipeline_with_mock_llm(script_user_input):
     cause = result["artifacts"]["cause_analysis"]
     assert cause["arterial_coordination_needed"] is True
 
+    mechanism = diagnosis.get("overflow_mechanism") or {}
+    assert mechanism.get("primary") in {
+        "downstream_blocked",
+        "local_release_insufficient",
+        "discharge_anomaly",
+        "upstream_arrival_shock",
+        "evidence_insufficient",
+    }
+    assert diagnosis.get("downstream_state", {}).get("decision") in {"blocked", "slack", "unknown"}
+
     strategy = result["artifacts"]["strategy_generation"]
-    assert strategy["strategy_package"] == "arterial_coordination"
+    decision = strategy.get("decision") or {}
+    assert decision.get("decision_mode")
+    assert strategy["strategy_package"] == decision.get("strategy_package")
+    allowed = set(decision.get("allowed_plan_types") or [])
 
     plan = result["artifacts"]["plan_generation"]
-    assert plan["recommended"]["plan_id"] == "arterial_coordination"
     assert plan["recommended"]["guardrail_pass"] is True
-    assert len(plan["candidates"]) == 3
+    candidate_ids = {c["plan_id"] for c in plan["candidates"]}
+    assert candidate_ids <= allowed
+    assert plan["recommended"]["plan_id"] in allowed
+    assert len(plan["candidates"]) == len(allowed)
+    assert plan.get("trial_loop")
+    assert "observation_cycles" in plan["trial_loop"]
+    assert result.get("completion_status") in {
+        "completed_with_trial_plan",
+        "completed_conditional",
+        "completed_requires_verification",
+        "completed_no_action",
+        "failed",
+    }
 
 
 @pytest.mark.asyncio

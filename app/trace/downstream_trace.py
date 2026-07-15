@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.metrics.traffic import THRESHOLDS
+from app.trace.downstream_decision import decide_downstream_state
 from app.trace.intersection_profile import build_intersection_profile
 from app.trace.topology import TURN_LABEL, exit_dir8_for_turn, movement_label
 
@@ -15,32 +16,30 @@ def assess_downstream_capacity(
     queue_ratio: float | None,
     spillback_threshold: float | None = None,
     sat_threshold: float | None = None,
+    remaining_storage_m: float | None = None,
+    direct_downstream_inter_id: str | None = None,
+    direct_downstream_inter_name: str | None = None,
+    missing_metrics: list[str] | None = None,
 ) -> dict[str, Any]:
-    spillback_threshold = spillback_threshold or THRESHOLDS["queue_ratio_warning"]
-    sat_threshold = sat_threshold or 0.85
-    # 排队与饱和度双缺：指标不足，禁止伪装「有余量」或「承接受限」
-    if queue_ratio is None and saturation is None:
-        return {
-            "can_release": None,
-            "blocked": False,
-            "unknown": True,
-            "reasons": ["downstream_queue_and_saturation_unavailable"],
-            "release_guard": "downstream_metrics_unknown",
-        }
-    blocked = False
-    reasons: list[str] = []
-    if queue_ratio is not None and queue_ratio >= spillback_threshold:
-        blocked = True
-        reasons.append(f"queue_ratio={queue_ratio:.2f}>={spillback_threshold}")
-    if saturation is not None and saturation >= sat_threshold:
-        blocked = True
-        reasons.append(f"saturation={saturation:.2f}>={sat_threshold}")
+    """兼容旧字段，同时嵌入下游单一真源 decision。"""
+    state = decide_downstream_state(
+        saturation=saturation,
+        queue_ratio=queue_ratio,
+        spillback_threshold=spillback_threshold,
+        sat_threshold=sat_threshold or THRESHOLDS["downstream_saturation_high"],
+        remaining_storage_m=remaining_storage_m,
+        direct_downstream_inter_id=direct_downstream_inter_id,
+        direct_downstream_inter_name=direct_downstream_inter_name,
+        missing_metrics=missing_metrics,
+    )
     return {
-        "can_release": not blocked,
-        "blocked": blocked,
-        "unknown": False,
-        "reasons": reasons,
-        "release_guard": "downstream_blocked" if blocked else "downstream_has_slack",
+        "can_release": state["can_release"],
+        "blocked": state["blocked"],
+        "unknown": state["unknown"],
+        "reasons": state["reasons"],
+        "release_guard": state["release_guard"],
+        "decision": state["decision"],
+        "downstream_state": state,
     }
 
 
@@ -75,9 +74,26 @@ def build_downstream_trace(
         selected = trace_turn == int(turn_dir_no)
         profile = build_intersection_profile({**node, "role": "downstream"})
         metrics = profile["metrics"]
+        missing_metrics: list[str] = []
+        if metrics.get("saturation_rate") is None:
+            missing_metrics.append("saturation")
+        if metrics.get("green_utilization") is None:
+            missing_metrics.append("green_utilization")
+        remaining = None
+        storage = metrics.get("storage_length_m")
+        queue_len = metrics.get("queue_length_m")
+        if storage is not None and queue_len is not None:
+            try:
+                remaining = max(0.0, float(storage) - float(queue_len))
+            except (TypeError, ValueError):
+                remaining = None
         capacity = assess_downstream_capacity(
             saturation=metrics.get("saturation_rate"),
             queue_ratio=metrics.get("queue_storage_ratio_max"),
+            remaining_storage_m=remaining,
+            direct_downstream_inter_id=str(node.get("inter_id") or "") or None,
+            direct_downstream_inter_name=node.get("inter_name"),
+            missing_metrics=missing_metrics,
         )
         down_id = str(node.get("inter_id") or "")
         down_name = node.get("inter_name") or "下游信控节点"
@@ -157,7 +173,20 @@ def build_downstream_trace(
 
     selected_traces = [trace for trace in turn_traces if trace["selected"]]
     any_blocked = any(trace["capacity"]["blocked"] for trace in selected_traces)
+    any_unknown = any(trace["capacity"].get("unknown") for trace in selected_traces)
     any_turn_blocked = any(trace["capacity"]["blocked"] for trace in turn_traces)
+    if selected_traces:
+        primary_state = selected_traces[0]["capacity"].get("downstream_state") or decide_downstream_state(
+            saturation=None,
+            queue_ratio=None,
+        )
+    elif any_unknown:
+        primary_state = decide_downstream_state(saturation=None, queue_ratio=None)
+    else:
+        primary_state = decide_downstream_state(
+            saturation=0.0 if not any_blocked else 0.9,
+            queue_ratio=0.0 if not any_blocked else 0.9,
+        )
     movement_summary = []
     for trace_turn in (1, 2, 3):
         traces = [trace for trace in turn_traces if trace["turn_dir_no"] == trace_turn]
@@ -181,15 +210,21 @@ def build_downstream_trace(
         "turn_traces": turn_traces,
         "movement_summary": movement_summary,
         "adjacent_intersections": list(adjacent.values()),
+        "downstream_state": primary_state,
         "governance": {
             "landing": "upstream_metering" if any_blocked else "local_reallocation",
             "downstream_blocked": any_blocked,
+            "downstream_decision": primary_state.get("decision"),
             "all_turns_downstream_blocked": any_turn_blocked,
             "basis": "selected_movement",
             "recommendation": (
                 "禁止向下游释放更多流量，优先上游控流或干线协调"
-                if any_blocked
-                else "下游可承接，可评估局部增绿清空"
+                if primary_state.get("decision") == "blocked"
+                else (
+                    "下游指标不足，先补证再决策"
+                    if primary_state.get("decision") == "unknown"
+                    else "下游初步有承接余量，可评估局部增绿或先验核验"
+                )
             ),
         },
         "target_comparison": {

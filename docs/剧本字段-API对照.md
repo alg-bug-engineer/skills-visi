@@ -325,9 +325,20 @@ POST /api/v1/agent/plan/decision
 | 当前阶段 | `phase_results[].phase` | intent / diagnosis / cause / strategy / plan |
 | 本段是否完成 | `completed` | 本次请求执行段 |
 | 全流水线完成 | `pipeline_complete` | 五段均已产出 artifact |
+| 业务完成状态 | `completion_status` | `completed_with_trial_plan` / `completed_conditional` / `completed_requires_verification` / `completed_no_action` / `failed`（不等于 artifacts 齐全） |
+| 健康提前收尾 | `healthy` | 诊断判定无需干预 |
 | 是否成功 | `phase_results[].success` | |
 | 耗时 | `phase_results[].duration_ms` | |
 | 错误 | `phase_results[].errors` | 失败时展示 |
+
+溢出主链补充字段（需求 35）：
+
+| 剧本元素 | API 路径 |
+|----------|----------|
+| 下游唯一状态 | `phases.diagnosis.downstream_state.decision`（`blocked\|slack\|unknown`） |
+| 溢出机制 | `phases.diagnosis.overflow_mechanism.primary` |
+| 治理决策 | `phases.strategy.decision.decision_mode` |
+| 条件性/试运行 | `plan.plan_status` / `plan.executable` / `plan.trial_loop` |
 
 流水线在某一 Skill 失败时 `completed=false`，后续 Skill 不执行。
 

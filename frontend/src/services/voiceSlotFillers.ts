@@ -6,8 +6,17 @@ import {
   voiceMethodFor,
   voiceUsesConclusion,
 } from '@/config/voiceTemplates'
+import { translatePlanId } from '@/labels/enums'
 import { productCopy } from '@/utils/productCopy'
 import { downstreamConclusion } from '@/utils/downstream'
+
+const MECHANISM_VOICE: Record<string, string> = {
+  discharge_anomaly: '放行效率异常，待核验',
+  local_release_insufficient: '本路口放行不足',
+  downstream_blocked: '下游回堵',
+  upstream_arrival_shock: '上游冲击',
+  evidence_insufficient: '证据不足，待补盲',
+}
 
 export function voiceConclusionOnly(act: ActDef): boolean {
   return voiceComposeMode(act.id) === 'conclusionOnly'
@@ -22,8 +31,16 @@ function sanitizeVoiceConclusion(text: string): string {
   return text.replace(/核心结论/g, '').replace(/^结论[：:]\s*/, '').trim()
 }
 
-/** 归因分析：仅播报主因短句，省略括号内补充说明。 */
+function mechanismOf(resp: RunResponse | null): string | null {
+  const diag = resp?.phases?.diagnosis as { overflow_mechanism?: { primary?: string } } | undefined
+  const cause = resp?.phases?.cause as { overflow_mechanism?: { primary?: string } } | undefined
+  return diag?.overflow_mechanism?.primary ?? cause?.overflow_mechanism?.primary ?? null
+}
+
+/** 归因分析：优先播报溢出机制短句，与打字旁白口径一致。 */
 function attributionVoiceConclusion(resp: RunResponse | null): string {
+  const mech = mechanismOf(resp)
+  if (mech) return MECHANISM_VOICE[mech] ?? mech
   const cause = resp?.phases?.cause
   const ranked = cause?.cause_ranking?.find((item) => item.role?.includes('主'))?.cause
   const raw = ranked ?? cause?.cause_analysis?.primary_cause ?? ''
@@ -32,9 +49,26 @@ function attributionVoiceConclusion(resp: RunResponse | null): string {
   return short || '归因分析完成'
 }
 
-/** 下游承接：仅播报承接能力判别结论。 */
+/** 下游承接：优先 downstream_state，再回退专业承接结论。 */
 function bottleneckVoiceConclusion(resp: RunResponse | null): string {
-  return productCopy(downstreamConclusion(resp?.phases?.diagnosis?.downstream_diagnosis))
+  const diag = resp?.phases?.diagnosis as
+    | {
+        downstream_state?: { decision?: string; direct_downstream_inter_name?: string }
+        downstream_diagnosis?: Parameters<typeof downstreamConclusion>[0]
+      }
+    | undefined
+  const ds = diag?.downstream_state
+  const name = ds?.direct_downstream_inter_name || '直接下游'
+  if (ds?.decision === 'slack') {
+    return `${name}初步有承接余量，先核验目标放行效率后再评估小步增绿`
+  }
+  if (ds?.decision === 'blocked') {
+    return `${name}承接受限，优先下游保护，不宜本路口直接加绿`
+  }
+  if (ds?.decision === 'unknown') {
+    return '下游指标不足，暂不判定承接能力'
+  }
+  return productCopy(downstreamConclusion(diag?.downstream_diagnosis))
 }
 
 /** 案例校验：播报命中与高相似数量，不再夹带主因叙述。 */
@@ -45,10 +79,49 @@ function casesVoiceConclusion(resp: RunResponse | null): string {
   return `匹配同类案例 ${cards.matched_count} 个，高度相似 ${high} 个`
 }
 
+/** 治理策略：对齐决策契约中的绿灯路径。 */
+function strategyVoiceConclusion(resp: RunResponse | null): string {
+  const strategy = resp?.phases?.strategy as
+    | { decision?: { decision_mode?: string; reason?: string }; strategy?: { principles?: string[] } }
+    | undefined
+  const mode = strategy?.decision?.decision_mode
+  if (mode === 'verify_then_adjust') {
+    return productCopy(
+      strategy?.decision?.reason || '先验后调：核验通过后再小步增绿，周期尽量不变',
+    )
+  }
+  if (mode === 'protect_downstream') {
+    return '下游保护：本路口保守放行或不增绿'
+  }
+  return productCopy(strategy?.strategy?.principles?.[0] ?? summaryFor(
+    { id: 'act8_strategy' } as ActDef,
+    resp,
+  ))
+}
+
+/** 配时方案：说明当前配时动作（维持现状 / 小步增绿）。 */
+function planVoiceConclusion(resp: RunResponse | null): string {
+  const plan = resp?.plan
+  const planId = plan?.recommendation?.recommended_plan_id ?? plan?.recommended?.plan_id
+  if (planId === 'verification_plan') {
+    return '信控方案：目标相位加五秒，借绿相位减五秒，周期不变'
+  }
+  if (planId === 'conditional_incremental_release') {
+    return '条件性小步增绿：核验通过后目标有效绿约增加五秒，周期不变'
+  }
+  if (planId === 'incremental_release') {
+    return '目标路口小步释放：增加目标方向有效绿，并监测下游排队比'
+  }
+  if (planId) return `推荐方案${translatePlanId(planId)}`
+  return '方案生成完成'
+}
+
 function voiceConclusionFor(act: ActDef, resp: RunResponse | null): string {
   if (act.id === 'act4_attribution') return attributionVoiceConclusion(resp)
   if (act.id === 'act5_bottleneck') return bottleneckVoiceConclusion(resp)
   if (act.id === 'act7_cases') return casesVoiceConclusion(resp)
+  if (act.id === 'act8_strategy') return strategyVoiceConclusion(resp)
+  if (act.id === 'act9_plan') return planVoiceConclusion(resp)
   return sanitizeVoiceConclusion(summaryFor(act, resp))
 }
 

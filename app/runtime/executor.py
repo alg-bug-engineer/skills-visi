@@ -5,6 +5,8 @@ import logging
 import time
 from typing import Any, AsyncIterator
 
+from app.runtime.overflow_completion import derive_completion_status
+from app.runtime.overflow_transition_validation import apply_overflow_transition
 from app.runtime.pipeline_validation import (
     compute_pipeline_complete,
     resolve_pipeline,
@@ -148,6 +150,25 @@ class SkillExecutor:
                 )
 
             result.duration_ms = round((time.perf_counter() - start) * 1000, 2)
+
+            # 需求 35：溢出闭环阶段语义校验（对象/机制/决策/可执行一致性）
+            if result.success:
+                transition_errors = apply_overflow_transition(
+                    context,
+                    skill_id=skill_id,
+                    result_success=True,
+                    output=result.output or {},
+                )
+                if transition_errors:
+                    result.success = False
+                    result.errors = list(result.errors or []) + transition_errors
+                    logger.warning(
+                        "溢出阶段转换校验失败 trace_id=%s skill_id=%s errors=%s",
+                        trace_id,
+                        skill_id,
+                        transition_errors,
+                    )
+
             results.append(result)
             context.artifacts[skill_id] = result.output
 
@@ -193,18 +214,28 @@ class SkillExecutor:
 
         merged_artifacts = {**prefilled, **context.artifacts}
         task["artifacts"] = merged_artifacts
+        completed = all(r.success for r in results)
+        strategy_art = merged_artifacts.get("strategy_generation") or {}
+        plan_art = merged_artifacts.get("plan_generation") or {}
+        completion_status = derive_completion_status(
+            completed=completed,
+            healthy=healthy_stop,
+            decision=strategy_art.get("decision") if isinstance(strategy_art, dict) else None,
+            plan=plan_art if isinstance(plan_art, dict) else None,
+        )
         yield {
             "type": "final",
             "trace_id": trace_id,
             "pipeline": pipeline,
             "artifacts": merged_artifacts,
             "results": _serialize_results(results),
-            "completed": all(r.success for r in results),
+            "completed": completed,
             # 健康提前收尾视为完成（无需成因/策略/方案）。
             "pipeline_complete": True
             if healthy_stop
             else compute_pipeline_complete(task, context.artifacts),
             "healthy": healthy_stop,
+            "completion_status": completion_status,
         }
 
     async def run_pipeline(

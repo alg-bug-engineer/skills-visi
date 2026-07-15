@@ -12,6 +12,7 @@ def build_downstream_diagnosis(
     target_profile: dict[str, Any],
     downstream_trace: dict[str, Any],
     bottleneck: dict[str, Any],
+    downstream_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """区分「本路口放不出去」与「下游接不住」，输出剧本第四幕判断依据。"""
     target_metrics = target_profile.get("metrics") or {}
@@ -55,6 +56,13 @@ def build_downstream_diagnosis(
         "add_green_spillback_risk": downstream_blocked and high_demand,
     }
 
+    ds_decision = (downstream_state or {}).get("decision")
+    if ds_decision == "slack":
+        criteria["downstream_queue_high"] = False
+        criteria["downstream_near_saturation"] = False
+        criteria["add_green_spillback_risk"] = False
+        downstream_blocked = False
+
     if down_unknown:
         scenario = "downstream_metrics_unknown"
         narrative = (
@@ -72,10 +80,10 @@ def build_downstream_diagnosis(
     elif high_queue and low_green_util:
         scenario = "queue_high_green_underused"
         narrative = (
-            "目标方向排队高但绿灯利用率不高，需关注下游阻塞、出口不畅、渠化不匹配或检测异常，"
-            "不宜简单加绿。"
+            "目标方向排队高但绿灯利用率不高，需优先核验出口通行、检测有效性与绿灯末端队列，"
+            "不宜在未完成先验前简单加绿。"
         )
-        release_answer = "绿灯给了也用不上"
+        release_answer = "放行效率异常，待核验" if ds_decision == "slack" else "绿灯给了也用不上"
     elif not high_demand and downstream_blocked:
         scenario = "downstream_primary"
         narrative = (

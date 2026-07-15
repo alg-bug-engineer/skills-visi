@@ -27,6 +27,21 @@ def _load_script_module(script_name: str):
     return module
 
 
+def _load_script_module_from_strategy(script_name: str):
+    """跨 skill 加载策略侧动作包脚本（同仓相对路径）。"""
+    script_path = (
+        Path(__file__).resolve().parents[1] / "strategy-generation" / "scripts" / script_name
+    )
+    if not script_path.exists():
+        return None
+    spec = importlib.util.spec_from_file_location(script_name.replace(".py", ""), script_path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class PlanGenerationSkill(BaseSkill):
     async def run(self, context: SkillContext, **deps: Any) -> SkillResult:
         settings: Settings = deps.get("settings") or get_settings()
@@ -84,6 +99,7 @@ class PlanGenerationSkill(BaseSkill):
         timing_module = _load_script_module("generate_timing_plan.py")
         adjust_module = _load_script_module("adjust_phase_timing.py")
         guardrail_module = _load_script_module("validate_plan_guardrails.py")
+        overflow_plan_module = _load_script_module("validate_overflow_plan.py")
         optimizer_module = _load_script_module("run_single_point_optimizer.py")
 
         llm_result = await llm.chat(
@@ -159,6 +175,8 @@ class PlanGenerationSkill(BaseSkill):
             build_strategy_instruction=adjust_module.build_strategy_instruction,
             validate_plan_guardrails=guardrail_module.validate_plan_guardrails,
             run_single_point_optimizer=optimizer_module.run_single_point_optimizer,
+            validate_overflow_plan=overflow_plan_module.validate_overflow_plan,
+            build_plan_contract=overflow_plan_module.build_plan_contract_from_strategy,
             pg_raw=context.task.get("pg_raw") if isinstance(context.task.get("pg_raw"), dict) else None,
             day_of_week=(
                 (context.task.get("context") or {}).get("day_of_week")
@@ -185,16 +203,28 @@ class PlanGenerationSkill(BaseSkill):
                 errors=["所有候选方案未通过护栏校验"],
             )
 
-        recommended_id = llm_result.get("recommended_plan_id") or strategy.get(
-            "strategy_package", "arterial_coordination"
-        )
-        recommended = next(
-            (c for c in valid_candidates if c["plan_id"] == recommended_id),
-            valid_candidates[-1],
-        )
+        decision = strategy.get("decision") if isinstance(strategy.get("decision"), dict) else {}
+        allowed = [str(x) for x in (decision.get("allowed_plan_types") or [])]
+        # 决策优先：先验后调优先推荐核验方案，而非共享 strategy_package
+        preferred_ids: list[str] = []
+        llm_pref = llm_result.get("recommended_plan_id")
+        if llm_pref and (not allowed or str(llm_pref) in allowed):
+            preferred_ids.append(str(llm_pref))
+        if decision.get("decision_mode") == "verify_then_adjust":
+            preferred_ids.extend(["verification_plan", "conditional_incremental_release"])
+        preferred_ids.extend(allowed)
+        preferred_ids.append(str(strategy.get("strategy_package") or "arterial_coordination"))
+
+        recommended = None
+        for pid in preferred_ids:
+            recommended = next((c for c in valid_candidates if c.get("plan_id") == pid), None)
+            if recommended:
+                break
+        if recommended is None:
+            recommended = valid_candidates[-1]
 
         rejected_ids = {item.get("plan_id") for item in rejected_plan_avoidance}
-        if recommended_id in rejected_ids or recommended["plan_id"] in rejected_ids:
+        if recommended["plan_id"] in rejected_ids:
             recommended["risk_warning"] = "该策略类型曾被专家否决，请谨慎采用"
         for candidate in candidates:
             if candidate.get("plan_id") in rejected_ids:
@@ -209,11 +239,80 @@ class PlanGenerationSkill(BaseSkill):
                     }
                 }
 
+        from app.runtime.overflow_completion import build_trial_loop
+
+        trial_loop = build_trial_loop(
+            decision=decision,
+            diagnosis=diagnosis,
+            recommended=recommended,
+            ticket=ticket,
+        )
+
+        action_mod = _load_script_module_from_strategy("build_action_package.py")
+        action_package = strategy.get("action_package")
+        if not isinstance(action_package, dict):
+            if action_mod is not None:
+                action_package = action_mod.build_action_package(
+                    diagnosis=diagnosis,
+                    strategy=strategy,
+                    ticket=ticket,
+                )
+            else:
+                action_package = {"available": False}
+
+        # 门控方案也要挂上「拟实施配时」预览：用条件增绿 instruction 生成，摘要读实际绿差
+        if recommended.get("plan_id") == "verification_plan":
+            trial_instr = adjust_module.build_strategy_instruction(strategy, "conditional_incremental_release")
+            proposed = adjust_module.adjust_phase_timing(
+                signal=signal_resolved["signal"],
+                strategy_instruction=trial_instr,
+                ticket=ticket,
+                diagnosis=diagnosis,
+            )
+            if proposed.get("ok"):
+                recommended["proposed_timing"] = adjust_module.attach_proposed_timing_fields(
+                    proposed.get("timing") or {},
+                    requested_target_green_delta=int(trial_instr.get("target_green_delta") or 5),
+                )
+                recommended["proposed_timing_source"] = "conditional_incremental_release"
+                if action_mod is not None and isinstance(action_package, dict):
+                    action_package = action_mod.enrich_signal_control_from_timing(
+                        action_package,
+                        recommended["proposed_timing"],
+                    )
+            else:
+                recommended["proposed_timing"] = {
+                    "available": False,
+                    "gate": "verification_passed",
+                    "label": "门控通过后拟实施",
+                    "reason": proposed.get("reason") or "未能生成拟实施借绿配时",
+                    "target_green_delta_s": 0,
+                    "donor_green_delta_s": 0,
+                    "cycle_delta_s": 0,
+                }
+                recommended["proposed_timing_source"] = "adjust_failed"
+
+        if isinstance(action_package, dict) and action_package.get("available"):
+            recommended["action_package"] = action_package
+            # 对外执行顺序：信控相位加减优先，再组织/管理，控制长度
+            schemes = action_package.get("schemes") or {}
+            merged_order: list[str] = []
+            for key in ("signal_control", "organization", "management"):
+                for item in schemes.get(key) or []:
+                    if isinstance(item, dict) and item.get("action"):
+                        merged_order.append(str(item["action"]))
+            recommended["execution_order"] = merged_order[:8]
+            llm_result = dict(llm_result)
+            llm_result["execution_order"] = recommended["execution_order"]
+            # 旁白只用短标题，禁止把长 rationale 打进打字机
+            llm_result["rationale"] = action_package.get("headline") or "已生成信控/组织/管理三类方案"
+
         output = {
             "candidates": candidates,
             "recommended": recommended,
             "recommended_plan_id": recommended["plan_id"],
             "recommendation": llm_result,
+            "action_package": action_package,
             "all_guardrails_passed": all_candidates_passed,
             "has_feasible_candidate": has_feasible_candidate,
             "all_candidates_passed": all_candidates_passed,
@@ -222,12 +321,21 @@ class PlanGenerationSkill(BaseSkill):
             "user_solution_refs": user_solution_refs,
             "accepted_plan_refs": accepted_plan_refs,
             "rejected_plan_avoidance": rejected_plan_avoidance,
-            "rollback_conditions": [
-                recommended.get("rollback_condition"),
-                "下游排队比持续上升",
-                "上游排队超过安全边界",
-                "目标方向绿灯利用率异常下降",
-            ],
+            "plan_status": recommended.get("plan_status") or decision.get("plan_status"),
+            "executable": recommended.get("executable")
+            if recommended.get("executable") is not None
+            else decision.get("executable"),
+            "trial_loop": trial_loop,
+            "rollback_conditions": list(
+                dict.fromkeys(
+                    [
+                        *(trial_loop.get("rollback_rules") or []),
+                        recommended.get("rollback_condition"),
+                        "下游排队比持续上升",
+                        "目标方向绿灯利用率异常下降",
+                    ]
+                )
+            ),
         }
         logger.info(
             "方案生成完成 trace_id=%s recommended=%s valid=%d/%d",

@@ -18,11 +18,27 @@ export const DEMO_ACT_DWELL_FIRST_MS = envNum(import.meta.env.VITE_DEMO_ACT_DWEL
 export const DEMO_ACT_DWELL_AFTER_MS = envNum(import.meta.env.VITE_DEMO_ACT_DWELL_AFTER_MS, 2000)
 
 /**
+ * 地图动作重点幕的额外停留（ms）。
+ * 旁白缩短后，证据核验 / 归因分析等镜头切换仍需可读时间。
+ */
+export const DEMO_ACT_DWELL_MAP_EXTRA_MS = envNum(import.meta.env.VITE_DEMO_ACT_DWELL_MAP_EXTRA_MS, 2000)
+
+/** 需要额外地图观察时间的处置幕 id。 */
+const MAP_HEAVY_ACT_IDS = new Set(['act3_overflow', 'act4_attribution'])
+
+/**
  * 某一幕打字完成到自动推进下一幕的停留时长。
  * - instant（测试 / prefers-reduced-motion / webdriver）返回 0，保持确定性与即时完成。
  * - 第一幕（index 0）用较短停留；第二幕起用较长停留。
+ * - 证据核验、归因分析在基础停留上再加 2s，避免地图镜头一闪而过。
  */
-export function actDwellMs(actIndex: number, instant: boolean): number {
+export function actDwellMs(
+  actIndex: number,
+  instant: boolean,
+  actId?: string | null,
+): number {
   if (instant) return 0
-  return actIndex <= 0 ? DEMO_ACT_DWELL_FIRST_MS : DEMO_ACT_DWELL_AFTER_MS
+  const base = actIndex <= 0 ? DEMO_ACT_DWELL_FIRST_MS : DEMO_ACT_DWELL_AFTER_MS
+  const extra = actId && MAP_HEAVY_ACT_IDS.has(actId) ? DEMO_ACT_DWELL_MAP_EXTRA_MS : 0
+  return base + extra
 }

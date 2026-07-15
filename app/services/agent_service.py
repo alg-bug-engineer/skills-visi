@@ -71,10 +71,11 @@ class AgentService:
             result["diagnosis_ticket"] = task["diagnosis_ticket"]
 
         logger.info(
-            "智能体任务结束 trace_id=%s completed=%s pipeline_complete=%s",
+            "智能体任务结束 trace_id=%s completed=%s pipeline_complete=%s completion_status=%s",
             tid,
             result.get("completed"),
             result.get("pipeline_complete"),
+            result.get("completion_status"),
         )
         return result
 
@@ -148,14 +149,17 @@ class AgentService:
                     task=task,
                     completed=ev.get("completed"),
                     pipeline_complete=ev.get("pipeline_complete", False),
+                    healthy=ev.get("healthy"),
+                    completion_status=ev.get("completion_status"),
                 )
                 if ev.get("completed"):
                     yield {"event": "pipeline_complete", "data": {"snapshot": snapshot}}
                 logger.info(
-                    "智能体流式任务结束 trace_id=%s completed=%s pipeline_complete=%s",
+                    "智能体流式任务结束 trace_id=%s completed=%s pipeline_complete=%s completion_status=%s",
                     tid,
                     ev.get("completed"),
                     ev.get("pipeline_complete"),
+                    ev.get("completion_status"),
                 )
 
     async def regenerate(

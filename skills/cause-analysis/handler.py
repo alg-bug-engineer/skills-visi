@@ -12,6 +12,65 @@ from app.trace.scenario_report import checklist_data_gaps
 
 logger = logging.getLogger(__name__)
 
+MECHANISM_CAUSE_LABEL: dict[str, str] = {
+    "downstream_blocked": "下游回堵",
+    "local_release_insufficient": "本路口放行不足",
+    "discharge_anomaly": "放行效率异常，待核验",
+    "upstream_arrival_shock": "上游冲击",
+    "evidence_insufficient": "证据不足，待补盲",
+}
+
+
+def _align_cause_with_mechanism(
+    llm_result: dict[str, Any],
+    *,
+    overflow_mechanism: dict[str, Any],
+    diagnosis: dict[str, Any],
+    cause_scores: dict[str, Any],
+    score_module: Any,
+) -> list[dict[str, Any]]:
+    """机制锁定时统一主因 ranking 与 narrative，避免 LLM 输出「信号控制不当」等与主链矛盾。"""
+    code = str(overflow_mechanism.get("primary") or "")
+    label = MECHANISM_CAUSE_LABEL.get(code, code)
+    llm_result["primary_cause"] = label
+
+    ranked = score_module.build_cause_ranking_from_scores(cause_scores, diagnosis)
+    secondary = next((item for item in ranked if item.get("role") != "主因"), None)
+    cause_ranking = [{"rank": 1, "role": "主因", "cause": label}]
+    if secondary:
+        cause_ranking.append(
+            {
+                "rank": 2,
+                "role": secondary.get("role") or "次因",
+                "cause": secondary.get("cause") or "交通需求压力",
+            }
+        )
+    for idx, item in enumerate(ranked[2:4], start=3):
+        cause_ranking.append(
+            {
+                "rank": idx,
+                "role": item.get("role") or "诱因",
+                "cause": item.get("cause") or "",
+            }
+        )
+
+    direct = (diagnosis.get("downstream_state") or {}).get("direct_downstream_inter_name") or "直接下游"
+    tm = diagnosis.get("metrics") or {}
+    q = tm.get("queue_ratio")
+    u = tm.get("green_utilization")
+    q_text = f"{q:.4f}" if isinstance(q, (int, float)) else "—"
+    u_text = f"{u:.4f}" if isinstance(u, (int, float)) else "—"
+    if code == "discharge_anomaly":
+        llm_result["narrative"] = (
+            f"溢出机制为{label}：排队比 {q_text} 与绿灯利用率 {u_text} 呈高排队低放行特征。"
+            f"直接下游 {direct} 初步有余量，需先完成出口/检测/绿灯末端队列核验，不宜在未核验前加绿。"
+        )
+    gaps = llm_result.get("data_gaps") or []
+    llm_result["data_gaps"] = [
+        str(g).replace("奥体西路与解放东路路口", direct) for g in gaps if g
+    ]
+    return cause_ranking
+
 
 def _load_script_module(script_name: str):
     script_path = Path(__file__).resolve().parent / "scripts" / script_name
@@ -76,11 +135,25 @@ class CauseAnalysisSkill(BaseSkill):
             evidence_summary,
         )
 
-        prompt = (
-            "请基于下列结构化事实判断主因，并说明历史案例佐证。"
-            "数值引用必须与小数口径一致，禁止百分比。\n"
-            f"{json.dumps(llm_context, ensure_ascii=False, indent=2)}"
-        )
+        # 需求 35：确定性溢出机制已由诊断给出时，LLM 只解释，不得改写机制编码
+        overflow_mechanism = diagnosis.get("overflow_mechanism") or {}
+        if overflow_mechanism.get("primary"):
+            llm_context["overflow_mechanism"] = overflow_mechanism
+            llm_context["downstream_state"] = diagnosis.get("downstream_state")
+            prompt = (
+                "下列结构化事实中的 overflow_mechanism.primary 与 downstream_state.decision "
+                "为确定性结论，禁止修改编码或下游状态。"
+                "请解释支持证据、反证、缺失证据，并生成核验任务；"
+                "primary_cause 须与机制含义一致，不得另立互相矛盾的主因。"
+                "数值引用必须与小数口径一致，禁止百分比。\n"
+                f"{json.dumps(llm_context, ensure_ascii=False, indent=2)}"
+            )
+        else:
+            prompt = (
+                "请基于下列结构化事实判断主因，并说明历史案例佐证。"
+                "数值引用必须与小数口径一致，禁止百分比。\n"
+                f"{json.dumps(llm_context, ensure_ascii=False, indent=2)}"
+            )
         llm_result = await llm.chat(
             system_prompt=self.load_resource("system"),
             user_prompt=prompt,
@@ -98,9 +171,27 @@ class CauseAnalysisSkill(BaseSkill):
             merged_gaps = list(dict.fromkeys((llm_result.get("data_gaps") or []) + checklist_gaps))
             llm_result["data_gaps"] = merged_gaps
 
-        cause_ranking = llm_result.get("cause_ranking") or score_module.build_cause_ranking_from_scores(
-            cause_scores, diagnosis
-        )
+        # 冻结机制：输出带回诊断机制，LLM 不得覆盖
+        if overflow_mechanism.get("primary"):
+            llm_result["overflow_mechanism"] = overflow_mechanism
+            llm_result["mechanism_locked"] = True
+            cause_ranking = _align_cause_with_mechanism(
+                llm_result,
+                overflow_mechanism=overflow_mechanism,
+                diagnosis=diagnosis,
+                cause_scores=cause_scores,
+                score_module=score_module,
+            )
+        else:
+            cause_ranking = llm_result.get("cause_ranking") or score_module.build_cause_ranking_from_scores(
+                cause_scores, diagnosis
+            )
+            # 清洗明显与 slack 冲突的「下游接不住」主因表述
+            primary_cause = str(llm_result.get("primary_cause") or "")
+            ds = (diagnosis.get("downstream_state") or {}).get("decision")
+            if ds == "slack" and ("接不住" in primary_cause or "承接不足" in primary_cause):
+                llm_result["primary_cause"] = "放行效率异常，待核验"
+                llm_result["primary_cause_overridden"] = True
 
         output = {
             "cause_analysis": llm_result,
@@ -112,10 +203,13 @@ class CauseAnalysisSkill(BaseSkill):
             "evidence_summary": evidence_summary,
             "arterial_coordination_needed": evidence_module.needs_arterial_coordination(diagnosis),
         }
+        if overflow_mechanism.get("primary"):
+            output["overflow_mechanism"] = overflow_mechanism
         logger.info(
-            "成因分析完成 trace_id=%s primary_cause=%s similar_cases=%d",
+            "成因分析完成 trace_id=%s primary_cause=%s mechanism=%s similar_cases=%d",
             context.trace_id,
             llm_result.get("primary_cause"),
+            (overflow_mechanism or {}).get("primary"),
             len(similar_cases),
         )
         return SkillResult(

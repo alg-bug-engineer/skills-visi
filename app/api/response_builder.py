@@ -56,6 +56,12 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
             or (plan_artifact.get("recommended") or {}).get("plan_id"),
             "recommendation": plan_artifact.get("recommendation"),
             "rollback_conditions": plan_artifact.get("rollback_conditions"),
+            "trial_loop": plan_artifact.get("trial_loop"),
+            "plan_status": plan_artifact.get("plan_status")
+            or (plan_artifact.get("recommended") or {}).get("plan_status"),
+            "executable": plan_artifact.get("executable")
+            if plan_artifact.get("executable") is not None
+            else (plan_artifact.get("recommended") or {}).get("executable"),
             "signal_source": plan_artifact.get("signal_source"),
             "optimizer_engine": plan_artifact.get("optimizer_engine"),
             "all_guardrails_passed": plan_artifact.get("all_guardrails_passed"),
@@ -81,6 +87,8 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
         "trace_id": result.get("trace_id"),
         "completed": result.get("completed"),
         "pipeline_complete": result.get("pipeline_complete", False),
+        "healthy": result.get("healthy"),
+        "completion_status": result.get("completion_status"),
         "diagnosis_ticket": result.get("diagnosis_ticket"),
         "phases": phases,
         "plan": plan_block,
@@ -96,6 +104,8 @@ def build_public_snapshot(
     task: dict[str, Any] | None = None,
     completed: bool | None = None,
     pipeline_complete: bool = False,
+    healthy: bool | None = None,
+    completion_status: str | None = None,
 ) -> dict[str, Any]:
     """基于"截至当前"的 artifacts/results 构建公开快照（流式逐 phase 复用）。
 
@@ -110,6 +120,8 @@ def build_public_snapshot(
         "trace_id": trace_id,
         "completed": completed,
         "pipeline_complete": pipeline_complete,
+        "healthy": healthy,
+        "completion_status": completion_status,
         "diagnosis_ticket": diagnosis_ticket,
         "artifacts": artifacts or {},
         "results": results or [],

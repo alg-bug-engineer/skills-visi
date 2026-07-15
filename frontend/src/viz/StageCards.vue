@@ -4,7 +4,11 @@ import StageMovementCanvas from '@/viz/StageMovementCanvas.vue'
 import { flowKeysFromStage, formatFlowKeysText } from '@/viz/planVisualization'
 import { ratio } from '@/utils/format'
 
-defineProps<{ stages: PhaseStageTiming[] }>()
+defineProps<{
+  stages: PhaseStageTiming[]
+  /** 覆盖默认提示，例如门控后拟实施借绿对照 */
+  hint?: string
+}>()
 
 function sec(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? `${value}s` : '—'
@@ -40,7 +44,7 @@ function hasFlow(stage: PhaseStageTiming): boolean {
   <section class="stages">
     <header class="stages-head">
       <h4>阶段形式</h4>
-      <span class="hint">现状 → 优化（括号内为差值）</span>
+      <span class="hint">{{ hint || '现状 → 优化（括号内为差值）' }}</span>
     </header>
     <div class="cards">
       <article v-for="(stage, i) in stages" :key="stage.phase_stage_id || i" class="card">
