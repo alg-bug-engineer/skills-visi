@@ -50,13 +50,14 @@ describe('PlanEvidencePanel', () => {
       props: { candidate: candidateWithEvidence() },
     })
 
-    expect(wrapper.text()).toContain('优化对比')
+    expect(wrapper.text()).toContain('建议试运行方案')
+    expect(wrapper.text()).toContain('现状配时 → 试运行配时')
     expect(wrapper.text()).toContain('130s')
     expect(wrapper.text()).toContain('98')
     expect(wrapper.text()).toContain('阶段 1')
     expect(wrapper.text()).toContain('西直')
     expect(wrapper.text()).toContain('各方向供需强度')
-    expect(wrapper.text()).toContain('75.0%')
+    expect(wrapper.text()).toContain('0.75')
     // 需求 20·R3：治理建议中的「优化审计」已删除
     expect(wrapper.text()).not.toContain('优化审计')
     expect(wrapper.text()).not.toContain('求解器')
@@ -82,6 +83,25 @@ describe('PlanEvidencePanel', () => {
 
     expect(wrapper.text()).toContain('后端未返回可审计方案证据')
     expect(wrapper.text()).toContain('现状周期')
+  })
+
+  it('does not hide real timing when only optional movement/intensity evidence is incomplete', () => {
+    const candidate = candidateWithEvidence()
+    candidate.timing!.available = false
+    candidate.timing!.reason = '部分审计字段缺失'
+    candidate.timing!.missing_fields = [
+      'timing.phase_stage_timing_list.movements',
+      'timing.meta.direction_intensity_list',
+    ]
+    candidate.timing!.phase_stage_timing_list![0].movements = []
+    candidate.timing!.meta!.direction_intensity_list = []
+
+    const wrapper = mount(PlanEvidencePanel, { props: { candidate } })
+
+    expect(wrapper.text()).toContain('130s')
+    expect(wrapper.text()).toContain('98s')
+    expect(wrapper.find('[data-testid="partial-evidence-warning"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('后端未返回可审计方案证据')
   })
 
   it('marks intensity over target as risk', () => {
@@ -160,5 +180,19 @@ describe('StageCards', () => {
     expect(wrapper.text()).toContain('41s')
     expect(wrapper.text()).toContain('-24s')
     expect(wrapper.get('[data-testid="stage-canvas-stub"]').text()).toBe('西直、东左')
+  })
+
+  it('does not present overlap slices as violating ordinary min-green bounds', () => {
+    const overlap = structuredClone(stages)
+    overlap[0].current_timing!.green_time_s = 0
+    overlap[0].optimized_timing!.green_time_s = 0
+    overlap[0].green_time_s = 0
+    overlap[0].min_green_time_s = 14
+    const wrapper = mount(StageCards, {
+      props: { stages: overlap },
+      global: { stubs: { StageMovementCanvas: true } },
+    })
+    expect(wrapper.text()).toContain('搭接/清空阶段 · 按相位组合校验')
+    expect(wrapper.text()).not.toContain('最小/最大绿 14s')
   })
 })

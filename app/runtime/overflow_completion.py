@@ -67,7 +67,7 @@ def build_trial_loop(
     recommended: dict[str, Any] | None,
     ticket: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """实施前核验 / 监测 / 回滚结构化对象，供前端与反馈沉淀消费。"""
+    """试运行监测 / 成功判定 / 回滚结构化对象，供前端与反馈沉淀消费。"""
     decision = decision or {}
     diagnosis = diagnosis or {}
     recommended = recommended or {}
@@ -108,13 +108,12 @@ def build_trial_loop(
     if recommended.get("rollback_condition"):
         rollback_rules = [str(recommended["rollback_condition"]), *rollback_rules]
 
-    preconditions = list(
+    system_prechecks = list(
         recommended.get("preconditions")
         or [
-            "直接下游出口畅通",
-            "检测器有效",
-            "绿灯末端目标队列仍未消散",
-            "渠化/出口无明显阻塞",
+            "系统确认直接下游未达到排队红线",
+            "系统确认现状配时与检测数据可用",
+            "系统保存原方案用于一键回滚",
         ]
     )
 
@@ -136,7 +135,9 @@ def build_trial_loop(
             "其他进口未形成新的高风险排队",
         ],
         "rollback_rules": list(dict.fromkeys(rollback_rules)),
-        "preconditions": preconditions,
+        # 兼容旧前端字段，同时明确这些检查由系统在下发时完成，不再让用户先观察。
+        "preconditions": system_prechecks,
+        "system_prechecks": system_prechecks,
         "preconditions_satisfied": bool(decision.get("preconditions_satisfied")),
         "target_effective_green_delta_s": contract.get("target_effective_green_delta_s"),
         "cycle_delta_s": contract.get("cycle_delta_s", 0),

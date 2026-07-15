@@ -35,7 +35,7 @@
     },
     "act4_attribution": {
       "stepTitle": "归因分析",
-      "purpose": "在证据核验基础上给出溢出机制与辅因线索。",
+      "purpose": "解释排队为什么形成，并区分本路口放行问题与下游回堵。",
       "methodTemplate": "{method}",
       "compose": "full",
       "useConclusion": true
@@ -63,14 +63,14 @@
     },
     "act8_strategy": {
       "stepTitle": "治理策略与边界约束",
-      "purpose": "按决策契约确定治理路径与红线，明确绿灯调节前提。",
+      "purpose": "给出可试运行的调整量、监测指标和自动回滚条件。",
       "methodTemplate": "{method}",
       "compose": "full",
       "useConclusion": true
     },
     "act9_plan": {
       "stepTitle": "配时方案生成",
-      "purpose": "将策略参数化为方案，给出可执行或条件性配时动作。",
+      "purpose": "将建议落成可下发、可监测、可回滚的配时方案。",
       "methodTemplate": "{method}",
       "compose": "full",
       "useConclusion": true
@@ -78,12 +78,12 @@
   },
   "methods": {
     "act3_overflow": "先查排队比是否突破阈值，再结合饱和度与绿灯利用率判断溢出性质与严重程度。",
-    "act4_attribution": "优先采用确定性溢出机制，再补充次因与诱因，避免仅凭单点指标误判。",
-    "act5_bottleneck": "对比本路口与直接下游的排队、饱和度与剩余蓄车，判别 slack、blocked 或指标不足。",
+    "act4_attribution": "对照排队、绿灯利用和下游空间，判断车辆是没有放出去，还是放出去后没有空间。",
+    "act5_bottleneck": "对比本路口与直接下游的排队、饱和度与剩余蓄车",
     "act6_corridor": "沿干线追溯上下游转向流量占比，识别主要来车方向与潜在瓶颈节点。",
-    "act7_cases": "将当前问题特征与案例库匹配，展示命中案例与可借鉴动作，不再重复归因叙述。",
-    "act8_strategy": "对齐决策模式：先验后调则先核验，下游保护则保守放行，明确红线后不越界调节绿灯。",
-    "act9_plan": "先验核验方案维持现状配时；通过后再小步增绿；并完成最小绿、周期与协调安全校验。"
+    "act7_cases": "将当前问题特征与案例库匹配，展示命中案例与可借鉴动作",
+    "act8_strategy": "根据目标进口和下游余量确定小步调整幅度，并设置试运行成功条件和回滚阈值。",
+    "act9_plan": "计算每个阶段调整前后的秒数，确认周期、最小绿和行人安全约束后生成试运行方案。"
   },
   "absorption": {
     "guide": {

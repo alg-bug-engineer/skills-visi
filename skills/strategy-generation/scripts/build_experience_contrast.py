@@ -9,6 +9,7 @@ _PACKAGE_LABELS = {
     "incremental_release": "小步释放方案",
     "arterial_coordination": "干线联控方案",
     "verification_plan": "先验核验方案",
+    "conditional_incremental_release": "小步增绿试运行方案",
 }
 
 _CAUSE_DIM_LABELS = {
@@ -23,7 +24,7 @@ _CAUSE_DIM_LABELS = {
 _MECHANISM_LABELS = {
     "downstream_blocked": "下游回堵",
     "local_release_insufficient": "本路口放行不足",
-    "discharge_anomaly": "放行效率异常，待核验",
+    "discharge_anomaly": "本路口放行过程异常",
     "upstream_arrival_shock": "上游冲击",
     "evidence_insufficient": "证据不足，待补盲",
 }

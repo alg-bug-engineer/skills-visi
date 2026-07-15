@@ -105,7 +105,7 @@ const scenario: Dict = {
 
 const plan_id: Dict = {
   verification_plan: '先验核验方案',
-  conditional_incremental_release: '条件性小步增绿方案',
+  conditional_incremental_release: '小步增绿试运行方案',
   plan_dp: '干线联控方案',
   downstream_protection: '下游保护方案',
   incremental_release: '目标路口小步释放方案',

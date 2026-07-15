@@ -11,6 +11,7 @@ import {
   ticketTimeLabel,
 } from '@/utils/ticketCopy'
 import type { EvidenceStage } from '@/map/sceneEvidencePolicy'
+import { compactTimingSummary } from '@/utils/planPresentation'
 
 function saturationOf(metrics: Metrics | undefined): number | null | undefined {
   return metrics?.saturation ?? metrics?.saturation_rate
@@ -121,27 +122,30 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
       const mech = (diag as { overflow_mechanism?: { primary?: string } } | undefined)?.overflow_mechanism
         ?.primary
       const mechLabel: Record<string, string> = {
-        discharge_anomaly: '放行效率异常，待核验',
+        discharge_anomaly: '本路口放行过程异常',
         local_release_insufficient: '本路口放行不足',
         downstream_blocked: '下游回堵',
         upstream_arrival_shock: '上游冲击',
         evidence_insufficient: '证据不足',
       }
       const primary = cause?.cause_analysis?.primary_cause
-      const narrative = cause?.cause_analysis?.narrative
       if (mech) {
+        if (mech === 'discharge_anomaly') {
+          return lines(
+            `判断：${mechLabel[mech]}`,
+            `依据：排队比 ${ratio(diag?.metrics?.queue_ratio)}，绿灯有效利用率 ${ratio(diag?.metrics?.green_utilization)}，直接下游仍有余量`,
+            '处置：用小步增绿试运行验证效果，系统同步监测出口通行、检测数据和下游排队',
+          )
+        }
         return lines(
           `溢出机制：${mechLabel[mech] ?? mech}`,
-          narrative && `说明：${productCopy(narrative)}`,
-          !narrative &&
-            primary &&
+          primary &&
             primary !== (mechLabel[mech] ?? mech) &&
             `次因线索：${productCopy(primary)}`,
         )
       }
       return lines(
         primary && `主因：${productCopy(primary)}`,
-        narrative && `说明：${productCopy(narrative)}`,
       )
     }
     case 'act5_bottleneck': {
@@ -156,11 +160,11 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         : ''
       const slackLine =
         ds?.decision === 'slack'
-          ? `下游状态：slack｜${ds.direct_downstream_inter_name || pd?.inter_name || '直接下游'} 初步有承接余量`
+          ? `下游判断：${ds.direct_downstream_inter_name || pd?.inter_name || '直接下游'} 当前有承接余量`
           : ds?.decision === 'blocked'
-            ? `下游状态：blocked｜${ds.direct_downstream_inter_name || pd?.inter_name || '直接下游'} 承接受限`
+            ? `下游判断：${ds.direct_downstream_inter_name || pd?.inter_name || '直接下游'} 承接受限`
             : ds?.decision === 'unknown'
-              ? '下游状态：unknown｜指标不足，暂不判定承接能力'
+              ? '下游判断：关键指标不足，暂不判定承接能力'
               : null
       return lines(
         ...domainIntroFor('act5_bottleneck'),
@@ -171,7 +175,7 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         slackLine,
         !slackLine && `结论：${downstreamConclusion(dd)}`,
         ds?.decision === 'slack' &&
-          '绿灯调节路径：下游有余量 → 先核验目标放行效率，核验通过后再评估小步增绿',
+          '绿灯调节路径：下游有余量 → 可试运行小步增绿，并同步监测下游排队',
         ds?.decision === 'blocked' &&
           '绿灯调节路径：下游承接收紧 → 优先下游保护，不宜本路口直接拉长绿灯',
       )
@@ -194,11 +198,15 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         ...domainIntroFor('act8_strategy'),
         decision?.decision_mode === 'verify_then_adjust' &&
           '治理决策：先验后调｜绿灯路径 = 核验通过 → 目标有效绿小步增加（周期尽量不变）',
+        decision?.decision_mode === 'incremental_release_trial' &&
+          '治理决策：立即试运行｜目标有效绿小步增加，相位内借绿，周期保持不变',
         decision?.decision_mode === 'protect_downstream' &&
           '治理决策：下游保护｜绿灯路径 = 本路口保守放行或不增绿',
         decision?.decision_mode &&
-          !['verify_then_adjust', 'protect_downstream'].includes(decision.decision_mode) &&
+          !['verify_then_adjust', 'incremental_release_trial', 'protect_downstream'].includes(decision.decision_mode) &&
           `治理决策：${productCopy(decision.decision_mode)}`,
+        !decision?.decision_mode && strategy?.strategy?.principles?.[0] &&
+          `治理路径：${productCopy(strategy.strategy.principles[0])}`,
         decision?.reason && `说明：${productCopy(decision.reason)}`,
         strategy?.strategy?.hard_constraints?.[0] &&
           `红线：${productCopy(String(strategy.strategy.hard_constraints[0]))}`,
@@ -206,6 +214,7 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
     }
     case 'act9_plan': {
       const planId = plan?.recommendation?.recommended_plan_id
+      const timingSummary = compactTimingSummary(plan?.recommended)
       const pkg = (plan as { action_package?: { schemes?: { signal_control?: Array<{ action?: string }> } } } | undefined)
         ?.action_package
       const phaseLines = (pkg?.schemes?.signal_control || [])
@@ -214,17 +223,22 @@ export function narrationFor(act: ActDef, resp: RunResponse | null): string[] {
         .slice(0, 3)
       return lines(
         planId && `推荐：${translatePlanId(planId)}`,
-        phaseLines.length > 0 && `信控：${phaseLines.join('；')}`,
-        !phaseLines.length &&
+        timingSummary && `配时：${timingSummary}`,
+        !timingSummary && phaseLines.length > 0 && `信控：${phaseLines.join('；')}`,
+        !timingSummary && !phaseLines.length &&
           planId === 'verification_plan' &&
-          '信控：目标相位 +5s，借绿相位 −5s，周期 ±0s（门控后下发）',
-        plan?.executable === false && '状态：条件性，过闸前不下发',
+          '信控：当前数据不足，尚未形成可下发配时',
+        plan?.plan_status === 'trial_ready' &&
+          `执行：下发后试运行 ${plan?.trial_loop?.observation_cycles ?? 5} 个周期，异常自动回滚`,
+        plan?.executable === false && '状态：数据不足，暂不生成可下发配时',
       )
     }
     case 'act10_feedback':
       return lines(
         resp?.completion_status === 'completed_conditional' &&
-          '当前为条件性闭环：先核验再决定是否小步增绿',
+          '当前数据不足，方案需补充数据后再生成',
+        resp?.completion_status === 'completed_with_trial_plan' &&
+          `试运行方案已就绪：下发后运行 ${plan?.trial_loop?.observation_cycles ?? 5} 个周期，系统监测并自动回滚`,
         '记录本次处置结果，形成后续复用依据…',
         '请确认下发、退回修改或提交再生成。',
       )
@@ -256,7 +270,7 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
       const mech = (cause as { overflow_mechanism?: { primary?: string } } | undefined)?.overflow_mechanism
         ?.primary
       if (mech === 'discharge_anomaly') {
-        return productCopy(cause?.cause_analysis?.narrative ?? '溢出机制：放行效率异常，待核验')
+        return `高排队、低绿灯利用，下游仍有余量；判断为本路口放行过程异常`
       }
       return productCopy(cause?.cause_analysis?.primary_cause ?? '归因分析完成')
     }
@@ -264,9 +278,7 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
       const ds = (diag as { downstream_state?: { decision?: string; direct_downstream_inter_name?: string } } | undefined)
         ?.downstream_state
       if (ds?.decision === 'slack') {
-        return productCopy(
-          `${ds.direct_downstream_inter_name || '直接下游'}初步有承接余量，先核验目标放行效率`,
-        )
+        return productCopy(`${ds.direct_downstream_inter_name || '直接下游'}有承接余量，可开展小步增绿试运行`)
       }
       if (ds?.decision === 'blocked') {
         return productCopy(`${ds.direct_downstream_inter_name || '直接下游'}承接受限，优先下游保护`)
@@ -284,11 +296,15 @@ export function summaryFor(act: ActDef, resp: RunResponse | null): string {
       if (decision?.decision_mode === 'verify_then_adjust') {
         return productCopy(decision.reason || '先验后调：核验通过后再小步增绿')
       }
+      if (decision?.decision_mode === 'incremental_release_trial') {
+        return productCopy(decision.reason || '立即开展小步增绿试运行，系统监测并自动回滚')
+      }
       return productCopy(strategy?.strategy?.principles?.[0] ?? '策略推荐完成')
     }
     case 'act9_plan': {
       const planId = plan?.recommendation?.recommended_plan_id
-      if (planId === 'verification_plan') return '先验核验方案，维持现状配时'
+      if (plan?.plan_status === 'trial_ready') return `试运行方案就绪：${compactTimingSummary(plan.recommended)}`
+      if (planId === 'verification_plan') return '当前数据不足，尚未形成可下发配时'
       return planId ? `推荐方案 ${translatePlanId(planId)}` : '方案生成完成'
     }
     case 'act10_feedback':

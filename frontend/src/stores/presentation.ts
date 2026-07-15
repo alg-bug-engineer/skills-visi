@@ -15,7 +15,7 @@ import {
   type StructuredCatalogItem,
 } from '@/api/endpoints'
 import type { StreamController, StreamEvent } from '@/api/sse'
-import type { RunResponse, UserExperience, CaseCard, SkillSolidificationResult } from '@/api/types'
+import type { RunResponse, UserExperience, CaseCard, SkillSolidificationResult, PlanCandidate } from '@/api/types'
 import type { VoiceCue } from '@/types/voice'
 import { ACT_DEFS, narrationFor, phaseReady, type ActDef, type CardKey, type PhaseKey } from '@/composables/useTimeline'
 
@@ -522,13 +522,10 @@ export const usePresentationStore = defineStore('presentation', {
     enqueueVoice(cue: VoiceCue | null | undefined) {
       if (cue) voiceEnqueue?.(cue)
     },
-    /** 等待当前语音播完；超时后仍放行，避免 TTS 挂起阻塞右侧面板推进。 */
-    waitForVoiceBarrier(timeoutMs = 12_000): Promise<void> {
+    /** 等待当前语音队列真正播完；不得以固定超时穿透，否则会造成文字/地图跨幕。 */
+    waitForVoiceBarrier(): Promise<void> {
       if (!voiceBarrier) return Promise.resolve()
-      return Promise.race([
-        voiceBarrier(),
-        new Promise<void>((resolve) => window.setTimeout(resolve, timeoutMs)),
-      ])
+      return voiceBarrier()
     },
     /** 步骤间暂停门控：暂停态下等待空格恢复后再推进。 */
     waitForStepResume(): Promise<void> {
@@ -582,13 +579,13 @@ export const usePresentationStore = defineStore('presentation', {
       this.toast = null
     },
 
-    async accept(planId: string) {
+    async accept(planId: string, planSnapshot?: PlanCandidate) {
       if (!this.traceId) return
       const res = await submitDecision({
         trace_id: this.traceId,
         plan_id: planId,
         decision: 'accept',
-        plan_snapshot: this.plan?.recommended ?? undefined,
+        plan_snapshot: planSnapshot ?? this.plan?.recommended ?? undefined,
         diagnosis_ticket: this.ticket ?? undefined,
       })
       // 下发失败：提示并回到主页，不进入固化流程
@@ -596,6 +593,13 @@ export const usePresentationStore = defineStore('presentation', {
         this.toast = `方案下发失败：${res.reason}`
         this.reset(true)
         return
+      }
+      // 历史响应可能把真正的试运行配时放在 proposed_timing；确认后统一保存本次实际下发快照。
+      if (planSnapshot && this.response?.plan) {
+        this.response.plan.recommended = planSnapshot
+        this.response.plan.recommended_plan_id = planSnapshot.plan_id
+        this.response.plan.plan_status = String(planSnapshot.plan_status ?? 'trial_ready')
+        this.response.plan.executable = planSnapshot.executable !== false
       }
       // 下发成功：不 reset，保留 response 快照，进入技能固化确认弹窗
       this.pendingSolidifyPlanId = planId

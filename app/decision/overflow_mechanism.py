@@ -181,16 +181,21 @@ def map_mechanism_to_decision(
                 strategy_package="incremental_release",
                 reason=reason or "核验通过后进入目标方向小步增绿试验",
             )
-        return _contract(
-            decision_mode="verify_then_adjust",
-            allowed=["verification_plan", "conditional_incremental_release"],
+        # 高排队 + 低绿灯利用率且直接下游有余量时，继续“只观察不处置”并不能
+        # 产生新的因果证据。将核验放进受控试运行：小步借绿、连续监测、自动回滚。
+        # 这里的 executable 表示“可下发为限时试运行”，不是直接固化为正式方案。
+        contract = _contract(
+            decision_mode="incremental_release_trial",
+            allowed=["conditional_incremental_release"],
             forbidden=["downstream_protection", "arterial_coordination", "aggressive_retiming"],
-            preconditions_satisfied=False,
-            executable=False,
-            plan_status="conditional",
+            preconditions_satisfied=True,
+            executable=True,
+            plan_status="trial_ready",
             strategy_package="incremental_release",
-            reason=reason or "下游有余量，但目标进口放行效率异常尚未确认",
+            reason=reason or "目标进口高排队、低绿灯利用率且下游有余量，建议立即开展小步增绿试运行",
         )
+        contract["max_stage_change_ratio"] = 0.2
+        return contract
 
     if mechanism == "upstream_arrival_shock":
         return _contract(

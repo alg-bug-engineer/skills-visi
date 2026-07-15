@@ -31,6 +31,23 @@ function optimizedGreen(stage: PhaseStageTiming): number | null | undefined {
   return stage.optimized_timing?.green_time_s ?? stage.green_time_s
 }
 
+function boundsText(stage: PhaseStageTiming): string {
+  const min = stage.min_green_time_s
+  const max = stage.max_green_time_s
+  const before = currentGreen(stage)
+  const after = optimizedGreen(stage)
+  if (
+    typeof min === 'number' &&
+    typeof max === 'number' &&
+    typeof before === 'number' &&
+    typeof after === 'number' &&
+    (before < min || before > max || after < min || after > max)
+  ) {
+    return '搭接/清空阶段 · 按相位组合校验'
+  }
+  return `最小/最大绿 ${sec(min)} / ${sec(max)}`
+}
+
 function flowLabel(stage: PhaseStageTiming): string {
   return formatFlowKeysText(flowKeysFromStage(stage))
 }
@@ -73,7 +90,7 @@ function hasFlow(stage: PhaseStageTiming): boolean {
         <div v-if="hasFlow(stage)" class="flow-label">{{ flowLabel(stage) }}</div>
         <div v-else class="missing">后端未返回释放方向证据</div>
         <div class="meta">
-          <span>最小/最大绿 {{ sec(stage.min_green_time_s) }} / {{ sec(stage.max_green_time_s) }}</span>
+          <span>{{ boundsText(stage) }}</span>
           <span>阶段饱和度 {{ ratio(stage.phase_saturation) }}</span>
         </div>
       </article>

@@ -24,17 +24,18 @@ def _load_adjust():
     return mod
 
 
-def test_case_a_verify_then_adjust_contract():
+def test_case_a_discharge_anomaly_maps_to_monitored_trial():
     decision = map_mechanism_to_decision(
         primary_mechanism="discharge_anomaly",
         verification_passed=False,
     )
-    assert decision["decision_mode"] == "verify_then_adjust"
-    assert decision["preconditions_satisfied"] is False
-    assert decision["executable"] is False
-    assert decision["plan_status"] == "conditional"
-    assert "verification_plan" in decision["allowed_plan_types"]
+    assert decision["decision_mode"] == "incremental_release_trial"
+    assert decision["preconditions_satisfied"] is True
+    assert decision["executable"] is True
+    assert decision["plan_status"] == "trial_ready"
+    assert decision["max_stage_change_ratio"] == 0.2
     assert "conditional_incremental_release" in decision["allowed_plan_types"]
+    assert "verification_plan" not in decision["allowed_plan_types"]
     assert "downstream_protection" in decision["forbidden_plan_types"]
     assert "arterial_coordination" in decision["forbidden_plan_types"]
 
@@ -85,12 +86,12 @@ def test_build_candidates_respects_allowed_plan_types():
     strategy = {
         "strategy_package": "incremental_release",
         "decision": {
-            "decision_mode": "verify_then_adjust",
-            "allowed_plan_types": ["verification_plan", "conditional_incremental_release"],
+            "decision_mode": "incremental_release_trial",
+            "allowed_plan_types": ["conditional_incremental_release"],
             "forbidden_plan_types": ["downstream_protection", "arterial_coordination"],
-            "preconditions_satisfied": False,
-            "executable": False,
-            "plan_status": "conditional",
+            "preconditions_satisfied": True,
+            "executable": True,
+            "plan_status": "trial_ready",
         },
         "case_references": {},
     }
@@ -106,11 +107,12 @@ def test_build_candidates_respects_allowed_plan_types():
         validate_plan_guardrails=validate_plan_guardrails,
     )
     ids = {c["plan_id"] for c in candidates}
-    assert ids == {"verification_plan", "conditional_incremental_release"}
+    assert ids == {"conditional_incremental_release"}
     assert "downstream_protection" not in ids
     assert "arterial_coordination" not in ids
     for c in candidates:
-        assert c.get("executable") is False or c.get("plan_status") == "conditional"
+        assert c.get("executable") is True
+        assert c.get("plan_status") == "trial_ready"
         text = (c.get("scenario") or "") + (c.get("name") or "")
         assert "接不住" not in text
         assert "承接不足" not in text

@@ -56,9 +56,9 @@ class StrategyGenerationSkill(BaseSkill):
             f"治理对象: {ticket.get('intersection_name')}（{ticket.get('inter_id')}），"
             f"{ticket.get('direction', '')}{ticket.get('movement', '')}\n"
             f"用户约束: {user_constraints}\n"
-            "请生成分层策略：①即刻可做动作（现场/检测/渠化/秩序）；"
-            "②门控通过后拟实施配时（写清秒数与借绿来源）；"
-            "③按道路等级给出非信控亮点建议。硬约束写成红线，但不能用红线替代动作。"
+            "请生成分层策略：①可直接试运行的配时动作（写清秒数、借绿来源和周期变化）；"
+            "②试运行期间由系统监测的成功条件与自动回滚条件；"
+            "③按道路等级给出现场组织建议。硬约束写成红线，但不能用红线替代动作。"
         )
         llm_result = await llm.chat(
             system_prompt=self.load_resource("system"),

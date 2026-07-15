@@ -147,24 +147,23 @@ def build_strategy_profile(
     if direct_downstream:
         hard_constraints = _sanitize_downstream_references(hard_constraints, direct_downstream)
         recommended = _sanitize_downstream_references(recommended, direct_downstream)
-    if decision and decision.get("decision_mode") == "verify_then_adjust":
+    if decision and decision.get("decision_mode") == "incremental_release_trial" and mechanism == "discharge_anomaly":
         recommended = [
-            "先验后调：先核验出口通行、检测有效性与绿灯末端队列",
-            "核验通过前不输出可直接执行配时",
+            "立即试运行：目标流向有效绿 +5s，相位内借绿，周期保持不变",
+            "系统连续监测 5 个周期；效果不达标或下游排队增长时自动回滚",
             *recommended,
         ]
         hard_constraints = [
-            "禁止在放行效率异常未核验时强行大幅增绿",
-            *hard_constraints,
+            "本次目标阶段仅增加 5s，任一阶段调整幅度不得超过现状的 20%",
+            "信号周期保持现状，不得在本次试运行中延长",
+            f"直接下游{direct_downstream}排队比超过 0.9 时立即回滚"
+            if direct_downstream
+            else "直接下游排队比超过 0.9 时立即回滚",
+            *quantitative["constraints"],
         ]
-        if direct_downstream:
-            hard_constraints = _replace_downstream_queue_constraint(
-                hard_constraints,
-                direct_downstream,
-            )
         principles = [
-            "分层交付：即刻动作（现场/检测/渠化）+ 门控后默认配时试验，禁止只给核验空话",
-            "拟实施默认动作：目标流向有效绿 +5s（周期不变，相位内借绿），试验 5 周期",
+            "直接交付可回滚的试运行方案，不以人工核验代替系统处置",
+            "目标流向有效绿 +5s（周期不变，相位内借绿），试运行 5 个周期",
             "道路等级决定侧重点：干路看协调与微调控绿，小路优先组织/秩序/渠化",
         ]
     else:
@@ -315,14 +314,18 @@ def _quantitative_constraints(
     }
     items: list[str] = []
     if min_greens:
-        items.append(f"各相位最小绿不得低于 {_fmt_s(min(min_greens))}（含黄灯全红、行人过街清空）")
+        items.append("各机动车相位不得低于对应最小绿，黄灯、全红与行人清空时长保持不变")
     else:
         detail["missing"].append("min_green_s")
     if max_greens:
         items.append(f"单相位绿灯不得超过 {_fmt_s(max(max_greens))}（最大绿上限）")
     else:
         detail["missing"].append("max_green_s")
-    if max_cycle is not None:
+    if max_cycle is not None and current_cycle is not None and current_cycle > max_cycle:
+        items.append(
+            f"本次周期保持 {_fmt_s(current_cycle)}、不得继续增加；现状高于配置上限 {_fmt_s(max_cycle)}，需另案整改"
+        )
+    elif max_cycle is not None:
         items.append(f"信号周期不得超过 {_fmt_s(max_cycle)}（最大周期约束）")
     else:
         detail["missing"].append("max_cycle_s")

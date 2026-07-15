@@ -40,7 +40,7 @@ describe('narrationFor', () => {
     expect(text).toContain('排队比')
     expect(text).toContain('饱和度')
     const strategy = ACT_DEFS.find((a) => a.id === 'act8_strategy')!
-    expect(narrationFor(strategy, fx).join('')).toContain('干线联控')
+    expect(narrationFor(strategy, fx).join('')).toContain('治理路径')
   })
 
   it('attribution act summarizes primary cause; cases act omits narrative', () => {

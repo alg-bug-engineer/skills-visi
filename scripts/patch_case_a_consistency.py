@@ -93,25 +93,83 @@ def patch_candidate(candidate: dict) -> None:
         candidate["timing"] = baseline_timing(candidate["timing"])
     if candidate.get("cycle_s") is not None and candidate.get("timing", {}).get("current_cycle_s"):
         candidate["cycle_s"] = candidate["timing"]["current_cycle_s"]
-    candidate["timing_source"] = "baseline_no_change"
-    candidate["executable"] = False
-    candidate["plan_status"] = "conditional"
+    candidate["timing_source"] = "controlled_phase_borrow"
     if candidate.get("timing"):
-        candidate["proposed_timing"] = build_proposed_timing(candidate["timing"])
-        candidate["proposed_timing_source"] = "conditional_incremental_release"
+        candidate["timing"] = build_proposed_timing(candidate["timing"])
+        candidate["cycle_s"] = candidate["timing"].get("cycle_s")
+    candidate.pop("proposed_timing", None)
+    candidate.pop("proposed_timing_source", None)
+    candidate["plan_id"] = "conditional_incremental_release"
+    candidate["name"] = "小步增绿试运行方案"
+    candidate["scenario"] = f"对北向南直行立即试行小步增绿，并同步监测{DIRECT}"
+    candidate["expected_effect"] = "用 5 个周期验证并缓解目标进口排队，不加重下游拥堵"
+    candidate["risk"] = "目标排队未改善或下游排队增长时自动回滚"
+    candidate["execution_order"] = ["下发小步增绿", "连续监测目标与下游", "达标保留、异常回滚"]
+    candidate["executable"] = True
+    candidate["plan_status"] = "trial_ready"
+
+
+def trial_signal_rows(timing: dict) -> list[dict]:
+    rows: list[dict] = []
+    for stage in timing.get("phase_stage_timing_list") or []:
+        delta = int(stage.get("green_delta_s") or 0)
+        if not delta:
+            continue
+        name = stage.get("phase_stage_name") or f"阶段{stage.get('phase_stage_id') or ''}"
+        rows.append({
+            "kind": "timing",
+            "action": f"{name}绿灯 {'+' if delta > 0 else ''}{delta}s",
+            "where": name,
+            "green_delta_s": delta,
+            "executable_now": True,
+        })
+    cycle_delta = int(timing.get("cycle_delta_s") or 0)
+    rows.append({
+        "kind": "timing",
+        "action": f"信号周期 {'±0s' if cycle_delta == 0 else f'{cycle_delta:+d}s'}",
+        "where": "解放东路与齐川路路口",
+        "cycle_delta_s": cycle_delta,
+        "executable_now": True,
+    })
+    rows.append({
+        "kind": "monitor",
+        "action": f"下发后试运行 5 个周期；{DIRECT}排队比>0.9 或目标排队未改善时自动回滚",
+        "where": DIRECT,
+    })
+    return rows
+
+
+def patch_action_packages(node, rows: list[dict]) -> None:
+    if isinstance(node, list):
+        for item in node:
+            patch_action_packages(item, rows)
+        return
+    if not isinstance(node, dict):
+        return
+    schemes = node.get("schemes")
+    if isinstance(schemes, dict) and "signal_control" in schemes:
+        schemes["signal_control"] = deepcopy(rows)
+        layers = node.get("layers")
+        if isinstance(layers, dict):
+            layers["proposed_timing"] = deepcopy([r for r in rows if r.get("kind") == "timing"])
+        node["headline"] = "；".join(r["action"] for r in rows if r.get("kind") == "timing")
+        node["execution_order"] = [r["action"] for r in rows]
+        node["decision_mode"] = "incremental_release_trial"
+    for value in node.values():
+        patch_action_packages(value, rows)
 
 
 def main() -> None:
     data = json.loads(FIXTURE.read_text(encoding="utf-8"))
     cause = data.get("phases", {}).get("cause") or data.get("cause") or {}
     analysis = cause.get("cause_analysis") or {}
-    analysis["primary_cause"] = "放行效率异常，待核验"
+    analysis["primary_cause"] = "本路口放行过程异常"
     analysis["narrative"] = (
-        "溢出机制为放行效率异常，待核验：排队比 0.9731 与绿灯利用率 0.2731 呈高排队低放行特征。"
-        f"直接下游 {DIRECT} 初步有余量，需先完成出口/检测/绿灯末端队列核验，不宜在未核验前加绿。"
+        "北向南直行排队比 0.9731、绿灯利用率 0.2731，呈现高排队、低有效放行。"
+        f"直接下游 {DIRECT} 尚有 115m 蓄车空间，建议用 +5s 小步增绿试运行验证放行效果。"
     )
     analysis["cause_ranking"] = [
-        {"rank": 1, "role": "主因", "cause": "放行效率异常，待核验"},
+        {"rank": 1, "role": "主因", "cause": "本路口放行过程异常"},
         {"rank": 2, "role": "次因", "cause": "交通需求压力"},
         {"rank": 3, "role": "诱因", "cause": "通行供给不足"},
     ]
@@ -122,26 +180,36 @@ def main() -> None:
     cause["cause_analysis"] = analysis
 
     strategy = data.get("phases", {}).get("strategy") or data.get("strategy") or {}
+    strategy["decision"] = {
+        "decision_mode": "incremental_release_trial",
+        "allowed_plan_types": ["conditional_incremental_release"],
+        "forbidden_plan_types": ["downstream_protection", "arterial_coordination", "aggressive_retiming"],
+        "preconditions_satisfied": True,
+        "executable": True,
+        "plan_status": "trial_ready",
+        "strategy_package": "incremental_release",
+        "reason": "目标进口高排队、低绿灯利用率且下游有余量，建议立即开展小步增绿试运行",
+    }
+    strategy["decision_mode"] = "incremental_release_trial"
     body = strategy.get("strategy") or {}
     body["recommended"] = [
-        f"开展直接下游 {DIRECT} 出口通行与检测有效性核验",
-        "记录绿灯末端目标队列是否仍残留，确认放行效率异常根因",
-        "核验通过后再评估是否对北向南直行试行小步增绿（+5s，周期不变）",
-        "联动监测直接下游排队比与剩余蓄车空间",
+        "立即试运行北向南直行有效绿 +5s，相位内借绿，周期保持不变",
+        f"系统连续监测 5 个周期的目标排队与 {DIRECT} 排队",
+        "目标排队未改善或下游排队比超过 0.9 时自动回滚",
     ]
     body["hard_constraints"] = [
-        f"任何配时调整不得导致下游{DIRECT}排队比超过0.9",
-        "单次绿灯时长调整幅度不得超过原时长的15%",
-        "未获取下游实时排队或饱和度数据前，禁止执行超过两轮的连续加绿操作",
+        "本次目标阶段仅增加 5s，任一阶段调整幅度不得超过现状的 20%",
+        "信号周期保持现状 224s，不得在本次试运行中延长",
+        f"直接下游{DIRECT}排队比超过 0.9 时立即回滚",
         "所有优化动作须保留回退预案，确保30秒内可恢复原方案",
-        "各相位最小绿不得低于 7s（含黄灯全红、行人过街清空）",
-        "单相位绿灯不得超过 60s（最大绿上限）",
-        "信号周期不得超过 180s（最大周期约束）",
+        "各机动车相位不得低于对应最小绿，黄灯、全红与行人清空时长保持不变",
+        "单相位绿灯不得超过该阶段真实上限 116s",
+        "现状周期高于配置上限 180s，需另案整改，不在本次小步试运行中扩大风险",
     ]
     body["principles"] = [
-        "先验后调：先核验出口/检测/绿灯末端队列，再决定是否小步增绿",
-        "核验通过前维持现状配时，不直接改绿信比",
-        "绿灯调节以目标有效绿微增为主，周期尽量不变，并监测直接下游排队比",
+        "直接交付可回滚的试运行方案，不以人工核验代替系统处置",
+        "目标流向有效绿 +5s（周期不变，相位内借绿），试运行 5 个周期",
+        "系统监测目标与下游排队，达到红线立即恢复原方案",
     ]
     contrast = strategy.get("experience_contrast") or {}
     for item in contrast.get("items") or []:
@@ -152,41 +220,69 @@ def main() -> None:
             }
             item["with_experience"] = {
                 **(item.get("with_experience") or {}),
-                "summary": "先验后调 → 核验通过后再小步增绿",
+                "summary": "小步增绿试运行 → 系统监测并自动回滚",
             }
         if item.get("dimension") == "成因判断":
             item["without_experience"] = {"summary": "信号控制不当", "source": "cause_scores"}
             item["with_experience"] = {
                 **(item.get("with_experience") or {}),
-                "summary": "放行效率异常，待核验",
+                "summary": "本路口放行过程异常",
             }
         if item.get("dimension") == "下游承接":
             item["with_experience"] = {
                 **(item.get("with_experience") or {}),
-                "summary": "放行效率异常，待核验",
+                "summary": "下游有余量，可开展小步试运行",
             }
     strategy["experience_contrast"] = contrast
     strategy["strategy"] = body
 
     plan = data.get("plan") or {}
-    for candidate in plan.get("candidates") or []:
-        patch_candidate(candidate)
-    if plan.get("recommended"):
-        patch_candidate(plan["recommended"])
+    source = next((c for c in plan.get("candidates") or [] if c.get("plan_id") == "verification_plan"), None)
+    source = deepcopy(source or plan.get("recommended") or {})
+    patch_candidate(source)
+    plan["candidates"] = [source]
+    plan["recommended"] = deepcopy(source)
+    plan["recommended_plan_id"] = "conditional_incremental_release"
     rec = plan.get("recommendation") or {}
     rec["rationale"] = (
-        "当前北向南直行处于溢出预警，直接下游具备承接余量，但放行效率异常尚未核验。"
-        "推荐先验核验方案：维持现状配时，完成出口/检测/绿灯末端队列核验后再决定是否小步增绿。"
-        f"监测窗口内重点关注 {DIRECT} 排队比，超过 0.9 即回滚。"
+        "北向南直行排队接近蓄车边界，当前绿灯有效利用率偏低，直接下游仍有承接空间。"
+        "推荐立即试运行目标相位 +5s、借绿相位 -5s、周期不变。"
+        f"下发后连续运行 5 个周期；目标排队未改善或 {DIRECT} 排队比超过 0.9 时自动回滚。"
     )
+    rec["recommended_plan_id"] = "conditional_incremental_release"
     rec["execution_order"] = [
-        f"核验 {DIRECT} 出口通行与剩余蓄车空间",
-        "确认检测器有效性与绿灯末端目标队列",
-        "连续观察 5 个周期后再评估条件性小步增绿",
-        "触发回滚条件时立即恢复原方案",
+        "下发目标相位 +5s、借绿相位 -5s，周期不变",
+        f"连续监测 5 个周期的目标进口与 {DIRECT}",
+        "目标排队改善且下游稳定则保留，否则自动恢复原方案",
     ]
     plan["recommendation"] = rec
     plan["optimizer_engine"] = None
+    plan["plan_status"] = "trial_ready"
+    plan["executable"] = True
+    loop = plan.get("trial_loop") or {}
+    loop.update({
+        "plan_status": "trial_ready",
+        "executable": True,
+        "decision_mode": "incremental_release_trial",
+        "preconditions_satisfied": True,
+        "target_effective_green_delta_s": 5,
+        "cycle_delta_s": 0,
+        "max_stage_change_ratio": 0.2,
+        "system_prechecks": [
+            "系统确认直接下游未达到排队红线",
+            "系统确认现状配时与检测数据可用",
+            "系统保存原方案用于一键回滚",
+        ],
+    })
+    loop["rollback_rules"] = [
+        f"{DIRECT}排队比超过 0.9 或持续增长",
+        "目标进口排队在试运行后未改善",
+        "其他进口排队逼近空间边界",
+        "检测数据或行人安全约束异常",
+    ]
+    loop["feedback_record_template"]["decision"] = "incremental_release_trial"
+    loop["preconditions"] = loop["system_prechecks"]
+    plan["trial_loop"] = loop
 
     scenes = (
         data.get("phases", {}).get("diagnosis", {}).get("map_scenes")
@@ -194,10 +290,10 @@ def main() -> None:
         or {}
     )
     if scenes.get("cause_spatial"):
-        scenes["cause_spatial"]["primary_cause"] = "放行效率异常，待核验"
+        scenes["cause_spatial"]["primary_cause"] = "本路口放行过程异常"
     if scenes.get("plan_preview"):
-        scenes["plan_preview"]["plan_id"] = "verification_plan"
-        scenes["plan_preview"]["plan_name"] = "先验核验方案"
+        scenes["plan_preview"]["plan_id"] = "conditional_incremental_release"
+        scenes["plan_preview"]["plan_name"] = "小步增绿试运行方案"
         scenes["plan_preview"]["cycle_delta_s"] = 0
         scenes["plan_preview"]["phase_changes"] = []
 
@@ -208,12 +304,15 @@ def main() -> None:
     jc["downstream_near_saturation"] = False
     jc["add_green_spillback_risk"] = False
     dd["judgment_criteria"] = jc
-    dd["release_answer"] = "放行效率异常，待核验"
+    dd["release_answer"] = "下游有余量，可开展小步增绿试运行"
     dd["narrative"] = (
-        "目标方向排队高但绿灯利用率不高，需优先核验出口通行、检测有效性与绿灯末端队列，"
-        "不宜在未完成先验前简单加绿。"
+        "目标方向排队高但绿灯利用率不高，直接下游仍有承接空间。"
+        "采用 +5s 小步增绿试运行，在运行中同步监测目标队列、出口通行和下游排队。"
     )
     diag["downstream_diagnosis"] = dd
+
+    data["completion_status"] = "completed_with_trial_plan"
+    patch_action_packages(data, trial_signal_rows(plan["recommended"]["timing"]))
 
     FIXTURE.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Patched {FIXTURE}")

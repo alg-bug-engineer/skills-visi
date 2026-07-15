@@ -38,11 +38,11 @@ PLAN_DEFINITIONS = [
     },
     {
         "plan_id": "conditional_incremental_release",
-        "name": "条件性小步增绿方案",
-        "scenario_template": "在完成核验后，对{direction}试行小步增绿；监测{downstream}",
-        "risk": "核验未通过或下游排队增长时立即回滚",
-        "expected_effect": "条件满足后小幅缓解目标进口排队",
-        "execution_order": ["确认核验前提", "目标有效绿小步增加", "观察周期并准备回滚"],
+        "name": "小步增绿试运行方案",
+        "scenario_template": "对{direction}立即试行小步增绿，并同步监测{downstream}",
+        "risk": "目标排队未改善或下游排队增长时自动回滚",
+        "expected_effect": "用 5 个周期验证并缓解目标进口排队，不加重下游拥堵",
+        "execution_order": ["下发小步增绿", "连续监测目标与下游", "达标保留、异常回滚"],
     },
 ]
 
@@ -137,7 +137,9 @@ def build_plan_candidates(
 
         timing_source = "adjust_phase_timing"
         optimizer_degraded_reason: str | None = None
-        if plan_id != "verification_plan" and run_single_point_optimizer is not None:
+        # 条件性小步方案是受控 A/B 试运行，必须严格保持 +5/-5、周期不变；
+        # 全局优化器会改动多个阶段和周期，不适用于这种微调试验。
+        if plan_id not in {"verification_plan", "conditional_incremental_release"} and run_single_point_optimizer is not None:
             optimized = run_single_point_optimizer(
                 signal=signal,
                 ticket=ticket,

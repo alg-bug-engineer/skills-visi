@@ -4,6 +4,12 @@ import { t } from '@/labels/enums'
 import type { PlanCandidate, PlanTimingEvidence } from '@/api/types'
 import StageCards from '@/viz/StageCards.vue'
 import DirectionIntensityPanel from '@/viz/DirectionIntensityPanel.vue'
+import {
+  actualCycleDelta,
+  hasCoreTimingEvidence,
+  isLegacyVerificationPlan,
+  trialTimingOf,
+} from '@/utils/planPresentation'
 
 type ProposedTiming = PlanTimingEvidence & {
   label?: string
@@ -20,73 +26,15 @@ const timing = computed<PlanTimingEvidence | null>(() => props.candidate?.timing
 const proposedTiming = computed(
   () => (props.candidate as { proposed_timing?: ProposedTiming } | null)?.proposed_timing ?? null,
 )
-const isVerificationBaseline = computed(
-  () =>
-    props.candidate?.plan_id === 'verification_plan' ||
-    Boolean(timing.value?.verification_baseline),
-)
+const isVerificationBaseline = computed(() => isLegacyVerificationPlan(props.candidate))
+const displayTiming = computed<PlanTimingEvidence | null>(() => trialTimingOf(props.candidate))
 
-type StageRow = NonNullable<PlanTimingEvidence['phase_stage_timing_list']>[number]
-
-/** 核验门控：优先展示后端 proposed；无提案时只展示现状，前端不自行借绿编造 */
 const stages = computed(() => {
-  const proposed = proposedTiming.value?.phase_stage_timing_list
-  if (proposed?.length) return proposed
-  return timing.value?.phase_stage_timing_list ?? []
+  return displayTiming.value?.phase_stage_timing_list ?? []
 })
 
-const showingProposedStages = computed(
-  () =>
-    isVerificationBaseline.value &&
-    Boolean(proposedTiming.value?.phase_stage_timing_list?.length) &&
-    stages.value.some((s) => (s.green_delta_s ?? 0) !== 0),
-)
-
-function deltasFromStages(list: StageRow[] | undefined) {
-  let target = 0
-  let donor = 0
-  let sawTarget = false
-  let sawDonor = false
-  for (const s of list ?? []) {
-    const d = Number(s.green_delta_s ?? 0) || 0
-    const role = (s as StageRow & { role?: string }).role
-    if (role === 'target') {
-      target = d
-      sawTarget = true
-    } else if (role === 'donor') {
-      donor = d
-      sawDonor = true
-    } else if (!sawTarget && d > target) {
-      target = d
-    } else if (!sawDonor && d < donor) {
-      donor = d
-    }
-  }
-  return { target, donor }
-}
-
-const proposedDelta = computed(() => {
-  const p = proposedTiming.value
-  if (!p || p.available === false) return null
-  const fromStages = deltasFromStages(p.phase_stage_timing_list)
-  const green =
-    typeof p.target_green_delta_s === 'number' ? p.target_green_delta_s : fromStages.target
-  const donor =
-    typeof p.donor_green_delta_s === 'number' ? p.donor_green_delta_s : fromStages.donor
-  const cycle = typeof p.cycle_delta_s === 'number' ? p.cycle_delta_s : 0
-  if (!p.phase_stage_timing_list?.length && green === 0 && donor === 0) return null
-  return { green, donor, cycle }
-})
-
-const proposedBannerHint = computed(() => {
-  const d = proposedDelta.value
-  if (!d) return ''
-  return `目标相位 ${delta(d.green)} / 借绿相位 ${delta(d.donor)} / 周期 ${delta(d.cycle)}`
-})
-
-const intensity = computed(() => timing.value?.meta?.direction_intensity_list ?? [])
 const periodLabel = computed(() => {
-  const meta = timing.value?.meta
+  const meta = displayTiming.value?.meta ?? timing.value?.meta
   const periods = meta?.target_periods
   if (Array.isArray(periods) && periods.length) {
     return periods[0].replace('-', '–')
@@ -94,15 +42,16 @@ const periodLabel = computed(() => {
   if (meta?.period_label) return String(meta.period_label)
   return null
 })
-const evidenceComplete = computed(() => {
-  if (!timing.value || timing.value.available === false) return false
-  if (timing.value.current_cycle_s == null || timing.value.cycle_s == null) return false
-  const baseStages = timing.value.phase_stage_timing_list ?? []
-  if (!baseStages.length || !baseStages[0]?.current_timing) return false
-  if (isVerificationBaseline.value) return true
-  if (!stages.value[0]?.movements?.length) return false
-  return intensity.value.length > 0
+const evidenceComplete = computed(() => hasCoreTimingEvidence(displayTiming.value))
+const partialEvidenceWarning = computed(() => {
+  if (!evidenceComplete.value) return null
+  const shown = displayTiming.value
+  const missing = shown?.missing_fields ?? []
+  if (shown?.available !== false && !missing.length) return null
+  return '已展示后端返回的真实配时；缺少的释放方向或供需强度将在对应位置单独标注，不影响现状与试运行秒数对照。'
 })
+
+const cycleDelta = computed(() => actualCycleDelta(displayTiming.value))
 
 function sec(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? `${value}s` : '—'
@@ -117,8 +66,8 @@ function delta(value?: number | null) {
 <template>
   <section class="evidence" data-testid="plan-evidence-panel">
     <div v-if="!evidenceComplete" class="fallback">
-      <strong>后端未返回可审计方案证据</strong>
-      <span>{{ timing?.reason || '缺少现状配时、释放方向或供需强度字段，前端不补假数据。' }}</span>
+      <strong>{{ isVerificationBaseline ? '当前只有现状配时，尚未形成可下发方案' : '后端未返回可审计方案证据' }}</strong>
+      <span>{{ proposedTiming?.reason || timing?.reason || '缺少现状周期或逐阶段现状/建议秒数，无法绘制配时对照。' }}</span>
       <ul v-if="timing?.missing_fields?.length" class="fallback-missing">
         <li v-for="field in timing.missing_fields" :key="field">
           {{ t('field_label', field.includes('.') ? field.split('.').pop()! : field) }}
@@ -126,53 +75,27 @@ function delta(value?: number | null) {
       </ul>
     </div>
     <template v-else>
-      <div class="banner" :class="{ verify: isVerificationBaseline }">
+      <p v-if="partialEvidenceWarning" class="audit-warning" data-testid="partial-evidence-warning">
+        {{ partialEvidenceWarning }}
+      </p>
+      <div class="banner trial">
         <div>
-          <b>{{ isVerificationBaseline ? '门控前 · 现状配时（不下发改配）' : '优化对比' }}</b>
+          <b>建议试运行方案</b>
           <span v-if="periodLabel">时段 {{ periodLabel }}</span>
-          <span v-else-if="isVerificationBaseline">安全门控：先完成现场/检测动作</span>
-          <span v-else>现状 vs 优化方案</span>
-        </div>
-        <p v-if="isVerificationBaseline">
-          <strong>{{ sec(timing?.current_cycle_s) }}</strong>
-          <em class="neutral">维持不变</em>
-        </p>
-        <p v-else>
-          <span class="old">{{ sec(timing?.current_cycle_s) }}</span>
-          <span>→</span>
-          <strong>{{ sec(timing?.cycle_s) }}</strong>
-          <em>{{ delta(timing?.cycle_delta_s) }}</em>
-        </p>
-      </div>
-      <div
-        v-if="isVerificationBaseline && proposedDelta"
-        class="banner propose"
-        data-testid="proposed-timing-banner"
-      >
-        <div>
-          <b>门控后信控方案</b>
-          <span>{{ proposedBannerHint }}</span>
+          <span v-else>现状配时 → 试运行配时</span>
         </div>
         <p>
-          <strong>有效绿 {{ delta(proposedDelta.green) }}</strong>
-          <em class="neutral">周期 {{ delta(proposedDelta.cycle) }}</em>
+          <span class="old">{{ sec(displayTiming?.current_cycle_s) }}</span>
+          <span>→</span>
+          <strong>{{ sec(displayTiming?.cycle_s) }}</strong>
+          <em :class="{ neutral: cycleDelta === 0 }">{{ delta(cycleDelta) }}</em>
         </p>
-      </div>
-      <div
-        v-else-if="isVerificationBaseline && proposedTiming?.available === false"
-        class="banner propose degraded"
-        data-testid="proposed-timing-unavailable"
-      >
-        <div>
-          <b>门控后信控方案</b>
-          <span>{{ proposedTiming.reason || '未能生成拟实施借绿配时，请核验相位命名/direction 是否可匹配' }}</span>
-        </div>
       </div>
       <StageCards
         :stages="stages"
-        :hint="showingProposedStages ? '现状 → 门控后拟实施（目标加绿 / 借绿相位）' : undefined"
+        hint="现状 → 试运行（目标加绿 / 其他相位借绿）"
       />
-      <DirectionIntensityPanel :meta="timing?.meta" />
+      <DirectionIntensityPanel :meta="displayTiming?.meta || timing?.meta" />
     </template>
   </section>
 </template>
@@ -262,5 +185,14 @@ function delta(value?: number | null) {
   color: var(--text-dim);
   font-size: 12px;
   line-height: 1.45;
+}
+.audit-warning {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--evidence);
+  background: rgba(245, 166, 35, 0.08);
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
 }
 </style>

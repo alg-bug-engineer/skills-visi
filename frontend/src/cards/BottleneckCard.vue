@@ -143,7 +143,7 @@ const expertCheck = computed(() => productCopy(dd.value?.expert_question).replac
       </ul>
     </div>
 
-    <p v-if="expertCheck" class="q">核验项：{{ expertCheck }}</p>
+    <p v-if="expertCheck" class="q">试运行监测项：{{ expertCheck }}</p>
   </BaseCard>
 </template>
 

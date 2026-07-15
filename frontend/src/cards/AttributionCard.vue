@@ -7,7 +7,7 @@ import { productCopy } from '@/utils/productCopy'
 const MECHANISM_LABEL: Record<string, string> = {
   downstream_blocked: '下游回堵',
   local_release_insufficient: '本路口放行不足',
-  discharge_anomaly: '放行效率异常，待核验',
+  discharge_anomaly: '本路口放行过程异常',
   upstream_arrival_shock: '上游冲击',
   evidence_insufficient: '证据不足',
 }
@@ -35,7 +35,7 @@ const mechanismLine = computed(() => {
   if (!code) return null
   const label = MECHANISM_LABEL[code] ?? code
   const status = mechanism.value?.status
-  if (status === 'hypothesis') return `${label}（待核验，非已确认主因）`
+  if (status === 'hypothesis') return `${label}（将在试运行中持续验证）`
   return label
 })
 
@@ -56,7 +56,7 @@ function roleTone(role?: string) {
 <template>
   <BaseCard v-if="cause" title="归因分析" :act="4" tone="evidence">
     <p v-if="mechanismLine" class="mechanism" data-testid="attribution-mechanism">
-      溢出机制：{{ mechanismLine }}
+      当前判断：{{ mechanismLine }}
     </p>
     <ul v-if="displayRanking.length" class="rank" data-testid="attribution-ranking">
       <li v-for="r in displayRanking" :key="`${r.rank}-${r.role}`" :class="`tone-${roleTone(r.role)}`">

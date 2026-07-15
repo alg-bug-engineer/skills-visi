@@ -9,9 +9,11 @@ import {
 import { translatePlanId } from '@/labels/enums'
 import { productCopy } from '@/utils/productCopy'
 import { downstreamConclusion } from '@/utils/downstream'
+import { meters, ratio } from '@/utils/format'
+import { compactTimingSummary } from '@/utils/planPresentation'
 
 const MECHANISM_VOICE: Record<string, string> = {
-  discharge_anomaly: '放行效率异常，待核验',
+  discharge_anomaly: '本路口放行过程异常',
   local_release_insufficient: '本路口放行不足',
   downstream_blocked: '下游回堵',
   upstream_arrival_shock: '上游冲击',
@@ -40,6 +42,10 @@ function mechanismOf(resp: RunResponse | null): string | null {
 /** 归因分析：优先播报溢出机制短句，与打字旁白口径一致。 */
 function attributionVoiceConclusion(resp: RunResponse | null): string {
   const mech = mechanismOf(resp)
+  if (mech === 'discharge_anomaly') {
+    const metrics = resp?.phases?.diagnosis?.metrics
+    return `目标进口排队比${ratio(metrics?.queue_ratio)}，绿灯有效利用率${ratio(metrics?.green_utilization)}，下游仍有余量，判断问题集中在本路口放行过程`
+  }
   if (mech) return MECHANISM_VOICE[mech] ?? mech
   const cause = resp?.phases?.cause
   const ranked = cause?.cause_ranking?.find((item) => item.role?.includes('主'))?.cause
@@ -60,7 +66,9 @@ function bottleneckVoiceConclusion(resp: RunResponse | null): string {
   const ds = diag?.downstream_state
   const name = ds?.direct_downstream_inter_name || '直接下游'
   if (ds?.decision === 'slack') {
-    return `${name}初步有承接余量，先核验目标放行效率后再评估小步增绿`
+    const storage = diag?.downstream_diagnosis?.primary_downstream?.remaining_storage_m
+    const storageText = typeof storage === 'number' ? `，剩余蓄车${meters(storage)}` : ''
+    return `${name}当前有承接余量${storageText}，可开展小步增绿试运行`
   }
   if (ds?.decision === 'blocked') {
     return `${name}承接受限，优先下游保护，不宜本路口直接加绿`
@@ -90,6 +98,10 @@ function strategyVoiceConclusion(resp: RunResponse | null): string {
       strategy?.decision?.reason || '先验后调：核验通过后再小步增绿，周期尽量不变',
     )
   }
+  if (mode === 'incremental_release_trial') {
+    const cycles = resp?.plan?.trial_loop?.observation_cycles ?? 5
+    return `建议立即下发小步增绿方案，试运行${cycles}个周期，系统同步监测目标进口和下游排队，异常自动回滚`
+  }
   if (mode === 'protect_downstream') {
     return '下游保护：本路口保守放行或不增绿'
   }
@@ -103,11 +115,15 @@ function strategyVoiceConclusion(resp: RunResponse | null): string {
 function planVoiceConclusion(resp: RunResponse | null): string {
   const plan = resp?.plan
   const planId = plan?.recommendation?.recommended_plan_id ?? plan?.recommended?.plan_id
+  const summary = compactTimingSummary(plan?.recommended)
+  if (plan?.plan_status === 'trial_ready' && summary) {
+    return `试运行配时已经生成，${summary}，下发后运行${plan.trial_loop?.observation_cycles ?? 5}个周期，异常自动回滚`
+  }
   if (planId === 'verification_plan') {
-    return '信控方案：目标相位加五秒，借绿相位减五秒，周期不变'
+    return '当前数据不足，尚未形成可安全下发的配时方案'
   }
   if (planId === 'conditional_incremental_release') {
-    return '条件性小步增绿：核验通过后目标有效绿约增加五秒，周期不变'
+    return summary ? `小步增绿试运行：${summary}` : '小步增绿试运行方案已经生成'
   }
   if (planId === 'incremental_release') {
     return '目标路口小步释放：增加目标方向有效绿，并监测下游排队比'

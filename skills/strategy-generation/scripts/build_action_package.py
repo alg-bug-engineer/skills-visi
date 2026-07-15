@@ -269,7 +269,7 @@ def _phase_delta_items(proposed_timing: dict[str, Any]) -> list[dict[str, Any]]:
                 "phase_stage_id": str(stage_id),
                 "phase_stage_name": str(name),
                 "green_delta_s": int(delta),
-                "executable_now": False,
+                "executable_now": True,
             }
         )
     cycle_delta = proposed_timing.get("cycle_delta_s")
@@ -307,7 +307,7 @@ def _signal_control_scheme(
     movement = target["movement"]
     if phase_items:
         rows = list(phase_items)
-    elif decision_mode in {"verify_then_adjust", "verification_required"} or mechanism == "discharge_anomaly":
+    elif decision_mode in {"verify_then_adjust", "verification_required"}:
         rows = [
             {
                 "kind": "timing",
@@ -374,7 +374,7 @@ def _signal_control_scheme(
     else:
         rows = []
 
-    if decision_mode in {"verify_then_adjust", "verification_required"} or mechanism == "discharge_anomaly":
+    if decision_mode in {"verify_then_adjust", "verification_required"}:
         rows.append(
             {
                 "kind": "gate",
@@ -386,6 +386,14 @@ def _signal_control_scheme(
             {
                 "kind": "monitor",
                 "action": f"试验 5 周期；{downstream}排队比>0.9 立即回滚原方案",
+                "where": downstream,
+            }
+        )
+    elif decision_mode in {"incremental_release", "incremental_release_trial"}:
+        rows.append(
+            {
+                "kind": "monitor",
+                "action": f"下发后试运行 5 个周期；{downstream}排队比>0.9 或目标排队未改善时自动回滚",
                 "where": downstream,
             }
         )

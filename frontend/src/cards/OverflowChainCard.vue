@@ -10,7 +10,7 @@ const store = usePresentationStore()
 const MECHANISM_LABEL: Record<string, string> = {
   downstream_blocked: '下游回堵',
   local_release_insufficient: '本路口放行不足',
-  discharge_anomaly: '放行效率异常，待核验',
+  discharge_anomaly: '本路口放行过程异常',
   upstream_arrival_shock: '上游冲击',
   evidence_insufficient: '证据不足',
 }
@@ -25,7 +25,7 @@ const DECISION_LABEL: Record<string, string> = {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  completed_conditional: '条件性方案（不可直接执行）',
+  completed_conditional: '数据不足，暂未生成配时',
   completed_requires_verification: '需补证后决策',
   completed_with_trial_plan: '试运行方案',
   completed_no_action: '无需干预',
@@ -71,7 +71,14 @@ const downstreamLine = computed(() => {
           : null
   if (!judgment) return null
   const confText = conf != null ? `，置信度 ${conf >= 0.8 ? '高' : conf >= 0.55 ? '中' : '低'}` : ''
-  const missText = missing.length ? `；缺失：${missing.join('、')}` : ''
+  const missingLabel: Record<string, string> = {
+    saturation: '饱和度',
+    green_utilization: '绿灯利用率',
+    queue_ratio: '排队比',
+  }
+  const missText = missing.length
+    ? `；暂缺：${missing.map((item) => missingLabel[item] ?? productCopy(item)).join('、')}`
+    : ''
   return `直接下游：${name}｜${judgment}${confText}${missText}`
 })
 
@@ -80,9 +87,9 @@ const mechanismLine = computed(() => {
     ?.overflow_mechanism?.primary
   if (!primary) return null
   const label = MECHANISM_LABEL[primary] ?? primary
-  const parts = [`当前机制：${label}`]
+  const parts = [`当前判断：${label}`]
   if (primary !== 'downstream_blocked') parts.push('不支持：下游整体承接不足')
-  if (primary === 'discharge_anomaly') parts.push('尚未确认：信号有效绿不足')
+  if (primary === 'discharge_anomaly') parts.push('验证方式：小步试运行并同步监测')
   return parts.join('｜')
 })
 

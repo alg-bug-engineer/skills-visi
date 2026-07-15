@@ -7,6 +7,14 @@ import { translatePlanId } from '@/labels/enums'
 import CoordinationDiagram from '@/panels/CoordinationDiagram.vue'
 import { productCopy } from '@/utils/productCopy'
 import PlanEvidencePanel from '@/panels/PlanEvidencePanel.vue'
+import { meters, ratio } from '@/utils/format'
+import {
+  compactTimingSummary,
+  hasCoreTimingEvidence,
+  isLegacyVerificationPlan,
+  timingActionLines,
+  trialTimingOf,
+} from '@/utils/planPresentation'
 
 const store = usePresentationStore()
 const { planMinimized } = storeToRefs(store)
@@ -23,9 +31,28 @@ const recommendedId = computed(
 )
 const selected = computed<PlanCandidate | null>(() => {
   const id = recommendedId.value
-  return candidates.value.find((c) => c.plan_id === id) ?? (store.plan?.recommended as PlanCandidate) ?? candidates.value[0] ?? null
+  // recommended 可能在候选生成后又补充 proposed_timing/action_package 等证据，
+  // 同一 plan_id 时优先使用这份最终快照，避免误读 candidates 中的中间态。
+  const recommended = store.plan?.recommended as PlanCandidate | null
+  const base = recommended && (!id || recommended.plan_id === id)
+    ? recommended
+    : candidates.value.find((c) => c.plan_id === id) ?? recommended ?? candidates.value[0] ?? null
+  const trial = trialTimingOf(base)
+  if (base && isLegacyVerificationPlan(base) && trial?.phase_stage_timing_list?.some((s) => (s.green_delta_s ?? 0) !== 0)) {
+    return {
+      ...base,
+      plan_id: 'conditional_incremental_release',
+      name: '小步增绿试运行方案',
+      timing: trial,
+      executable: true,
+      plan_status: 'trial_ready',
+      expected_effect: '用 5 个周期验证并缓解目标进口排队，不加重下游拥堵',
+      risk: '目标排队未改善或下游排队增长时自动回滚',
+    }
+  }
+  return base
 })
-const hasTiming = computed(() => Boolean(selected.value?.timing?.cycle_s && selected.value?.timing?.phase_stage_timing_list?.length))
+const hasTiming = computed(() => hasCoreTimingEvidence(trialTimingOf(selected.value)))
 
 type SchemeItem = { action?: string; where?: string; kind?: string; target?: string }
 type ActionPackage = {
@@ -65,7 +92,10 @@ const actionPackage = computed(
     (store.strategy as { action_package?: ActionPackage } | null)?.action_package ??
     null,
 )
-const signalControlItems = computed(() => schemeActions(actionPackage.value?.schemes?.signal_control))
+const signalControlItems = computed(() => {
+  const actual = timingActionLines(selected.value)
+  return actual.length ? actual : schemeActions(actionPackage.value?.schemes?.signal_control)
+})
 const organizationItems = computed(() => schemeActions(actionPackage.value?.schemes?.organization))
 const managementItems = computed(() => schemeActions(actionPackage.value?.schemes?.management))
 const strategyItems = computed(() => {
@@ -93,6 +123,9 @@ const busy = ref(false)
 
 const planExecutable = computed(() => {
   const rec = selected.value
+  if (rec?.executable === true && rec?.plan_status === 'trial_ready' && rec.guardrail_pass !== false) {
+    return true
+  }
   if (rec?.executable === false) return false
   if (store.plan?.executable === false) return false
   if ((rec?.plan_status as string | undefined) === 'conditional') return false
@@ -103,11 +136,34 @@ const planExecutable = computed(() => {
 })
 
 const trialLoop = computed(() => store.plan?.trial_loop ?? null)
+const isTrialPlan = computed(
+  () =>
+    selected.value?.plan_status === 'trial_ready' ||
+    store.plan?.plan_status === 'trial_ready' ||
+    store.response?.completion_status === 'completed_with_trial_plan',
+)
+const trialCycles = computed(() => trialLoop.value?.observation_cycles ?? 5)
+const timingSummary = computed(() => compactTimingSummary(selected.value))
+
+const decisionBasis = computed(() => {
+  const metrics = store.diagnosis?.metrics
+  const downstream = store.diagnosis?.downstream_diagnosis?.primary_downstream
+  const downstreamMetrics = downstream?.metrics
+  const rows: string[] = []
+  if (metrics?.queue_ratio != null) rows.push(`目标进口排队已占蓄车空间 ${ratio(metrics.queue_ratio)}`)
+  if (metrics?.green_utilization != null) rows.push(`当前绿灯有效利用率 ${ratio(metrics.green_utilization)}`)
+  if (downstream?.remaining_storage_m != null) {
+    rows.push(`${downstream.inter_name || '直接下游'}剩余蓄车 ${meters(downstream.remaining_storage_m)}`)
+  } else if (downstreamMetrics?.queue_storage_ratio_max != null) {
+    rows.push(`${downstream?.inter_name || '直接下游'}排队比 ${ratio(downstreamMetrics.queue_storage_ratio_max)}`)
+  }
+  return rows.slice(0, 3)
+})
 
 async function onAccept() {
   if (!selected.value || !planExecutable.value) return
   busy.value = true
-  await store.accept(selected.value.plan_id)
+  await store.accept(selected.value.plan_id, selected.value)
   busy.value = false
 }
 async function onReject() {
@@ -129,16 +185,19 @@ async function onReject() {
         <p>
           {{
             !planExecutable
-              ? '条件性/待核验方案：不可直接下发'
-              : hasTiming
-                ? '配时明细来自后端真实方案数据'
+              ? '当前数据不足以安全生成配时，请退回补充数据'
+              : isTrialPlan
+                ? `可下发试运行 ${trialCycles} 个周期，系统持续监测并支持自动回滚`
+                : hasTiming
+                  ? '配时明细来自后端真实方案数据'
                 : '后端未返回可绘制配时明细'
           }}
         </p>
       </div>
       <div class="drawer__hd-right">
-        <span v-if="recommendedId" class="rec">建议 {{ translatePlanId(recommendedId) }}</span>
-        <span v-if="!planExecutable" class="rec rec--warn">不可直接执行</span>
+        <span v-if="selected?.plan_id" class="rec">建议 {{ productCopy(selected.name) || translatePlanId(selected.plan_id) }}</span>
+        <span v-if="isTrialPlan" class="rec rec--trial">可试运行</span>
+        <span v-else-if="!planExecutable" class="rec rec--warn">数据不足</span>
         <button
           type="button"
           class="min-btn"
@@ -180,15 +239,22 @@ async function onReject() {
             <span class="kpi__k">风险</span>
             <span class="kpi__v warn">{{ productCopy(selected.risk) || '—' }}</span>
           </div>
-          <div v-if="trialLoop" class="list-box">
-            <span class="kpi__k">试运行闭环</span>
+          <div v-if="decisionBasis.length" class="list-box decision-box" data-testid="decision-basis">
+            <span class="kpi__k">为什么这样调</span>
             <ul>
-              <li v-if="trialLoop.observation_cycles != null">观察周期：{{ trialLoop.observation_cycles }}</li>
+              <li v-for="(item, i) in decisionBasis" :key="`basis-${i}`">{{ item }}</li>
+            </ul>
+            <strong v-if="timingSummary">因此采用：{{ timingSummary }}</strong>
+          </div>
+          <div v-if="trialLoop" class="list-box">
+            <span class="kpi__k">下发后的试运行闭环</span>
+            <ul>
+              <li>立即执行：下发后运行 {{ trialCycles }} 个周期</li>
               <li v-if="trialLoop.direct_downstream_inter_name">
-                监测下游：{{ trialLoop.direct_downstream_inter_name }}
+                系统监测：目标进口与 {{ trialLoop.direct_downstream_inter_name }}
               </li>
               <li v-for="(r, i) in (trialLoop.rollback_rules || []).slice(0, 2)" :key="`r-${i}`">
-                回滚：{{ productCopy(String(r)) }}
+                自动回滚：{{ productCopy(String(r)) }}
               </li>
             </ul>
           </div>
@@ -235,10 +301,10 @@ async function onReject() {
         <button
           class="btn btn--primary"
           :disabled="busy || !selected || !planExecutable"
-          :title="planExecutable ? '' : '核验未完成，方案不可直接下发'"
+          :title="planExecutable ? '' : '当前数据不足以安全生成配时，请退回补充数据'"
           @click="onAccept"
         >
-          {{ busy ? '下发中…' : planExecutable ? '接受并下发' : '待核验（不可下发）' }}
+          {{ busy ? '下发中…' : planExecutable && isTrialPlan ? `下发并试运行 ${trialCycles} 周期` : planExecutable ? '接受并下发' : '数据不足，无法下发' }}
         </button>
       </template>
       <template v-else>
@@ -322,6 +388,11 @@ async function onReject() {
 .rec--warn {
   color: #e6b35c;
   margin-left: 8px;
+}
+.rec--trial {
+  padding: 2px 7px;
+  border: 1px solid rgba(109, 255, 181, 0.38);
+  color: var(--protected);
 }
 .pane {
   flex: 1;
@@ -442,6 +513,17 @@ async function onReject() {
 }
 .list-box--red {
   border-color: rgba(255, 80, 80, 0.5);
+}
+.decision-box {
+  border-color: rgba(0, 229, 255, 0.38);
+  background: rgba(0, 229, 255, 0.055);
+}
+.decision-box strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--protected);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 .list-box ul {
   margin: 6px 0 0;

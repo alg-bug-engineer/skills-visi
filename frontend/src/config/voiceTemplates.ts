@@ -78,6 +78,8 @@ export function composeVoiceAnnounce(
     return `${parts.join('。')}。`
   }
 
-  const parts = [def.stepTitle, def.purpose.trim(), method, conclusion].filter(Boolean)
+  const parts = [def.stepTitle, def.purpose.trim(), method, conclusion]
+    .filter(Boolean)
+    .map((part) => part.replace(/[。！？；]+$/g, ''))
   return `${parts.join('。')}。`
 }

@@ -32,17 +32,27 @@ describe('ProcessPanel · autoPlay act 推进', () => {
     await vi.waitFor(() => expect(store.currentAct).toBeGreaterThan(0), { timeout: 3000 })
   })
 
-  it('语音 barrier 永久挂起时不应阻塞幕推进', async () => {
+  it('语音超过 12 秒仍不得穿透 barrier，播完后才推进下一幕', async () => {
     vi.useFakeTimers()
     const store = usePresentationStore()
     store.applySnapshot(fx)
     store.autoPlay = true
     store.currentAct = 0
-    store.setVoiceBarrier(() => new Promise(() => {}))
+    let finishVoice!: () => void
+    const voiceDone = new Promise<void>((resolve) => {
+      finishVoice = resolve
+    })
+    store.setVoiceBarrier(() => voiceDone)
 
     mount(ProcessPanel)
     await flushPromises()
-    await vi.advanceTimersByTimeAsync(12_001)
+    await vi.advanceTimersByTimeAsync(60_000)
+    await flushPromises()
+    expect(store.currentAct).toBe(0)
+
+    finishVoice()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(1_000)
     await flushPromises()
     expect(store.currentAct).toBeGreaterThan(0)
     vi.useRealTimers()

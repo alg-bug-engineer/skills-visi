@@ -108,7 +108,7 @@ describe('voice templates', () => {
       },
     }
     const text = voiceTextForAct(act, withMech)
-    expect(text).toContain('放行效率异常，待核验')
+    expect(text).toContain('判断问题集中在本路口放行过程')
     expect(text).not.toContain('信号控制不当')
   })
 
@@ -158,7 +158,7 @@ describe('voice templates', () => {
     const act = ACT_DEFS.find((item) => item.id === 'act4_attribution')!
     const text = voiceTextForAct(act, fx)
     expect(text).toContain('归因分析')
-    expect(text).toContain('证据核验基础上')
+    expect(text).toContain('解释排队为什么形成')
   })
 })
 

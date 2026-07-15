@@ -40,8 +40,8 @@ const INSIGHT_CARDS: Record<string, unknown> = {
 }
 
 const panelExpanded = ref(true)
-/** 已完成步骤默认折叠；用户点击后写入此集合以展开。 */
-const manualExpanded = ref<Set<number>>(new Set())
+/** 已完成步骤默认保留完整结论与证据；用户可手动折叠。 */
+const manualCollapsed = ref<Set<number>>(new Set())
 type ProcessTab = 'closure' | 'solidify'
 const activeTab = ref<ProcessTab>('closure')
 
@@ -139,6 +139,10 @@ const timelineRef = ref<HTMLElement | null>(null)
 /** 当前幕收尾：语音与幕间停留不受暂停打断；仅在切入下一幕前等待恢复。 */
 async function finishActAndAdvance(idx: number) {
   if (store.currentAct !== idx) return
+  // currentAct 的语音由 App watcher 入队；先跨过一次 Vue flush，避免极快打字完成时
+  // barrier 在该幕 cue 入队前误判为空闲。
+  await nextTick()
+  if (store.currentAct !== idx) return
   await store.waitForVoiceBarrier()
   if (store.currentAct !== idx) return
   await store.pauseAwareSleep(actDwellMs(idx, instant, store.acts[idx]?.id))
@@ -193,18 +197,17 @@ function actStatus(index: number): 'pending' | 'typing' | 'done' {
 function isCollapsed(index: number): boolean {
   // 当前幕（打字中或刚完成未切幕）始终展开
   if (index === currentAct.value) return false
-  // 已完成的历史幕：默认折叠，仅手动展开
-  return !manualExpanded.value.has(index)
+  return manualCollapsed.value.has(index)
 }
 
 function toggleAct(index: number) {
   if (actStatus(index) === 'typing') return
   // 当前幕已打完仍保持展开；可折叠需先切到下一幕
   if (index === currentAct.value) return
-  const next = new Set(manualExpanded.value)
+  const next = new Set(manualCollapsed.value)
   if (next.has(index)) next.delete(index)
   else next.add(index)
-  manualExpanded.value = next
+  manualCollapsed.value = next
 }
 
 function cardKeyFor(index: number): CardKey | null {
@@ -230,11 +233,11 @@ function cardPropsFor(key: CardKey | null): Record<string, unknown> {
 }
 
 watch(currentAct, (idx, prev) => {
-  // 切入下一幕后，自动收起上一幕（若用户先前展开过也收起，保证「完成后折叠」）
+  // 切入下一幕后保留上一幕完整内容，便于连续复核诊断链。
   if (typeof prev === 'number' && prev >= 0 && prev !== idx) {
-    const next = new Set(manualExpanded.value)
+    const next = new Set(manualCollapsed.value)
     next.delete(prev)
-    manualExpanded.value = next
+    manualCollapsed.value = next
   }
   void scrollTimelineToActive()
 })
@@ -242,7 +245,7 @@ watch(currentAct, (idx, prev) => {
 watch(
   () => store.mapResetSeq,
   () => {
-    manualExpanded.value = new Set()
+    manualCollapsed.value = new Set()
   },
 )
 

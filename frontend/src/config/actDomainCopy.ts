@@ -5,7 +5,7 @@
 
 export const ACT_DOMAIN_INTRO: Record<string, string[]> = {
   act5_bottleneck: ['单点加绿前须判别下游承接能力'],
-  act8_strategy: ['策略须与决策契约一致，并识别红线'],
+  act8_strategy: ['根据诊断证据确定处置路径，并明确安全边界'],
   // act9 不再放固定方法论，避免打字过长
 }
 

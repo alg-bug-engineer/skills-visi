@@ -108,18 +108,18 @@ def test_rejects_executable_plan_under_verify_then_adjust():
     assert any("可执行" in e or "executable" in e.lower() or "核验" in e for e in errors)
 
 
-def test_accepts_consistent_verify_then_adjust_chain():
+def test_accepts_consistent_monitored_trial_chain():
     ctx = _base_context()
     ok_strategy = validate_overflow_transition(
         context=ctx,
         skill_id="strategy_generation",
         output={
             "decision": {
-                "decision_mode": "verify_then_adjust",
-                "allowed_plan_types": ["verification_plan", "conditional_incremental_release"],
-                "preconditions_satisfied": False,
-                "executable": False,
-                "plan_status": "conditional",
+                "decision_mode": "incremental_release_trial",
+                "allowed_plan_types": ["conditional_incremental_release"],
+                "preconditions_satisfied": True,
+                "executable": True,
+                "plan_status": "trial_ready",
                 "strategy_package": "incremental_release",
             },
             "strategy_package": "incremental_release",
@@ -131,17 +131,16 @@ def test_accepts_consistent_verify_then_adjust_chain():
         skill_id="plan_generation",
         output={
             "recommended": {
-                "plan_id": "verification_plan",
-                "executable": False,
-                "plan_status": "conditional",
+                "plan_id": "conditional_incremental_release",
+                "executable": True,
+                "plan_status": "trial_ready",
                 "guardrail_pass": True,
             },
             "candidates": [
-                {"plan_id": "verification_plan", "executable": False, "guardrail_pass": True},
                 {
                     "plan_id": "conditional_incremental_release",
-                    "executable": False,
-                    "plan_status": "conditional",
+                    "executable": True,
+                    "plan_status": "trial_ready",
                     "guardrail_pass": True,
                 },
             ],

@@ -42,6 +42,118 @@ PACKAGE_STRATEGIES = {
     },
 }
 
+_DIR8_LABEL = {0: "北", 1: "东北", 2: "东", 3: "东南", 4: "南", 5: "西南", 6: "西", 7: "西北"}
+_TURN_LABEL = {0: "掉头", 1: "左转", 2: "直行", 3: "右转", 4: "掉头"}
+
+
+def _number_or_none(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_stage_movements(stage: dict[str, Any]) -> list[dict[str, Any]]:
+    """把 PG 原始 phaseDirInfoDTOList 转成前端审计字段，值只取真实绑定结果。"""
+    raw = stage.get("movements")
+    if not isinstance(raw, list) or not raw:
+        raw = stage.get("phaseDirInfoDTOList")
+    if not isinstance(raw, list):
+        return []
+
+    movements: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        dir8 = item.get("dir8No")
+        turn = item.get("turnDirNo")
+        try:
+            dir8_no = int(dir8) if dir8 is not None else None
+            turn_no = int(turn) if turn is not None else None
+        except (TypeError, ValueError):
+            dir8_no, turn_no = None, None
+        key = item.get("movement_key") or item.get("movementKey")
+        if not key and dir8_no is not None and turn_no is not None:
+            key = f"d{dir8_no}_t{turn_no}"
+        label = item.get("label")
+        if not label and dir8_no is not None and turn_no is not None:
+            label = f"{_DIR8_LABEL.get(dir8_no, '')}进口{_TURN_LABEL.get(turn_no, '')}" or None
+        saturation = item.get("saturation")
+        if saturation is None:
+            saturation = item.get("turnSaturation")
+        movements.append(
+            {
+                "movement_key": key,
+                "movementKey": key,
+                "label": label,
+                "dir8No": dir8_no,
+                "turnDirNo": turn_no,
+                "turnFlowTotal": _number_or_none(item.get("turnFlowTotal")),
+                "laneCount": _number_or_none(item.get("laneCount")),
+                "saturation": _number_or_none(saturation),
+                "flow_available": item.get("flow_available"),
+                "source": item.get("source") or "pg_turn_flow_binding",
+            }
+        )
+    return movements
+
+
+def _build_trial_evidence_meta(
+    stages: list[dict[str, Any]],
+    *,
+    current_cycle_s: int,
+) -> dict[str, Any]:
+    """从真实转向饱和度构建供需强度；不以固定值或前端占位补齐。"""
+    by_key: dict[str, dict[str, Any]] = {}
+    for stage in stages:
+        for movement in stage.get("movements") or []:
+            key = str(movement.get("movementKey") or movement.get("movement_key") or "")
+            if not key:
+                continue
+            row = by_key.setdefault(key, dict(movement))
+            saturation = _number_or_none(movement.get("saturation"))
+            if saturation is not None:
+                existing = _number_or_none(row.get("saturation"))
+                row["saturation"] = saturation if existing is None else max(existing, saturation)
+            flow = _number_or_none(movement.get("turnFlowTotal"))
+            if flow is not None:
+                existing_flow = _number_or_none(row.get("turnFlowTotal"))
+                row["turnFlowTotal"] = flow if existing_flow is None else max(existing_flow, flow)
+
+    direction_intensity = []
+    for key, row in by_key.items():
+        intensity = _number_or_none(row.get("saturation"))
+        if intensity is None:
+            continue
+        direction_intensity.append(
+            {
+                "movementKey": key,
+                "label": row.get("label"),
+                "dir8No": row.get("dir8No"),
+                "turnDirNo": row.get("turnDirNo"),
+                "intensity": intensity,
+                "flow_source": "pg_turn_saturation",
+            }
+        )
+
+    unique_flows = [
+        _number_or_none(row.get("turnFlowTotal"))
+        for row in by_key.values()
+    ]
+    total_flow = sum(value for value in unique_flows if value is not None)
+    return {
+        "direction_intensity_list": direction_intensity,
+        "total_turn_flow_vph": total_flow if any(value is not None for value in unique_flows) else None,
+        "data_quality": {
+            "current_timing_source": "pg_signal_plan",
+            "movement_source": "pg_turn_flow_binding",
+            "intensity_source": "pg_turn_saturation",
+            "current_cycle_s": current_cycle_s,
+        },
+    }
+
 
 def build_strategy_instruction(strategy: dict[str, Any], plan_id: str) -> dict[str, Any]:
     # 候选必须按自身 plan_id 取参，禁止共享上游 strategy_package 导致三案同参
@@ -96,7 +208,9 @@ def adjust_phase_timing(
             "green": int(s.get("greenTime") or s.get("green_time_s") or 0),
             "yellow": int(s.get("yellowTime") or s.get("yellow_time_s") or 3),
             "all_red": int(s.get("allRedTime") or s.get("all_red_time_s") or 2),
-            "movements": s.get("movements"),
+            # PG 联调返回的是 phaseDirInfoDTOList；在方案层统一输出 movements，
+            # 避免“数据库有释放方向，前端却被判为缺证据”。
+            "movements": _normalize_stage_movements(s),
             "source_stage_atoms": s.get("source_stage_atoms"),
             "flow_combo": s.get("flow_combo"),
             "phase_saturation": s.get("phase_saturation"),
@@ -154,7 +268,7 @@ def adjust_phase_timing(
         }
         row["green_delta_s"] = opt_green - cur_green
         row["stage_delta_s"] = opt_total - cur_total
-        if base.get("movements") is not None:
+        if base.get("movements"):
             row["movements"] = base["movements"]
         if base.get("source_stage_atoms") is not None:
             row["source_stage_atoms"] = base["source_stage_atoms"]
@@ -172,14 +286,24 @@ def adjust_phase_timing(
     downstream_risk = _assess_downstream_risk(diagnosis)
 
     timing_out = {
+        "available": True,
         "cycle_s": cycle_s,
         "current_cycle_s": current_cycle_s,
         "cycle_delta_s": cycle_s - current_cycle_s,
         "phase_stage_timing_list": timing_list,
+        "meta": _build_trial_evidence_meta(timing_list, current_cycle_s=current_cycle_s),
         "target_stage_index": target_idx,
         "donor_stage_index": donor_idx,
         "requested_target_green_delta_s": target_delta,
     }
+    missing_fields: list[str] = []
+    if not any(stage.get("movements") for stage in timing_list):
+        missing_fields.append("timing.phase_stage_timing_list.movements")
+    if not timing_out["meta"].get("direction_intensity_list"):
+        missing_fields.append("timing.meta.direction_intensity_list")
+    if missing_fields:
+        # 可选审计维度缺失不应抹掉已经存在的现状/试运行配时；前端分别降级展示。
+        timing_out["missing_fields"] = missing_fields
     timing_out.update(summarize_proposed_deltas(timing_out))
 
     return {

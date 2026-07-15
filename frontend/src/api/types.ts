@@ -570,6 +570,7 @@ export interface PlanCandidate {
 export interface PlanBlock {
   candidates: PlanCandidate[] | null
   recommended: PlanCandidate | null
+  recommended_plan_id?: string | null
   recommendation: {
     recommended_plan_id?: string
     rationale?: string
