@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { PhaseStageTiming } from '@/api/types'
 import StageMovementCanvas from '@/viz/StageMovementCanvas.vue'
-import { flowKeysFromStage, formatFlowKeysText, pctText } from '@/viz/planVisualization'
+import { flowKeysFromStage, formatFlowKeysText } from '@/viz/planVisualization'
+import { ratio } from '@/utils/format'
 
 defineProps<{ stages: PhaseStageTiming[] }>()
 
@@ -69,7 +70,7 @@ function hasFlow(stage: PhaseStageTiming): boolean {
         <div v-else class="missing">后端未返回释放方向证据</div>
         <div class="meta">
           <span>最小/最大绿 {{ sec(stage.min_green_time_s) }} / {{ sec(stage.max_green_time_s) }}</span>
-          <span>阶段饱和度 {{ pctText(stage.phase_saturation) }}</span>
+          <span>阶段饱和度 {{ ratio(stage.phase_saturation) }}</span>
         </div>
       </article>
     </div>

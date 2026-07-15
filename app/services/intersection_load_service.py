@@ -11,8 +11,7 @@ from app.data.pg_adapters import (
     enrich_downstream_metrics,
     merge_pg_task_into_context,
     metrics_for_diagnosis,
-    load_cross_week_peak_movement_metrics,
-    load_cross_week_mean_movement_metrics,
+    load_movement_metrics_by_selection,
     parse_day_of_week,
     parse_time_hhmm,
     topology_from_pg_raw,
@@ -116,11 +115,12 @@ class IntersectionLoadService:
             "inter_id": resolved_inter_id or ticket.get("inter_id"),
         }
         profile_opts = metric_options_from_profile(resolve_typical_profile(profile_ticket))
-        peak = load_cross_week_peak_movement_metrics(
+        peak = load_movement_metrics_by_selection(
             inter_id=resolved_inter_id,
             direction=direction,
             movement=movement,
             time_range=time_range,
+            selection=str(profile_opts.get("target_selection") or "cross_week_peak"),
             queue_field=str(profile_opts.get("target_queue_field") or "queue_len_avg"),
             typical_profile_id=profile_opts.get("typical_profile_id"),
             typical_profile_label=profile_opts.get("typical_profile_label"),
@@ -248,11 +248,12 @@ class IntersectionLoadService:
         }
         opts = profile_opts or metric_options_from_profile(resolve_typical_profile(profile_ticket))
         if peak_metrics is None:
-            peak_metrics = load_cross_week_peak_movement_metrics(
+            peak_metrics = load_movement_metrics_by_selection(
                 inter_id=str(ticket.get("inter_id") or inter.get("inter_id") or ""),
                 direction=str(ticket.get("direction") or "东向西"),
                 movement=str(ticket.get("movement") or "直行"),
                 time_range=time_range or ticket.get("time_range"),
+                selection=str(opts.get("target_selection") or "cross_week_peak"),
                 queue_field=str(opts.get("target_queue_field") or "queue_len_avg"),
                 typical_profile_id=opts.get("typical_profile_id"),
                 typical_profile_label=opts.get("typical_profile_label"),
@@ -305,7 +306,9 @@ class IntersectionLoadService:
                     "opt_type": opts.get("typical_opt_type"),
                     "use_typical_policy": bool(opts.get("use_typical_policy")),
                     "target_queue_field": opts.get("target_queue_field"),
+                    "target_selection": opts.get("target_selection"),
                     "downstream_queue_field": opts.get("downstream_queue_field"),
+                    "downstream_selection": opts.get("downstream_selection"),
                     "downstream_peak_disclose_field": opts.get("downstream_peak_disclose_field"),
                 },
             }
@@ -340,11 +343,12 @@ class IntersectionLoadService:
             direction: str | None = None,
             movement: str | None = None,
         ) -> dict[str, Any] | None:
-            return load_cross_week_mean_movement_metrics(
+            return load_movement_metrics_by_selection(
                 inter_id=str(adj_id),
                 direction=direction or "东向西",
                 movement=movement or "直行",
                 time_range=time_range,
+                selection=str(opts.get("downstream_selection") or "cross_week_mean"),
                 queue_field=str(opts.get("downstream_queue_field") or "queue_len_avg"),
                 peak_disclose_field=str(
                     opts.get("downstream_peak_disclose_field") or "queue_len_avg"

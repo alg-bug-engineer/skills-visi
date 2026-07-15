@@ -810,11 +810,12 @@ def build_adjacent_metrics_loader(ticket: dict[str, Any]):
         direction: str | None = None,
         movement: str | None = None,
     ) -> dict[str, Any] | None:
-        return load_cross_week_mean_movement_metrics(
+        return load_movement_metrics_by_selection(
             inter_id=str(inter_id),
             direction=direction or ticket.get("direction") or "东向西",
             movement=movement or ticket.get("movement") or "直行",
             time_range=ticket.get("time_range"),
+            selection=str(opts.get("downstream_selection") or "cross_week_mean"),
             queue_field=str(opts.get("downstream_queue_field") or "queue_len_avg"),
             peak_disclose_field=str(
                 opts.get("downstream_peak_disclose_field") or "queue_len_avg"
@@ -921,6 +922,44 @@ def load_cross_week_peak_movement_metrics(
         if typical_profile_label:
             best["typical_profile_label"] = typical_profile_label
     return best
+
+
+def load_movement_metrics_by_selection(
+    *,
+    inter_id: str,
+    direction: str,
+    movement: str,
+    time_range: str | None,
+    selection: str = "cross_week_peak",
+    queue_field: str = "queue_len_avg",
+    peak_disclose_field: str | None = None,
+    typical_profile_id: str | None = None,
+    typical_profile_label: str | None = None,
+) -> dict[str, Any] | None:
+    """按 profile ``*_selection`` 分支到跨周 peak / mean 取数。"""
+    from app.data.typical_intersection_profiles import normalize_selection
+
+    policy = normalize_selection(selection, default="cross_week_peak")
+    if policy == "cross_week_mean":
+        return load_cross_week_mean_movement_metrics(
+            inter_id=inter_id,
+            direction=direction,
+            movement=movement,
+            time_range=time_range,
+            queue_field=queue_field,
+            peak_disclose_field=peak_disclose_field or queue_field,
+            typical_profile_id=typical_profile_id,
+            typical_profile_label=typical_profile_label,
+        )
+    return load_cross_week_peak_movement_metrics(
+        inter_id=inter_id,
+        direction=direction,
+        movement=movement,
+        time_range=time_range,
+        queue_field=queue_field,
+        typical_profile_id=typical_profile_id,
+        typical_profile_label=typical_profile_label,
+    )
 
 
 def load_cross_week_mean_movement_metrics(

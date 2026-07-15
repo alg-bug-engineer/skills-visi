@@ -42,13 +42,13 @@
       }
     },
     {
-      "id": "point_huizhan_aotizhong_east_through",
-      "label": "点治理 · 会展路×奥体中路东进口直行",
+      "id": "point_huizhan_aotizhong_west_through",
+      "label": "点治理 · 会展路×奥体中路西进口直行",
       "opt_type": "TYPE1_POINT",
       "match": {
         "inter_id": "011wwe29jbf00001",
         "intersection_name": "会展路与奥体中路路口",
-        "direction": "东进口",
+        "direction": "西进口",
         "movement": "直行"
       },
       "metrics": {
@@ -120,7 +120,8 @@
   ],
   "notes": {
     "case_a": "解放东路与齐川路北进口直行（011wwe28f7c00001）保持项目固定取数逻辑，不写入覆盖 profile。",
-    "point_typical_ref": "点治理典型1=齐川(CaseA固定)、3=坤顺西直、4=坤顺西左、5=会展东直；跳过典型2二环东路×解放路。",
-    "line_typical_ref": "草山岭中路×草山岭南路、旅游路×转山西路。"
+    "point_typical_ref": "点治理典型1=齐川(CaseA固定)、3=坤顺西直、4=坤顺西左、5=会展西直(Case E)；跳过典型2二环东路×解放路。",
+    "line_typical_ref": "草山岭中路×草山岭南路(Case C)、旅游路×转山西路(Case F)。",
+    "frontend_cases": "manifest 中 metric_profile_id 对齐：case_c=line_caoshanling_north_through、case_e=point_huizhan_aotizhong_west_through、case_f=line_lvyou_zhuanshanxi_east_through；Case A/B/D 保持项目固定口径。"
   }
 }

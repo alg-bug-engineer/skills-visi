@@ -1,4 +1,5 @@
 import { validPath } from '@/utils/guards'
+import { ratio } from '@/utils/format'
 import type { LngLat } from './channelizationGeometry'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -212,21 +213,17 @@ export class DownstreamTopologyLayer {
   }
 }
 
-function fmtPct(v: number | null | undefined): string {
-  return v == null ? '暂无' : `${Math.round(v * 100)}%`
-}
-
 export function formatNodeMetrics(metrics: DownstreamTopologyMetrics | undefined): string {
   if (!metrics) return '指标暂无'
   const parts: string[] = []
   if (metrics.queueRatio != null) {
-    parts.push(`排队 ${fmtPct(metrics.queueRatio)}`)
+    parts.push(`排队 ${ratio(metrics.queueRatio)}`)
   }
   if (metrics.saturation != null && metrics.saturation > 0) {
-    parts.push(`饱和 ${fmtPct(metrics.saturation)}`)
+    parts.push(`饱和 ${ratio(metrics.saturation)}`)
   }
   if (metrics.greenUtilization != null) {
-    parts.push(`绿灯 ${fmtPct(metrics.greenUtilization)}`)
+    parts.push(`绿灯 ${ratio(metrics.greenUtilization)}`)
   }
   return parts.length ? parts.join(' · ') : '指标暂无'
 }

@@ -1,5 +1,5 @@
 {
-  "trace_id": "0a4d1c80fe34429b",
+  "trace_id": "2020d2a6d940475b",
   "completed": true,
   "pipeline_complete": true,
   "diagnosis_ticket": {
@@ -36,19 +36,18 @@
       },
       {
         "experience_type": "solution",
-        "content": "建议调整配时方案",
+        "content": "帮忙看看配时怎么调",
         "source_span": "帮忙看看配时怎么调",
         "tags": {
-          "strategy_action": "配时优化"
+          "strategy_action": "信号配时优化"
         }
       },
       {
         "experience_type": "diagnostic",
-        "content": "需核验直接下游是否接得住",
+        "content": "核验直接下游是否接得住",
         "source_span": "并核验直接下游是否接得住",
         "tags": {
-          "cause_dimension": "下游承载力",
-          "strategy_action": "下游核验"
+          "cause_dimension": "下游路段承载力"
         }
       }
     ],
@@ -102,19 +101,18 @@
           },
           {
             "experience_type": "solution",
-            "content": "建议调整配时方案",
+            "content": "帮忙看看配时怎么调",
             "source_span": "帮忙看看配时怎么调",
             "tags": {
-              "strategy_action": "配时优化"
+              "strategy_action": "信号配时优化"
             }
           },
           {
             "experience_type": "diagnostic",
-            "content": "需核验直接下游是否接得住",
+            "content": "核验直接下游是否接得住",
             "source_span": "并核验直接下游是否接得住",
             "tags": {
-              "cause_dimension": "下游承载力",
-              "strategy_action": "下游核验"
+              "cause_dimension": "下游路段承载力"
             }
           }
         ],
@@ -158,7 +156,7 @@
         },
         {
           "experience_type": "solution",
-          "content": "建议调整配时方案",
+          "content": "帮忙看看配时怎么调",
           "source_span": "帮忙看看配时怎么调",
           "tags": {
             "inter_id": "011wwe29jbf00001",
@@ -171,7 +169,7 @@
             "severity": null,
             "cause_dimension": null,
             "cause_keywords": [],
-            "strategy_action": "配时优化",
+            "strategy_action": "信号配时优化",
             "related_poi": [],
             "target_phase": null,
             "adjustment_direction": null,
@@ -181,7 +179,7 @@
         },
         {
           "experience_type": "diagnostic",
-          "content": "需核验直接下游是否接得住",
+          "content": "核验直接下游是否接得住",
           "source_span": "并核验直接下游是否接得住",
           "tags": {
             "inter_id": "011wwe29jbf00001",
@@ -192,11 +190,11 @@
             "movement": "直行",
             "spatial_structure": null,
             "severity": null,
-            "cause_dimension": "下游承载力",
+            "cause_dimension": "下游路段承载力",
             "cause_keywords": [
               "下游"
             ],
-            "strategy_action": "下游核验",
+            "strategy_action": null,
             "related_poi": [],
             "target_phase": null,
             "adjustment_direction": null,
@@ -269,106 +267,109 @@
     },
     "diagnosis": {
       "metrics": {
-        "queue_length_m": 39.4,
+        "queue_length_m": 88.0,
         "storage_length_m": 194.14,
         "storage_direction": "西进口",
         "storage_source": "adjacent_inter_spacing_detail_min_entrance",
         "spacing_version_id": "12wwe28vzwwe29jb01",
-        "queue_ratio": 0.2029,
-        "saturation": 0.7912,
+        "queue_ratio": 0.4533,
+        "saturation": 0.7088,
         "los": "C",
-        "green_utilization": 0.4745,
-        "stop_count": 0.51,
-        "avg_delay_s": 36.36,
+        "green_utilization": 0.4889,
+        "stop_count": 0.54,
+        "avg_delay_s": 37.38,
         "time_series_trend": "pg_loaded",
         "by_approach": [
           {
             "approach": "北进口",
-            "saturation": 1.0286,
-            "delay_index": 151.0,
+            "saturation": 0.9714,
+            "delay_index": 177.5,
             "los": "F"
           },
           {
             "approach": "东进口",
-            "saturation": 0.6923,
-            "delay_index": 150.5,
+            "saturation": 0.8901,
+            "delay_index": 130.0,
             "los": "F"
           },
           {
             "approach": "南进口",
-            "saturation": 0.9159,
-            "delay_index": 158.0,
+            "saturation": 0.9245,
+            "delay_index": 141.0,
             "los": "F"
           },
           {
             "approach": "西进口",
-            "saturation": 0.8571,
-            "delay_index": 147.0,
+            "saturation": 0.7582,
+            "delay_index": 171.0,
             "los": "F"
           }
         ],
         "by_movement": [
           {
             "movement": "北直行",
-            "saturation": 1.0286,
-            "green_utilization": 1.0286,
-            "level": "过饱和"
+            "saturation": 0.9714,
+            "green_utilization": 0.9714,
+            "level": "偏高"
           },
           {
             "movement": "南直行",
-            "saturation": 0.9159,
-            "green_utilization": 0.9159,
+            "saturation": 0.9245,
+            "green_utilization": 0.9245,
+            "level": "偏高"
+          },
+          {
+            "movement": "南左转",
+            "saturation": 0.8955,
+            "green_utilization": 0.8955,
+            "level": "偏高"
+          },
+          {
+            "movement": "东左转",
+            "saturation": 0.8901,
+            "green_utilization": 0.8901,
             "level": "偏高"
           },
           {
             "movement": "西左转",
-            "saturation": 0.8571,
-            "green_utilization": 0.8571,
-            "level": "偏高"
+            "saturation": 0.7582,
+            "green_utilization": 0.7582,
+            "level": "正常"
           },
           {
             "movement": "西直行",
-            "saturation": 0.7912,
-            "green_utilization": 0.7912,
-            "level": "正常"
-          },
-          {
-            "movement": "东左转",
-            "saturation": 0.6923,
-            "green_utilization": 0.6923,
-            "level": "正常"
-          },
-          {
-            "movement": "南左转",
-            "saturation": 0.6716,
-            "green_utilization": 0.8519,
+            "saturation": 0.7088,
+            "green_utilization": 0.7088,
             "level": "正常"
           },
           {
             "movement": "东直行",
-            "saturation": 0.5934,
-            "green_utilization": 0.5934,
+            "saturation": 0.5275,
+            "green_utilization": 0.5476,
             "level": "正常"
           },
           {
             "movement": "北左转",
-            "saturation": 0.4898,
-            "green_utilization": 0.4898,
+            "saturation": 0.4286,
+            "green_utilization": 0.4444,
             "level": "正常"
           }
         ],
-        "imbalance_index": 0.2401,
+        "imbalance_index": 0.2422,
         "approach_count": 4,
         "lane_count": 12,
         "target_movement_key": "d6_t2",
         "metric_scope": "movement",
         "queue_statistic": "cross_week_window_peak",
-        "selected_day_of_week": 1,
+        "selected_day_of_week": 4,
         "metric_selection_policy": "cross_week_movement_peak",
+        "target_queue_field": "queue_len_max",
+        "typical_profile_id": "point_huizhan_aotizhong_west_through",
+        "typical_profile_label": "点治理 · 会展路×奥体中路西进口直行",
         "dir8_code": 6,
         "turn_dir_no": 2,
-        "intersection_saturation_max": 1.0286,
-        "intersection_queue_max": 102.0
+        "intersection_saturation_max": 0.9714,
+        "intersection_queue_max": 110.0
       },
       "timing_profile": {
         "cycle_s": 100.0,
@@ -387,8 +388,8 @@
       },
       "upstream_metrics": {
         "arrival_intensity": "high",
-        "arrival_flow_vph": 564.0,
-        "release_intensity_vph": 535.8
+        "arrival_flow_vph": 534.0,
+        "release_intensity_vph": 507.29999999999995
       },
       "target_intersection": {
         "inter_id": "011wwe29jbf00001",
@@ -401,39 +402,39 @@
         "metrics_available": true,
         "metrics_reason": null,
         "metrics": {
-          "avg_delay_s": 36.36,
-          "saturation": 0.7912,
-          "saturation_rate": 0.7912,
-          "avg_queue_m": 39.4,
-          "max_queue_m": 39.4,
-          "queue_storage_ratio_max": 0.2029,
-          "spillback_risk_max": 0.2029,
+          "avg_delay_s": 37.38,
+          "saturation": 0.7088,
+          "saturation_rate": 0.7088,
+          "avg_queue_m": 88.0,
+          "max_queue_m": 88.0,
+          "queue_storage_ratio_max": 0.4533,
+          "spillback_risk_max": 0.4533,
           "level_of_service": "C",
-          "green_utilization": 0.4745,
-          "stop_count": 0.51,
+          "green_utilization": 0.4889,
+          "stop_count": 0.54,
           "time_series_trend": "pg_loaded",
           "target_movement_key": "d6_t2",
           "metric_scope": "movement",
           "queue_statistic": "cross_week_window_peak",
           "queue_source": "movement_window_mean",
           "queue_is_direction_proxy": false,
-          "movement_queue_length_m": 39.4,
+          "movement_queue_length_m": 88.0,
           "saturation_statistic": "window_peak",
           "statistic_scope": "selected_typical_day",
-          "selected_day_of_week": 1,
+          "selected_day_of_week": 4,
           "metric_selection_policy": "cross_week_movement_peak",
-          "queue_safety_peak_m": 39.4,
-          "queue_safety_peak_ratio": 0.2029,
+          "queue_safety_peak_m": 88.0,
+          "queue_safety_peak_ratio": 0.4533,
           "storage_direction": "西进口",
           "storage_source": "adjacent_inter_spacing_detail_min_entrance"
         },
         "by_turn": [
           {
             "label": "西向东直行",
-            "turn_saturation": 0.7912,
-            "green_utilization": 0.4745,
-            "flow_vph": 564.0,
-            "queue_ratio": 0.2029
+            "turn_saturation": 0.7088,
+            "green_utilization": 0.4889,
+            "flow_vph": 534.0,
+            "queue_ratio": 0.4533
           }
         ],
         "overflow_verification": {
@@ -441,7 +442,7 @@
           "risk_level": "low",
           "message": "排队尚在进口道可容纳范围内，溢出风险较低"
         },
-        "remaining_storage_m": 154.73999999999998
+        "remaining_storage_m": 106.13999999999999
       },
       "spatial_topology": {
         "target_intersection": "会展路与奥体中路路口",
@@ -454,11 +455,16 @@
       "downstream_trace": {
         "available": true,
         "trace_direction": "downstream",
+        "scope": "target_approach_all_turns",
+        "target_approach": "西进口",
+        "selected_turn_dir_no": 2,
         "turn_traces": [
           {
             "movement": "西进口直行",
+            "turn_label": "直行",
             "dir8_code": 6,
             "turn_dir_no": 2,
+            "selected": true,
             "exit_dir8": 2,
             "downstream_inter_id": "011wwe29nh000001",
             "downstream_inter_name": "会展路与崇华路路口",
@@ -500,6 +506,8 @@
             "path_source": "link_geom",
             "receiving_dir8": 6,
             "receiving_label": "西进口直行",
+            "metrics_available": false,
+            "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
             "lng": 117.11996,
             "lat": 36.683387,
             "downstream_metrics": {
@@ -513,7 +521,7 @@
               "metrics_available": false,
               "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
               "metrics": {
-                "avg_delay_s": 12.62,
+                "avg_delay_s": 11.66,
                 "saturation": null,
                 "saturation_rate": null,
                 "avg_queue_m": 16.59,
@@ -534,8 +542,8 @@
                 "statistic_scope": null,
                 "selected_day_of_week": null,
                 "metric_selection_policy": "cross_week_movement_mean",
-                "queue_safety_peak_m": 47.0,
-                "queue_safety_peak_ratio": 0.1185,
+                "queue_safety_peak_m": 86.0,
+                "queue_safety_peak_ratio": 0.2169,
                 "storage_direction": null,
                 "storage_source": null
               },
@@ -563,6 +571,245 @@
             },
             "trace_kind": "downstream",
             "narrative": "西进口直行去向会展路与崇华路路口，占比86.8%，下游仍有余量，可局部增绿清空"
+          },
+          {
+            "movement": "西进口左转",
+            "turn_label": "左转",
+            "dir8_code": 6,
+            "turn_dir_no": 1,
+            "selected": false,
+            "exit_dir8": 0,
+            "downstream_inter_id": "011wwe29n3p00001",
+            "downstream_inter_name": "兴贤北街与奥体中路路口",
+            "share_pct": null,
+            "path": [
+              [
+                117.115556,
+                36.682523
+              ],
+              [
+                117.115545,
+                36.683001
+              ],
+              [
+                117.115545,
+                36.683269
+              ],
+              [
+                117.115545,
+                36.683349
+              ],
+              [
+                117.115545,
+                36.683602
+              ],
+              [
+                117.115572,
+                36.683918
+              ],
+              [
+                117.115652,
+                36.68453
+              ],
+              [
+                117.115856,
+                36.685962
+              ]
+            ],
+            "path_source": "link_geom",
+            "receiving_dir8": 4,
+            "receiving_label": "南进口左转",
+            "metrics_available": false,
+            "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+            "lng": 117.115728,
+            "lat": 36.685977,
+            "downstream_metrics": {
+              "inter_id": "011wwe29n3p00001",
+              "inter_name": "兴贤北街与奥体中路路口",
+              "role": "downstream",
+              "lng": 117.115728,
+              "lat": 36.685977,
+              "receiving_dir8": 4,
+              "receiving_label": "南进口左转",
+              "metrics_available": false,
+              "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+              "metrics": {
+                "avg_delay_s": 19.58,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": 3.28,
+                "max_queue_m": 3.28,
+                "queue_storage_ratio_max": 0.0086,
+                "spillback_risk_max": 0.0086,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null,
+                "target_movement_key": null,
+                "metric_scope": "movement",
+                "queue_statistic": "cross_week_window_mean",
+                "queue_source": null,
+                "queue_is_direction_proxy": false,
+                "movement_queue_length_m": null,
+                "saturation_statistic": "window_peak",
+                "statistic_scope": null,
+                "selected_day_of_week": null,
+                "metric_selection_policy": "cross_week_movement_mean",
+                "queue_safety_peak_m": 73.0,
+                "queue_safety_peak_ratio": 0.1905,
+                "storage_direction": null,
+                "storage_source": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.0086
+                }
+              ],
+              "overflow_verification": {
+                "verified": true,
+                "risk_level": "low",
+                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+              },
+              "remaining_storage_m": 379.86
+            },
+            "capacity": {
+              "can_release": true,
+              "blocked": false,
+              "reasons": [],
+              "release_guard": "downstream_has_slack"
+            },
+            "trace_kind": "downstream",
+            "narrative": "西进口左转去向兴贤北街与奥体中路路口，下游仍有余量，可局部增绿清空"
+          },
+          {
+            "movement": "西进口右转",
+            "turn_label": "右转",
+            "dir8_code": 6,
+            "turn_dir_no": 3,
+            "selected": false,
+            "exit_dir8": 4,
+            "downstream_inter_id": "011wwe29j2u00001",
+            "downstream_inter_name": "奥体中路与工业南路路口",
+            "share_pct": 20.0,
+            "path": [
+              [
+                117.115288,
+                36.6824
+              ],
+              [
+                117.115293,
+                36.681928
+              ],
+              [
+                117.115277,
+                36.681096
+              ],
+              [
+                117.115314,
+                36.680206
+              ]
+            ],
+            "path_source": "link_geom",
+            "receiving_dir8": 0,
+            "receiving_label": "北进口右转",
+            "metrics_available": false,
+            "metrics_reason": "下游路口 PG 指标缺失",
+            "lng": 117.115482,
+            "lat": 36.680045,
+            "downstream_metrics": {
+              "inter_id": "011wwe29j2u00001",
+              "inter_name": "奥体中路与工业南路路口",
+              "role": "downstream",
+              "lng": 117.115482,
+              "lat": 36.680045,
+              "receiving_dir8": 0,
+              "receiving_label": "北进口右转",
+              "metrics_available": false,
+              "metrics_reason": "下游路口 PG 指标缺失",
+              "metrics": {
+                "avg_delay_s": null,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": null,
+                "max_queue_m": null,
+                "queue_storage_ratio_max": null,
+                "spillback_risk_max": null,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null,
+                "target_movement_key": null,
+                "metric_scope": "movement",
+                "queue_statistic": "window_mean",
+                "queue_source": null,
+                "queue_is_direction_proxy": false,
+                "movement_queue_length_m": null,
+                "saturation_statistic": "window_peak",
+                "statistic_scope": null,
+                "selected_day_of_week": null,
+                "metric_selection_policy": null,
+                "queue_safety_peak_m": null,
+                "queue_safety_peak_ratio": null,
+                "storage_direction": null,
+                "storage_source": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": null,
+                  "queue_ratio": null
+                }
+              ],
+              "overflow_verification": {
+                "verified": false,
+                "risk_level": "unknown",
+                "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
+              },
+              "remaining_storage_m": null
+            },
+            "capacity": {
+              "can_release": true,
+              "blocked": false,
+              "reasons": [],
+              "release_guard": "downstream_has_slack"
+            },
+            "trace_kind": "downstream",
+            "narrative": "西进口右转去向奥体中路与工业南路路口，占比20.0%，下游仍有余量，可局部增绿清空"
+          }
+        ],
+        "movement_summary": [
+          {
+            "movement": "西进口左转",
+            "turn_label": "左转",
+            "turn_dir_no": 1,
+            "selected": false,
+            "available": true,
+            "downstream_count": 1,
+            "blocked_count": 0
+          },
+          {
+            "movement": "西进口直行",
+            "turn_label": "直行",
+            "turn_dir_no": 2,
+            "selected": true,
+            "available": true,
+            "downstream_count": 1,
+            "blocked_count": 0
+          },
+          {
+            "movement": "西进口右转",
+            "turn_label": "右转",
+            "turn_dir_no": 3,
+            "selected": false,
+            "available": true,
+            "downstream_count": 1,
+            "blocked_count": 0
           }
         ],
         "adjacent_intersections": [
@@ -577,7 +824,7 @@
             "metrics_available": false,
             "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
             "metrics": {
-              "avg_delay_s": 12.62,
+              "avg_delay_s": 11.66,
               "saturation": null,
               "saturation_rate": null,
               "avg_queue_m": 16.59,
@@ -598,8 +845,8 @@
               "statistic_scope": null,
               "selected_day_of_week": null,
               "metric_selection_policy": "cross_week_movement_mean",
-              "queue_safety_peak_m": 47.0,
-              "queue_safety_peak_ratio": 0.1185,
+              "queue_safety_peak_m": 86.0,
+              "queue_safety_peak_ratio": 0.2169,
               "storage_direction": null,
               "storage_source": null
             },
@@ -627,42 +874,88 @@
             "linked_movements": [
               "西进口直行"
             ],
-            "share_pct": 86.81
+            "share_pct": 86.81,
+            "selected": true,
+            "movement_metrics": [
+              {
+                "movement": "西进口直行",
+                "turn_dir_no": 2,
+                "selected": true,
+                "share_pct": 86.81,
+                "receiving_dir8": 6,
+                "receiving_label": "西进口直行",
+                "metrics_available": false,
+                "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+                "metrics": {
+                  "avg_delay_s": 11.66,
+                  "saturation": null,
+                  "saturation_rate": null,
+                  "avg_queue_m": 16.59,
+                  "max_queue_m": 16.59,
+                  "queue_storage_ratio_max": 0.0418,
+                  "spillback_risk_max": 0.0418,
+                  "level_of_service": null,
+                  "green_utilization": null,
+                  "stop_count": null,
+                  "time_series_trend": null,
+                  "target_movement_key": null,
+                  "metric_scope": "movement",
+                  "queue_statistic": "cross_week_window_mean",
+                  "queue_source": null,
+                  "queue_is_direction_proxy": false,
+                  "movement_queue_length_m": null,
+                  "saturation_statistic": "window_peak",
+                  "statistic_scope": null,
+                  "selected_day_of_week": null,
+                  "metric_selection_policy": "cross_week_movement_mean",
+                  "queue_safety_peak_m": 86.0,
+                  "queue_safety_peak_ratio": 0.2169,
+                  "storage_direction": null,
+                  "storage_source": null
+                },
+                "capacity": {
+                  "can_release": true,
+                  "blocked": false,
+                  "reasons": [],
+                  "release_guard": "downstream_has_slack"
+                }
+              }
+            ]
           },
           {
             "inter_id": "011wwe29n3p00001",
             "inter_name": "兴贤北街与奥体中路路口",
-            "role": "adjacent_peer",
+            "role": "downstream",
             "lng": 117.115728,
             "lat": 36.685977,
             "receiving_dir8": 4,
-            "receiving_label": null,
+            "receiving_label": "南进口左转",
             "metrics_available": false,
-            "metrics_reason": "相邻路口承接进口（南向北直行）该时段无转向饱和度，不可用 0 代替",
+            "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
             "metrics": {
-              "avg_delay_s": 17.62,
+              "avg_delay_s": 19.58,
               "saturation": null,
               "saturation_rate": null,
-              "avg_queue_m": 22.73,
-              "max_queue_m": 22.73,
-              "queue_storage_ratio_max": null,
-              "spillback_risk_max": null,
+              "avg_queue_m": 3.28,
+              "max_queue_m": 3.28,
+              "queue_storage_ratio_max": 0.0086,
+              "spillback_risk_max": 0.0086,
               "level_of_service": null,
               "green_utilization": null,
               "stop_count": null,
               "time_series_trend": null,
               "target_movement_key": null,
               "metric_scope": "movement",
-              "queue_statistic": "window_mean",
+              "queue_statistic": "cross_week_window_mean",
               "queue_source": null,
               "queue_is_direction_proxy": false,
               "movement_queue_length_m": null,
               "saturation_statistic": "window_peak",
               "statistic_scope": null,
               "selected_day_of_week": null,
-              "metric_selection_policy": null,
-              "queue_safety_peak_m": null,
-              "queue_safety_peak_ratio": null,
+              "metric_selection_policy": "cross_week_movement_mean",
+              "queue_safety_peak_m": 73.0,
+              "queue_safety_peak_ratio": 0.1905,
               "storage_direction": null,
               "storage_source": null
             },
@@ -672,15 +965,71 @@
                 "turn_saturation": null,
                 "green_utilization": null,
                 "flow_vph": 0.0,
-                "queue_ratio": null
+                "queue_ratio": 0.0086
               }
             ],
             "overflow_verification": {
-              "verified": false,
-              "risk_level": "unknown",
-              "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
+              "verified": true,
+              "risk_level": "low",
+              "message": "排队尚在进口道可容纳范围内，溢出风险较低"
             },
-            "remaining_storage_m": null
+            "remaining_storage_m": 379.86,
+            "capacity": {
+              "can_release": true,
+              "blocked": false,
+              "reasons": [],
+              "release_guard": "downstream_has_slack"
+            },
+            "linked_movements": [
+              "西进口左转"
+            ],
+            "share_pct": null,
+            "selected": false,
+            "movement_metrics": [
+              {
+                "movement": "西进口左转",
+                "turn_dir_no": 1,
+                "selected": false,
+                "share_pct": null,
+                "receiving_dir8": 4,
+                "receiving_label": "南进口左转",
+                "metrics_available": false,
+                "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+                "metrics": {
+                  "avg_delay_s": 19.58,
+                  "saturation": null,
+                  "saturation_rate": null,
+                  "avg_queue_m": 3.28,
+                  "max_queue_m": 3.28,
+                  "queue_storage_ratio_max": 0.0086,
+                  "spillback_risk_max": 0.0086,
+                  "level_of_service": null,
+                  "green_utilization": null,
+                  "stop_count": null,
+                  "time_series_trend": null,
+                  "target_movement_key": null,
+                  "metric_scope": "movement",
+                  "queue_statistic": "cross_week_window_mean",
+                  "queue_source": null,
+                  "queue_is_direction_proxy": false,
+                  "movement_queue_length_m": null,
+                  "saturation_statistic": "window_peak",
+                  "statistic_scope": null,
+                  "selected_day_of_week": null,
+                  "metric_selection_policy": "cross_week_movement_mean",
+                  "queue_safety_peak_m": 73.0,
+                  "queue_safety_peak_ratio": 0.1905,
+                  "storage_direction": null,
+                  "storage_source": null
+                },
+                "capacity": {
+                  "can_release": true,
+                  "blocked": false,
+                  "reasons": [],
+                  "release_guard": "downstream_has_slack"
+                }
+              }
+            ]
           },
           {
             "inter_id": "011wwe29j2u00001",
@@ -693,7 +1042,7 @@
             "metrics_available": true,
             "metrics_reason": null,
             "metrics": {
-              "avg_delay_s": 54.54,
+              "avg_delay_s": 56.68,
               "saturation": 1.68,
               "saturation_rate": 1.68,
               "avg_queue_m": 12.72,
@@ -701,8 +1050,8 @@
               "queue_storage_ratio_max": null,
               "spillback_risk_max": null,
               "level_of_service": "F",
-              "green_utilization": 0.4977,
-              "stop_count": 0.57,
+              "green_utilization": 0.5114,
+              "stop_count": 0.59,
               "time_series_trend": null,
               "target_movement_key": null,
               "metric_scope": "movement",
@@ -714,7 +1063,7 @@
               "statistic_scope": null,
               "selected_day_of_week": null,
               "metric_selection_policy": "cross_week_movement_mean",
-              "queue_safety_peak_m": 45.0,
+              "queue_safety_peak_m": 113.0,
               "queue_safety_peak_ratio": null,
               "storage_direction": null,
               "storage_source": null
@@ -723,7 +1072,7 @@
               {
                 "label": "直行",
                 "turn_saturation": 1.68,
-                "green_utilization": 0.4977,
+                "green_utilization": 0.5114,
                 "flow_vph": 588.0,
                 "queue_ratio": null
               }
@@ -746,7 +1095,7 @@
             "metrics_available": true,
             "metrics_reason": null,
             "metrics": {
-              "avg_delay_s": 7.16,
+              "avg_delay_s": 6.28,
               "saturation": 0.3968,
               "saturation_rate": 0.3968,
               "avg_queue_m": 11.77,
@@ -754,7 +1103,7 @@
               "queue_storage_ratio_max": null,
               "spillback_risk_max": null,
               "level_of_service": "A",
-              "green_utilization": 0.0,
+              "green_utilization": 0.3351,
               "stop_count": 0.21,
               "time_series_trend": null,
               "target_movement_key": null,
@@ -767,7 +1116,7 @@
               "statistic_scope": null,
               "selected_day_of_week": null,
               "metric_selection_policy": "cross_week_movement_mean",
-              "queue_safety_peak_m": 80.8,
+              "queue_safety_peak_m": 104.0,
               "queue_safety_peak_ratio": null,
               "storage_direction": null,
               "storage_source": null
@@ -776,7 +1125,7 @@
               {
                 "label": "直行",
                 "turn_saturation": 0.3968,
-                "green_utilization": 0.0,
+                "green_utilization": 0.3351,
                 "flow_vph": 564.0,
                 "queue_ratio": null
               }
@@ -792,6 +1141,8 @@
         "governance": {
           "landing": "local_reallocation",
           "downstream_blocked": false,
+          "all_turns_downstream_blocked": false,
+          "basis": "selected_movement",
           "recommendation": "下游可承接，可评估局部增绿清空"
         },
         "target_comparison": {
@@ -806,39 +1157,39 @@
             "metrics_available": true,
             "metrics_reason": null,
             "metrics": {
-              "avg_delay_s": 36.36,
-              "saturation": 0.7912,
-              "saturation_rate": 0.7912,
-              "avg_queue_m": 39.4,
-              "max_queue_m": 39.4,
-              "queue_storage_ratio_max": 0.2029,
-              "spillback_risk_max": 0.2029,
+              "avg_delay_s": 37.38,
+              "saturation": 0.7088,
+              "saturation_rate": 0.7088,
+              "avg_queue_m": 88.0,
+              "max_queue_m": 88.0,
+              "queue_storage_ratio_max": 0.4533,
+              "spillback_risk_max": 0.4533,
               "level_of_service": "C",
-              "green_utilization": 0.4745,
-              "stop_count": 0.51,
+              "green_utilization": 0.4889,
+              "stop_count": 0.54,
               "time_series_trend": "pg_loaded",
               "target_movement_key": "d6_t2",
               "metric_scope": "movement",
               "queue_statistic": "cross_week_window_peak",
               "queue_source": "movement_window_mean",
               "queue_is_direction_proxy": false,
-              "movement_queue_length_m": 39.4,
+              "movement_queue_length_m": 88.0,
               "saturation_statistic": "window_peak",
               "statistic_scope": "selected_typical_day",
-              "selected_day_of_week": 1,
+              "selected_day_of_week": 4,
               "metric_selection_policy": "cross_week_movement_peak",
-              "queue_safety_peak_m": 39.4,
-              "queue_safety_peak_ratio": 0.2029,
+              "queue_safety_peak_m": 88.0,
+              "queue_safety_peak_ratio": 0.4533,
               "storage_direction": "西进口",
               "storage_source": "adjacent_inter_spacing_detail_min_entrance"
             },
             "by_turn": [
               {
                 "label": "西向东直行",
-                "turn_saturation": 0.7912,
-                "green_utilization": 0.4745,
-                "flow_vph": 564.0,
-                "queue_ratio": 0.2029
+                "turn_saturation": 0.7088,
+                "green_utilization": 0.4889,
+                "flow_vph": 534.0,
+                "queue_ratio": 0.4533
               }
             ],
             "overflow_verification": {
@@ -846,7 +1197,7 @@
               "risk_level": "low",
               "message": "排队尚在进口道可容纳范围内，溢出风险较低"
             },
-            "remaining_storage_m": 154.73999999999998
+            "remaining_storage_m": 106.13999999999999
           },
           "downstream_nodes": [
             {
@@ -860,7 +1211,7 @@
               "metrics_available": false,
               "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
               "metrics": {
-                "avg_delay_s": 12.62,
+                "avg_delay_s": 11.66,
                 "saturation": null,
                 "saturation_rate": null,
                 "avg_queue_m": 16.59,
@@ -881,8 +1232,8 @@
                 "statistic_scope": null,
                 "selected_day_of_week": null,
                 "metric_selection_policy": "cross_week_movement_mean",
-                "queue_safety_peak_m": 47.0,
-                "queue_safety_peak_ratio": 0.1185,
+                "queue_safety_peak_m": 86.0,
+                "queue_safety_peak_ratio": 0.2169,
                 "storage_direction": null,
                 "storage_source": null
               },
@@ -910,7 +1261,271 @@
               "linked_movements": [
                 "西进口直行"
               ],
-              "share_pct": 86.81
+              "share_pct": 86.81,
+              "selected": true,
+              "movement_metrics": [
+                {
+                  "movement": "西进口直行",
+                  "turn_dir_no": 2,
+                  "selected": true,
+                  "share_pct": 86.81,
+                  "receiving_dir8": 6,
+                  "receiving_label": "西进口直行",
+                  "metrics_available": false,
+                  "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+                  "metrics": {
+                    "avg_delay_s": 11.66,
+                    "saturation": null,
+                    "saturation_rate": null,
+                    "avg_queue_m": 16.59,
+                    "max_queue_m": 16.59,
+                    "queue_storage_ratio_max": 0.0418,
+                    "spillback_risk_max": 0.0418,
+                    "level_of_service": null,
+                    "green_utilization": null,
+                    "stop_count": null,
+                    "time_series_trend": null,
+                    "target_movement_key": null,
+                    "metric_scope": "movement",
+                    "queue_statistic": "cross_week_window_mean",
+                    "queue_source": null,
+                    "queue_is_direction_proxy": false,
+                    "movement_queue_length_m": null,
+                    "saturation_statistic": "window_peak",
+                    "statistic_scope": null,
+                    "selected_day_of_week": null,
+                    "metric_selection_policy": "cross_week_movement_mean",
+                    "queue_safety_peak_m": 86.0,
+                    "queue_safety_peak_ratio": 0.2169,
+                    "storage_direction": null,
+                    "storage_source": null
+                  },
+                  "capacity": {
+                    "can_release": true,
+                    "blocked": false,
+                    "reasons": [],
+                    "release_guard": "downstream_has_slack"
+                  }
+                }
+              ]
+            },
+            {
+              "inter_id": "011wwe29n3p00001",
+              "inter_name": "兴贤北街与奥体中路路口",
+              "role": "downstream",
+              "lng": 117.115728,
+              "lat": 36.685977,
+              "receiving_dir8": 4,
+              "receiving_label": "南进口左转",
+              "metrics_available": false,
+              "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+              "metrics": {
+                "avg_delay_s": 19.58,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": 3.28,
+                "max_queue_m": 3.28,
+                "queue_storage_ratio_max": 0.0086,
+                "spillback_risk_max": 0.0086,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null,
+                "target_movement_key": null,
+                "metric_scope": "movement",
+                "queue_statistic": "cross_week_window_mean",
+                "queue_source": null,
+                "queue_is_direction_proxy": false,
+                "movement_queue_length_m": null,
+                "saturation_statistic": "window_peak",
+                "statistic_scope": null,
+                "selected_day_of_week": null,
+                "metric_selection_policy": "cross_week_movement_mean",
+                "queue_safety_peak_m": 73.0,
+                "queue_safety_peak_ratio": 0.1905,
+                "storage_direction": null,
+                "storage_source": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": 0.0,
+                  "queue_ratio": 0.0086
+                }
+              ],
+              "overflow_verification": {
+                "verified": true,
+                "risk_level": "low",
+                "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+              },
+              "remaining_storage_m": 379.86,
+              "capacity": {
+                "can_release": true,
+                "blocked": false,
+                "reasons": [],
+                "release_guard": "downstream_has_slack"
+              },
+              "linked_movements": [
+                "西进口左转"
+              ],
+              "share_pct": null,
+              "selected": false,
+              "movement_metrics": [
+                {
+                  "movement": "西进口左转",
+                  "turn_dir_no": 1,
+                  "selected": false,
+                  "share_pct": null,
+                  "receiving_dir8": 4,
+                  "receiving_label": "南进口左转",
+                  "metrics_available": false,
+                  "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+                  "metrics": {
+                    "avg_delay_s": 19.58,
+                    "saturation": null,
+                    "saturation_rate": null,
+                    "avg_queue_m": 3.28,
+                    "max_queue_m": 3.28,
+                    "queue_storage_ratio_max": 0.0086,
+                    "spillback_risk_max": 0.0086,
+                    "level_of_service": null,
+                    "green_utilization": null,
+                    "stop_count": null,
+                    "time_series_trend": null,
+                    "target_movement_key": null,
+                    "metric_scope": "movement",
+                    "queue_statistic": "cross_week_window_mean",
+                    "queue_source": null,
+                    "queue_is_direction_proxy": false,
+                    "movement_queue_length_m": null,
+                    "saturation_statistic": "window_peak",
+                    "statistic_scope": null,
+                    "selected_day_of_week": null,
+                    "metric_selection_policy": "cross_week_movement_mean",
+                    "queue_safety_peak_m": 73.0,
+                    "queue_safety_peak_ratio": 0.1905,
+                    "storage_direction": null,
+                    "storage_source": null
+                  },
+                  "capacity": {
+                    "can_release": true,
+                    "blocked": false,
+                    "reasons": [],
+                    "release_guard": "downstream_has_slack"
+                  }
+                }
+              ]
+            },
+            {
+              "inter_id": "011wwe29j2u00001",
+              "inter_name": "奥体中路与工业南路路口",
+              "role": "downstream",
+              "lng": 117.115482,
+              "lat": 36.680045,
+              "receiving_dir8": 0,
+              "receiving_label": "北进口右转",
+              "metrics_available": false,
+              "metrics_reason": "下游路口 PG 指标缺失",
+              "metrics": {
+                "avg_delay_s": null,
+                "saturation": null,
+                "saturation_rate": null,
+                "avg_queue_m": null,
+                "max_queue_m": null,
+                "queue_storage_ratio_max": null,
+                "spillback_risk_max": null,
+                "level_of_service": null,
+                "green_utilization": null,
+                "stop_count": null,
+                "time_series_trend": null,
+                "target_movement_key": null,
+                "metric_scope": "movement",
+                "queue_statistic": "window_mean",
+                "queue_source": null,
+                "queue_is_direction_proxy": false,
+                "movement_queue_length_m": null,
+                "saturation_statistic": "window_peak",
+                "statistic_scope": null,
+                "selected_day_of_week": null,
+                "metric_selection_policy": null,
+                "queue_safety_peak_m": null,
+                "queue_safety_peak_ratio": null,
+                "storage_direction": null,
+                "storage_source": null
+              },
+              "by_turn": [
+                {
+                  "label": "直行",
+                  "turn_saturation": null,
+                  "green_utilization": null,
+                  "flow_vph": null,
+                  "queue_ratio": null
+                }
+              ],
+              "overflow_verification": {
+                "verified": false,
+                "risk_level": "unknown",
+                "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
+              },
+              "remaining_storage_m": null,
+              "capacity": {
+                "can_release": true,
+                "blocked": false,
+                "reasons": [],
+                "release_guard": "downstream_has_slack"
+              },
+              "linked_movements": [
+                "西进口右转"
+              ],
+              "share_pct": 20.0,
+              "selected": false,
+              "movement_metrics": [
+                {
+                  "movement": "西进口右转",
+                  "turn_dir_no": 3,
+                  "selected": false,
+                  "share_pct": 20.0,
+                  "receiving_dir8": 0,
+                  "receiving_label": "北进口右转",
+                  "metrics_available": false,
+                  "metrics_reason": "下游路口 PG 指标缺失",
+                  "metrics": {
+                    "avg_delay_s": null,
+                    "saturation": null,
+                    "saturation_rate": null,
+                    "avg_queue_m": null,
+                    "max_queue_m": null,
+                    "queue_storage_ratio_max": null,
+                    "spillback_risk_max": null,
+                    "level_of_service": null,
+                    "green_utilization": null,
+                    "stop_count": null,
+                    "time_series_trend": null,
+                    "target_movement_key": null,
+                    "metric_scope": "movement",
+                    "queue_statistic": "window_mean",
+                    "queue_source": null,
+                    "queue_is_direction_proxy": false,
+                    "movement_queue_length_m": null,
+                    "saturation_statistic": "window_peak",
+                    "statistic_scope": null,
+                    "selected_day_of_week": null,
+                    "metric_selection_policy": null,
+                    "queue_safety_peak_m": null,
+                    "queue_safety_peak_ratio": null,
+                    "storage_direction": null,
+                    "storage_source": null
+                  },
+                  "capacity": {
+                    "can_release": true,
+                    "blocked": false,
+                    "reasons": [],
+                    "release_guard": "downstream_has_slack"
+                  }
+                }
+              ]
             }
           ],
           "same_metric_dimensions": true
@@ -925,7 +1540,7 @@
           {
             "entry": "西进口",
             "dir8_code": 6,
-            "entry_max_saturation": 0.7912,
+            "entry_max_saturation": 0.7088,
             "upstream_inter_id": "011wwe28vz100001",
             "upstream_inter_name": "会展路与正奥路路口",
             "upstream_lng": 117.113026,
@@ -976,7 +1591,7 @@
           {
             "entry": "西进口",
             "turn": "直行",
-            "turn_saturation": 0.7912,
+            "turn_saturation": 0.7088,
             "source_pattern": "single_corridor",
             "dominant_feed": {
               "inter_id": "011wwe28vz100001",
@@ -1011,10 +1626,10 @@
         "caveat": "PG 拓扑：几何取自 dim_link_info.geom，占比取自 flow_correlate"
       },
       "arterial_analysis": {
-        "upstream_arrival_flow_vph": 564.0,
-        "upstream_release_intensity_vph": 535.8,
-        "target_remaining_storage_m": 154.73999999999998,
-        "downstream_remaining_storage_m": 379.91,
+        "upstream_arrival_flow_vph": 534.0,
+        "upstream_release_intensity_vph": 507.29999999999995,
+        "target_remaining_storage_m": 106.13999999999999,
+        "downstream_remaining_storage_m": 379.86,
         "phase_offset_match": null,
         "need_upstream_metering": false,
         "need_downstream_dissipation_first": false,
@@ -1092,7 +1707,7 @@
           "inter_id": "011wwe29nh000001",
           "inter_name": "会展路与崇华路路口",
           "metrics": {
-            "avg_delay_s": 12.62,
+            "avg_delay_s": 11.66,
             "saturation": null,
             "saturation_rate": null,
             "avg_queue_m": 16.59,
@@ -1113,8 +1728,8 @@
             "statistic_scope": null,
             "selected_day_of_week": null,
             "metric_selection_policy": "cross_week_movement_mean",
-            "queue_safety_peak_m": 47.0,
-            "queue_safety_peak_ratio": 0.1185,
+            "queue_safety_peak_m": 86.0,
+            "queue_safety_peak_ratio": 0.2169,
             "storage_direction": null,
             "storage_source": null
           },
@@ -1213,11 +1828,11 @@
               "relation_direction": "upstream",
               "length_m": 392.0626666566373,
               "metrics": {
-                "saturation": 1.0286,
-                "green_utilization": 1.0286,
+                "saturation": 0.9714,
+                "green_utilization": 0.9714,
                 "queue_m": null,
-                "flow_vph": 1176.0,
-                "capacity": 761.2
+                "flow_vph": 1128.0,
+                "capacity": 723.2
               }
             },
             {
@@ -1271,7 +1886,7 @@
               "relation_direction": "downstream",
               "length_m": 383.1417795456787,
               "metrics": {
-                "saturation": 1.0286,
+                "saturation": 0.9714,
                 "green_utilization": null,
                 "queue_m": null,
                 "flow_vph": null,
@@ -1337,11 +1952,11 @@
               "relation_direction": "upstream",
               "length_m": 394.4728862854639,
               "metrics": {
-                "saturation": 0.6923,
-                "green_utilization": 0.6923,
+                "saturation": 0.8901,
+                "green_utilization": 0.8901,
                 "queue_m": null,
-                "flow_vph": 468.0,
-                "capacity": 376.2
+                "flow_vph": 504.0,
+                "capacity": 346.0
               }
             },
             {
@@ -1395,7 +2010,7 @@
               "relation_direction": "downstream",
               "length_m": 396.49967793663353,
               "metrics": {
-                "saturation": 0.6923,
+                "saturation": 0.8901,
                 "green_utilization": null,
                 "queue_m": null,
                 "flow_vph": null,
@@ -1441,11 +2056,11 @@
               "relation_direction": "upstream",
               "length_m": 245.92445227791308,
               "metrics": {
-                "saturation": 0.9159,
-                "green_utilization": 0.9159,
+                "saturation": 0.9245,
+                "green_utilization": 0.9245,
                 "queue_m": null,
-                "flow_vph": 1632.0,
-                "capacity": 761.2
+                "flow_vph": 1524.0,
+                "capacity": 741.0
               }
             },
             {
@@ -1483,7 +2098,7 @@
               "relation_direction": "downstream",
               "length_m": 243.54020045393068,
               "metrics": {
-                "saturation": 0.9159,
+                "saturation": 0.9245,
                 "green_utilization": null,
                 "queue_m": null,
                 "flow_vph": null,
@@ -1529,11 +2144,11 @@
               "relation_direction": "upstream",
               "length_m": 194.138356169522,
               "metrics": {
-                "saturation": 0.8571,
-                "green_utilization": 0.8571,
+                "saturation": 0.7582,
+                "green_utilization": 0.7582,
                 "queue_m": null,
-                "flow_vph": 564.0,
-                "capacity": 376.2
+                "flow_vph": 534.0,
+                "capacity": 346.2
               }
             },
             {
@@ -1575,7 +2190,7 @@
               "relation_direction": "downstream",
               "length_m": 194.86247115645602,
               "metrics": {
-                "saturation": 0.8571,
+                "saturation": 0.7582,
                 "green_utilization": null,
                 "queue_m": null,
                 "flow_vph": null,
@@ -2086,20 +2701,11 @@
               "ratio": 0.141176
             },
             {
-              "id": "011wwe28n3g00001",
-              "name": "二环东路与花园路路口",
-              "lng": 117.072803,
-              "lat": 36.685354,
-              "rank": 52,
-              "flow": 11,
-              "ratio": 0.129412
-            },
-            {
               "id": "011wwe0xzrk00001",
               "name": "七里堡路与二环东路路口",
               "lng": 117.069401,
               "lat": 36.690918,
-              "rank": 53,
+              "rank": 52,
               "flow": 11,
               "ratio": 0.129412
             },
@@ -2108,6 +2714,15 @@
               "name": "二环东路辅路与二环东路辅路路口",
               "lng": 117.071297,
               "lat": 36.68773,
+              "rank": 53,
+              "flow": 11,
+              "ratio": 0.129412
+            },
+            {
+              "id": "011wwe28n3g00001",
+              "name": "二环东路与花园路路口",
+              "lng": 117.072803,
+              "lat": 36.685354,
               "rank": 54,
               "flow": 11,
               "ratio": 0.129412
@@ -2142,27 +2757,6 @@
           ],
           "links": [
             {
-              "id": "012wwe28vzwwe28vz0004",
-              "name": "会展路:正丰路-奥体中路",
-              "coords": [
-                [
-                  117.1135665959077,
-                  36.682298022225
-                ],
-                [
-                  117.1139916759524,
-                  36.68231387602619
-                ]
-              ],
-              "from_inter_id": "011wwe28vz300001",
-              "to_inter_id": "011wwe28vzf00001",
-              "direction": "由西向东",
-              "length_m": 37.95,
-              "rank": 1,
-              "flow": 69,
-              "ratio": 0.811765
-            },
-            {
               "id": "012wwe28vzwwe28vz0003",
               "name": "会展路:正丰路-奥体中路",
               "coords": [
@@ -2183,6 +2777,27 @@
               "to_inter_id": "011wwe28vz300001",
               "direction": "由西向东",
               "length_m": 47.97,
+              "rank": 1,
+              "flow": 69,
+              "ratio": 0.811765
+            },
+            {
+              "id": "012wwe28vzwwe28vz0004",
+              "name": "会展路:正丰路-奥体中路",
+              "coords": [
+                [
+                  117.1135665959077,
+                  36.682298022225
+                ],
+                [
+                  117.1139916759524,
+                  36.68231387602619
+                ]
+              ],
+              "from_inter_id": "011wwe28vz300001",
+              "to_inter_id": "011wwe28vzf00001",
+              "direction": "由西向东",
+              "length_m": 37.95,
               "rank": 2,
               "flow": 69,
               "ratio": 0.811765
@@ -2238,31 +2853,6 @@
               "ratio": 0.694118
             },
             {
-              "id": "012wwe28vuwwe28vv0001",
-              "name": "华龙路:奥体西路-正丰路",
-              "coords": [
-                [
-                  117.109119,
-                  36.682094
-                ],
-                [
-                  117.109671,
-                  36.682148
-                ],
-                [
-                  117.11016055526991,
-                  36.68216385604113
-                ]
-              ],
-              "from_inter_id": "011wwe28vu000001",
-              "to_inter_id": "011wwe28vv100001",
-              "direction": "由西向东",
-              "length_m": 93.28,
-              "rank": 5,
-              "flow": 51,
-              "ratio": 0.6
-            },
-            {
               "id": "012wwe28vvwwe28vy0001",
               "name": "华龙路:奥体西路-正丰路",
               "coords": [
@@ -2283,9 +2873,71 @@
               "to_inter_id": "011wwe28vy300001",
               "direction": "由西向东",
               "length_m": 153.65,
+              "rank": 5,
+              "flow": 51,
+              "ratio": 0.6
+            },
+            {
+              "id": "012wwe28vuwwe28vv0001",
+              "name": "华龙路:奥体西路-正丰路",
+              "coords": [
+                [
+                  117.109119,
+                  36.682094
+                ],
+                [
+                  117.109671,
+                  36.682148
+                ],
+                [
+                  117.11016055526991,
+                  36.68216385604113
+                ]
+              ],
+              "from_inter_id": "011wwe28vu000001",
+              "to_inter_id": "011wwe28vv100001",
+              "direction": "由西向东",
+              "length_m": 93.28,
               "rank": 6,
               "flow": 51,
               "ratio": 0.6
+            },
+            {
+              "id": "012wwe28vfwwe28vu0001",
+              "name": "华龙路:辛河路-奥体西路",
+              "coords": [
+                [
+                  117.1071475835641,
+                  36.68218291066332
+                ],
+                [
+                  117.107155,
+                  36.68218
+                ],
+                [
+                  117.107364,
+                  36.682099
+                ],
+                [
+                  117.107788,
+                  36.682014
+                ],
+                [
+                  117.108571,
+                  36.682024
+                ],
+                [
+                  117.108807,
+                  36.682051
+                ]
+              ],
+              "from_inter_id": "011wwe28vfc00001",
+              "to_inter_id": "011wwe28vu000001",
+              "direction": "由西向东",
+              "length_m": 151.5,
+              "rank": 7,
+              "flow": 46,
+              "ratio": 0.541176
             },
             {
               "id": "012wwe28vcwwe28vf0001",
@@ -2324,43 +2976,6 @@
               "to_inter_id": "011wwe28vfc00001",
               "direction": "由西向东",
               "length_m": 133.31,
-              "rank": 7,
-              "flow": 46,
-              "ratio": 0.541176
-            },
-            {
-              "id": "012wwe28vfwwe28vu0001",
-              "name": "华龙路:辛河路-奥体西路",
-              "coords": [
-                [
-                  117.1071475835641,
-                  36.68218291066332
-                ],
-                [
-                  117.107155,
-                  36.68218
-                ],
-                [
-                  117.107364,
-                  36.682099
-                ],
-                [
-                  117.107788,
-                  36.682014
-                ],
-                [
-                  117.108571,
-                  36.682024
-                ],
-                [
-                  117.108807,
-                  36.682051
-                ]
-              ],
-              "from_inter_id": "011wwe28vfc00001",
-              "to_inter_id": "011wwe28vu000001",
-              "direction": "由西向东",
-              "length_m": 151.5,
               "rank": 8,
               "flow": 46,
               "ratio": 0.541176
@@ -2387,52 +3002,6 @@
               "direction": "由西向东",
               "length_m": 97.73,
               "rank": 9,
-              "flow": 27,
-              "ratio": 0.317647
-            },
-            {
-              "id": "012wwe28ttwwe28tw0001",
-              "name": "华龙路:化纤厂路-文化路",
-              "coords": [
-                [
-                  117.10031191671676,
-                  36.68151973687674
-                ],
-                [
-                  117.100316,
-                  36.68152
-                ],
-                [
-                  117.1009812977284,
-                  36.68159447362631
-                ]
-              ],
-              "from_inter_id": "011wwe28ttv00001",
-              "to_inter_id": "011wwe28twm00001",
-              "direction": "由西向东",
-              "length_m": 60.27,
-              "rank": 10,
-              "flow": 27,
-              "ratio": 0.317647
-            },
-            {
-              "id": "012wwe28txwwe28vb0001",
-              "name": "华龙路:化纤厂路-文化路",
-              "coords": [
-                [
-                  117.10213910589576,
-                  36.681810015681876
-                ],
-                [
-                  117.103368,
-                  36.681992
-                ]
-              ],
-              "from_inter_id": "011wwe28txp00001",
-              "to_inter_id": "011wwe28vb000001",
-              "direction": "由西向东",
-              "length_m": 111.44,
-              "rank": 11,
               "flow": 27,
               "ratio": 0.317647
             },
@@ -2465,28 +3034,7 @@
               "to_inter_id": "011wwe28ttv00001",
               "direction": "由西向东",
               "length_m": 265.11,
-              "rank": 12,
-              "flow": 27,
-              "ratio": 0.317647
-            },
-            {
-              "id": "012wwe28vbwwe28vc0002",
-              "name": "华龙路:文化路-辛河路",
-              "coords": [
-                [
-                  117.103368,
-                  36.681992
-                ],
-                [
-                  117.104655,
-                  36.682164
-                ]
-              ],
-              "from_inter_id": "011wwe28vb000001",
-              "to_inter_id": "011wwe28vc100001",
-              "direction": "由西向东",
-              "length_m": 116.35,
-              "rank": 13,
+              "rank": 10,
               "flow": 27,
               "ratio": 0.317647
             },
@@ -2511,7 +3059,7 @@
               "to_inter_id": "011wwe28txp00001",
               "direction": "由西向东",
               "length_m": 30.33,
-              "rank": 14,
+              "rank": 11,
               "flow": 27,
               "ratio": 0.317647
             },
@@ -2536,57 +3084,240 @@
               "to_inter_id": "011wwe28twy00001",
               "direction": "由西向东",
               "length_m": 75.66,
+              "rank": 12,
+              "flow": 27,
+              "ratio": 0.317647
+            },
+            {
+              "id": "012wwe28txwwe28vb0001",
+              "name": "华龙路:化纤厂路-文化路",
+              "coords": [
+                [
+                  117.10213910589576,
+                  36.681810015681876
+                ],
+                [
+                  117.103368,
+                  36.681992
+                ]
+              ],
+              "from_inter_id": "011wwe28txp00001",
+              "to_inter_id": "011wwe28vb000001",
+              "direction": "由西向东",
+              "length_m": 111.44,
+              "rank": 13,
+              "flow": 27,
+              "ratio": 0.317647
+            },
+            {
+              "id": "012wwe28vbwwe28vc0002",
+              "name": "华龙路:文化路-辛河路",
+              "coords": [
+                [
+                  117.103368,
+                  36.681992
+                ],
+                [
+                  117.104655,
+                  36.682164
+                ]
+              ],
+              "from_inter_id": "011wwe28vb000001",
+              "to_inter_id": "011wwe28vc100001",
+              "direction": "由西向东",
+              "length_m": 116.35,
+              "rank": 14,
+              "flow": 27,
+              "ratio": 0.317647
+            },
+            {
+              "id": "012wwe28ttwwe28tw0001",
+              "name": "华龙路:化纤厂路-文化路",
+              "coords": [
+                [
+                  117.10031191671676,
+                  36.68151973687674
+                ],
+                [
+                  117.100316,
+                  36.68152
+                ],
+                [
+                  117.1009812977284,
+                  36.68159447362631
+                ]
+              ],
+              "from_inter_id": "011wwe28ttv00001",
+              "to_inter_id": "011wwe28twm00001",
+              "direction": "由西向东",
+              "length_m": 60.27,
               "rank": 15,
               "flow": 27,
               "ratio": 0.317647
             },
             {
-              "id": "012wwe28mswwe28ms0002",
+              "id": "012wwe28mxwwe28t80001",
               "name": "华龙路:华信路-华阳路",
               "coords": [
                 [
-                  117.08778767695242,
-                  36.68125195241429
+                  117.09162553318522,
+                  36.68131600888642
                 ],
                 [
-                  117.08779,
-                  36.681252
+                  117.092285,
+                  36.681327
                 ],
                 [
-                  117.087961,
-                  36.681252
+                  117.093025,
+                  36.681343
                 ],
                 [
-                  117.08796157627148,
-                  36.68125200922705
+                  117.09309,
+                  36.681343
                 ]
               ],
-              "from_inter_id": "011wwe28mse00001",
-              "to_inter_id": "011wwe28msg00001",
+              "from_inter_id": "011wwe28mxs00001",
+              "to_inter_id": "011wwe28t8s00001",
               "direction": "由西向东",
-              "length_m": 15.51,
+              "length_m": 130.63,
               "rank": 16,
               "flow": 25,
               "ratio": 0.294118
             },
             {
-              "id": "012wwe28t9wwe28td0001",
+              "id": "012wwe28mewwe28ms0001",
+              "name": "华龙路:华信路-华阳路",
+              "coords": [
+                [
+                  117.086218,
+                  36.68122
+                ],
+                [
+                  117.087082,
+                  36.681241
+                ],
+                [
+                  117.087253,
+                  36.681241
+                ],
+                [
+                  117.08778767695242,
+                  36.68125195241429
+                ]
+              ],
+              "from_inter_id": "011wwe28mee00001",
+              "to_inter_id": "011wwe28mse00001",
+              "direction": "由西向东",
+              "length_m": 140.03,
+              "rank": 17,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28t9wwe28t90008",
               "name": "华龙路:华阳路-化纤厂路",
               "coords": [
                 [
-                  117.09495667230755,
-                  36.681348989990454
+                  117.094692,
+                  36.681349
                 ],
                 [
-                  117.09535421197944,
-                  36.68134307128567
+                  117.094694,
+                  36.681349
+                ],
+                [
+                  117.094956,
+                  36.681349
+                ],
+                [
+                  117.09495667230755,
+                  36.681348989990454
                 ]
               ],
-              "from_inter_id": "011wwe28t9u00001",
-              "to_inter_id": "011wwe28tdh00001",
+              "from_inter_id": "011wwe28t9u00002",
+              "to_inter_id": "011wwe28t9u00001",
               "direction": "由西向东",
-              "length_m": 35.46,
-              "rank": 17,
+              "length_m": 23.6,
+              "rank": 18,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28mtwwe28mt0003",
+              "name": "华龙路:华信路-华阳路",
+              "coords": [
+                [
+                  117.08864357755301,
+                  36.68126292918935
+                ],
+                [
+                  117.088648,
+                  36.681263
+                ],
+                [
+                  117.089018,
+                  36.681268
+                ],
+                [
+                  117.08902116267419,
+                  36.68126810243479
+                ]
+              ],
+              "from_inter_id": "011wwe28mtk00001",
+              "to_inter_id": "011wwe28mts00001",
+              "direction": "由西向东",
+              "length_m": 33.68,
+              "rank": 19,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28t8wwe28t90001",
+              "name": "华龙路:华阳路-化纤厂路",
+              "coords": [
+                [
+                  117.093122,
+                  36.681343
+                ],
+                [
+                  117.093819,
+                  36.681349
+                ],
+                [
+                  117.093825,
+                  36.681349
+                ]
+              ],
+              "from_inter_id": "011wwe28t8s00001",
+              "to_inter_id": "011wwe28t9h00001",
+              "direction": "由西向东",
+              "length_m": 62.69,
+              "rank": 20,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28tdwwe28te0001",
+              "name": "华龙路:华阳路-化纤厂路",
+              "coords": [
+                [
+                  117.0959244439091,
+                  36.68133810266929
+                ],
+                [
+                  117.095928,
+                  36.681338
+                ],
+                [
+                  117.097236,
+                  36.681333
+                ]
+              ],
+              "from_inter_id": "011wwe28tds00001",
+              "to_inter_id": "011wwe28tes00001",
+              "direction": "由西向东",
+              "length_m": 116.96,
+              "rank": 21,
               "flow": 25,
               "ratio": 0.294118
             },
@@ -2619,7 +3350,170 @@
               "to_inter_id": "011wwe28mxs00001",
               "direction": "由西向东",
               "length_m": 187.98,
-              "rank": 18,
+              "rank": 22,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28t9wwe28t90006",
+              "name": "华龙路:华阳路-化纤厂路",
+              "coords": [
+                [
+                  117.094292,
+                  36.681349
+                ],
+                [
+                  117.094441,
+                  36.681349
+                ]
+              ],
+              "from_inter_id": "011wwe28t9k00001",
+              "to_inter_id": "011wwe28t9s00001",
+              "direction": "由西向东",
+              "length_m": 13.29,
+              "rank": 23,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28t9wwe28td0001",
+              "name": "华龙路:华阳路-化纤厂路",
+              "coords": [
+                [
+                  117.09495667230755,
+                  36.681348989990454
+                ],
+                [
+                  117.09535421197944,
+                  36.68134307128567
+                ]
+              ],
+              "from_inter_id": "011wwe28t9u00001",
+              "to_inter_id": "011wwe28tdh00001",
+              "direction": "由西向东",
+              "length_m": 35.46,
+              "rank": 24,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28t9wwe28t90007",
+              "name": "华龙路:华阳路-化纤厂路",
+              "coords": [
+                [
+                  117.094441,
+                  36.681349
+                ],
+                [
+                  117.094692,
+                  36.681349
+                ]
+              ],
+              "from_inter_id": "011wwe28t9s00001",
+              "to_inter_id": "011wwe28t9u00002",
+              "direction": "由西向东",
+              "length_m": 22.38,
+              "rank": 25,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28t9wwe28t90005",
+              "name": "华龙路:华阳路-化纤厂路",
+              "coords": [
+                [
+                  117.093825,
+                  36.681349
+                ],
+                [
+                  117.094291,
+                  36.681349
+                ],
+                [
+                  117.094292,
+                  36.681349
+                ]
+              ],
+              "from_inter_id": "011wwe28t9h00001",
+              "to_inter_id": "011wwe28t9k00001",
+              "direction": "由西向东",
+              "length_m": 41.64,
+              "rank": 26,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28mtwwe28mt0004",
+              "name": "华龙路:华信路-华阳路",
+              "coords": [
+                [
+                  117.08902116267419,
+                  36.68126810243479
+                ],
+                [
+                  117.089512,
+                  36.681284
+                ],
+                [
+                  117.089518,
+                  36.681284
+                ]
+              ],
+              "from_inter_id": "011wwe28mts00001",
+              "to_inter_id": "011wwe28mtu00001",
+              "direction": "由西向东",
+              "length_m": 44.34,
+              "rank": 27,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28mswwe28mt0001",
+              "name": "华龙路:华信路-华阳路",
+              "coords": [
+                [
+                  117.08796157627148,
+                  36.68125200922705
+                ],
+                [
+                  117.08864357755301,
+                  36.68126292918935
+                ]
+              ],
+              "from_inter_id": "011wwe28msg00001",
+              "to_inter_id": "011wwe28mtk00001",
+              "direction": "由西向东",
+              "length_m": 60.83,
+              "rank": 28,
+              "flow": 25,
+              "ratio": 0.294118
+            },
+            {
+              "id": "012wwe28mswwe28ms0002",
+              "name": "华龙路:华信路-华阳路",
+              "coords": [
+                [
+                  117.08778767695242,
+                  36.68125195241429
+                ],
+                [
+                  117.08779,
+                  36.681252
+                ],
+                [
+                  117.087961,
+                  36.681252
+                ],
+                [
+                  117.08796157627148,
+                  36.68125200922705
+                ]
+              ],
+              "from_inter_id": "011wwe28mse00001",
+              "to_inter_id": "011wwe28msg00001",
+              "direction": "由西向东",
+              "length_m": 15.51,
+              "rank": 29,
               "flow": 25,
               "ratio": 0.294118
             },
@@ -2648,335 +3542,52 @@
               "to_inter_id": "011wwe28tds00001",
               "direction": "由西向东",
               "length_m": 50.89,
-              "rank": 19,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28mtwwe28mt0004",
-              "name": "华龙路:华信路-华阳路",
-              "coords": [
-                [
-                  117.08902116267419,
-                  36.68126810243479
-                ],
-                [
-                  117.089512,
-                  36.681284
-                ],
-                [
-                  117.089518,
-                  36.681284
-                ]
-              ],
-              "from_inter_id": "011wwe28mts00001",
-              "to_inter_id": "011wwe28mtu00001",
-              "direction": "由西向东",
-              "length_m": 44.34,
-              "rank": 20,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28t9wwe28t90008",
-              "name": "华龙路:华阳路-化纤厂路",
-              "coords": [
-                [
-                  117.094692,
-                  36.681349
-                ],
-                [
-                  117.094694,
-                  36.681349
-                ],
-                [
-                  117.094956,
-                  36.681349
-                ],
-                [
-                  117.09495667230755,
-                  36.681348989990454
-                ]
-              ],
-              "from_inter_id": "011wwe28t9u00002",
-              "to_inter_id": "011wwe28t9u00001",
-              "direction": "由西向东",
-              "length_m": 23.6,
-              "rank": 21,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28t9wwe28t90005",
-              "name": "华龙路:华阳路-化纤厂路",
-              "coords": [
-                [
-                  117.093825,
-                  36.681349
-                ],
-                [
-                  117.094291,
-                  36.681349
-                ],
-                [
-                  117.094292,
-                  36.681349
-                ]
-              ],
-              "from_inter_id": "011wwe28t9h00001",
-              "to_inter_id": "011wwe28t9k00001",
-              "direction": "由西向东",
-              "length_m": 41.64,
-              "rank": 22,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28t8wwe28t90001",
-              "name": "华龙路:华阳路-化纤厂路",
-              "coords": [
-                [
-                  117.093122,
-                  36.681343
-                ],
-                [
-                  117.093819,
-                  36.681349
-                ],
-                [
-                  117.093825,
-                  36.681349
-                ]
-              ],
-              "from_inter_id": "011wwe28t8s00001",
-              "to_inter_id": "011wwe28t9h00001",
-              "direction": "由西向东",
-              "length_m": 62.69,
-              "rank": 23,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28mewwe28ms0001",
-              "name": "华龙路:华信路-华阳路",
-              "coords": [
-                [
-                  117.086218,
-                  36.68122
-                ],
-                [
-                  117.087082,
-                  36.681241
-                ],
-                [
-                  117.087253,
-                  36.681241
-                ],
-                [
-                  117.08778767695242,
-                  36.68125195241429
-                ]
-              ],
-              "from_inter_id": "011wwe28mee00001",
-              "to_inter_id": "011wwe28mse00001",
-              "direction": "由西向东",
-              "length_m": 140.03,
-              "rank": 24,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28t9wwe28t90006",
-              "name": "华龙路:华阳路-化纤厂路",
-              "coords": [
-                [
-                  117.094292,
-                  36.681349
-                ],
-                [
-                  117.094441,
-                  36.681349
-                ]
-              ],
-              "from_inter_id": "011wwe28t9k00001",
-              "to_inter_id": "011wwe28t9s00001",
-              "direction": "由西向东",
-              "length_m": 13.29,
-              "rank": 25,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28t9wwe28t90007",
-              "name": "华龙路:华阳路-化纤厂路",
-              "coords": [
-                [
-                  117.094441,
-                  36.681349
-                ],
-                [
-                  117.094692,
-                  36.681349
-                ]
-              ],
-              "from_inter_id": "011wwe28t9s00001",
-              "to_inter_id": "011wwe28t9u00002",
-              "direction": "由西向东",
-              "length_m": 22.38,
-              "rank": 26,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28mxwwe28t80001",
-              "name": "华龙路:华信路-华阳路",
-              "coords": [
-                [
-                  117.09162553318522,
-                  36.68131600888642
-                ],
-                [
-                  117.092285,
-                  36.681327
-                ],
-                [
-                  117.093025,
-                  36.681343
-                ],
-                [
-                  117.09309,
-                  36.681343
-                ]
-              ],
-              "from_inter_id": "011wwe28mxs00001",
-              "to_inter_id": "011wwe28t8s00001",
-              "direction": "由西向东",
-              "length_m": 130.63,
-              "rank": 27,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28mtwwe28mt0003",
-              "name": "华龙路:华信路-华阳路",
-              "coords": [
-                [
-                  117.08864357755301,
-                  36.68126292918935
-                ],
-                [
-                  117.088648,
-                  36.681263
-                ],
-                [
-                  117.089018,
-                  36.681268
-                ],
-                [
-                  117.08902116267419,
-                  36.68126810243479
-                ]
-              ],
-              "from_inter_id": "011wwe28mtk00001",
-              "to_inter_id": "011wwe28mts00001",
-              "direction": "由西向东",
-              "length_m": 33.68,
-              "rank": 28,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28mswwe28mt0001",
-              "name": "华龙路:华信路-华阳路",
-              "coords": [
-                [
-                  117.08796157627148,
-                  36.68125200922705
-                ],
-                [
-                  117.08864357755301,
-                  36.68126292918935
-                ]
-              ],
-              "from_inter_id": "011wwe28msg00001",
-              "to_inter_id": "011wwe28mtk00001",
-              "direction": "由西向东",
-              "length_m": 60.83,
-              "rank": 29,
-              "flow": 25,
-              "ratio": 0.294118
-            },
-            {
-              "id": "012wwe28tdwwe28te0001",
-              "name": "华龙路:华阳路-化纤厂路",
-              "coords": [
-                [
-                  117.0959244439091,
-                  36.68133810266929
-                ],
-                [
-                  117.095928,
-                  36.681338
-                ],
-                [
-                  117.097236,
-                  36.681333
-                ]
-              ],
-              "from_inter_id": "011wwe28tds00001",
-              "to_inter_id": "011wwe28tes00001",
-              "direction": "由西向东",
-              "length_m": 116.96,
               "rank": 30,
               "flow": 25,
               "ratio": 0.294118
             },
             {
-              "id": "012wwe28m9wwe28m90002",
+              "id": "012wwe28jxwwe28m80001",
               "name": "华龙路:七里河路-华信路",
               "coords": [
                 [
-                  117.083332,
-                  36.68108
+                  117.080081,
+                  36.680903
                 ],
                 [
-                  117.083831,
-                  36.681107
+                  117.08177272742674,
+                  36.68099382430432
                 ]
               ],
-              "from_inter_id": "011wwe28m9600001",
-              "to_inter_id": "011wwe28m9g00002",
+              "from_inter_id": "011wwe28jx100001",
+              "to_inter_id": "011wwe28m8600001",
               "direction": "由西向东",
-              "length_m": 44.6,
+              "length_m": 151.2,
               "rank": 31,
               "flow": 23,
               "ratio": 0.270588
             },
             {
-              "id": "012wwe28m8wwe28m80002",
-              "name": "华龙路:七里河路-华信路",
+              "id": "012wwe28jswwe28jw0002",
+              "name": "华龙路:华顺路-七里河路",
               "coords": [
                 [
-                  117.08177272742674,
-                  36.68099382430432
+                  117.07671303886822,
+                  36.68078503859775
                 ],
                 [
-                  117.081776,
-                  36.680994
+                  117.0783,
+                  36.680844
                 ],
                 [
-                  117.082565,
-                  36.681038
-                ],
-                [
-                  117.08256556421739,
-                  36.68103802849583
+                  117.07992,
+                  36.680892
                 ]
               ],
-              "from_inter_id": "011wwe28m8600001",
-              "to_inter_id": "011wwe28m8f00001",
+              "from_inter_id": "011wwe28js900001",
+              "to_inter_id": "011wwe28jx100001",
               "direction": "由西向东",
-              "length_m": 70.87,
+              "length_m": 286.23,
               "rank": 32,
               "flow": 23,
               "ratio": 0.270588
@@ -3015,52 +3626,27 @@
               "ratio": 0.270588
             },
             {
-              "id": "012wwe28m9wwe28md0001",
-              "name": "华龙路:七里河路-华信路",
+              "id": "012wwe28j7wwe28js0001",
+              "name": "华龙路:二环东路辅路-华顺路",
               "coords": [
                 [
-                  117.083831,
-                  36.681107
+                  117.07521,
+                  36.680587
                 ],
                 [
-                  117.084029,
-                  36.681112
+                  117.075511,
+                  36.680657
                 ],
                 [
-                  117.084684,
-                  36.68115
-                ],
-                [
-                  117.08468560928308,
-                  36.68115007866607
+                  117.075945,
+                  36.680721
                 ]
               ],
-              "from_inter_id": "011wwe28m9g00002",
-              "to_inter_id": "011wwe28md700001",
-              "direction": "由西向东",
-              "length_m": 76.37,
+              "from_inter_id": "011wwe28je800001",
+              "to_inter_id": "011wwe28js300001",
+              "direction": "由西南向东北",
+              "length_m": 67.3,
               "rank": 34,
-              "flow": 23,
-              "ratio": 0.270588
-            },
-            {
-              "id": "012wwe28mdwwe28me0001",
-              "name": "华龙路:七里河路-华信路",
-              "coords": [
-                [
-                  117.08468560928308,
-                  36.68115007866607
-                ],
-                [
-                  117.086116,
-                  36.68122
-                ]
-              ],
-              "from_inter_id": "011wwe28md700001",
-              "to_inter_id": "011wwe28mee00001",
-              "direction": "由西向东",
-              "length_m": 127.79,
-              "rank": 35,
               "flow": 23,
               "ratio": 0.270588
             },
@@ -3085,28 +3671,28 @@
               "to_inter_id": "011wwe28js900001",
               "direction": "由西向东",
               "length_m": 37.54,
-              "rank": 36,
+              "rank": 35,
               "flow": 23,
               "ratio": 0.270588
             },
             {
-              "id": "012wwe28j7wwe28j70001",
-              "name": "华龙路:二环东路辅路-华顺路",
+              "id": "012wwe28m9wwe28m90002",
+              "name": "华龙路:七里河路-华信路",
               "coords": [
                 [
-                  117.074958,
-                  36.680512
+                  117.083332,
+                  36.68108
                 ],
                 [
-                  117.07521,
-                  36.680587
+                  117.083831,
+                  36.681107
                 ]
               ],
-              "from_inter_id": "011wwe28j7r00001",
-              "to_inter_id": "011wwe28je800001",
-              "direction": "由西南向东北",
-              "length_m": 23.97,
-              "rank": 37,
+              "from_inter_id": "011wwe28m9600001",
+              "to_inter_id": "011wwe28m9g00002",
+              "direction": "由西向东",
+              "length_m": 44.6,
+              "rank": 36,
               "flow": 23,
               "ratio": 0.270588
             },
@@ -3135,105 +3721,109 @@
               "to_inter_id": "011wwe28m9600001",
               "direction": "由西向东",
               "length_m": 68.51,
+              "rank": 37,
+              "flow": 23,
+              "ratio": 0.270588
+            },
+            {
+              "id": "012wwe28j7wwe28j70001",
+              "name": "华龙路:二环东路辅路-华顺路",
+              "coords": [
+                [
+                  117.074958,
+                  36.680512
+                ],
+                [
+                  117.07521,
+                  36.680587
+                ]
+              ],
+              "from_inter_id": "011wwe28j7r00001",
+              "to_inter_id": "011wwe28je800001",
+              "direction": "由西南向东北",
+              "length_m": 23.97,
               "rank": 38,
               "flow": 23,
               "ratio": 0.270588
             },
             {
-              "id": "012wwe28jxwwe28m80001",
+              "id": "012wwe28mdwwe28me0001",
               "name": "华龙路:七里河路-华信路",
               "coords": [
                 [
-                  117.080081,
-                  36.680903
+                  117.08468560928308,
+                  36.68115007866607
                 ],
                 [
-                  117.08177272742674,
-                  36.68099382430432
+                  117.086116,
+                  36.68122
                 ]
               ],
-              "from_inter_id": "011wwe28jx100001",
-              "to_inter_id": "011wwe28m8600001",
+              "from_inter_id": "011wwe28md700001",
+              "to_inter_id": "011wwe28mee00001",
               "direction": "由西向东",
-              "length_m": 151.2,
+              "length_m": 127.79,
               "rank": 39,
               "flow": 23,
               "ratio": 0.270588
             },
             {
-              "id": "012wwe28jswwe28jw0002",
-              "name": "华龙路:华顺路-七里河路",
+              "id": "012wwe28m8wwe28m80002",
+              "name": "华龙路:七里河路-华信路",
               "coords": [
                 [
-                  117.07671303886822,
-                  36.68078503859775
+                  117.08177272742674,
+                  36.68099382430432
                 ],
                 [
-                  117.0783,
-                  36.680844
+                  117.081776,
+                  36.680994
                 ],
                 [
-                  117.07992,
-                  36.680892
+                  117.082565,
+                  36.681038
+                ],
+                [
+                  117.08256556421739,
+                  36.68103802849583
                 ]
               ],
-              "from_inter_id": "011wwe28js900001",
-              "to_inter_id": "011wwe28jx100001",
+              "from_inter_id": "011wwe28m8600001",
+              "to_inter_id": "011wwe28m8f00001",
               "direction": "由西向东",
-              "length_m": 286.23,
+              "length_m": 70.87,
               "rank": 40,
               "flow": 23,
               "ratio": 0.270588
             },
             {
-              "id": "012wwe28j7wwe28js0001",
-              "name": "华龙路:二环东路辅路-华顺路",
+              "id": "012wwe28m9wwe28md0001",
+              "name": "华龙路:七里河路-华信路",
               "coords": [
                 [
-                  117.07521,
-                  36.680587
+                  117.083831,
+                  36.681107
                 ],
                 [
-                  117.075511,
-                  36.680657
+                  117.084029,
+                  36.681112
                 ],
                 [
-                  117.075945,
-                  36.680721
+                  117.084684,
+                  36.68115
+                ],
+                [
+                  117.08468560928308,
+                  36.68115007866607
                 ]
               ],
-              "from_inter_id": "011wwe28je800001",
-              "to_inter_id": "011wwe28js300001",
-              "direction": "由西南向东北",
-              "length_m": 67.3,
+              "from_inter_id": "011wwe28m9g00002",
+              "to_inter_id": "011wwe28md700001",
+              "direction": "由西向东",
+              "length_m": 76.37,
               "rank": 41,
               "flow": 23,
               "ratio": 0.270588
-            },
-            {
-              "id": "012wwe0xvqwwe0xvr0001",
-              "name": "山大北路:洪腾路-益东路",
-              "coords": [
-                [
-                  117.06881834437226,
-                  36.67988401970061
-                ],
-                [
-                  117.069411,
-                  36.679889
-                ],
-                [
-                  117.069413,
-                  36.679889
-                ]
-              ],
-              "from_inter_id": "011wwe0xvqu00001",
-              "to_inter_id": "011wwe0xvrk00002",
-              "direction": "由西向东",
-              "length_m": 53.03,
-              "rank": 42,
-              "flow": 22,
-              "ratio": 0.258824
             },
             {
               "id": "012wwe28j2wwe28j20003",
@@ -3256,141 +3846,7 @@
               "to_inter_id": "011wwe28j2k00001",
               "direction": "由西向东",
               "length_m": 39.65,
-              "rank": 43,
-              "flow": 22,
-              "ratio": 0.258824
-            },
-            {
-              "id": "012wwe0xvrwwe0xvr0003",
-              "name": "山大北路:洪腾路-益东路",
-              "coords": [
-                [
-                  117.069413,
-                  36.679889
-                ],
-                [
-                  117.069606,
-                  36.679889
-                ]
-              ],
-              "from_inter_id": "011wwe0xvrk00002",
-              "to_inter_id": "011wwe0xvrk00001",
-              "direction": "由西向东",
-              "length_m": 17.21,
-              "rank": 44,
-              "flow": 22,
-              "ratio": 0.258824
-            },
-            {
-              "id": "012wwe0xvrwwe0xvr0005",
-              "name": "山大北路:洪腾路-益东路",
-              "coords": [
-                [
-                  117.06984,
-                  36.679895
-                ],
-                [
-                  117.070312,
-                  36.6799
-                ]
-              ],
-              "from_inter_id": "011wwe0xvrs00001",
-              "to_inter_id": "011wwe28j2h00001",
-              "direction": "由西向东",
-              "length_m": 42.1,
-              "rank": 45,
-              "flow": 22,
-              "ratio": 0.258824
-            },
-            {
-              "id": "012wwe28j3wwe28j30002",
-              "name": "山大北路:益东路-二环东路辅路",
-              "coords": [
-                [
-                  117.07219535624428,
-                  36.67990600423093
-                ],
-                [
-                  117.073037,
-                  36.679916
-                ]
-              ],
-              "from_inter_id": "011wwe28j3k00001",
-              "to_inter_id": "011wwe28j6h00001",
-              "direction": "由西向东",
-              "length_m": 75.06,
-              "rank": 46,
-              "flow": 22,
-              "ratio": 0.258824
-            },
-            {
-              "id": "012wwe0xvmwwe0xvq0001",
-              "name": "山大北路:无名道路-洪腾路",
-              "coords": [
-                [
-                  117.06645,
-                  36.679852
-                ],
-                [
-                  117.067732,
-                  36.679873
-                ]
-              ],
-              "from_inter_id": "011wwe0xvm500001",
-              "to_inter_id": "011wwe0xvq500001",
-              "direction": "由西向东",
-              "length_m": 114.35,
-              "rank": 47,
-              "flow": 22,
-              "ratio": 0.258824
-            },
-            {
-              "id": "012wwe28j2wwe28j20004",
-              "name": "山大北路:益东路-二环东路辅路",
-              "coords": [
-                [
-                  117.0708966691562,
-                  36.67990596043088
-                ],
-                [
-                  117.0716,
-                  36.6799
-                ],
-                [
-                  117.0716043726646,
-                  36.6799000440941
-                ]
-              ],
-              "from_inter_id": "011wwe28j2k00001",
-              "to_inter_id": "011wwe28j2u00001",
-              "direction": "由西向东",
-              "length_m": 63.11,
-              "rank": 48,
-              "flow": 22,
-              "ratio": 0.258824
-            },
-            {
-              "id": "012wwe0xvqwwe0xvq0002",
-              "name": "山大北路:洪腾路-益东路",
-              "coords": [
-                [
-                  117.067968,
-                  36.679873
-                ],
-                [
-                  117.068816,
-                  36.679884
-                ],
-                [
-                  117.06881834437226,
-                  36.67988401970061
-                ]
-              ],
-              "from_inter_id": "011wwe0xvq500001",
-              "to_inter_id": "011wwe0xvqu00001",
-              "direction": "由西向东",
-              "length_m": 75.84,
-              "rank": 49,
+              "rank": 42,
               "flow": 22,
               "ratio": 0.258824
             },
@@ -3415,7 +3871,32 @@
               "to_inter_id": "011wwe28j3k00001",
               "direction": "由西向东",
               "length_m": 52.71,
-              "rank": 50,
+              "rank": 43,
+              "flow": 22,
+              "ratio": 0.258824
+            },
+            {
+              "id": "012wwe28j2wwe28j20004",
+              "name": "山大北路:益东路-二环东路辅路",
+              "coords": [
+                [
+                  117.0708966691562,
+                  36.67990596043088
+                ],
+                [
+                  117.0716,
+                  36.6799
+                ],
+                [
+                  117.0716043726646,
+                  36.6799000440941
+                ]
+              ],
+              "from_inter_id": "011wwe28j2k00001",
+              "to_inter_id": "011wwe28j2u00001",
+              "direction": "由西向东",
+              "length_m": 63.11,
+              "rank": 44,
               "flow": 22,
               "ratio": 0.258824
             },
@@ -3440,78 +3921,166 @@
               "to_inter_id": "011wwe0xvrs00001",
               "direction": "由西向东",
               "length_m": 20.88,
+              "rank": 45,
+              "flow": 22,
+              "ratio": 0.258824
+            },
+            {
+              "id": "012wwe0xvmwwe0xvq0001",
+              "name": "山大北路:无名道路-洪腾路",
+              "coords": [
+                [
+                  117.06645,
+                  36.679852
+                ],
+                [
+                  117.067732,
+                  36.679873
+                ]
+              ],
+              "from_inter_id": "011wwe0xvm500001",
+              "to_inter_id": "011wwe0xvq500001",
+              "direction": "由西向东",
+              "length_m": 114.35,
+              "rank": 46,
+              "flow": 22,
+              "ratio": 0.258824
+            },
+            {
+              "id": "012wwe0xvqwwe0xvq0002",
+              "name": "山大北路:洪腾路-益东路",
+              "coords": [
+                [
+                  117.067968,
+                  36.679873
+                ],
+                [
+                  117.068816,
+                  36.679884
+                ],
+                [
+                  117.06881834437226,
+                  36.67988401970061
+                ]
+              ],
+              "from_inter_id": "011wwe0xvq500001",
+              "to_inter_id": "011wwe0xvqu00001",
+              "direction": "由西向东",
+              "length_m": 75.84,
+              "rank": 47,
+              "flow": 22,
+              "ratio": 0.258824
+            },
+            {
+              "id": "012wwe0xvrwwe0xvr0005",
+              "name": "山大北路:洪腾路-益东路",
+              "coords": [
+                [
+                  117.06984,
+                  36.679895
+                ],
+                [
+                  117.070312,
+                  36.6799
+                ]
+              ],
+              "from_inter_id": "011wwe0xvrs00001",
+              "to_inter_id": "011wwe28j2h00001",
+              "direction": "由西向东",
+              "length_m": 42.1,
+              "rank": 48,
+              "flow": 22,
+              "ratio": 0.258824
+            },
+            {
+              "id": "012wwe0xvrwwe0xvr0003",
+              "name": "山大北路:洪腾路-益东路",
+              "coords": [
+                [
+                  117.069413,
+                  36.679889
+                ],
+                [
+                  117.069606,
+                  36.679889
+                ]
+              ],
+              "from_inter_id": "011wwe0xvrk00002",
+              "to_inter_id": "011wwe0xvrk00001",
+              "direction": "由西向东",
+              "length_m": 17.21,
+              "rank": 49,
+              "flow": 22,
+              "ratio": 0.258824
+            },
+            {
+              "id": "012wwe28j3wwe28j30002",
+              "name": "山大北路:益东路-二环东路辅路",
+              "coords": [
+                [
+                  117.07219535624428,
+                  36.67990600423093
+                ],
+                [
+                  117.073037,
+                  36.679916
+                ]
+              ],
+              "from_inter_id": "011wwe28j3k00001",
+              "to_inter_id": "011wwe28j6h00001",
+              "direction": "由西向东",
+              "length_m": 75.06,
+              "rank": 50,
+              "flow": 22,
+              "ratio": 0.258824
+            },
+            {
+              "id": "012wwe0xvqwwe0xvr0001",
+              "name": "山大北路:洪腾路-益东路",
+              "coords": [
+                [
+                  117.06881834437226,
+                  36.67988401970061
+                ],
+                [
+                  117.069411,
+                  36.679889
+                ],
+                [
+                  117.069413,
+                  36.679889
+                ]
+              ],
+              "from_inter_id": "011wwe0xvqu00001",
+              "to_inter_id": "011wwe0xvrk00002",
+              "direction": "由西向东",
+              "length_m": 53.03,
               "rank": 51,
               "flow": 22,
               "ratio": 0.258824
             },
             {
-              "id": "012wwe0xv7wwe0xv70003",
-              "name": "山大北路:无名道路-无名道路",
-              "coords": [
-                [
-                  117.063542,
-                  36.679696
-                ],
-                [
-                  117.063886,
-                  36.679723
-                ]
-              ],
-              "from_inter_id": "011wwe0xv6f00001",
-              "to_inter_id": "011wwe0xv7700001",
-              "direction": "由西向东",
-              "length_m": 30.82,
-              "rank": 52,
-              "flow": 17,
-              "ratio": 0.2
-            },
-            {
-              "id": "012wwe0xv2wwe0xv20005",
+              "id": "012wwe0xv2wwe0xv30002",
               "name": "山大北路:无名道路-洪家楼西路",
               "coords": [
                 [
-                  117.059358,
-                  36.679321
-                ],
-                [
-                  117.060238,
-                  36.679396
-                ],
-                [
                   117.06023804139949,
                   36.67939600419766
-                ]
-              ],
-              "from_inter_id": "011wwe0xv2000001",
-              "to_inter_id": "011wwe0xv2900002",
-              "direction": "由西向东",
-              "length_m": 78.92,
-              "rank": 53,
-              "flow": 17,
-              "ratio": 0.2
-            },
-            {
-              "id": "012wwe0xv7wwe0xvk0002",
-              "name": "山大北路:无名道路-无名道路",
-              "coords": [
-                [
-                  117.064358,
-                  36.679755
                 ],
                 [
-                  117.064835,
-                  36.679788
+                  117.061027,
+                  36.679476
                 ],
                 [
-                  117.065222,
-                  36.679804
+                  117.06102816252313,
+                  36.67947612733519
                 ]
               ],
-              "from_inter_id": "011wwe0xv7e00001",
-              "to_inter_id": "011wwe0xvk700001",
+              "from_inter_id": "011wwe0xv2900002",
+              "to_inter_id": "011wwe0xv3100001",
               "direction": "由西向东",
-              "length_m": 77.25,
-              "rank": 54,
+              "length_m": 71.02,
+              "rank": 52,
               "flow": 17,
               "ratio": 0.2
             },
@@ -3536,7 +4105,7 @@
               "to_inter_id": "011wwe0xt9400001",
               "direction": "由西向东",
               "length_m": 70.39,
-              "rank": 55,
+              "rank": 53,
               "flow": 17,
               "ratio": 0.2
             },
@@ -3557,57 +4126,7 @@
               "to_inter_id": "011wwe0xvm500001",
               "direction": "由西向东",
               "length_m": 107.32,
-              "rank": 56,
-              "flow": 17,
-              "ratio": 0.2
-            },
-            {
-              "id": "012wwe0xtnwwe0xtr0001",
-              "name": "山大北路:山大路-无名道路",
-              "coords": [
-                [
-                  117.05726488554602,
-                  36.67919800455623
-                ],
-                [
-                  117.057266,
-                  36.679198
-                ],
-                [
-                  117.057534,
-                  36.679203
-                ],
-                [
-                  117.05808384654331,
-                  36.67925072628224
-                ]
-              ],
-              "from_inter_id": "011wwe0xtnr00001",
-              "to_inter_id": "011wwe0xtr000001",
-              "direction": "由西向东",
-              "length_m": 73.33,
-              "rank": 57,
-              "flow": 17,
-              "ratio": 0.2
-            },
-            {
-              "id": "012wwe0xtjwwe0xtn0001",
-              "name": "山大北路:山大路-无名道路",
-              "coords": [
-                [
-                  117.056043,
-                  36.679203
-                ],
-                [
-                  117.05726488554602,
-                  36.67919800455623
-                ]
-              ],
-              "from_inter_id": "011wwe0xtm800001",
-              "to_inter_id": "011wwe0xtnr00001",
-              "direction": "由西向东",
-              "length_m": 108.97,
-              "rank": 58,
+              "rank": 54,
               "flow": 17,
               "ratio": 0.2
             },
@@ -3640,7 +4159,28 @@
               "to_inter_id": "011wwe0xv2000001",
               "direction": "由西向东",
               "length_m": 113.91,
-              "rank": 59,
+              "rank": 55,
+              "flow": 17,
+              "ratio": 0.2
+            },
+            {
+              "id": "012wwe0xv7wwe0xv70003",
+              "name": "山大北路:无名道路-无名道路",
+              "coords": [
+                [
+                  117.063542,
+                  36.679696
+                ],
+                [
+                  117.063886,
+                  36.679723
+                ]
+              ],
+              "from_inter_id": "011wwe0xv6f00001",
+              "to_inter_id": "011wwe0xv7700001",
+              "direction": "由西向东",
+              "length_m": 30.82,
+              "rank": 56,
               "flow": 17,
               "ratio": 0.2
             },
@@ -3661,53 +4201,7 @@
               "to_inter_id": "011wwe0xv7e00001",
               "direction": "由西向东",
               "length_m": 42.24,
-              "rank": 60,
-              "flow": 17,
-              "ratio": 0.2
-            },
-            {
-              "id": "012wwe0xv3wwe0xv30004",
-              "name": "山大北路:无名道路-洪家楼西路",
-              "coords": [
-                [
-                  117.06102816252313,
-                  36.67947612733519
-                ],
-                [
-                  117.06152,
-                  36.67953
-                ]
-              ],
-              "from_inter_id": "011wwe0xv3100001",
-              "to_inter_id": "011wwe0xv3900001",
-              "direction": "由西向东",
-              "length_m": 44.27,
-              "rank": 61,
-              "flow": 17,
-              "ratio": 0.2
-            },
-            {
-              "id": "012wwe0xv2wwe0xv30002",
-              "name": "山大北路:无名道路-洪家楼西路",
-              "coords": [
-                [
-                  117.06023804139949,
-                  36.67939600419766
-                ],
-                [
-                  117.061027,
-                  36.679476
-                ],
-                [
-                  117.06102816252313,
-                  36.67947612733519
-                ]
-              ],
-              "from_inter_id": "011wwe0xv2900002",
-              "to_inter_id": "011wwe0xv3100001",
-              "direction": "由西向东",
-              "length_m": 71.02,
-              "rank": 62,
+              "rank": 57,
               "flow": 17,
               "ratio": 0.2
             },
@@ -3736,7 +4230,49 @@
               "to_inter_id": "011wwe0xt8900001",
               "direction": "由西向东",
               "length_m": 91.76,
-              "rank": 63,
+              "rank": 58,
+              "flow": 17,
+              "ratio": 0.2
+            },
+            {
+              "id": "012wwe0xv3wwe0xv30004",
+              "name": "山大北路:无名道路-洪家楼西路",
+              "coords": [
+                [
+                  117.06102816252313,
+                  36.67947612733519
+                ],
+                [
+                  117.06152,
+                  36.67953
+                ]
+              ],
+              "from_inter_id": "011wwe0xv3100001",
+              "to_inter_id": "011wwe0xv3900001",
+              "direction": "由西向东",
+              "length_m": 44.27,
+              "rank": 59,
+              "flow": 17,
+              "ratio": 0.2
+            },
+            {
+              "id": "012wwe0xtjwwe0xtn0001",
+              "name": "山大北路:山大路-无名道路",
+              "coords": [
+                [
+                  117.056043,
+                  36.679203
+                ],
+                [
+                  117.05726488554602,
+                  36.67919800455623
+                ]
+              ],
+              "from_inter_id": "011wwe0xtm800001",
+              "to_inter_id": "011wwe0xtnr00001",
+              "direction": "由西向东",
+              "length_m": 108.97,
+              "rank": 60,
               "flow": 17,
               "ratio": 0.2
             },
@@ -3761,80 +4297,88 @@
               "to_inter_id": "011wwe0xv6f00001",
               "direction": "由西向东",
               "length_m": 152.41,
-              "rank": 64,
+              "rank": 61,
               "flow": 17,
               "ratio": 0.2
             },
             {
-              "id": "012wwe28y2wwe28y00001",
-              "name": "辛河路:康虹路-无名道路",
+              "id": "012wwe0xtnwwe0xtr0001",
+              "name": "山大北路:山大路-无名道路",
               "coords": [
                 [
-                  117.103599,
-                  36.685018
+                  117.05726488554602,
+                  36.67919800455623
                 ],
                 [
-                  117.104371,
-                  36.684363
+                  117.057266,
+                  36.679198
                 ],
                 [
-                  117.104425,
-                  36.684315
+                  117.057534,
+                  36.679203
+                ],
+                [
+                  117.05808384654331,
+                  36.67925072628224
                 ]
               ],
-              "from_inter_id": "011wwe28y2100001",
-              "to_inter_id": "011wwe28y0v00001",
-              "direction": "由西北向东南",
-              "length_m": 107.41,
-              "rank": 65,
-              "flow": 16,
-              "ratio": 0.188235
+              "from_inter_id": "011wwe0xtnr00001",
+              "to_inter_id": "011wwe0xtr000001",
+              "direction": "由西向东",
+              "length_m": 73.33,
+              "rank": 62,
+              "flow": 17,
+              "ratio": 0.2
             },
             {
-              "id": "012wwe28y0wwe28y10001",
-              "name": "辛河路:无名道路-华龙路",
+              "id": "012wwe0xv2wwe0xv20005",
+              "name": "山大北路:无名道路-洪家楼西路",
               "coords": [
                 [
-                  117.104473,
-                  36.684272
+                  117.059358,
+                  36.679321
                 ],
                 [
-                  117.104822,
-                  36.68395
+                  117.060238,
+                  36.679396
+                ],
+                [
+                  117.06023804139949,
+                  36.67939600419766
                 ]
               ],
-              "from_inter_id": "011wwe28y0v00001",
-              "to_inter_id": "011wwe28y1500001",
-              "direction": "由西北向东南",
-              "length_m": 47.44,
-              "rank": 66,
-              "flow": 16,
-              "ratio": 0.188235
+              "from_inter_id": "011wwe0xv2000001",
+              "to_inter_id": "011wwe0xv2900002",
+              "direction": "由西向东",
+              "length_m": 78.92,
+              "rank": 63,
+              "flow": 17,
+              "ratio": 0.2
             },
             {
-              "id": "012wwe28vcwwe28vc0004",
-              "name": "辛河路:无名道路-华龙路",
+              "id": "012wwe0xv7wwe0xvk0002",
+              "name": "山大北路:无名道路-无名道路",
               "coords": [
                 [
-                  117.105358,
-                  36.683097
+                  117.064358,
+                  36.679755
                 ],
                 [
-                  117.105551,
-                  36.6827
+                  117.064835,
+                  36.679788
                 ],
                 [
-                  117.105664,
-                  36.682497
+                  117.065222,
+                  36.679804
                 ]
               ],
-              "from_inter_id": "011wwe28vcw00001",
-              "to_inter_id": "011wwe28vcf00001",
-              "direction": "由西北向东南",
-              "length_m": 72.1,
-              "rank": 67,
-              "flow": 16,
-              "ratio": 0.188235
+              "from_inter_id": "011wwe0xv7e00001",
+              "to_inter_id": "011wwe0xvk700001",
+              "direction": "由西向东",
+              "length_m": 77.25,
+              "rank": 64,
+              "flow": 17,
+              "ratio": 0.2
             },
             {
               "id": "012wwe28wrwwe28wr0001",
@@ -3857,7 +4401,53 @@
               "to_inter_id": "011wwe28y2500001",
               "direction": "由西北向东南",
               "length_m": 100.31,
-              "rank": 68,
+              "rank": 65,
+              "flow": 16,
+              "ratio": 0.188235
+            },
+            {
+              "id": "012wwe28y2wwe28y00001",
+              "name": "辛河路:康虹路-无名道路",
+              "coords": [
+                [
+                  117.103599,
+                  36.685018
+                ],
+                [
+                  117.104371,
+                  36.684363
+                ],
+                [
+                  117.104425,
+                  36.684315
+                ]
+              ],
+              "from_inter_id": "011wwe28y2100001",
+              "to_inter_id": "011wwe28y0v00001",
+              "direction": "由西北向东南",
+              "length_m": 107.41,
+              "rank": 66,
+              "flow": 16,
+              "ratio": 0.188235
+            },
+            {
+              "id": "012wwe28y0wwe28y10001",
+              "name": "辛河路:无名道路-华龙路",
+              "coords": [
+                [
+                  117.104473,
+                  36.684272
+                ],
+                [
+                  117.104822,
+                  36.68395
+                ]
+              ],
+              "from_inter_id": "011wwe28y0v00001",
+              "to_inter_id": "011wwe28y1500001",
+              "direction": "由西北向东南",
+              "length_m": 47.44,
+              "rank": 67,
               "flow": 16,
               "ratio": 0.188235
             },
@@ -3882,6 +4472,31 @@
               "to_inter_id": "011wwe28y2100001",
               "direction": "由西北向东南",
               "length_m": 44.32,
+              "rank": 68,
+              "flow": 16,
+              "ratio": 0.188235
+            },
+            {
+              "id": "012wwe28vcwwe28vc0004",
+              "name": "辛河路:无名道路-华龙路",
+              "coords": [
+                [
+                  117.105358,
+                  36.683097
+                ],
+                [
+                  117.105551,
+                  36.6827
+                ],
+                [
+                  117.105664,
+                  36.682497
+                ]
+              ],
+              "from_inter_id": "011wwe28vcw00001",
+              "to_inter_id": "011wwe28vcf00001",
+              "direction": "由西北向东南",
+              "length_m": 72.1,
               "rank": 69,
               "flow": 16,
               "ratio": 0.188235
@@ -3914,43 +4529,6 @@
               "rank": 70,
               "flow": 16,
               "ratio": 0.188235
-            },
-            {
-              "id": "012wwe0xmqwwe0xmr0001",
-              "name": "东关大街:明湖东路-历山路",
-              "coords": [
-                [
-                  117.04562,
-                  36.679433
-                ],
-                [
-                  117.045722,
-                  36.679471
-                ],
-                [
-                  117.046081,
-                  36.679621
-                ],
-                [
-                  117.046918,
-                  36.679986
-                ],
-                [
-                  117.047331,
-                  36.680179
-                ],
-                [
-                  117.047953,
-                  36.680447
-                ]
-              ],
-              "from_inter_id": "011wwe0xmmc00001",
-              "to_inter_id": "011wwe0xmrz00001",
-              "direction": "由西南向东北",
-              "length_m": 236.68,
-              "rank": 71,
-              "flow": 15,
-              "ratio": 0.176471
             },
             {
               "id": "012wwe0xm5wwe0xmj0001",
@@ -3993,6 +4571,43 @@
               "to_inter_id": "011wwe0xmjr00001",
               "direction": "由西向东",
               "length_m": 269.05,
+              "rank": 71,
+              "flow": 15,
+              "ratio": 0.176471
+            },
+            {
+              "id": "012wwe0xmqwwe0xmr0001",
+              "name": "东关大街:明湖东路-历山路",
+              "coords": [
+                [
+                  117.04562,
+                  36.679433
+                ],
+                [
+                  117.045722,
+                  36.679471
+                ],
+                [
+                  117.046081,
+                  36.679621
+                ],
+                [
+                  117.046918,
+                  36.679986
+                ],
+                [
+                  117.047331,
+                  36.680179
+                ],
+                [
+                  117.047953,
+                  36.680447
+                ]
+              ],
+              "from_inter_id": "011wwe0xmmc00001",
+              "to_inter_id": "011wwe0xmrz00001",
+              "direction": "由西南向东北",
+              "length_m": 236.68,
               "rank": 72,
               "flow": 15,
               "ratio": 0.176471
@@ -4021,27 +4636,6 @@
               "rank": 73,
               "flow": 15,
               "ratio": 0.176471
-            },
-            {
-              "id": "012wwe0xjnwwe0xm00001",
-              "name": "明湖东路:黑虎泉北路-东关大街",
-              "coords": [
-                [
-                  117.03562099102047,
-                  36.678774405955856
-                ],
-                [
-                  117.037504,
-                  36.678902
-                ]
-              ],
-              "from_inter_id": "011wwe0xjnt00001",
-              "to_inter_id": "011wwe0xm0n00001",
-              "direction": "由西向东",
-              "length_m": 168.52,
-              "rank": 74,
-              "flow": 14,
-              "ratio": 0.164706
             },
             {
               "id": "012wwe0xm0wwe0xm50001",
@@ -4096,7 +4690,7 @@
               "to_inter_id": "011wwe0xm5j00001",
               "direction": "由西向东",
               "length_m": 380.32,
-              "rank": 75,
+              "rank": 74,
               "flow": 14,
               "ratio": 0.164706
             },
@@ -4125,80 +4719,30 @@
               "to_inter_id": "011wwe0xjnt00001",
               "direction": "由西向东",
               "length_m": 143.45,
-              "rank": 76,
+              "rank": 75,
               "flow": 14,
               "ratio": 0.164706
             },
             {
-              "id": "012wwe0xt7wwe0xt70005",
-              "name": "山大北路:花园庄东路-山大路",
+              "id": "012wwe0xjnwwe0xm00001",
+              "name": "明湖东路:黑虎泉北路-东关大街",
               "coords": [
                 [
-                  117.05285001440134,
-                  36.6796321191383
+                  117.03562099102047,
+                  36.678774405955856
                 ],
                 [
-                  117.052851,
-                  36.679632
-                ],
-                [
-                  117.053173,
-                  36.679589
-                ],
-                [
-                  117.05317509851737,
-                  36.679588707989325
+                  117.037504,
+                  36.678902
                 ]
               ],
-              "from_inter_id": "011wwe0xt7600001",
-              "to_inter_id": "011wwe0xt7d00001",
+              "from_inter_id": "011wwe0xjnt00001",
+              "to_inter_id": "011wwe0xm0n00001",
               "direction": "由西向东",
-              "length_m": 29.39,
-              "rank": 77,
-              "flow": 13,
-              "ratio": 0.152941
-            },
-            {
-              "id": "012wwe0xt3wwe0xt30002",
-              "name": "花园庄东路:花园路-山大北路",
-              "coords": [
-                [
-                  117.05031999322169,
-                  36.68056411623539
-                ],
-                [
-                  117.051054,
-                  36.679911
-                ]
-              ],
-              "from_inter_id": "011wwe0xt3r00001",
-              "to_inter_id": "011wwe0xt3g00001",
-              "direction": "由西北向东南",
-              "length_m": 97.77,
-              "rank": 78,
-              "flow": 13,
-              "ratio": 0.152941
-            },
-            {
-              "id": "012wwe0xt7wwe0xt70006",
-              "name": "山大北路:花园庄东路-山大路",
-              "coords": [
-                [
-                  117.05317509851737,
-                  36.679588707989325
-                ],
-                [
-                  117.05359601899518,
-                  36.67953013650774
-                ]
-              ],
-              "from_inter_id": "011wwe0xt7d00001",
-              "to_inter_id": "011wwe0xt7c00001",
-              "direction": "由西向东",
-              "length_m": 38.1,
-              "rank": 79,
-              "flow": 13,
-              "ratio": 0.152941
+              "length_m": 168.52,
+              "rank": 76,
+              "flow": 14,
+              "ratio": 0.164706
             },
             {
               "id": "012wwe0xtkwwe0xtm0001",
@@ -4233,32 +4777,36 @@
               "to_inter_id": "011wwe0xtm800001",
               "direction": "由西向东",
               "length_m": 128.52,
-              "rank": 80,
+              "rank": 77,
               "flow": 13,
               "ratio": 0.152941
             },
             {
-              "id": "012wwe0xt6wwe0xt70001",
-              "name": "山大北路:花园庄东路-山大路",
+              "id": "012wwe0xt9wwe0xt30001",
+              "name": "花园庄东路:花园路-山大北路",
               "coords": [
                 [
-                  117.051253,
-                  36.679744
+                  117.050185,
+                  36.680694
                 ],
                 [
-                  117.051414,
-                  36.679761
+                  117.050185,
+                  36.680694
                 ],
                 [
-                  117.05248885224015,
-                  36.679669268639984
+                  117.050319,
+                  36.680565
+                ],
+                [
+                  117.05031999322169,
+                  36.68056411623539
                 ]
               ],
-              "from_inter_id": "011wwe0xt6500001",
-              "to_inter_id": "011wwe0xt7400002",
-              "direction": "由西向东",
-              "length_m": 110.87,
-              "rank": 81,
+              "from_inter_id": "011wwe0xt9200001",
+              "to_inter_id": "011wwe0xt3r00001",
+              "direction": "由西北向东南",
+              "length_m": 18.8,
+              "rank": 78,
               "flow": 13,
               "ratio": 0.152941
             },
@@ -4283,7 +4831,7 @@
               "to_inter_id": "011wwe0xt9200001",
               "direction": "由西北向东南",
               "length_m": 30.0,
-              "rank": 82,
+              "rank": 79,
               "flow": 13,
               "ratio": 0.152941
             },
@@ -4316,7 +4864,95 @@
               "to_inter_id": "011wwe0xt7600001",
               "direction": "由西向东",
               "length_m": 32.47,
+              "rank": 80,
+              "flow": 13,
+              "ratio": 0.152941
+            },
+            {
+              "id": "012wwe0xt9wwe0xt90004",
+              "name": "花园庄东路:花园路-山大北路",
+              "coords": [
+                [
+                  117.049901,
+                  36.680978
+                ],
+                [
+                  117.0499745,
+                  36.680904500000004
+                ]
+              ],
+              "from_inter_id": "011wwe0xt9400001",
+              "to_inter_id": "011wwe0xt9100001",
+              "direction": "由西北向东南",
+              "length_m": 10.48,
+              "rank": 81,
+              "flow": 13,
+              "ratio": 0.152941
+            },
+            {
+              "id": "012wwe0xt3wwe0xt60001",
+              "name": "花园庄东路:花园路-山大北路",
+              "coords": [
+                [
+                  117.051054,
+                  36.679911
+                ],
+                [
+                  117.051188,
+                  36.679793
+                ]
+              ],
+              "from_inter_id": "011wwe0xt3g00001",
+              "to_inter_id": "011wwe0xt6500001",
+              "direction": "由西北向东南",
+              "length_m": 17.75,
+              "rank": 82,
+              "flow": 13,
+              "ratio": 0.152941
+            },
+            {
+              "id": "012wwe0xt7wwe0xt70006",
+              "name": "山大北路:花园庄东路-山大路",
+              "coords": [
+                [
+                  117.05317509851737,
+                  36.679588707989325
+                ],
+                [
+                  117.05359601899518,
+                  36.67953013650774
+                ]
+              ],
+              "from_inter_id": "011wwe0xt7d00001",
+              "to_inter_id": "011wwe0xt7c00001",
+              "direction": "由西向东",
+              "length_m": 38.1,
               "rank": 83,
+              "flow": 13,
+              "ratio": 0.152941
+            },
+            {
+              "id": "012wwe0xt7wwe0xtk0001",
+              "name": "山大北路:花园庄东路-山大路",
+              "coords": [
+                [
+                  117.05359601899518,
+                  36.67953013650774
+                ],
+                [
+                  117.053597,
+                  36.67953
+                ],
+                [
+                  117.05457090017255,
+                  36.6793912990533
+                ]
+              ],
+              "from_inter_id": "011wwe0xt7c00001",
+              "to_inter_id": "011wwe0xtk800001",
+              "direction": "由西向东",
+              "length_m": 88.3,
+              "rank": 84,
               "flow": 13,
               "ratio": 0.152941
             },
@@ -4349,138 +4985,84 @@
               "to_inter_id": "011wwe0xjjs00001",
               "direction": "由西向东",
               "length_m": 160.92,
-              "rank": 84,
-              "flow": 13,
-              "ratio": 0.152941
-            },
-            {
-              "id": "012wwe0xt7wwe0xtk0001",
-              "name": "山大北路:花园庄东路-山大路",
-              "coords": [
-                [
-                  117.05359601899518,
-                  36.67953013650774
-                ],
-                [
-                  117.053597,
-                  36.67953
-                ],
-                [
-                  117.05457090017255,
-                  36.6793912990533
-                ]
-              ],
-              "from_inter_id": "011wwe0xt7c00001",
-              "to_inter_id": "011wwe0xtk800001",
-              "direction": "由西向东",
-              "length_m": 88.3,
               "rank": 85,
               "flow": 13,
               "ratio": 0.152941
             },
             {
-              "id": "012wwe0xt9wwe0xt30001",
-              "name": "花园庄东路:花园路-山大北路",
+              "id": "012wwe0xt6wwe0xt70001",
+              "name": "山大北路:花园庄东路-山大路",
               "coords": [
                 [
-                  117.050185,
-                  36.680694
+                  117.051253,
+                  36.679744
                 ],
                 [
-                  117.050185,
-                  36.680694
+                  117.051414,
+                  36.679761
                 ],
                 [
-                  117.050319,
-                  36.680565
-                ],
-                [
-                  117.05031999322169,
-                  36.68056411623539
+                  117.05248885224015,
+                  36.679669268639984
                 ]
               ],
-              "from_inter_id": "011wwe0xt9200001",
-              "to_inter_id": "011wwe0xt3r00001",
-              "direction": "由西北向东南",
-              "length_m": 18.8,
+              "from_inter_id": "011wwe0xt6500001",
+              "to_inter_id": "011wwe0xt7400002",
+              "direction": "由西向东",
+              "length_m": 110.87,
               "rank": 86,
               "flow": 13,
               "ratio": 0.152941
             },
             {
-              "id": "012wwe0xt3wwe0xt60001",
+              "id": "012wwe0xt3wwe0xt30002",
               "name": "花园庄东路:花园路-山大北路",
               "coords": [
                 [
-                  117.051054,
-                  36.679911
+                  117.05031999322169,
+                  36.68056411623539
                 ],
                 [
-                  117.051188,
-                  36.679793
+                  117.051054,
+                  36.679911
                 ]
               ],
-              "from_inter_id": "011wwe0xt3g00001",
-              "to_inter_id": "011wwe0xt6500001",
+              "from_inter_id": "011wwe0xt3r00001",
+              "to_inter_id": "011wwe0xt3g00001",
               "direction": "由西北向东南",
-              "length_m": 17.75,
+              "length_m": 97.77,
               "rank": 87,
               "flow": 13,
               "ratio": 0.152941
             },
             {
-              "id": "012wwe0xt9wwe0xt90004",
-              "name": "花园庄东路:花园路-山大北路",
+              "id": "012wwe0xt7wwe0xt70005",
+              "name": "山大北路:花园庄东路-山大路",
               "coords": [
                 [
-                  117.049901,
-                  36.680978
+                  117.05285001440134,
+                  36.6796321191383
                 ],
                 [
-                  117.0499745,
-                  36.680904500000004
+                  117.052851,
+                  36.679632
+                ],
+                [
+                  117.053173,
+                  36.679589
+                ],
+                [
+                  117.05317509851737,
+                  36.679588707989325
                 ]
               ],
-              "from_inter_id": "011wwe0xt9400001",
-              "to_inter_id": "011wwe0xt9100001",
-              "direction": "由西北向东南",
-              "length_m": 10.48,
+              "from_inter_id": "011wwe0xt7600001",
+              "to_inter_id": "011wwe0xt7d00001",
+              "direction": "由西向东",
+              "length_m": 29.39,
               "rank": 88,
               "flow": 13,
               "ratio": 0.152941
-            },
-            {
-              "id": "012wwe28nbwwe28n30001",
-              "name": "二环东路辅路:祝舜路-花园路",
-              "coords": [
-                [
-                  117.071342,
-                  36.68777
-                ],
-                [
-                  117.07168,
-                  36.687249
-                ],
-                [
-                  117.071959,
-                  36.686799
-                ],
-                [
-                  117.07249,
-                  36.685892
-                ],
-                [
-                  117.072699,
-                  36.685372
-                ]
-              ],
-              "from_inter_id": "011wwe28nb900001",
-              "to_inter_id": "011wwe28n3g00001",
-              "direction": "由西北向东南",
-              "length_m": 293.35,
-              "rank": 89,
-              "flow": 11,
-              "ratio": 0.129412
             },
             {
               "id": "012wwe28ntwwe28nw0001",
@@ -4507,7 +5089,7 @@
               "to_inter_id": "011wwe28nwj00001",
               "direction": "由西南向东北",
               "length_m": 99.2,
-              "rank": 90,
+              "rank": 89,
               "flow": 11,
               "ratio": 0.129412
             },
@@ -4556,7 +5138,7 @@
               "to_inter_id": "011wwe28ntk00001",
               "direction": "由西南向东北",
               "length_m": 442.02,
-              "rank": 91,
+              "rank": 90,
               "flow": 11,
               "ratio": 0.129412
             },
@@ -4601,78 +5183,178 @@
               "to_inter_id": "011wwe28nb900001",
               "direction": "由西北向东南",
               "length_m": 385.96,
+              "rank": 91,
+              "flow": 11,
+              "ratio": 0.129412
+            },
+            {
+              "id": "012wwe28nbwwe28n30001",
+              "name": "二环东路辅路:祝舜路-花园路",
+              "coords": [
+                [
+                  117.071342,
+                  36.68777
+                ],
+                [
+                  117.07168,
+                  36.687249
+                ],
+                [
+                  117.071959,
+                  36.686799
+                ],
+                [
+                  117.07249,
+                  36.685892
+                ],
+                [
+                  117.072699,
+                  36.685372
+                ]
+              ],
+              "from_inter_id": "011wwe28nb900001",
+              "to_inter_id": "011wwe28n3g00001",
+              "direction": "由西北向东南",
+              "length_m": 293.35,
               "rank": 92,
               "flow": 11,
               "ratio": 0.129412
             },
             {
-              "id": "012wwe28nnwwe28np0001",
-              "name": "华能路:七里河路-无名道路",
+              "id": "012wwe28q6wwe28q60009",
+              "name": "华能路:无名道路-华信路",
               "coords": [
                 [
-                  117.079604,
-                  36.684353
+                  117.08454986224444,
+                  36.684793057723475
                 ],
                 [
-                  117.0807817950034,
-                  36.68449174025888
+                  117.085027,
+                  36.684825
+                ],
+                [
+                  117.08502880304933,
+                  36.68482527788932
                 ]
               ],
-              "from_inter_id": "011wwe28nnw00001",
-              "to_inter_id": "011wwe28npw00001",
+              "from_inter_id": "011wwe28q6200001",
+              "to_inter_id": "011wwe28q6800001",
               "direction": "由西向东",
-              "length_m": 106.15,
+              "length_m": 42.86,
               "rank": 93,
               "flow": 10,
               "ratio": 0.117647
             },
             {
-              "id": "012wwe28q0wwe28q00002",
-              "name": "华能路:七里河路-无名道路",
+              "id": "012wwe28nqwwe28nq0005",
+              "name": "七里河路:无名道路-华龙路",
               "coords": [
                 [
-                  117.082098,
-                  36.684621
+                  117.079169,
+                  36.685452
                 ],
                 [
-                  117.08250907360856,
-                  36.68464787406158
+                  117.079244,
+                  36.685157
                 ]
               ],
-              "from_inter_id": "011wwe28q0x00001",
-              "to_inter_id": "011wwe28q0z00001",
-              "direction": "由西向东",
-              "length_m": 36.78,
+              "from_inter_id": "011wwe28nqk00001",
+              "to_inter_id": "011wwe28nqd00001",
+              "direction": "由北向南",
+              "length_m": 33.48,
               "rank": 94,
               "flow": 10,
               "ratio": 0.117647
             },
             {
-              "id": "012wwe28wmwwe28wm0002",
+              "id": "012wwe28w2wwe28w20004",
+              "name": "华能路:华阳路-无名道路",
+              "coords": [
+                [
+                  117.092886,
+                  36.684964
+                ],
+                [
+                  117.09341184836846,
+                  36.68497984477193
+                ]
+              ],
+              "from_inter_id": "011wwe28w2300001",
+              "to_inter_id": "011wwe28w2c00002",
+              "direction": "由西向东",
+              "length_m": 46.92,
+              "rank": 95,
+              "flow": 10,
+              "ratio": 0.117647
+            },
+            {
+              "id": "012wwe28wkwwe28wm0001",
               "name": "康虹路:化纤厂路-无名道路",
               "coords": [
                 [
+                  117.098154,
+                  36.685484
+                ],
+                [
                   117.09922260233408,
                   36.68559601490144
-                ],
-                [
-                  117.099232,
-                  36.685597
-                ],
-                [
-                  117.099924,
-                  36.685688
-                ],
-                [
-                  117.100101,
-                  36.685731
                 ]
               ],
-              "from_inter_id": "011wwe28wmj00001",
-              "to_inter_id": "011wwe28wmt00001",
+              "from_inter_id": "011wwe28wkk00001",
+              "to_inter_id": "011wwe28wmj00001",
               "direction": "由西向东",
-              "length_m": 79.87,
-              "rank": 95,
+              "length_m": 96.1,
+              "rank": 96,
+              "flow": 10,
+              "ratio": 0.117647
+            },
+            {
+              "id": "012wwe28nnwwe28nn0002",
+              "name": "七里河路:无名道路-华龙路",
+              "coords": [
+                [
+                  117.079378,
+                  36.684696
+                ],
+                [
+                  117.079421,
+                  36.684567
+                ],
+                [
+                  117.079448,
+                  36.684465
+                ]
+              ],
+              "from_inter_id": "011wwe28nnx00001",
+              "to_inter_id": "011wwe28nnw00001",
+              "direction": "由北向南",
+              "length_m": 26.44,
+              "rank": 97,
+              "flow": 10,
+              "ratio": 0.117647
+            },
+            {
+              "id": "012wwe28wqwwe28wx0001",
+              "name": "康虹路:无名道路-辛河路",
+              "coords": [
+                [
+                  117.1010326545733,
+                  36.68586043017373
+                ],
+                [
+                  117.101989,
+                  36.685973
+                ],
+                [
+                  117.102579,
+                  36.686101
+                ]
+              ],
+              "from_inter_id": "011wwe28wqq00001",
+              "to_inter_id": "011wwe28wx800001",
+              "direction": "由西向东",
+              "length_m": 140.69,
+              "rank": 98,
               "flow": 10,
               "ratio": 0.117647
             },
@@ -4697,106 +5379,35 @@
               "to_inter_id": "011wwe28w6d00001",
               "direction": "由西向东",
               "length_m": 86.59,
-              "rank": 96,
-              "flow": 10,
-              "ratio": 0.117647
-            },
-            {
-              "id": "012wwe28wmwwe28wq0001",
-              "name": "康虹路:无名道路-辛河路",
-              "coords": [
-                [
-                  117.100101,
-                  36.685731
-                ],
-                [
-                  117.100739,
-                  36.685823
-                ],
-                [
-                  117.1007408424224,
-                  36.68582323506769
-                ]
-              ],
-              "from_inter_id": "011wwe28wmt00001",
-              "to_inter_id": "011wwe28wqn00001",
-              "direction": "由西向东",
-              "length_m": 57.97,
-              "rank": 97,
-              "flow": 10,
-              "ratio": 0.117647
-            },
-            {
-              "id": "012wwe28nqwwe28nn0002",
-              "name": "七里河路:无名道路-华龙路",
-              "coords": [
-                [
-                  117.07929309509657,
-                  36.68498251560178
-                ],
-                [
-                  117.079314,
-                  36.684916
-                ],
-                [
-                  117.079378,
-                  36.684696
-                ]
-              ],
-              "from_inter_id": "011wwe28nq900002",
-              "to_inter_id": "011wwe28nnx00001",
-              "direction": "由北向南",
-              "length_m": 32.75,
-              "rank": 98,
-              "flow": 10,
-              "ratio": 0.117647
-            },
-            {
-              "id": "012wwe28q6wwe28q60008",
-              "name": "华能路:无名道路-华信路",
-              "coords": [
-                [
-                  117.08429109498111,
-                  36.6847659579061
-                ],
-                [
-                  117.084292,
-                  36.684766
-                ],
-                [
-                  117.084549,
-                  36.684793
-                ],
-                [
-                  117.08454986224444,
-                  36.684793057723475
-                ]
-              ],
-              "from_inter_id": "011wwe28q6000001",
-              "to_inter_id": "011wwe28q6200001",
-              "direction": "由西向东",
-              "length_m": 23.27,
               "rank": 99,
               "flow": 10,
               "ratio": 0.117647
             },
             {
-              "id": "012wwe28nqwwe28nq0004",
-              "name": "七里河路:花园路-无名道路",
+              "id": "012wwe28npwwe28q00001",
+              "name": "华能路:七里河路-无名道路",
               "coords": [
                 [
-                  117.079067,
-                  36.68608
+                  117.0807817950034,
+                  36.68449174025888
                 ],
                 [
-                  117.079148,
-                  36.68556
+                  117.080784,
+                  36.684492
+                ],
+                [
+                  117.081835,
+                  36.684605
+                ],
+                [
+                  117.082098,
+                  36.684621
                 ]
               ],
-              "from_inter_id": "011wwe28nqr00001",
-              "to_inter_id": "011wwe28nqk00001",
-              "direction": "由北向南",
-              "length_m": 58.27,
+              "from_inter_id": "011wwe28npw00001",
+              "to_inter_id": "011wwe28q0x00001",
+              "direction": "由西向东",
+              "length_m": 118.28,
               "rank": 100,
               "flow": 10,
               "ratio": 0.117647
@@ -9112,9 +9723,17 @@
             36.682465
           ],
           "trace_direction": "downstream",
+          "scope": "target_approach_all_turns",
+          "target_approach": "西进口",
+          "selected_turn_dir_no": 2,
           "turn_traces": [
             {
               "movement": "西进口直行",
+              "turn_label": "直行",
+              "dir8_code": 6,
+              "turn_dir_no": 2,
+              "selected": true,
+              "exit_dir8": 2,
               "downstream_inter_id": "011wwe29nh000001",
               "name": "会展路与崇华路路口",
               "share_pct": 86.81,
@@ -9152,13 +9771,304 @@
                   36.683349
                 ]
               ],
+              "path_source": "link_geom",
+              "receiving_dir8": 6,
+              "receiving_label": "西进口直行",
               "lon": 117.11996,
               "lat": 36.683387,
+              "metrics_available": false,
+              "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+              "downstream_metrics": {
+                "inter_id": "011wwe29nh000001",
+                "inter_name": "会展路与崇华路路口",
+                "role": "downstream",
+                "lng": 117.11996,
+                "lat": 36.683387,
+                "receiving_dir8": 6,
+                "receiving_label": "西进口直行",
+                "metrics_available": false,
+                "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+                "metrics": {
+                  "avg_delay_s": 11.66,
+                  "saturation": null,
+                  "saturation_rate": null,
+                  "avg_queue_m": 16.59,
+                  "max_queue_m": 16.59,
+                  "queue_storage_ratio_max": 0.0418,
+                  "spillback_risk_max": 0.0418,
+                  "level_of_service": null,
+                  "green_utilization": null,
+                  "stop_count": null,
+                  "time_series_trend": null,
+                  "target_movement_key": null,
+                  "metric_scope": "movement",
+                  "queue_statistic": "cross_week_window_mean",
+                  "queue_source": null,
+                  "queue_is_direction_proxy": false,
+                  "movement_queue_length_m": null,
+                  "saturation_statistic": "window_peak",
+                  "statistic_scope": null,
+                  "selected_day_of_week": null,
+                  "metric_selection_policy": "cross_week_movement_mean",
+                  "queue_safety_peak_m": 86.0,
+                  "queue_safety_peak_ratio": 0.2169,
+                  "storage_direction": null,
+                  "storage_source": null
+                },
+                "by_turn": [
+                  {
+                    "label": "直行",
+                    "turn_saturation": null,
+                    "green_utilization": null,
+                    "flow_vph": 0.0,
+                    "queue_ratio": 0.0418
+                  }
+                ],
+                "overflow_verification": {
+                  "verified": true,
+                  "risk_level": "low",
+                  "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+                },
+                "remaining_storage_m": 379.91
+              },
               "capacity": {
                 "blocked": false,
                 "can_release": true
               },
               "trace_kind": "downstream"
+            },
+            {
+              "movement": "西进口左转",
+              "turn_label": "左转",
+              "dir8_code": 6,
+              "turn_dir_no": 1,
+              "selected": false,
+              "exit_dir8": 0,
+              "downstream_inter_id": "011wwe29n3p00001",
+              "name": "兴贤北街与奥体中路路口",
+              "share_pct": null,
+              "path": [
+                [
+                  117.115556,
+                  36.682523
+                ],
+                [
+                  117.115545,
+                  36.683001
+                ],
+                [
+                  117.115545,
+                  36.683269
+                ],
+                [
+                  117.115545,
+                  36.683349
+                ],
+                [
+                  117.115545,
+                  36.683602
+                ],
+                [
+                  117.115572,
+                  36.683918
+                ],
+                [
+                  117.115652,
+                  36.68453
+                ],
+                [
+                  117.115856,
+                  36.685962
+                ]
+              ],
+              "path_source": "link_geom",
+              "receiving_dir8": 4,
+              "receiving_label": "南进口左转",
+              "lon": 117.115728,
+              "lat": 36.685977,
+              "metrics_available": false,
+              "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+              "downstream_metrics": {
+                "inter_id": "011wwe29n3p00001",
+                "inter_name": "兴贤北街与奥体中路路口",
+                "role": "downstream",
+                "lng": 117.115728,
+                "lat": 36.685977,
+                "receiving_dir8": 4,
+                "receiving_label": "南进口左转",
+                "metrics_available": false,
+                "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+                "metrics": {
+                  "avg_delay_s": 19.58,
+                  "saturation": null,
+                  "saturation_rate": null,
+                  "avg_queue_m": 3.28,
+                  "max_queue_m": 3.28,
+                  "queue_storage_ratio_max": 0.0086,
+                  "spillback_risk_max": 0.0086,
+                  "level_of_service": null,
+                  "green_utilization": null,
+                  "stop_count": null,
+                  "time_series_trend": null,
+                  "target_movement_key": null,
+                  "metric_scope": "movement",
+                  "queue_statistic": "cross_week_window_mean",
+                  "queue_source": null,
+                  "queue_is_direction_proxy": false,
+                  "movement_queue_length_m": null,
+                  "saturation_statistic": "window_peak",
+                  "statistic_scope": null,
+                  "selected_day_of_week": null,
+                  "metric_selection_policy": "cross_week_movement_mean",
+                  "queue_safety_peak_m": 73.0,
+                  "queue_safety_peak_ratio": 0.1905,
+                  "storage_direction": null,
+                  "storage_source": null
+                },
+                "by_turn": [
+                  {
+                    "label": "直行",
+                    "turn_saturation": null,
+                    "green_utilization": null,
+                    "flow_vph": 0.0,
+                    "queue_ratio": 0.0086
+                  }
+                ],
+                "overflow_verification": {
+                  "verified": true,
+                  "risk_level": "low",
+                  "message": "排队尚在进口道可容纳范围内，溢出风险较低"
+                },
+                "remaining_storage_m": 379.86
+              },
+              "capacity": {
+                "blocked": false,
+                "can_release": true
+              },
+              "trace_kind": "downstream"
+            },
+            {
+              "movement": "西进口右转",
+              "turn_label": "右转",
+              "dir8_code": 6,
+              "turn_dir_no": 3,
+              "selected": false,
+              "exit_dir8": 4,
+              "downstream_inter_id": "011wwe29j2u00001",
+              "name": "奥体中路与工业南路路口",
+              "share_pct": 20.0,
+              "path": [
+                [
+                  117.115288,
+                  36.6824
+                ],
+                [
+                  117.115293,
+                  36.681928
+                ],
+                [
+                  117.115277,
+                  36.681096
+                ],
+                [
+                  117.115314,
+                  36.680206
+                ]
+              ],
+              "path_source": "link_geom",
+              "receiving_dir8": 0,
+              "receiving_label": "北进口右转",
+              "lon": 117.115482,
+              "lat": 36.680045,
+              "metrics_available": false,
+              "metrics_reason": "下游路口 PG 指标缺失",
+              "downstream_metrics": {
+                "inter_id": "011wwe29j2u00001",
+                "inter_name": "奥体中路与工业南路路口",
+                "role": "downstream",
+                "lng": 117.115482,
+                "lat": 36.680045,
+                "receiving_dir8": 0,
+                "receiving_label": "北进口右转",
+                "metrics_available": false,
+                "metrics_reason": "下游路口 PG 指标缺失",
+                "metrics": {
+                  "avg_delay_s": null,
+                  "saturation": null,
+                  "saturation_rate": null,
+                  "avg_queue_m": null,
+                  "max_queue_m": null,
+                  "queue_storage_ratio_max": null,
+                  "spillback_risk_max": null,
+                  "level_of_service": null,
+                  "green_utilization": null,
+                  "stop_count": null,
+                  "time_series_trend": null,
+                  "target_movement_key": null,
+                  "metric_scope": "movement",
+                  "queue_statistic": "window_mean",
+                  "queue_source": null,
+                  "queue_is_direction_proxy": false,
+                  "movement_queue_length_m": null,
+                  "saturation_statistic": "window_peak",
+                  "statistic_scope": null,
+                  "selected_day_of_week": null,
+                  "metric_selection_policy": null,
+                  "queue_safety_peak_m": null,
+                  "queue_safety_peak_ratio": null,
+                  "storage_direction": null,
+                  "storage_source": null
+                },
+                "by_turn": [
+                  {
+                    "label": "直行",
+                    "turn_saturation": null,
+                    "green_utilization": null,
+                    "flow_vph": null,
+                    "queue_ratio": null
+                  }
+                ],
+                "overflow_verification": {
+                  "verified": false,
+                  "risk_level": "unknown",
+                  "message": "缺少排队长度或进口道蓄车长度，无法验证溢出"
+                },
+                "remaining_storage_m": null
+              },
+              "capacity": {
+                "blocked": false,
+                "can_release": true
+              },
+              "trace_kind": "downstream"
+            }
+          ],
+          "movement_summary": [
+            {
+              "movement": "西进口左转",
+              "turn_label": "左转",
+              "turn_dir_no": 1,
+              "selected": false,
+              "available": true,
+              "downstream_count": 1,
+              "blocked_count": 0
+            },
+            {
+              "movement": "西进口直行",
+              "turn_label": "直行",
+              "turn_dir_no": 2,
+              "selected": true,
+              "available": true,
+              "downstream_count": 1,
+              "blocked_count": 0
+            },
+            {
+              "movement": "西进口右转",
+              "turn_label": "右转",
+              "turn_dir_no": 3,
+              "selected": false,
+              "available": true,
+              "downstream_count": 1,
+              "blocked_count": 0
             }
           ],
           "adjacent_intersections": [
@@ -9168,7 +10078,7 @@
               "lng": 117.11996,
               "lat": 36.683387,
               "metrics": {
-                "avg_delay_s": 12.62,
+                "avg_delay_s": 11.66,
                 "saturation": null,
                 "saturation_rate": null,
                 "avg_queue_m": 16.59,
@@ -9189,8 +10099,8 @@
                 "statistic_scope": null,
                 "selected_day_of_week": null,
                 "metric_selection_policy": "cross_week_movement_mean",
-                "queue_safety_peak_m": 47.0,
-                "queue_safety_peak_ratio": 0.1185,
+                "queue_safety_peak_m": 86.0,
+                "queue_safety_peak_ratio": 0.2169,
                 "storage_direction": null,
                 "storage_source": null
               },
@@ -9209,7 +10119,55 @@
                 "blocked": false,
                 "reasons": [],
                 "release_guard": "downstream_has_slack"
-              }
+              },
+              "linked_movements": [
+                "西进口直行"
+              ],
+              "movement_metrics": [
+                {
+                  "movement": "西进口直行",
+                  "turn_dir_no": 2,
+                  "selected": true,
+                  "share_pct": 86.81,
+                  "receiving_dir8": 6,
+                  "receiving_label": "西进口直行",
+                  "metrics_available": false,
+                  "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+                  "metrics": {
+                    "avg_delay_s": 11.66,
+                    "saturation": null,
+                    "saturation_rate": null,
+                    "avg_queue_m": 16.59,
+                    "max_queue_m": 16.59,
+                    "queue_storage_ratio_max": 0.0418,
+                    "spillback_risk_max": 0.0418,
+                    "level_of_service": null,
+                    "green_utilization": null,
+                    "stop_count": null,
+                    "time_series_trend": null,
+                    "target_movement_key": null,
+                    "metric_scope": "movement",
+                    "queue_statistic": "cross_week_window_mean",
+                    "queue_source": null,
+                    "queue_is_direction_proxy": false,
+                    "movement_queue_length_m": null,
+                    "saturation_statistic": "window_peak",
+                    "statistic_scope": null,
+                    "selected_day_of_week": null,
+                    "metric_selection_policy": "cross_week_movement_mean",
+                    "queue_safety_peak_m": 86.0,
+                    "queue_safety_peak_ratio": 0.2169,
+                    "storage_direction": null,
+                    "storage_source": null
+                  },
+                  "capacity": {
+                    "can_release": true,
+                    "blocked": false,
+                    "reasons": [],
+                    "release_guard": "downstream_has_slack"
+                  }
+                }
+              ]
             },
             {
               "inter_id": "011wwe29n3p00001",
@@ -9217,29 +10175,29 @@
               "lng": 117.115728,
               "lat": 36.685977,
               "metrics": {
-                "avg_delay_s": 17.62,
+                "avg_delay_s": 19.58,
                 "saturation": null,
                 "saturation_rate": null,
-                "avg_queue_m": 22.73,
-                "max_queue_m": 22.73,
-                "queue_storage_ratio_max": null,
-                "spillback_risk_max": null,
+                "avg_queue_m": 3.28,
+                "max_queue_m": 3.28,
+                "queue_storage_ratio_max": 0.0086,
+                "spillback_risk_max": 0.0086,
                 "level_of_service": null,
                 "green_utilization": null,
                 "stop_count": null,
                 "time_series_trend": null,
                 "target_movement_key": null,
                 "metric_scope": "movement",
-                "queue_statistic": "window_mean",
+                "queue_statistic": "cross_week_window_mean",
                 "queue_source": null,
                 "queue_is_direction_proxy": false,
                 "movement_queue_length_m": null,
                 "saturation_statistic": "window_peak",
                 "statistic_scope": null,
                 "selected_day_of_week": null,
-                "metric_selection_policy": null,
-                "queue_safety_peak_m": null,
-                "queue_safety_peak_ratio": null,
+                "metric_selection_policy": "cross_week_movement_mean",
+                "queue_safety_peak_m": 73.0,
+                "queue_safety_peak_ratio": 0.1905,
                 "storage_direction": null,
                 "storage_source": null
               },
@@ -9249,11 +10207,64 @@
                   "turn_saturation": null,
                   "green_utilization": null,
                   "flow_vph": 0.0,
-                  "queue_ratio": null
+                  "queue_ratio": 0.0086
                 }
               ],
-              "remaining_storage_m": null,
-              "capacity": null
+              "remaining_storage_m": 379.86,
+              "capacity": {
+                "can_release": true,
+                "blocked": false,
+                "reasons": [],
+                "release_guard": "downstream_has_slack"
+              },
+              "linked_movements": [
+                "西进口左转"
+              ],
+              "movement_metrics": [
+                {
+                  "movement": "西进口左转",
+                  "turn_dir_no": 1,
+                  "selected": false,
+                  "share_pct": null,
+                  "receiving_dir8": 4,
+                  "receiving_label": "南进口左转",
+                  "metrics_available": false,
+                  "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+                  "metrics": {
+                    "avg_delay_s": 19.58,
+                    "saturation": null,
+                    "saturation_rate": null,
+                    "avg_queue_m": 3.28,
+                    "max_queue_m": 3.28,
+                    "queue_storage_ratio_max": 0.0086,
+                    "spillback_risk_max": 0.0086,
+                    "level_of_service": null,
+                    "green_utilization": null,
+                    "stop_count": null,
+                    "time_series_trend": null,
+                    "target_movement_key": null,
+                    "metric_scope": "movement",
+                    "queue_statistic": "cross_week_window_mean",
+                    "queue_source": null,
+                    "queue_is_direction_proxy": false,
+                    "movement_queue_length_m": null,
+                    "saturation_statistic": "window_peak",
+                    "statistic_scope": null,
+                    "selected_day_of_week": null,
+                    "metric_selection_policy": "cross_week_movement_mean",
+                    "queue_safety_peak_m": 73.0,
+                    "queue_safety_peak_ratio": 0.1905,
+                    "storage_direction": null,
+                    "storage_source": null
+                  },
+                  "capacity": {
+                    "can_release": true,
+                    "blocked": false,
+                    "reasons": [],
+                    "release_guard": "downstream_has_slack"
+                  }
+                }
+              ]
             },
             {
               "inter_id": "011wwe29j2u00001",
@@ -9261,7 +10272,7 @@
               "lng": 117.115482,
               "lat": 36.680045,
               "metrics": {
-                "avg_delay_s": 54.54,
+                "avg_delay_s": 56.68,
                 "saturation": 1.68,
                 "saturation_rate": 1.68,
                 "avg_queue_m": 12.72,
@@ -9269,8 +10280,8 @@
                 "queue_storage_ratio_max": null,
                 "spillback_risk_max": null,
                 "level_of_service": "F",
-                "green_utilization": 0.4977,
-                "stop_count": 0.57,
+                "green_utilization": 0.5114,
+                "stop_count": 0.59,
                 "time_series_trend": null,
                 "target_movement_key": null,
                 "metric_scope": "movement",
@@ -9282,7 +10293,7 @@
                 "statistic_scope": null,
                 "selected_day_of_week": null,
                 "metric_selection_policy": "cross_week_movement_mean",
-                "queue_safety_peak_m": 45.0,
+                "queue_safety_peak_m": 113.0,
                 "queue_safety_peak_ratio": null,
                 "storage_direction": null,
                 "storage_source": null
@@ -9291,13 +10302,15 @@
                 {
                   "label": "直行",
                   "turn_saturation": 1.68,
-                  "green_utilization": 0.4977,
+                  "green_utilization": 0.5114,
                   "flow_vph": 588.0,
                   "queue_ratio": null
                 }
               ],
               "remaining_storage_m": null,
-              "capacity": null
+              "capacity": null,
+              "linked_movements": null,
+              "movement_metrics": null
             },
             {
               "inter_id": "011wwe28vz100001",
@@ -9305,7 +10318,7 @@
               "lng": 117.113026,
               "lat": 36.682295,
               "metrics": {
-                "avg_delay_s": 7.16,
+                "avg_delay_s": 6.28,
                 "saturation": 0.3968,
                 "saturation_rate": 0.3968,
                 "avg_queue_m": 11.77,
@@ -9313,7 +10326,7 @@
                 "queue_storage_ratio_max": null,
                 "spillback_risk_max": null,
                 "level_of_service": "A",
-                "green_utilization": 0.0,
+                "green_utilization": 0.3351,
                 "stop_count": 0.21,
                 "time_series_trend": null,
                 "target_movement_key": null,
@@ -9326,7 +10339,7 @@
                 "statistic_scope": null,
                 "selected_day_of_week": null,
                 "metric_selection_policy": "cross_week_movement_mean",
-                "queue_safety_peak_m": 80.8,
+                "queue_safety_peak_m": 104.0,
                 "queue_safety_peak_ratio": null,
                 "storage_direction": null,
                 "storage_source": null
@@ -9335,18 +10348,24 @@
                 {
                   "label": "直行",
                   "turn_saturation": 0.3968,
-                  "green_utilization": 0.0,
+                  "green_utilization": 0.3351,
                   "flow_vph": 564.0,
                   "queue_ratio": null
                 }
               ],
               "remaining_storage_m": null,
-              "capacity": null
+              "capacity": null,
+              "linked_movements": null,
+              "movement_metrics": null
             }
           ],
           "hud": {
             "title": "下游一跳去向",
             "metrics": [
+              {
+                "label": "已溯源转向",
+                "value": "左转/直行/右转"
+              },
               {
                 "label": "治理落点",
                 "value": "local_reallocation",
@@ -9416,19 +10435,19 @@
             "metrics": [
               {
                 "label": "上游到达流量",
-                "value": "564.0"
+                "value": "534.0"
               },
               {
                 "label": "上游放行强度",
-                "value": "535.8"
+                "value": "507.29999999999995"
               },
               {
                 "label": "目标剩余空间(m)",
-                "value": "154.73999999999998"
+                "value": "106.13999999999999"
               },
               {
                 "label": "下游剩余空间(m)",
-                "value": "379.91"
+                "value": "379.86"
               },
               {
                 "label": "相位差匹配",
@@ -9518,9 +10537,9 @@
             "direction": "西向东",
             "movement": "直行",
             "metrics": {
-              "queue_ratio": 0.2029,
-              "saturation": 0.7912,
-              "green_utilization": 0.4745
+              "queue_ratio": 0.4533,
+              "saturation": 0.7088,
+              "green_utilization": 0.4889
             }
           },
           "downstream": {
@@ -9588,12 +10607,12 @@
           {
             "dimension": "demand",
             "status": "normal",
-            "summary": "目标方向排队比 0.2029"
+            "summary": "目标方向排队比 0.4533"
           },
           {
             "dimension": "capacity",
             "status": "normal",
-            "summary": "目标方向饱和度 0.7912"
+            "summary": "目标方向饱和度 0.7088"
           },
           {
             "dimension": "data_quality",
@@ -9653,7 +10672,7 @@
             "item_id": "turn_flow",
             "label": "转向流量",
             "status": "has_data",
-            "summary": "全天转向流量 38449",
+            "summary": "全天转向流量 5122",
             "table": "xianchang.dws_inter_link_turn_flow_5min_mm"
           },
           {
@@ -9674,42 +10693,42 @@
             "item_id": "turn_saturation",
             "label": "转向/相位饱和度",
             "status": "has_data",
-            "summary": "最高转向饱和度 1.55 · 2304 条",
+            "summary": "最高转向饱和度 0.96 · 200 条",
             "table": "xianchang.dws_turn_saturation_5min_mm"
           },
           {
             "item_id": "inter_evaluation",
             "label": "路口综合评价",
             "status": "has_data",
-            "summary": "饱和度 0.2553 · LOS A",
+            "summary": "饱和度 0.7902 · LOS C",
             "table": "xianchang.dws_inter_evaluation_5min_mm"
           },
           {
             "item_id": "turn_perf",
             "label": "排队/延误/停车/溢流",
             "status": "has_data",
-            "summary": "最大排队 512 m · 3246 条",
+            "summary": "最大排队 120 m · 276 条",
             "table": "xianchang.dws_inter_dir_turn_perf_5min_mm"
           },
           {
             "item_id": "green_utilization",
             "label": "绿灯利用率/空放",
             "status": "has_data",
-            "summary": "平均绿灯利用率 0.62",
+            "summary": "平均绿灯利用率 0.45",
             "table": "xianchang.dws_turn_green_utilization_5min_mm"
           },
           {
             "item_id": "lane_capacity",
             "label": "车道通行能力",
             "status": "has_data",
-            "summary": "车道能力合计 1664986",
+            "summary": "车道能力合计 134498",
             "table": "xianchang.dws_lane_capacity_5min_mm"
           },
           {
             "item_id": "lane_saturation_headway",
             "label": "车道级饱和流率",
             "status": "has_data",
-            "summary": "饱和流率 1071~1304 pcu/h · 132 条",
+            "summary": "饱和流率 1300~1482 pcu/h · 121 条",
             "table": "xianchang.dim_lane_saturation_headway"
           },
           {
@@ -9778,8 +10797,8 @@
         "exit_dir8": 2,
         "period_type": "EVENING_PEAK",
         "day_basis": "工作日",
-        "upstream_arrival_flow_vph": 564.0,
-        "upstream_release_intensity_vph": 535.8,
+        "upstream_arrival_flow_vph": 534.0,
+        "upstream_release_intensity_vph": 507.29999999999995,
         "upstream_arrival_intensity": "high",
         "phase_offset_match": null,
         "upstream_nodes": [
@@ -9833,6 +10852,10 @@
             "lat": 36.683387,
             "share_pct": 86.81,
             "link_id": "12wwe29jbwwe29ju01",
+            "origin_dir8": 6,
+            "origin_turn_dir_no": 2,
+            "origin_movement": "西进口直行",
+            "exit_dir8": 2,
             "receiving_dir8": 6,
             "receiving_turn_dir_no": 2,
             "receiving_label": "西进口直行",
@@ -9878,11 +10901,176 @@
             "queue_length_m": 16.59,
             "storage_length_m": 396.5,
             "volume_vph": 0.0,
-            "avg_delay_s": 12.62,
+            "avg_delay_s": 11.66,
             "queue_statistic": "cross_week_window_mean",
             "metric_selection_policy": "cross_week_movement_mean",
-            "queue_safety_peak_m": 47.0,
-            "queue_safety_peak_ratio": 0.1185
+            "queue_safety_peak_m": 86.0,
+            "queue_safety_peak_ratio": 0.2169
+          }
+        ],
+        "downstream_turn_nodes": [
+          {
+            "inter_id": "011wwe29n3p00001",
+            "inter_name": "兴贤北街与奥体中路路口",
+            "role": "downstream",
+            "lng": 117.115728,
+            "lat": 36.685977,
+            "share_pct": null,
+            "link_id": "12wwe29jbwwe29n301",
+            "origin_dir8": 6,
+            "origin_turn_dir_no": 1,
+            "origin_movement": "西进口左转",
+            "exit_dir8": 0,
+            "receiving_dir8": 4,
+            "receiving_turn_dir_no": 1,
+            "receiving_label": "南进口左转",
+            "path": [
+              [
+                117.115556,
+                36.682523
+              ],
+              [
+                117.115545,
+                36.683001
+              ],
+              [
+                117.115545,
+                36.683269
+              ],
+              [
+                117.115545,
+                36.683349
+              ],
+              [
+                117.115545,
+                36.683602
+              ],
+              [
+                117.115572,
+                36.683918
+              ],
+              [
+                117.115652,
+                36.68453
+              ],
+              [
+                117.115856,
+                36.685962
+              ]
+            ],
+            "path_source": "link_geom",
+            "metrics_receiving_direction": "南向北",
+            "metrics_receiving_turn_dir_no": 1,
+            "metrics_available": false,
+            "metrics_reason": "下游承接进口（南向北左转）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+            "queue_length_m": 3.28,
+            "storage_length_m": 383.14,
+            "volume_vph": 0.0,
+            "avg_delay_s": 19.58,
+            "queue_statistic": "cross_week_window_mean",
+            "metric_selection_policy": "cross_week_movement_mean",
+            "queue_safety_peak_m": 73.0,
+            "queue_safety_peak_ratio": 0.1905
+          },
+          {
+            "inter_id": "011wwe29nh000001",
+            "inter_name": "会展路与崇华路路口",
+            "role": "downstream",
+            "lng": 117.11996,
+            "lat": 36.683387,
+            "share_pct": 86.81,
+            "link_id": "12wwe29jbwwe29ju01",
+            "origin_dir8": 6,
+            "origin_turn_dir_no": 2,
+            "origin_movement": "西进口直行",
+            "exit_dir8": 2,
+            "receiving_dir8": 6,
+            "receiving_turn_dir_no": 2,
+            "receiving_label": "西进口直行",
+            "path": [
+              [
+                117.11562,
+                36.682481
+              ],
+              [
+                117.117449,
+                36.682856
+              ],
+              [
+                117.117605,
+                36.682883
+              ],
+              [
+                117.117696,
+                36.682904
+              ],
+              [
+                117.117927,
+                36.682947
+              ],
+              [
+                117.118126,
+                36.682985
+              ],
+              [
+                117.119134,
+                36.683189
+              ],
+              [
+                117.119923,
+                36.683349
+              ]
+            ],
+            "path_source": "link_geom",
+            "metrics_receiving_direction": "西向东",
+            "metrics_receiving_turn_dir_no": 2,
+            "metrics_available": false,
+            "metrics_reason": "下游承接进口（西向东直行）该时段无转向饱和度，不可用 0 代替；请核对日型/时段或嗅探口径",
+            "queue_length_m": 16.59,
+            "storage_length_m": 396.5,
+            "volume_vph": 0.0,
+            "avg_delay_s": 11.66,
+            "queue_statistic": "cross_week_window_mean",
+            "metric_selection_policy": "cross_week_movement_mean",
+            "queue_safety_peak_m": 86.0,
+            "queue_safety_peak_ratio": 0.2169
+          },
+          {
+            "inter_id": "011wwe29j2u00001",
+            "inter_name": "奥体中路与工业南路路口",
+            "role": "downstream",
+            "lng": 117.115482,
+            "lat": 36.680045,
+            "share_pct": 20.0,
+            "link_id": "12wwe29jbwwe29j201",
+            "origin_dir8": 6,
+            "origin_turn_dir_no": 3,
+            "origin_movement": "西进口右转",
+            "exit_dir8": 4,
+            "receiving_dir8": 0,
+            "receiving_turn_dir_no": 3,
+            "receiving_label": "北进口右转",
+            "path": [
+              [
+                117.115288,
+                36.6824
+              ],
+              [
+                117.115293,
+                36.681928
+              ],
+              [
+                117.115277,
+                36.681096
+              ],
+              [
+                117.115314,
+                36.680206
+              ]
+            ],
+            "path_source": "link_geom",
+            "metrics_available": false,
+            "metrics_reason": "下游路口 PG 指标缺失"
           }
         ],
         "geometry_source": "dim_link_info.geom",
@@ -9897,13 +11085,13 @@
     {
       "phase": "intent_understanding",
       "success": true,
-      "duration_ms": 15612.03,
+      "duration_ms": 14626.9,
       "errors": []
     },
     {
       "phase": "data_analysis_diagnosis",
       "success": true,
-      "duration_ms": 610099.08,
+      "duration_ms": 12552.34,
       "errors": []
     }
   ]

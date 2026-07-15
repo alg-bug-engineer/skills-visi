@@ -38,7 +38,8 @@ describe('downstream topology metric labels', () => {
     const topology = buildDownstreamTopology(scene, [117.1, 36.65])
     const label = formatNodeMetrics(topology.nodes[0]?.metrics)
     expect(label).not.toContain('饱和')
-    expect(label).toContain('绿灯 41%')
+    expect(label).toContain('绿灯 0.41')
+    expect(label).not.toContain('%')
     expect(label).not.toBe('指标暂无')
   })
 

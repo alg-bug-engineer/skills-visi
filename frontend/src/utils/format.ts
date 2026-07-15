@@ -2,12 +2,15 @@ export function isNum(x: unknown): x is number {
   return typeof x === 'number' && Number.isFinite(x)
 }
 
-/** 百分比：0.5741 → "57.4%"；空值 → "—" */
+/** 百分比：仅用于真正占比类（如转向分担、覆盖率）。0.5741 → "57.4%"；空值 → "—" */
 export function pct(x: number | null | undefined, digits = 1): string {
   return isNum(x) ? `${(x * 100).toFixed(digits)}%` : '—'
 }
 
-/** 比值：1.0873 → "1.09"；空值 → "—" */
+/**
+ * 小数比值：饱和度、绿灯利用率、排队比等一律用此函数，禁用百分比。
+ * 1.0873 → "1.09"；空值 → "—"
+ */
 export function ratio(x: number | null | undefined, digits = 2): string {
   return isNum(x) ? x.toFixed(digits) : '—'
 }

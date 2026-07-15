@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PROFILE_PATH = PROJECT_ROOT / "data" / "typical_intersections.json"
 ALLOWED_QUEUE_FIELDS = frozenset({"queue_len_avg", "queue_len_max"})
+ALLOWED_SELECTIONS = frozenset({"cross_week_peak", "cross_week_mean"})
+
+
+def normalize_selection(value: Any, *, default: str) -> str:
+    raw = str(value or "").strip()
+    return raw if raw in ALLOWED_SELECTIONS else default
 
 
 def _norm_text(value: Any) -> str:
@@ -146,9 +152,13 @@ def resolve_typical_profile(
             "opt_type": profile.get("opt_type"),
             "inherit_project_fixed": bool(metrics.get("inherit_project_fixed")),
             "target_queue_field": target_field,
-            "target_selection": str(metrics.get("target_selection") or "cross_week_peak"),
+            "target_selection": normalize_selection(
+                metrics.get("target_selection"), default="cross_week_peak"
+            ),
             "downstream_queue_field": down_field,
-            "downstream_selection": str(metrics.get("downstream_selection") or "cross_week_mean"),
+            "downstream_selection": normalize_selection(
+                metrics.get("downstream_selection"), default="cross_week_mean"
+            ),
             "downstream_peak_disclose_field": peak_field,
             "downstream_approach_queue_avg": bool(
                 metrics.get("downstream_approach_queue_avg", True)
@@ -164,7 +174,9 @@ def metric_options_from_profile(profile: dict[str, Any] | None) -> dict[str, Any
         return {
             "typical_profile_id": None,
             "target_queue_field": "queue_len_avg",
+            "target_selection": "cross_week_peak",
             "downstream_queue_field": "queue_len_avg",
+            "downstream_selection": "cross_week_mean",
             "downstream_peak_disclose_field": "queue_len_avg",
             "downstream_approach_queue_avg": False,
             "use_typical_policy": False,
@@ -174,7 +186,13 @@ def metric_options_from_profile(profile: dict[str, Any] | None) -> dict[str, Any
         "typical_profile_label": profile.get("label"),
         "typical_opt_type": profile.get("opt_type"),
         "target_queue_field": profile.get("target_queue_field") or "queue_len_avg",
+        "target_selection": normalize_selection(
+            profile.get("target_selection"), default="cross_week_peak"
+        ),
         "downstream_queue_field": profile.get("downstream_queue_field") or "queue_len_avg",
+        "downstream_selection": normalize_selection(
+            profile.get("downstream_selection"), default="cross_week_mean"
+        ),
         "downstream_peak_disclose_field": profile.get("downstream_peak_disclose_field")
         or "queue_len_avg",
         "downstream_approach_queue_avg": bool(profile.get("downstream_approach_queue_avg")),

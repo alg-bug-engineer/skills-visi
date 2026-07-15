@@ -1,4 +1,5 @@
 import type { DirectionIntensity, PhaseStageTiming, StageMovement } from '@/api/types'
+import { ratio } from '@/utils/format'
 
 export type FlowKey = `${number}_${number}`
 
@@ -118,8 +119,9 @@ export function formatFlowKeysText(keys: FlowKey[]): string {
     .join('、')
 }
 
+/** @deprecated 饱和度等请直接用 `ratio()`；保留仅为兼容旧 import。 */
 export function pctText(value: number | null | undefined): string {
-  return typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '—'
+  return ratio(value)
 }
 
 export function isRightTurnIntensityItem(item: DirectionIntensity | null | undefined): boolean {

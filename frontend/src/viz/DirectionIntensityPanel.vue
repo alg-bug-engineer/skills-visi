@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { OptimizationMeta } from '@/api/types'
 import { directionIntensityRows } from '@/viz/planVisualization'
+import { ratio } from '@/utils/format'
 
 const props = defineProps<{ meta?: OptimizationMeta | null }>()
 
@@ -9,8 +10,9 @@ const target = computed(() => props.meta?.target_saturation ?? 0.8)
 const rows = computed(() => directionIntensityRows(props.meta?.direction_intensity_list))
 const dataQuality = computed(() => props.meta?.data_quality ?? {})
 
-function pct(value?: number | null) {
-  return typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '—'
+/** 强度值（≈饱和度）一律小数，禁用百分比。条形图宽度仍用相对比例布局。 */
+function intensityText(value?: number | null) {
+  return ratio(value)
 }
 
 function width(value?: number | null) {
@@ -52,12 +54,12 @@ function targetLeft(value?: number | null) {
               <i class="target" :style="{ left: targetLeft(row.intensity) }" />
             </div>
           </td>
-          <td class="value" :class="{ risk: (row.intensity ?? 0) > target }">{{ pct(row.intensity) }}</td>
+          <td class="value" :class="{ risk: (row.intensity ?? 0) > target }">{{ intensityText(row.intensity) }}</td>
         </tr>
       </tbody>
     </table>
     <p class="foot">
-      目标强度 I_obj = {{ pct(target) }}
+      目标强度 I_obj = {{ intensityText(target) }}
       <span v-if="dataQuality.movement_source">｜{{ dataQuality.movement_source }}</span>
     </p>
   </section>

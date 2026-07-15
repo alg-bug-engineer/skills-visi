@@ -1,6 +1,7 @@
 import type { ActMapScene } from '@/composables/useTimeline'
 import type { RunResponse } from '@/api/types'
 import { hasCoord, validPath } from '@/utils/guards'
+import { ratio } from '@/utils/format'
 import { buildMetricMarkers, markerHtml } from './mapMarkers'
 import {
   clampZoomUp,
@@ -534,8 +535,8 @@ export class MapController {
       const title = node.role === 'target' ? '本路口' : '主要下游'
       const value =
         node.role === 'target'
-          ? `排队 ${metrics.queue_ratio ?? '—'}`
-          : `饱和 ${metrics.saturation ?? '—'}`
+          ? `排队 ${ratio(metrics.queue_ratio)}`
+          : `饱和 ${ratio(metrics.saturation)}`
       this.add(
         new this.AMap.Marker({
           position: pos,

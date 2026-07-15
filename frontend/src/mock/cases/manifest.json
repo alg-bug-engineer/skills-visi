@@ -60,6 +60,7 @@
       "inter_id": "011wwe29jbf00001",
       "intersection_name": "会展路与奥体中路路口",
       "opt_type": "TYPE1_POINT",
+      "metric_profile_id": "point_huizhan_aotizhong_west_through",
       "fixture": "case_e_huizhan-aotizhong-west-through_fixture.json",
       "live_validation": "huizhan-aotizhong-west-through.json",
       "query": "会展路与奥体中路路口，晚高峰五点到七点，西进口直行经常排队外溢，帮忙看看配时怎么调，并核验直接下游是否接得住。"
