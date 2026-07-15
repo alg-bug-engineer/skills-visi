@@ -53,11 +53,12 @@ describe('voice narration step sync', () => {
     expect(voiceCueForAct(ACT_DEFS[0], 'run-1', fx)).toBeNull()
 
     const locate = voiceCueForAct(ACT_DEFS[1], 'run-1', fx)
-    expect(locate?.text).toContain('诊断对象定位')
+    expect(locate?.text).toContain('路网对象定位')
     expect(locate?.text).not.toContain('已锁定')
 
     const overflow = voiceCueForAct(ACT_DEFS[2], 'run-1', fx)
     expect(overflow?.text).not.toContain('核心结论')
+    expect(overflow?.text).toContain('证据核验')
     expect(overflow?.text).toContain(fx.phases?.diagnosis?.overflow_verification?.message ?? '')
   })
 

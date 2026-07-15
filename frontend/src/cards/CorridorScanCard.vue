@@ -10,21 +10,28 @@ const a = computed(() => store.diagnosis?.arterial_analysis ?? null)
 </script>
 
 <template>
-  <BaseCard v-if="a" title="干线溯源扫描" :act="5" tone="evidence">
+  <BaseCard v-if="a" title="干线溯源扫描" :act="6" tone="evidence">
+    <p class="hint" data-testid="corridor-metric-hint">
+      地图路段百分比 = 该路段车辆经目标进口的占比；路口标签为转向分担与排队/饱和/绿灯指标。
+    </p>
+
     <div class="flow">
       <div class="flow__node up">
         <span class="v us-mono">{{ num(a.upstream_arrival_flow_vph) }}</span>
-        <span class="k">上游到达 vph</span>
+        <span class="k">上游到达</span>
+        <span class="u">辆/小时，进入目标方向的上游来车量</span>
       </div>
       <div class="flow__arrow">➜</div>
       <div class="flow__node target">
         <span class="v us-mono">{{ meters(a.target_remaining_storage_m) }}</span>
         <span class="k">目标剩余蓄车</span>
+        <span class="u">目标进口道还能再容纳的排队长度</span>
       </div>
       <div class="flow__arrow">➜</div>
       <div class="flow__node down">
         <span class="v us-mono">{{ num(a.upstream_release_intensity_vph) }}</span>
-        <span class="k">放行强度 vph</span>
+        <span class="k">放行强度</span>
+        <span class="u">辆/小时，上游信号实际放出的车流强度</span>
       </div>
     </div>
 
@@ -45,6 +52,15 @@ const a = computed(() => store.diagnosis?.arterial_analysis ?? null)
 </template>
 
 <style scoped>
+.hint {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--evidence);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
 .flow {
   display: flex;
   align-items: stretch;
@@ -76,6 +92,13 @@ const a = computed(() => store.diagnosis?.arterial_analysis ?? null)
   font-size: 10px;
   color: var(--text-mute);
   text-align: center;
+}
+.flow__node .u {
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--text-mute);
+  text-align: center;
+  opacity: 0.9;
 }
 .flow__arrow {
   align-self: center;

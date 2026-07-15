@@ -458,7 +458,7 @@ export const usePresentationStore = defineStore('presentation', {
       const act = this.acts[index]
       if (!act) return
       if (act.reveal && !this.revealedActs.includes(index)) this.revealedActs.push(index)
-      if (act.id === 'act8_plan') {
+      if (act.id === 'act9_plan') {
         this.dock = 'plan'
         this.planMinimized = false
       }
@@ -479,8 +479,8 @@ export const usePresentationStore = defineStore('presentation', {
         this.status = 'done'
         return
       }
-      // 健康核验：路口无问题时，闭环在「溢出证据核验」幕后正常收尾，
-      // 不再进入下游承接/成因/策略/方案等治理幕。
+      // 健康核验：路口无问题时，闭环在「证据核验」幕后正常收尾，
+      // 不再进入归因/下游承接/策略/方案等治理幕。
       if (this.isHealthy && this.acts[this.currentAct]?.id === 'act3_overflow') {
         this.waiting = false
         this.computingPhase = null

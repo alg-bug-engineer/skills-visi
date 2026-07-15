@@ -68,6 +68,8 @@ describe('CauseCard · 结构化相似案例', () => {
     expect(wrapper.text()).toContain('命中 12')
     expect(wrapper.text()).toContain('高相似 3')
     expect(wrapper.text()).toContain('晚高峰干线瓶颈')
+    expect(wrapper.text()).toContain('案例校验')
+    expect(wrapper.text()).not.toContain('成因判断')
 
     await wrapper.find('[data-testid="case-summary-row"]').trigger('click')
 

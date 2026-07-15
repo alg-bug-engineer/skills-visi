@@ -83,7 +83,7 @@ function openIntersection(caseId: string) {
 </script>
 
 <template>
-  <BaseCard v-if="hasAny" title="治理策略" :act="7" tone="protected">
+  <BaseCard v-if="hasAny" title="治理策略" :act="8" tone="protected">
     <ul v-if="points.length" class="pts">
       <li v-for="(p, i) in points" :key="i">{{ p }}</li>
     </ul>

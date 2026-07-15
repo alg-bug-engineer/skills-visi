@@ -7,13 +7,9 @@ import type { CaseCard } from '@/api/types'
 
 const store = usePresentationStore()
 const cause = computed(() => store.cause ?? null)
-const ranking = computed(() => cause.value?.cause_ranking ?? [])
-const scores = computed(() => cause.value?.cause_scores ?? {})
-const maxScore = computed(() => Math.max(0.001, ...Object.values(scores.value)))
 const cards = computed(() => cause.value?.case_cards?.cards ?? [])
 const matched = computed(() => cause.value?.case_cards?.matched_count ?? 0)
 const highSim = computed(() => cause.value?.case_cards?.high_similarity_count ?? 0)
-const narrative = computed(() => productCopy(cause.value?.cause_analysis?.narrative ?? cause.value?.cause_analysis?.primary_cause ?? ''))
 const selectedId = ref<string | null>(null)
 
 const selectedCard = computed(() => cards.value.find((c) => c.case_id === selectedId.value) ?? null)
@@ -31,12 +27,6 @@ watch(
   },
   { immediate: true },
 )
-
-function roleTone(role?: string) {
-  if (role?.includes('主')) return 'alarm'
-  if (role?.includes('次')) return 'evidence'
-  return 'primary'
-}
 
 function tierLabel(tier?: string) {
   if (tier === 'high') return '高度相似'
@@ -77,21 +67,7 @@ function openCase(caseId: string) {
 </script>
 
 <template>
-  <BaseCard v-if="cause" title="成因判断 · 相似案例" :act="6" tone="evidence">
-    <ul class="rank">
-      <li v-for="r in ranking" :key="r.rank" :class="`tone-${roleTone(r.role)}`">
-        <span class="rank__role">{{ r.role }}</span>
-        <span class="rank__cause">{{ productCopy(r.cause) }}</span>
-        <span
-          v-if="r.cause && scores[r.cause] != null"
-          class="rank__bar"
-          :style="{ width: `${(scores[r.cause] / maxScore) * 100}%` }"
-        />
-      </li>
-    </ul>
-
-    <p v-if="narrative" class="narrative">{{ narrative }}</p>
-
+  <BaseCard v-if="cause" title="案例校验" :act="7" tone="evidence">
     <div class="cases" v-if="cards.length">
       <div class="cases__hd">
         <span>相似案例检索</span>
@@ -192,58 +168,6 @@ function openCase(caseId: string) {
 </template>
 
 <style scoped>
-.rank {
-  list-style: none;
-  margin: 0 0 12px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.rank li {
-  position: relative;
-  padding: 6px 8px;
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.03);
-  overflow: hidden;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.narrative {
-  margin: 0 0 12px;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--text-dim);
-}
-.rank__role {
-  font-size: 11px;
-  font-weight: 700;
-  flex: 0 0 auto;
-  color: var(--primary);
-}
-.tone-alarm .rank__role {
-  color: var(--alarm);
-}
-.tone-evidence .rank__role {
-  color: var(--evidence);
-}
-.rank__cause {
-  font-size: 12.5px;
-  color: var(--text-dim);
-  position: relative;
-  z-index: 1;
-}
-.rank__bar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--evidence);
-}
-.tone-alarm .rank__bar {
-  background: var(--alarm);
-}
 .cases__hd {
   display: flex;
   justify-content: space-between;

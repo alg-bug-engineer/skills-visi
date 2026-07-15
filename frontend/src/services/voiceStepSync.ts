@@ -14,8 +14,10 @@ export function resetActVoiceKeys() {
 export function voiceTextForAct(act: ActDef, resp: RunResponse | null): string {
   const def = VOICE_TEMPLATES[act.id]
   if (!def) return `${act.processTitle}。`
+  // 步骤名以右侧处置闭环 processTitle 为准，避免模板与流程改名后漂移。
+  const aligned = { ...def, stepTitle: act.processTitle }
   const slots = voiceSlotsForAct(act, resp)
-  let text = composeVoiceAnnounce(def, slots, {
+  let text = composeVoiceAnnounce(aligned, slots, {
     conclusionOnly: voiceConclusionOnly(act),
     titleOnly: voiceTitleOnly(act),
   })
@@ -29,6 +31,9 @@ export function voiceTextForAct(act: ActDef, resp: RunResponse | null): string {
 /** 构建语音 cue（不占用去重位，供预合成使用）。 */
 export function buildVoiceCue(act: ActDef | null, runKey: string, resp: RunResponse | null): VoiceCue | null {
   if (!act) return null
+  // 方案确认与经验沉淀：不播报，避免与人工决策界面抢注意力。
+  if (act.id === 'act10_feedback') return null
+  if (!VOICE_TEMPLATES[act.id]) return null
   const key = `${runKey}:${act.id}`
   return {
     id: `${key}:announce`,
@@ -47,6 +52,7 @@ export function voiceCueForAct(
   resp: RunResponse | null,
 ): VoiceCue | null {
   if (!act) return null
+  if (act.id === 'act10_feedback') return null
   const key = `${runKey}:${act.id}`
   if (spokenKeys.has(key)) return null
   spokenKeys.add(key)

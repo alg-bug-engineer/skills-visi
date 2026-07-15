@@ -86,7 +86,10 @@ const expertCheck = computed(() => productCopy(dd.value?.expert_question).replac
 </script>
 
 <template>
-  <BaseCard v-if="dd" title="下游承接能力判别" :act="4" tone="evidence">
+  <BaseCard v-if="dd" title="下游承接能力判别" :act="5" tone="evidence">
+    <p class="hint" data-testid="downstream-metric-hint">
+      地图路口标签：转向占比为该流向车辆分担；饱和度越高越拥挤；绿灯利用率反映有效绿是否被占满；排队比为排队长度相对进口道蓄车空间。
+    </p>
     <div class="answer" :class="tone">
       <span class="answer__k">承接判断</span>
       <span class="answer__v">{{ conclusion }}</span>
@@ -138,6 +141,15 @@ const expertCheck = computed(() => productCopy(dd.value?.expert_question).replac
 </template>
 
 <style scoped>
+.hint {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--evidence);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
 .answer {
   display: flex;
   flex-direction: column;

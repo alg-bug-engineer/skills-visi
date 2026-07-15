@@ -1,8 +1,6 @@
-/** 路段覆盖溯源：占比展示口径（ratio 为 0–1 小数；低样本时附带趟次）。 */
+/** 路段覆盖溯源：占比展示口径（ratio 为 0–1 小数）。 */
 
 import { formatTargetFlowShareLabel } from './traceLabels'
-
-export const LOW_SAMPLE_TARGET_FLOW = 10
 
 export function normalizeCoverageRatio(ratio: number | null | undefined): number | null {
   if (ratio == null || !Number.isFinite(ratio)) return null
@@ -10,6 +8,7 @@ export function normalizeCoverageRatio(ratio: number | null | undefined): number
   return Math.max(0, Math.min(1, ratio))
 }
 
+/** 统一为百分比文案，不再展示「X/Y趟」。 */
 export function formatCoverageShare(opts: {
   ratio: number | null | undefined
   flow?: number | null
@@ -17,14 +16,7 @@ export function formatCoverageShare(opts: {
 }): string {
   const normalized = normalizeCoverageRatio(opts.ratio)
   if (normalized == null) return '暂无'
-  const pct = (normalized * 100).toFixed(1)
-  const flow = opts.flow
-  const target = opts.targetFlow
-  if (typeof target === 'number' && target > 0 && target < LOW_SAMPLE_TARGET_FLOW) {
-    if (typeof flow === 'number') return `${flow}/${target}趟 (${pct}%)`
-    return `约${pct}%`
-  }
-  return `${pct}%`
+  return `${(normalized * 100).toFixed(1)}%`
 }
 
 export function buildSegmentCoverageLabelHtml(opts: {
@@ -38,7 +30,7 @@ export function buildSegmentCoverageLabelHtml(opts: {
   const title = (opts.name || (opts.kind === 'link' ? '路段' : '来源路口')).trim()
   const metric =
     opts.kind === 'link'
-      ? `覆盖 ${share}`
+      ? `占目标流向 ${share}`
       : formatTargetFlowShareLabel(
           opts.ratio != null && Number.isFinite(opts.ratio)
             ? opts.ratio > 1 && opts.ratio <= 100
@@ -65,7 +57,7 @@ export function buildSegmentCoverageLinkHtml(opts: {
   return (
     `<div class="trace-label">` +
     `<div class="trace-name">${title}</div>` +
-    `<div class="trace-metric">覆盖 ${share}</div>` +
+    `<div class="trace-metric">占目标流向 ${share}</div>` +
     `</div>`
   )
 }

@@ -8,6 +8,7 @@ import DiagnosisTicketCard from '@/cards/DiagnosisTicketCard.vue'
 import DataMetricsCard from '@/cards/DataMetricsCard.vue'
 import BottleneckCard from '@/cards/BottleneckCard.vue'
 import CorridorScanCard from '@/cards/CorridorScanCard.vue'
+import AttributionCard from '@/cards/AttributionCard.vue'
 import CauseCard from '@/cards/CauseCard.vue'
 import ProblemVerificationCard from '@/cards/ProblemVerificationCard.vue'
 import GovernanceStrategyCard from '@/cards/GovernanceStrategyCard.vue'
@@ -29,6 +30,7 @@ const INSIGHT_CARDS: Record<string, unknown> = {
   metrics: DataMetricsCard,
   bottleneck: BottleneckCard,
   corridor: CorridorScanCard,
+  attribution: AttributionCard,
   cause: CauseCard,
   verification: ProblemVerificationCard,
   governance: GovernanceStrategyCard,
@@ -210,7 +212,7 @@ function extraCardKeysFor(index: number): CardKey[] {
   const act = acts.value[index]
   if (!revealedActs.value.includes(index)) return []
   const keys = [...(act?.extraCards ?? [])]
-  // 健康核验：在「溢出证据核验」幕追加健康结论卡（诊断/策略/处置文案）。
+  // 健康核验：在「证据核验」幕追加健康结论卡（诊断/策略/处置文案）。
   if (store.isHealthy && act?.id === 'act3_overflow') keys.push('healthy')
   return keys.filter((k) => k in INSIGHT_CARDS)
 }

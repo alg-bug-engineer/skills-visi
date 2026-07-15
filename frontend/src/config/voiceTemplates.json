@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "处置闭环语音播报固定文案。修改后保存并重新构建/刷新前端即可生效。",
+    "description": "处置闭环语音播报固定文案。stepTitle 须与 ACT_DEFS.processTitle 一致；运行时也以 processTitle 为准覆盖。",
     "slots": {
       "{method}": "方法词槽：取值见本文件 methods[actId]，由 methodTemplate 引用",
       "{conclusion}": "结论词槽：运行时从 RunResponse 诊断快照填充，不可在此写死"
@@ -20,69 +20,70 @@
       "useConclusion": false
     },
     "act2_locate": {
-      "stepTitle": "诊断对象定位",
-      "purpose": "将问题落到真实路网空间对象",
+      "stepTitle": "路网对象定位",
+      "purpose": "将问题落到真实路网空间对象。",
       "methodTemplate": "",
       "compose": "full",
       "useConclusion": false
     },
     "act3_overflow": {
-      "stepTitle": "溢出证据核验",
+      "stepTitle": "证据核验",
       "purpose": "依据排队比、饱和度与绿灯利用率，核验进口道问题。",
       "methodTemplate": "{method}",
       "compose": "full",
       "useConclusion": true
     },
-    "act4_bottleneck": {
+    "act4_attribution": {
+      "stepTitle": "归因分析",
+      "purpose": "在证据核验之后，按指标异常维度锁定主因与辅因。",
+      "methodTemplate": "{method}",
+      "compose": "full",
+      "useConclusion": true
+    },
+    "act5_bottleneck": {
       "stepTitle": "下游承接能力判别",
       "purpose": "评估相邻下游信控节点能否承接本路口额外放行，避免加绿引发回溢。",
       "methodTemplate": "{method}",
       "compose": "conclusionOnly",
       "useConclusion": true
     },
-    "act5_corridor": {
+    "act6_corridor": {
       "stepTitle": "上下游流向溯源",
       "purpose": "沿干线追溯上下游转向流量占比，判断瓶颈位于单点还是干线级。",
       "methodTemplate": "{method}",
       "compose": "full",
       "useConclusion": true
     },
-    "act6_cause": {
-      "stepTitle": "成因归因与案例校验",
-      "purpose": "结合实时指标异常与历史案例，锁定主因并校验归因可靠性。",
+    "act7_cases": {
+      "stepTitle": "案例校验",
+      "purpose": "检索历史相似案例，校验当前归因结论的可复用性。",
       "methodTemplate": "{method}",
       "compose": "full",
       "useConclusion": true
     },
-    "act7_strategy": {
+    "act8_strategy": {
       "stepTitle": "治理策略与边界约束",
       "purpose": "在干线联控约束下生成治理策略包，明确控制原则与不可突破红线。",
       "methodTemplate": "{method}",
       "compose": "full",
       "useConclusion": false
     },
-    "act8_plan": {
+    "act9_plan": {
       "stepTitle": "配时方案生成",
       "purpose": "将策略参数化为可执行配时方案，并完成信号护栏校验。",
       "methodTemplate": "{method}",
       "compose": "full",
       "useConclusion": false
-    },
-    "act9_feedback": {
-      "stepTitle": "方案确认与经验沉淀",
-      "purpose": "等待方案确认，并将本次处置结果沉淀为可复用经验。",
-      "methodTemplate": "记录决策、效果与约束，供后续同类场景检索复用。",
-      "compose": "titleOnly",
-      "useConclusion": false
     }
   },
   "methods": {
     "act3_overflow": "先查排队比是否突破阈值，再结合饱和度与绿灯利用率判断溢出性质与严重程度。",
-    "act4_bottleneck": "对比本路口与下游节点的排队、饱和度与服务水平，并评估剩余蓄车空间与加绿回溢风险。",
-    "act5_corridor": "沿干线追溯上下游转向流量占比，识别主要来车方向与潜在瓶颈节点。",
-    "act6_cause": "将指标异常与案例库匹配，按成因维度排序并确认主因与辅因。",
-    "act7_strategy": "在策略包中明确控制边界、协调对象与优先保护下游等治理原则。",
-    "act8_plan": "将推荐策略映射为配时参数，并完成最小绿、周期与协调护栏校验。"
+    "act4_attribution": "将证据核验得到的指标异常按成因维度排序，确认主因与辅因。",
+    "act5_bottleneck": "对比本路口与下游节点的排队、饱和度与服务水平，并评估剩余蓄车空间与加绿回溢风险。",
+    "act6_corridor": "沿干线追溯上下游转向流量占比，识别主要来车方向与潜在瓶颈节点。",
+    "act7_cases": "将当前问题特征与案例库匹配，展示命中案例与可借鉴动作，不再重复归因叙述。",
+    "act8_strategy": "在策略包中明确控制边界、协调对象与优先保护下游等治理原则。",
+    "act9_plan": "将推荐策略映射为配时参数，并完成最小绿、周期与协调护栏校验。"
   },
   "absorption": {
     "guide": {

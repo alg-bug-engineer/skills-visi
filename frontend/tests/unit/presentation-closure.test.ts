@@ -79,22 +79,22 @@ describe('presentation closure semantics', () => {
     expect(validation.channelization).toBe(true)
     expect(validation.downstreamTopology).toBe(false)
 
-    const downstream = sceneEvidencePolicy(act('act4_bottleneck').scene, { showMetrics: true })
+    const downstream = sceneEvidencePolicy(act('act5_bottleneck').scene, { showMetrics: true })
     expect(downstream.metricMarkers).toBe(false)
     expect(downstream.channelization).toBe(true)
     expect(downstream.downstreamTopology).toBe(true)
 
-    const topology = sceneEvidencePolicy(act('act5_corridor').scene, { showMetrics: true })
+    const topology = sceneEvidencePolicy(act('act6_corridor').scene, { showMetrics: true })
     expect(topology.downstreamTopology).toBe(false)
     expect(topology.trace).toBe(true)
     expect(topology.metricMarkers).toBe(false)
 
-    const cause = sceneEvidencePolicy(act('act6_cause').scene, { showMetrics: true })
+    const cause = sceneEvidencePolicy(act('act4_attribution').scene, { showMetrics: true })
     expect(cause.trace).toBe(false)
     expect(cause.causeAnnotation).toBe(true)
     expect(cause.downstreamTopology).toBe(true)
 
-    const plan = sceneEvidencePolicy(act('act8_plan').scene, { showMetrics: true })
+    const plan = sceneEvidencePolicy(act('act9_plan').scene, { showMetrics: true })
     expect(plan.planPreview).toBe(true)
     expect(plan.diagnosisCompare).toBe(false)
   })
