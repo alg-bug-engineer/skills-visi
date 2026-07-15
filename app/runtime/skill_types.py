@@ -27,6 +27,8 @@ class SkillContext:
     user_input: str
     task: dict[str, Any] = field(default_factory=dict)
     artifacts: dict[str, Any] = field(default_factory=dict)
+    # 溢出闭环单一状态（需求 35）；非溢出任务可保持 None
+    overflow_state: Any | None = None
 
 
 @dataclass

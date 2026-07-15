@@ -5,6 +5,7 @@ import logging
 import time
 from typing import Any, AsyncIterator
 
+from app.runtime.overflow_transition_validation import apply_overflow_transition
 from app.runtime.pipeline_validation import (
     compute_pipeline_complete,
     resolve_pipeline,
@@ -148,6 +149,25 @@ class SkillExecutor:
                 )
 
             result.duration_ms = round((time.perf_counter() - start) * 1000, 2)
+
+            # 需求 35：溢出闭环阶段语义校验（对象/机制/决策/可执行一致性）
+            if result.success:
+                transition_errors = apply_overflow_transition(
+                    context,
+                    skill_id=skill_id,
+                    result_success=True,
+                    output=result.output or {},
+                )
+                if transition_errors:
+                    result.success = False
+                    result.errors = list(result.errors or []) + transition_errors
+                    logger.warning(
+                        "溢出阶段转换校验失败 trace_id=%s skill_id=%s errors=%s",
+                        trace_id,
+                        skill_id,
+                        transition_errors,
+                    )
+
             results.append(result)
             context.artifacts[skill_id] = result.output
 

@@ -84,6 +84,7 @@ class PlanGenerationSkill(BaseSkill):
         timing_module = _load_script_module("generate_timing_plan.py")
         adjust_module = _load_script_module("adjust_phase_timing.py")
         guardrail_module = _load_script_module("validate_plan_guardrails.py")
+        overflow_plan_module = _load_script_module("validate_overflow_plan.py")
         optimizer_module = _load_script_module("run_single_point_optimizer.py")
 
         llm_result = await llm.chat(
@@ -159,6 +160,8 @@ class PlanGenerationSkill(BaseSkill):
             build_strategy_instruction=adjust_module.build_strategy_instruction,
             validate_plan_guardrails=guardrail_module.validate_plan_guardrails,
             run_single_point_optimizer=optimizer_module.run_single_point_optimizer,
+            validate_overflow_plan=overflow_plan_module.validate_overflow_plan,
+            build_plan_contract=overflow_plan_module.build_plan_contract_from_strategy,
             pg_raw=context.task.get("pg_raw") if isinstance(context.task.get("pg_raw"), dict) else None,
             day_of_week=(
                 (context.task.get("context") or {}).get("day_of_week")

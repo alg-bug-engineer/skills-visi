@@ -59,6 +59,8 @@ def build_plan_candidates(
     build_strategy_instruction,
     validate_plan_guardrails,
     run_single_point_optimizer=None,
+    validate_overflow_plan=None,
+    build_plan_contract=None,
     pg_raw: dict[str, Any] | None = None,
     day_of_week: int | None = None,
 ) -> tuple[list[dict[str, Any]], str | None]:
@@ -66,10 +68,27 @@ def build_plan_candidates(
     direction = ticket.get("direction", "东向西")
     downstream_name = (
         (diagnosis.get("downstream_diagnosis") or {}).get("primary_downstream", {}).get("inter_name")
+        or (diagnosis.get("downstream_state") or {}).get("direct_downstream_inter_name")
         or "下游信控节点"
     )
     case_lessons = strategy.get("case_references") or {}
     decision = strategy.get("decision") if isinstance(strategy.get("decision"), dict) else {}
+    plan_contract = {}
+    if build_plan_contract is not None:
+        plan_contract = build_plan_contract(strategy, ticket) or {}
+    elif decision:
+        # 最小契约：便于语义校验
+        instr = strategy.get("strategy_instruction") or {}
+        plan_contract = {
+            "target_movement_key": (
+                f"d{ticket['dir8_code']}_t{ticket['turn_dir_no']}"
+                if ticket.get("dir8_code") is not None and ticket.get("turn_dir_no") is not None
+                else None
+            ),
+            "target_effective_green_delta_s": instr.get("target_green_delta"),
+            "cycle_delta_s": instr.get("cycle_delta", 0),
+            "max_stage_change_ratio": decision.get("max_stage_change_ratio", 0.15),
+        }
     allowed_plan_types = decision.get("allowed_plan_types")
     if allowed_plan_types:
         allowed_set = {str(x) for x in allowed_plan_types}
@@ -177,16 +196,62 @@ def build_plan_candidates(
                     validation_errors.append(msg)
         except (TypeError, ValueError):
             pass
+
+        if plan_status is not None:
+            draft_status = plan_status
+        else:
+            draft_status = None
+        draft_executable = executable
+        if executable is not None:
+            draft_executable = bool(executable) and plan_id != "verification_plan"
+            if plan_id in {"verification_plan", "conditional_incremental_release"} and not decision.get(
+                "preconditions_satisfied"
+            ):
+                draft_executable = False
+                draft_status = decision.get("plan_status") or "conditional"
+
+        candidate_preview = {
+            "plan_id": plan_id,
+            "name": definition["name"],
+            "scenario": definition["scenario_template"].format(
+                downstream=downstream_name,
+                direction=direction,
+            ),
+            "timing": adjusted["timing"],
+            "cycle_s": adjusted.get("cycle_s"),
+            "upstream_control": adjusted["upstream_control"],
+            "executable": draft_executable,
+            "plan_status": draft_status,
+        }
+        semantic_errors: list[str] = []
+        if validate_overflow_plan is not None and decision:
+            # 条件性增绿在未核验时跳过严格配时净变化（仍校验文案与 executable）
+            contract = dict(plan_contract)
+            if (
+                plan_id == "conditional_incremental_release"
+                and not decision.get("preconditions_satisfied")
+            ):
+                contract = {**contract, "skip_timing_check": True}
+            semantic_errors = list(
+                validate_overflow_plan(
+                    candidate=candidate_preview,
+                    baseline_signal=signal,
+                    decision=decision,
+                    plan_contract=contract,
+                    diagnosis=diagnosis,
+                    ticket=ticket,
+                )
+                or []
+            )
+            validation_errors.extend(semantic_errors)
+
         guardrail_pass = len(validation_errors) == 0
 
         candidate = {
             "plan_id": plan_id,
             "name": definition["name"],
             "status": "valid" if guardrail_pass else "rejected",
-            "scenario": definition["scenario_template"].format(
-                downstream=downstream_name,
-                direction=direction,
-            ),
+            "scenario": candidate_preview["scenario"],
             "case_basis": {
                 "failure_lesson": case_lessons.get("failure_lesson"),
                 "success_lesson": case_lessons.get("success_lesson"),
@@ -201,21 +266,18 @@ def build_plan_candidates(
             "risk": definition["risk"],
             "rollback_condition": plan_body["rollback_condition"],
             "validation_errors": validation_errors,
+            "semantic_errors": semantic_errors,
             "guardrail_pass": guardrail_pass,
             "execution_order": definition.get("execution_order"),
             "timing_source": timing_source,
             "optimizer_degraded": optimizer_degraded_reason is not None,
             "optimizer_degraded_reason": optimizer_degraded_reason,
+            "plan_contract": plan_contract or None,
         }
-        if plan_status is not None:
-            candidate["plan_status"] = plan_status
-        if executable is not None:
-            candidate["executable"] = bool(executable) and plan_id != "verification_plan"
-            if plan_id in {"verification_plan", "conditional_incremental_release"} and not decision.get(
-                "preconditions_satisfied"
-            ):
-                candidate["executable"] = False
-                candidate["plan_status"] = decision.get("plan_status") or "conditional"
+        if draft_status is not None:
+            candidate["plan_status"] = draft_status
+        if draft_executable is not None:
+            candidate["executable"] = draft_executable
         candidates.append(candidate)
     return candidates, optimizer_engine
 

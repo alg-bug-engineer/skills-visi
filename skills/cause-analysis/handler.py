@@ -76,11 +76,25 @@ class CauseAnalysisSkill(BaseSkill):
             evidence_summary,
         )
 
-        prompt = (
-            "请基于下列结构化事实判断主因，并说明历史案例佐证。"
-            "数值引用必须与小数口径一致，禁止百分比。\n"
-            f"{json.dumps(llm_context, ensure_ascii=False, indent=2)}"
-        )
+        # 需求 35：确定性溢出机制已由诊断给出时，LLM 只解释，不得改写机制编码
+        overflow_mechanism = diagnosis.get("overflow_mechanism") or {}
+        if overflow_mechanism.get("primary"):
+            llm_context["overflow_mechanism"] = overflow_mechanism
+            llm_context["downstream_state"] = diagnosis.get("downstream_state")
+            prompt = (
+                "下列结构化事实中的 overflow_mechanism.primary 与 downstream_state.decision "
+                "为确定性结论，禁止修改编码或下游状态。"
+                "请解释支持证据、反证、缺失证据，并生成核验任务；"
+                "primary_cause 须与机制含义一致，不得另立互相矛盾的主因。"
+                "数值引用必须与小数口径一致，禁止百分比。\n"
+                f"{json.dumps(llm_context, ensure_ascii=False, indent=2)}"
+            )
+        else:
+            prompt = (
+                "请基于下列结构化事实判断主因，并说明历史案例佐证。"
+                "数值引用必须与小数口径一致，禁止百分比。\n"
+                f"{json.dumps(llm_context, ensure_ascii=False, indent=2)}"
+            )
         llm_result = await llm.chat(
             system_prompt=self.load_resource("system"),
             user_prompt=prompt,
@@ -98,6 +112,17 @@ class CauseAnalysisSkill(BaseSkill):
             merged_gaps = list(dict.fromkeys((llm_result.get("data_gaps") or []) + checklist_gaps))
             llm_result["data_gaps"] = merged_gaps
 
+        # 冻结机制：输出带回诊断机制，LLM 不得覆盖
+        if overflow_mechanism.get("primary"):
+            llm_result["overflow_mechanism"] = overflow_mechanism
+            llm_result["mechanism_locked"] = True
+            # 清洗明显与 slack 冲突的「下游接不住」主因表述
+            primary_cause = str(llm_result.get("primary_cause") or "")
+            ds = (diagnosis.get("downstream_state") or {}).get("decision")
+            if ds == "slack" and ("接不住" in primary_cause or "承接不足" in primary_cause):
+                llm_result["primary_cause"] = "放行效率异常待核验"
+                llm_result["primary_cause_overridden"] = True
+
         cause_ranking = llm_result.get("cause_ranking") or score_module.build_cause_ranking_from_scores(
             cause_scores, diagnosis
         )
@@ -112,10 +137,13 @@ class CauseAnalysisSkill(BaseSkill):
             "evidence_summary": evidence_summary,
             "arterial_coordination_needed": evidence_module.needs_arterial_coordination(diagnosis),
         }
+        if overflow_mechanism.get("primary"):
+            output["overflow_mechanism"] = overflow_mechanism
         logger.info(
-            "成因分析完成 trace_id=%s primary_cause=%s similar_cases=%d",
+            "成因分析完成 trace_id=%s primary_cause=%s mechanism=%s similar_cases=%d",
             context.trace_id,
             llm_result.get("primary_cause"),
+            (overflow_mechanism or {}).get("primary"),
             len(similar_cases),
         )
         return SkillResult(
