@@ -162,7 +162,7 @@ function openIntersection(caseId: string) {
   font-size: 11.5px;
   color: var(--alarm);
   background: var(--alarm-dim);
-  border: 1px solid rgba(255, 80, 80, 0.4);
+  border: 1px solid rgba(255, 71, 87, 0.4);
 }
 .refs {
   margin-top: 10px;
@@ -182,7 +182,7 @@ function openIntersection(caseId: string) {
 }
 .chip {
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--primary);
   background: var(--primary-dim);
   color: var(--primary);

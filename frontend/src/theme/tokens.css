@@ -1,17 +1,19 @@
 /*
- * 设计令牌 —— 深色信控主题（对齐 docs/design/UI_design_document.md）
- * 业务色隐喻：青=关注/进行中；红=溢流/警示；琥珀=证据/上游；绿=保护/通过。
+ * 官员汇报级信控驾驶舱色板，重度对齐参考项目 static/city-demo.html。
+ * 蓝=识别/选中；青=运行/流向；红=异常；橙=预警；绿=保护/通过；紫=推理中。
  */
 :root {
-  /* 主打品牌色 · 智慧极光青 */
-  --primary: #00e5ff;
-  --primary-2: #00d4f0;
-  --primary-dim: rgba(0, 229, 255, 0.14);
+  --primary: #1a7fff;
+  --primary-2: #6eb8ff;
+  --primary-dim: rgba(26, 127, 255, 0.15);
+  --flow: #00d4b4;
+  --flow-dim: rgba(0, 212, 180, 0.14);
+  --reasoning: #a8a0f8;
 
   /* 警示 / 溢流 · 溢流霓红 */
-  --alarm: #ff5050;
-  --alarm-2: #ff7b7b;
-  --alarm-dim: rgba(255, 80, 80, 0.12);
+  --alarm: #ff4757;
+  --alarm-2: #ff7b87;
+  --alarm-dim: rgba(255, 71, 87, 0.14);
 
   /* 证据 / 关注 · 警戒琥珀 */
   --evidence: #f5a623;
@@ -19,32 +21,35 @@
   --evidence-dim: rgba(245, 166, 35, 0.14);
 
   /* 保护 / 约束 · 协调绿 */
-  --protected: #6dffb5;
-  --protected-2: #10b981;
-  --protected-dim: rgba(109, 255, 181, 0.12);
+  --protected: #2ed573;
+  --protected-2: #6ee7a0;
+  --protected-dim: rgba(46, 213, 115, 0.13);
 
   /* 背景 · 极暗底色 */
-  --bg: #020810;
-  --bg-2: #0b0f19;
-  --grid-line: rgba(0, 229, 255, 0.06);
+  --bg: #070e1a;
+  --bg-2: #0d1929;
+  --surface-2: #111f33;
+  --surface-3: #162436;
+  --grid-line: rgba(26, 127, 255, 0.07);
 
   /* 面板 · 磨砂石板 */
-  --panel: rgba(0, 8, 16, 0.92);
-  --panel-2: rgba(10, 18, 30, 0.86);
-  --panel-border: rgba(0, 229, 255, 0.18);
-  --panel-blur: blur(12px);
+  --panel: rgba(7, 14, 26, 0.94);
+  --panel-2: rgba(13, 25, 41, 0.92);
+  --panel-border: rgba(37, 64, 106, 0.82);
+  --panel-blur: blur(16px);
 
   /* 文本 */
-  --text: #e7f5ff;
-  --text-dim: #8aa0b4;
-  --text-mute: #5a6b7c;
+  --text: #e8f0ff;
+  --text-dim: #8fa9c8;
+  --text-mute: #6b8cb0;
 
   /* 尺寸 */
   --insight-w: 320px;
   --process-w: 340px;
   --dock-h: 96px;
-  --radius: 12px;
-  --radius-sm: 8px;
+  /* 政务驾驶舱采用硬朗的小倒角，避免消费级“大圆角卡片”观感。 */
+  --radius: 2px;
+  --radius-sm: 1px;
 
   /* 字体 */
   --font-display: 'Oswald', 'HarmonyOS Sans SC', 'PingFang SC', system-ui, sans-serif;
@@ -52,10 +57,10 @@
   --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
 
   /* 阴影 / 发光 */
-  --glow-primary: 0 0 12px rgba(0, 229, 255, 0.55);
-  --glow-alarm: 0 0 12px rgba(255, 80, 80, 0.55);
-  --glow-protected: 0 0 12px rgba(109, 255, 181, 0.5);
-  --shadow-panel: 0 8px 40px rgba(0, 0, 0, 0.55);
+  --glow-primary: 0 0 14px rgba(26, 127, 255, 0.58), 0 0 34px rgba(26, 127, 255, 0.2);
+  --glow-alarm: 0 0 16px rgba(255, 71, 87, 0.62), 0 0 42px rgba(255, 71, 87, 0.22);
+  --glow-protected: 0 0 16px rgba(46, 213, 115, 0.55), 0 0 38px rgba(46, 213, 115, 0.18);
+  --shadow-panel: 8px 12px 28px rgba(0, 8, 24, 0.52);
 }
 
 * {
@@ -90,6 +95,21 @@ body,
   backdrop-filter: var(--panel-blur);
   -webkit-backdrop-filter: var(--panel-blur);
   box-shadow: var(--shadow-panel);
+  position: relative;
+}
+
+/* 细短角标取代柔和圆角，用一处高亮建立仪表板的结构方向。 */
+.us-panel::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 28px;
+  height: 1px;
+  background: rgba(92, 207, 255, 0.82);
+  box-shadow: 0 1px 8px rgba(57, 223, 255, 0.22);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .us-mono {
@@ -102,7 +122,7 @@ body,
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 229, 255, 0.25);
+  background: rgba(26, 127, 255, 0.32);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-track {

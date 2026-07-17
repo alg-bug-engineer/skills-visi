@@ -25,6 +25,8 @@ export interface ActMapScene {
   pitch: number
   zoom?: number
   evidence?: EvidenceStage
+  /** hold 用于非空间幕：保留上一幕地图，不清层、不运镜。 */
+  camera?: 'auto' | 'hold'
 }
 
 /** 左侧证据卡组件键。 */
@@ -62,17 +64,18 @@ export interface ActDef {
 export const ACT_DEFS: ActDef[] = [
   { index: 0, id: 'act1_ticket', phase: 'intent', pipelineNode: '对象识别', processTitle: '诊断对象识别', reveal: 'ticket', scene: { kind: 'city', pitch: 20, zoom: 11, evidence: 'overview' } },
   { index: 1, id: 'act2_locate', phase: 'intent', pipelineNode: '空间定位', processTitle: '路网对象定位', reveal: null, scene: { kind: 'intersection', pitch: 15, zoom: 16, evidence: 'recognition' } },
-  // 渠化详情：连贯下钻到 18（车道级）
-  { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '证据核验', processTitle: '证据核验', reveal: 'metrics', scene: { kind: 'lane', pitch: 0, zoom: 18, evidence: 'overflow_validation' } },
-  // 证据核验后立刻给出归因分析（门控 cause phase）
-  { index: 3, id: 'act4_attribution', phase: 'cause', pipelineNode: '归因分析', processTitle: '归因分析', reveal: 'attribution', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'cause_annotation' } },
-  { index: 4, id: 'act5_bottleneck', phase: 'diagnosis', pipelineNode: '下游承接', processTitle: '下游承接能力判别', reveal: 'bottleneck', extraCards: ['overflow_chain'], scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'downstream_topology' } },
-  // 干线溯源：从 18 平滑抬升到 17（干线级）
-  { index: 5, id: 'act6_corridor', phase: 'diagnosis', pipelineNode: '流向溯源', processTitle: '上下游流向溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 50, zoom: 15.5, evidence: 'flow_trace' } },
-  { index: 6, id: 'act7_cases', phase: 'cause', pipelineNode: '案例校验', processTitle: '案例校验', reveal: 'cause', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'cause_annotation' } },
+  // 渠化详情：连贯下钻到 18.8（车道级）
+  { index: 2, id: 'act3_overflow', phase: 'diagnosis', pipelineNode: '证据核验', processTitle: '证据核验', reveal: 'metrics', scene: { kind: 'lane', pitch: 0, zoom: 18.8, evidence: 'overflow_validation' } },
+  // 先建立空间证据链，再进入归因，避免结论先于证据。
+  { index: 3, id: 'act5_bottleneck', phase: 'diagnosis', pipelineNode: '下游承接', processTitle: '下游承接能力判别', reveal: 'bottleneck', extraCards: ['overflow_chain'], scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'downstream_topology' } },
+  // 流量溯源：复刻 3D 源码 48° 高位斜俯视，并完整容纳真实上游范围。
+  { index: 4, id: 'act6_corridor', phase: 'diagnosis', pipelineNode: '流向溯源', processTitle: '上下游流向溯源', reveal: 'corridor', scene: { kind: 'trace', pitch: 48, zoom: 13.8, evidence: 'flow_trace' } },
+  { index: 5, id: 'act4_attribution', phase: 'cause', pipelineNode: '归因分析', processTitle: '归因分析', reveal: 'attribution', scene: { kind: 'lane', pitch: 10, zoom: 18.6, evidence: 'cause_annotation' } },
+  // 案例仅校验因果指纹，不改变空间对象，保持上一幕镜头。
+  { index: 6, id: 'act7_cases', phase: 'cause', pipelineNode: '案例校验', processTitle: '案例校验', reveal: 'cause', scene: { kind: 'lane', pitch: 10, zoom: 18, evidence: 'cause_annotation', camera: 'hold' } },
   // 治理策略：在干线级(17)基础上 +1 放大（需求21-R3），聚焦控制范围
   { index: 7, id: 'act8_strategy', phase: 'strategy', pipelineNode: '策略约束', processTitle: '治理策略与边界约束', reveal: 'governance', extraCards: ['overflow_chain'], scene: { kind: 'control', pitch: 45, zoom: 18, evidence: 'control_scope' } },
-  { index: 8, id: 'act9_plan', phase: 'plan', pipelineNode: '方案交付', processTitle: '配时方案生成', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 18, evidence: 'plan_output' } },
+  { index: 8, id: 'act9_plan', phase: 'plan', pipelineNode: '方案交付', processTitle: '配时方案生成', reveal: 'plan', scene: { kind: 'lane', pitch: 20, zoom: 17.1, evidence: 'plan_output' } },
 ]
 
 function lines(...xs: (string | null | undefined | false)[]): string[] {

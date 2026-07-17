@@ -204,7 +204,7 @@ function openCase(caseId: string) {
 .case-row:hover,
 .case-row.active {
   border-color: var(--primary);
-  background: rgba(0, 229, 255, 0.06);
+  background: rgba(26, 127, 255, 0.06);
 }
 .case-row__hd {
   display: flex;
@@ -220,10 +220,10 @@ function openCase(caseId: string) {
 .case-row__tier {
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: var(--evidence);
-  border: 1px solid rgba(109, 255, 181, 0.35);
-  background: rgba(109, 255, 181, 0.08);
+  border: 1px solid rgba(46, 213, 115, 0.35);
+  background: rgba(46, 213, 115, 0.08);
 }
 .case-row__title {
   display: block;
@@ -313,7 +313,7 @@ function openCase(caseId: string) {
 .tag-chip {
   font-size: 10px;
   padding: 2px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-dim);
   border: 1px solid rgba(255, 255, 255, 0.08);

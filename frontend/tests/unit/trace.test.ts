@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   approxPathLength,
   interpolatePath,
+  orientPathFromOrigin,
   particleDurationFor,
+  pathPrefix,
   sampleAlongPath,
   type LngLat,
 } from '@/map/traceParticles'
@@ -14,6 +16,8 @@ import {
   upstreamEdgeStrokeWeight,
 } from '@/map/traceLabels'
 import { buildLegacySniffScene, summarizeSniffScene, type TraceSniffScene } from '@/map/traceSniff'
+import { propagationColor, roadColorForFunctionalClass } from '@/map/mapPalette'
+import { TraceLayer } from '@/map/traceLayer'
 
 const PATH: LngLat[] = [
   [0, 0],
@@ -66,9 +70,90 @@ describe('interpolatePath', () => {
     expect(interpolatePath(PATH, 0.25)).toEqual([5, 0])
   })
 
+  it('uses geographic distance instead of vertex count', () => {
+    expect(interpolatePath([[0, 0], [9, 0], [10, 0]], 0.5)).toEqual([5, 0])
+  })
+
   it('returns null for empty path and self for single point', () => {
     expect(interpolatePath([], 0.5)).toBeNull()
     expect(interpolatePath([[3, 4]], 0.9)).toEqual([3, 4])
+  })
+})
+
+describe('upstream spread geometry', () => {
+  it('orients a supplied real path from target toward upstream without offset geometry', () => {
+    const path: LngLat[] = [[10, 0], [5, 0], [0, 0]]
+    expect(orientPathFromOrigin(path, [0, 0])).toEqual([[0, 0], [5, 0], [10, 0]])
+  })
+
+  it('builds a progressive prefix that stays exactly on the source polyline', () => {
+    expect(pathPrefix([[0, 0], [9, 0], [10, 0]], 0.5)).toEqual([[0, 0], [5, 0]])
+    expect(pathPrefix([[0, 0], [9, 0], [10, 0]], 1)).toEqual([[0, 0], [9, 0], [10, 0]])
+  })
+})
+
+describe('flow trace visualization isolation', () => {
+  it('uses one trace color and does not create particle markers as fake flow points', () => {
+    const markers: Array<{ options: Record<string, unknown> }> = []
+    const polylines: Array<{ options: Record<string, unknown> }> = []
+    class FakeOverlay {
+      options: Record<string, unknown>
+      constructor(options: Record<string, unknown>) { this.options = options }
+      setMap() {}
+      setPath(path: unknown) { this.options.path = path }
+      on() {}
+      setOptions() {}
+    }
+    class FakeMarker extends FakeOverlay {
+      constructor(options: Record<string, unknown>) {
+        super(options)
+        markers.push(this)
+      }
+    }
+    class FakePolyline extends FakeOverlay {
+      constructor(options: Record<string, unknown>) {
+        super(options)
+        polylines.push(this)
+      }
+    }
+    const layer = new TraceLayer(
+      {
+        Marker: FakeMarker,
+        Polyline: FakePolyline,
+        CircleMarker: FakeOverlay,
+        Pixel: class { constructor(public x: number, public y: number) {} },
+      },
+      {},
+    )
+
+    layer.renderSegmentCoverage({
+      available: true,
+      trace_direction: 'upstream',
+      target: { id: 'T', name: '目标', lng: 117.1, lat: 36.6, target_flow: 10 },
+      links: [{ id: 'L', name: '真实路段', ratio: 0.5, coords: [[117.1, 36.6], [117.09, 36.61]] }],
+      intersections: [],
+      visualization: { particle_color: '#39dfff' },
+    })
+
+    expect(markers.some((marker) => String(marker.options.content).includes('map-flow-particle'))).toBe(false)
+    expect(new Set(polylines.map((line) => line.options.strokeColor))).toEqual(new Set(['#39dfff']))
+    layer.reset()
+  })
+})
+
+describe('3D source traffic palette', () => {
+  it('maps target-to-source spread to severe, high, medium and low source colors', () => {
+    expect(propagationColor(0, 10)).toBe('#ff3c1f')
+    expect(propagationColor(3, 10)).toBe('#ff8d1f')
+    expect(propagationColor(6, 10)).toBe('#ffd247')
+    expect(propagationColor(9, 10)).toBe('#39dfff')
+  })
+
+  it('maps PostgreSQL fc to the same road hierarchy as the 3D source', () => {
+    expect(roadColorForFunctionalClass(2)).toBe('#ffc640')
+    expect(roadColorForFunctionalClass(3)).toBe('#5ccfff')
+    expect(roadColorForFunctionalClass(4)).toBe('#2189ff')
+    expect(roadColorForFunctionalClass(5)).toBe('#1f4d7c')
   })
 })
 

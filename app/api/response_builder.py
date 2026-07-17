@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from app.trace.axis_roads import build_axis_roads
-from app.trace.act_map_enrichment import enrich_map_scenes
+from app.trace.act_map_enrichment import (
+    enrich_intent_spatial_scene as enrich_intent_spatial_scene_contract,
+    enrich_map_scenes,
+)
 
 PHASE_ARTIFACT_KEYS: dict[str, str] = {
     "intent_understanding": "intent",
@@ -16,7 +19,9 @@ PHASE_ARTIFACT_KEYS: dict[str, str] = {
 }
 
 
-def _enrich_intent_spatial_scene(phases: dict[str, Any]) -> None:
+def _enrich_intent_spatial_scene(
+    phases: dict[str, Any], root_ticket: dict[str, Any] | None = None
+) -> None:
     intent = phases.get("intent")
     if not isinstance(intent, dict):
         return
@@ -33,8 +38,18 @@ def _enrich_intent_spatial_scene(phases: dict[str, Any]) -> None:
     axis = build_axis_roads(intersection_name=inter_name, link_rows=links)
     if axis.get("available"):
         scene["axis_roads"] = axis
-        intent["spatial_scene"] = scene
-        phases["intent"] = intent
+    topology = diagnosis.get("topology") if isinstance(diagnosis.get("topology"), dict) else {}
+    ticket = intent.get("diagnosis_ticket") if isinstance(intent.get("diagnosis_ticket"), dict) else (root_ticket or {})
+    raw_source = str(diagnosis.get("data_source") or "postgresql")
+    source = "postgresql" if raw_source in {"pg", "postgres", "postgresql"} else raw_source
+    enrich_intent_spatial_scene_contract(
+        intent=intent,
+        ticket=ticket,
+        topology=topology,
+        source=source,
+    )
+    intent["spatial_scene"] = intent.get("spatial_scene") or scene
+    phases["intent"] = intent
 
 
 def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
@@ -44,7 +59,10 @@ def build_public_run_response(result: dict[str, Any]) -> dict[str, Any]:
         for skill_key, public_key in PHASE_ARTIFACT_KEYS.items()
         if skill_key in artifacts
     }
-    _enrich_intent_spatial_scene(phases)
+    _enrich_intent_spatial_scene(
+        phases,
+        result.get("diagnosis_ticket") if isinstance(result.get("diagnosis_ticket"), dict) else {},
+    )
 
     plan_artifact = artifacts.get("plan_generation") or {}
     plan_block: dict[str, Any] | None = None

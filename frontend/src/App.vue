@@ -40,7 +40,15 @@ watch(
   () => [currentAct.value, mapResetSeq.value] as const,
   ([idx, seq]) => {
     if (idx < 0) return
-    voice.enqueue(voiceCueForAct(store.acts[idx] ?? null, String(seq), store.response))
+    const barrierKey = store.actBarrierKey
+    const cue = voiceCueForAct(store.acts[idx] ?? null, String(seq), store.response)
+    voice.enqueue(cue)
+    void (async () => {
+      // 先跨过一次 flush，确保 cue 已进入 drain；无 cue/语音关闭时 whenIdle 立即完成。
+      await Promise.resolve()
+      await voice.whenIdle()
+      store.completeActBarrier('voice', idx, barrierKey)
+    })()
   },
   { immediate: true },
 )
@@ -230,7 +238,7 @@ function toggleVoice() {
 }
 .ghost {
   padding: 5px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--panel-border);
   background: rgba(2, 8, 16, 0.6);
   color: var(--text-dim);
@@ -361,7 +369,7 @@ function toggleVoice() {
 }
 .home-drawer__tab {
   width: 30px;
-  border-radius: 0 12px 12px 0;
+  border-radius: 0;
   background: linear-gradient(180deg, rgba(10, 22, 40, 0.95), rgba(6, 14, 26, 0.95));
   border: 1px solid var(--panel-border);
   border-left: none;
@@ -439,7 +447,7 @@ function toggleVoice() {
   right: calc(var(--process-w) + 32px);
   width: auto;
   transform: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border-color: rgba(142, 203, 255, 0.36);
   box-shadow:
     0 -18px 70px rgba(0, 0, 0, 0.58),
@@ -473,7 +481,7 @@ function toggleVoice() {
   align-items: center;
   gap: 14px;
   padding: 8px 16px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--alarm-dim);
   border: 1px solid var(--alarm);
   color: var(--alarm-2);
@@ -495,8 +503,8 @@ function toggleVoice() {
   padding: 10px 22px;
   font-size: 14px;
   font-weight: 600;
-  color: #ffc107;
-  border: 1px solid rgba(255, 193, 7, 0.5);
+  color: var(--evidence);
+  border: 1px solid rgba(245, 166, 35, 0.5);
   background: rgba(28, 22, 4, 0.92);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
   text-align: center;

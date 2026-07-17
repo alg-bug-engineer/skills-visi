@@ -1,6 +1,6 @@
 # 交通信控智能体 · 九幕演示前端
 
-一个独立的 **Vue 3 + TypeScript + Vite** 前后端分离 SPA，面向**交通信控智能体**能力叙事，以「排队溢出」为典型示例场景，呈现诊断到方案的**九幕递进演出**。后端以 **SSE 逐 phase 流式**推送结果，前端**边算边渲染**：意图理解一完成，第一张证据卡就浮现，后续 phase 的计算与当前幕动画重叠，用「错位」掩盖步间延时。
+一个独立的 **Vue 3 + TypeScript + Vite** 前后端分离 SPA，面向**交通信控智能体**能力叙事，以「排队溢出」为典型示例场景，呈现诊断到方案的**九幕递进演出**。后端以 **SSE 逐 phase 流式**推送结果，前端边算边渲染；每幕只有在**地图镜头、右侧打字机、语音播报**三项全部完成后才进入下一幕，避免演出错位。
 
 设计权威来源：`../docs/design/`（Progressive Disclosure / GIS-UI 联动 / 专家领域语言）。
 
@@ -103,29 +103,30 @@ PYTHONPATH=. .venv/bin/python scripts/capture_frontend_mock.py --live "转山西
 
 - 后端 `POST /agent/run/stream` 每完成一个 phase 推 SSE 事件：`phase_start` → `phase_done`（含**截至当前**的完整公开快照）→ … → `pipeline_complete`；单 phase 失败推 `error` 并停止。见 `needs/6` / `plans/6`。
 - 前端 `api/sse.ts` 用 `fetch + ReadableStream` 解析（POST，EventSource 不支持），含最多 3 次重连；`store` 事件驱动。
-- **门控推进**：某幕所属 phase（`ACT_DEFS[i].phase`）未在快照 `phases` 中就绪时，不进入该幕，Dock 显示「正在（阶段）推演…」；数据到达后自动续推。同一逻辑天然兼容单次 JSON（全 phase 一开始即就绪）。
+- **门控推进**：某幕所属 phase（`ACT_DEFS[i].phase`）必须就绪，且上一幕 `typing/voice/map` 三栅栏必须全部完成。旧 act/run token 的异步回调会被丢弃，防止穿透到新幕。
 - **优雅降级**：流式连接失败超重试 → 自动回退 `POST /agent/run` 单次 JSON + 原节奏，仍可走完九幕。
 
 ## 与后端的契约现实（重要）
 
 - 流式 `phase_done.snapshot` 为**同结构公开响应**，`phases`/`plan` 随 phase 增长逐步补齐；前端整包覆盖 store，卡片经 getters 自动更新（无需 diff）。
 - 字段多为**枚举编码**（如 `east_to_west`、`evening_peak`），前端 `labels/enums.ts` 统一翻译，未知值原样回退。
-- 地图坐标常**稀疏或为空**（`highlight_path` 仅 1 点、上下游节点无坐标等）。所有覆盖物均做 `hasCoord` 守卫，无坐标则跳过并在面板显示文本兜底。
+- Case A 的路口、进出口 link、上下游节点与相位路径已回填 PostgreSQL 真实几何和数据血缘。生产缺几何时必须返回 `available:false + reason + missing_fields`，前端禁止合成业务几何。
+- 仅 fixture 允许将数据库确实缺失的展示字段标记为 `mock:true/source:mock_visualization`，当前幕消费时显示永久橙色警告；生产模式检测到 mock 直接拒绝渲染。
 - 设计稿提及但后端**当前未透出**的字段（如逐车道 V/C）：一律显示「数据暂缺」，**绝不编造**（见 `utils/vc.ts`）。干线协调时距图 `panels/CoordinationDiagram.vue` 仅消费后端真实 `diagnosis.coordination.nodes`，缺间距/绝对相位/速度即 `available:false` 降级。
 
 ## 九幕 → 组件映射
 
 | 幕 | 内容 | 证据卡 / 组件 | 地图场景 |
 | --- | --- | --- | --- |
-| 1 | 理解问题（工单） | `DiagnosisTicketCard` | 城市俯瞰 → 飞向路口 |
-| 2 | 空间定位（识别步骤） | 过程栏 checklist | 路口 3D |
-| 3 | 指标加载 + 溢出验证 | `DataMetricsCard` | 车道近景（近 2D） |
-| 4 | 瓶颈：能不能加绿 | `BottleneckCard` | 车道 |
-| 5 | 干线溯源 | `CorridorScanCard` + 粒子流 | 干线 3D |
-| 6 | 成因 + 相似案例 | `CauseCard` | 干线 |
-| 7 | 策略边界（可做/不可做） | `GovernanceStrategyCard` | 控制范围 |
-| 8 | 方案决策（相位图/时距图/比选） | `PlanDrawer` | 路口 |
-| 9 | 接受 / 拒绝再生成 | `PlanDrawer` 页脚 | 干线 |
+| 1 | 诊断对象识别 | `DiagnosisTicketCard` | 城市俯瞰 → 目标路口 |
+| 2 | 路网对象定位 | 过程栏 checklist | 真实进口/转向路径下钻 |
+| 3 | 证据核验 | `DataMetricsCard` | 渠化近景 + 排队带/停止线 |
+| 4 | 下游承接能力判别 | `BottleneckCard` | 目标 + 主要下游 fitBounds |
+| 5 | 上下游流向溯源 | `CorridorScanCard` + 单色一次性路径蔓延 | 原始 coverage 点位/路段范围 |
+| 6 | 归因分析 | `CauseCard` | 支持/反证空间绑定 |
+| 7 | 相似案例校验 | 案例证据卡 | 保持上一幕镜头 |
+| 8 | 治理策略与边界 | `GovernanceStrategyCard` | 控流点/保护点/协调路径 |
+| 9 | 配时方案交付 | `PlanDrawer` | 最终 plan 真源相位路径 |
 
 ## 语音播报模板
 

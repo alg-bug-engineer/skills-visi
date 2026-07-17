@@ -41,6 +41,10 @@ describe('presentation store · 流式门控', () => {
     // act0(intent) → act1(intent) 就绪，直接推进
     s.tryAdvance()
     expect(s.currentAct).toBe(1)
+    const key = s.actBarrierKey
+    s.completeActBarrier('typing', 1, key)
+    s.completeActBarrier('voice', 1, key)
+    s.completeActBarrier('map', 1, key)
     // act1(intent) → act2(diagnosis) 未就绪，进入等待
     s.tryAdvance()
     expect(s.currentAct).toBe(1)
@@ -51,6 +55,23 @@ describe('presentation store · 流式门控', () => {
     s.resumeIfReady()
     expect(s.waiting).toBe(false)
     expect(s.currentAct).toBe(2)
+  })
+
+  it('三栅栏齐备前不推进，旧 act key 不能穿透', () => {
+    const s = usePresentationStore()
+    s.mode = 'batch'
+    s.applySnapshot(snap(['intent', 'diagnosis', 'cause', 'strategy'], true))
+    s.beginAct(0)
+    const oldKey = s.actBarrierKey
+    s.completeActBarrier('typing', 0, oldKey)
+    s.completeActBarrier('voice', 0, oldKey)
+    s.tryAdvance()
+    expect(s.currentAct).toBe(0)
+    s.completeActBarrier('map', 0, oldKey)
+    s.tryAdvance()
+    expect(s.currentAct).toBe(1)
+    s.completeActBarrier('map', 0, oldKey)
+    expect(s.actBarriers.map).toBe(false)
   })
 
   it('batch 模式忽略门控，直接推进', () => {

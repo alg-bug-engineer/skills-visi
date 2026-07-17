@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AMapMap = any
 
-const PANEL_OFFSET_X = -120
+/** 左栏约 360px、右栏约 380px，安全内容区中心仅需轻微左移。 */
+const PANEL_OFFSET_X = -10
 
 export function flyTo(
   map: AMapMap,
@@ -221,7 +222,8 @@ export async function microDollyToApproach(
   currentZoom: number,
 ): Promise<number> {
   const focus = offsetLngLatByMeters(center, (bearingDeg + 180) % 360, 42)
-  const z = Math.min(18.5, currentZoom + 0.35)
+  // scene.zoom 已是该幕最终粒度；micro-dolly 只做空间偏移，禁止再次改 zoom 造成回跳。
+  const z = currentZoom
   await flyTo(map, focus, z, 650)
   panToVisualCenter(map, focus)
   return z

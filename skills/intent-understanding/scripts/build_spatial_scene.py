@@ -46,6 +46,7 @@ def build_spatial_scene(
                 "inter_name": node.get("upstream_inter_name"),
                 "lng": node.get("upstream_lng"),
                 "lat": node.get("upstream_lat"),
+                "link_id": node.get("link_id"),
                 "path": node.get("path"),
             }
         )
@@ -58,21 +59,41 @@ def build_spatial_scene(
                 "inter_name": node.get("inter_name"),
                 "lng": node.get("lng"),
                 "lat": node.get("lat"),
+                "link_id": node.get("link_id"),
                 "path": node.get("path"),
             }
         )
 
-    highlight_path: list[list[float]] = []
-    if lng is not None and lat is not None:
-        highlight_path.append([float(lng), float(lat)])
-        if upstream_nodes and upstream_nodes[0].get("path"):
-            highlight_path = upstream_nodes[0]["path"] + highlight_path
-        if downstream_nodes and downstream_nodes[0].get("path"):
-            highlight_path = highlight_path + downstream_nodes[0]["path"][1:]
+    # 只拼接后端真实 link geometry，不将路口中心点当成业务路径。
+    target_approach_path = (
+        upstream_nodes[0].get("path")
+        if upstream_nodes and isinstance(upstream_nodes[0].get("path"), list)
+        else []
+    )
+    downstream_path = (
+        downstream_nodes[0].get("path")
+        if downstream_nodes and isinstance(downstream_nodes[0].get("path"), list)
+        else []
+    )
+    movement_path: list[list[float]] = []
+    for path in (target_approach_path, downstream_path):
+        if len(path) < 2:
+            continue
+        if movement_path and movement_path[-1] == path[0]:
+            movement_path.extend(path[1:])
+        else:
+            movement_path.extend(path)
+    highlight_path = movement_path or target_approach_path or downstream_path
+    geometry_source = topology.get("geometry_source")
+    scene_source = (
+        "postgresql"
+        if geometry_source == "dim_link_info.geom"
+        else ("backend_topology" if highlight_path else "none")
+    )
 
     steps = []
     for step_id, label in RECOGNITION_STEPS:
-        status = "done" if inter_id and step_id != "topology" or topology else "pending"
+        status = "done" if (inter_id and step_id != "topology") else "pending"
         if step_id == "topology" and (upstream_nodes or downstream_nodes):
             status = "done"
         if step_id == "arterial_path" and highlight_path:
@@ -91,8 +112,31 @@ def build_spatial_scene(
             "movement": movement,
         },
         "highlight_path": highlight_path or None,
+        "target_approach_path": target_approach_path or None,
+        "movement_path": movement_path or None,
         "upstream_nodes": upstream_nodes,
         "downstream_nodes": downstream_nodes,
+        "source": scene_source,
+        "missing_fields": [
+            field
+            for field, value in (
+                ("target_approach_path", target_approach_path),
+                ("movement_path", movement_path),
+                ("upstream_nodes", upstream_nodes),
+                ("downstream_nodes", downstream_nodes),
+            )
+            if not value
+        ],
+        "data_lineage": {
+            "source": scene_source,
+            "geometry_source": geometry_source,
+            "tables": ["road6.dim_inter_info", "road6.dim_link_info"],
+            "link_ids": [
+                node.get("link_id")
+                for node in [*upstream_nodes, *downstream_nodes]
+                if node.get("link_id")
+            ],
+        },
         "main_path": f"上游来车 → {ticket.get('intersection_name')} → 下游承接节点",
         "axis_roads": build_axis_roads(intersection_name=ticket.get("intersection_name")),
     }

@@ -114,9 +114,9 @@ function delta(value?: number | null) {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border: 1px solid rgba(0, 229, 255, 0.26);
-  border-radius: 8px;
-  background: linear-gradient(90deg, rgba(0, 229, 255, 0.12), rgba(109, 255, 181, 0.08));
+  border: 1px solid rgba(26, 127, 255, 0.26);
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, rgba(26, 127, 255, 0.12), rgba(46, 213, 115, 0.08));
 }
 .banner div {
   display: grid;
@@ -153,12 +153,12 @@ function delta(value?: number | null) {
   font-weight: 600;
 }
 .banner.verify {
-  border-color: rgba(109, 255, 181, 0.28);
-  background: linear-gradient(90deg, rgba(109, 255, 181, 0.1), rgba(0, 229, 255, 0.06));
+  border-color: rgba(46, 213, 115, 0.28);
+  background: linear-gradient(90deg, rgba(46, 213, 115, 0.1), rgba(26, 127, 255, 0.06));
 }
 .banner.propose {
-  border-color: rgba(0, 229, 255, 0.35);
-  background: linear-gradient(90deg, rgba(0, 229, 255, 0.14), rgba(109, 255, 181, 0.08));
+  border-color: rgba(26, 127, 255, 0.35);
+  background: linear-gradient(90deg, rgba(26, 127, 255, 0.14), rgba(46, 213, 115, 0.08));
 }
 .banner.propose strong {
   font-size: 18px;
@@ -172,7 +172,7 @@ function delta(value?: number | null) {
   gap: 8px;
   padding: 12px;
   border: 1px solid rgba(245, 166, 35, 0.3);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: rgba(245, 166, 35, 0.08);
 }
 .fallback strong {

@@ -171,6 +171,7 @@ class LinkMeta:
     t_inter_id: str | None
     direction: str | None
     length_m: float | None
+    fc: int | None
 
 
 @dataclass
@@ -323,7 +324,7 @@ class SegmentCoverageService:
                         try:
                             cur.execute(
                                 f"""
-                                select rid_id, road_name, geom, f_inter_id, t_inter_id, dir, length_m
+                                select rid_id, road_name, geom, f_inter_id, t_inter_id, dir, length_m, fc
                                 from {schema}.{table_name}
                                 where rid_id = any(%s) and geom is not null
                                 """,
@@ -333,7 +334,7 @@ class SegmentCoverageService:
                             logger.warning("skip unavailable table %s.%s", schema, table_name)
                             continue
                         for row in cur.fetchall():
-                            rid_id, road_name, geom, f_inter_id, t_inter_id, direction, length_m = row
+                            rid_id, road_name, geom, f_inter_id, t_inter_id, direction, length_m, fc = row
                             rid = str(rid_id)
                             coords = parse_linestring(geom)
                             if len(coords) < 2:
@@ -346,6 +347,7 @@ class SegmentCoverageService:
                                 t_inter_id=str(t_inter_id) if t_inter_id else None,
                                 direction=str(direction) if direction else None,
                                 length_m=float(length_m) if length_m is not None else None,
+                                fc=int(fc) if fc is not None else None,
                             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("segment coverage link metadata degraded: %s", exc)
@@ -563,6 +565,7 @@ class SegmentCoverageService:
                     "to_inter_id": meta.t_inter_id,
                     "direction": meta.direction,
                     "length_m": meta.length_m,
+                    "fc": meta.fc,
                     "rank": len(payload) + 1,
                     "flow": flow,
                     "ratio": round(ratio, 6),

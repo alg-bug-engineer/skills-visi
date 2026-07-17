@@ -8,7 +8,15 @@
  *
  * 取数：只消费后端真实 path/坐标/share_pct（rule 19，禁止前端合成）。
  */
-import { type LngLat } from './traceParticles'
+import {
+  orientPathFromOrigin,
+  pathPrefix,
+  type LngLat,
+} from './traceParticles'
+import {
+  MAP_PALETTE,
+  TRACE_PALETTE as REFERENCE_TRACE_PALETTE,
+} from './mapPalette'
 import {
   buildSegmentCoverageLabelHtml,
   buildSegmentCoverageLinkHtml,
@@ -38,20 +46,14 @@ type AMapMap = any
 type Overlay = any
 
 /** 干线发光配色：上游琥珀暖色 / 下游青蓝冷色（对齐参考，落到本项目主题）。 */
-const TRACE_PALETTE = {
-  upstream: { glow: '#f5a623', core: '#ffcf7a' },
-  downstream: { glow: '#0ea5e9', core: '#38bdf8' },
+const EDGE_PALETTE = {
+  upstream: { glow: MAP_PALETTE.primary, core: MAP_PALETTE.flow },
+  downstream: { glow: MAP_PALETTE.success, core: MAP_PALETTE.success },
 } as const
 
-const SNIFF_PALETTE = {
-  target: { glow: '#22c55e', core: '#86efac' },
-  upstreamMain: { glow: '#f59e0b', core: '#fbbf24' },
-  upstreamOther: { glow: '#3b82f6', core: '#93c5fd' },
-  downstreamMain: { glow: '#a855f7', core: '#d8b4fe' },
-  downstreamOther: { glow: '#06b6d4', core: '#67e8f9' },
-} as const
+const SNIFF_PALETTE = REFERENCE_TRACE_PALETTE
 
-export type TraceDirection = keyof typeof TRACE_PALETTE
+export type TraceDirection = keyof typeof EDGE_PALETTE
 
 const LABEL_OFFSET: [number, number] = [10, -48]
 const DEFAULT_DETAIL_LABEL_LIMIT = 4
@@ -88,6 +90,16 @@ export class TraceLayer {
   private readonly fitList: Overlay[] = []
   private readonly labelMarkers = new Map<string, any>()
   private readonly openLabelIds = new Set<string>()
+  private spreadAnimationId: number | null = null
+  private spreadStartedAt = 0
+  private spreadCompletion: Promise<void> = Promise.resolve()
+  private resolveSpreadCompletion: (() => void) | null = null
+  private spreadWaves: Array<{
+    line: any
+    path: LngLat[]
+    delay: number
+    duration: number
+  }> = []
 
   constructor(amap: AMapNS, map: AMapMap) {
     this.AMap = amap
@@ -110,7 +122,7 @@ export class TraceLayer {
   ): void {
     if (this.byId.has(id) || path.length < 2) return
     const weight = upstreamEdgeStrokeWeight(opts.flowPct)
-    const colors = TRACE_PALETTE[opts.traceKind ?? 'upstream']
+    const colors = EDGE_PALETTE[opts.traceKind ?? 'upstream']
 
     const glow = new this.AMap.Polyline({
       path,
@@ -135,6 +147,90 @@ export class TraceLayer {
     this.register(id, core)
   }
 
+  /**
+   * 从目标点沿后端真实 link path 向上游逐条扩散。
+   * 不创建动画 marker，避免把视觉粒子误读为新增流量点位；只让单色路径前缀增长一次。
+   */
+  private addSpreadWave(
+    id: string,
+    rawPath: LngLat[],
+    origin: LngLat | null,
+    order: number,
+    total: number,
+    trailColor: string = MAP_PALETTE.flow,
+    trailWeight = 5,
+  ): void {
+    if (
+      rawPath.length < 2 ||
+      typeof window === 'undefined' ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ) return
+    const path = orientPathFromOrigin(rawPath, origin)
+    if (path.length < 2) return
+    const line = new this.AMap.Polyline({
+      path: [path[0], path[0]],
+      strokeColor: trailColor,
+      strokeWeight: trailWeight,
+      strokeOpacity: 0.88,
+      lineJoin: 'round',
+      lineCap: 'round',
+      zIndex: 84,
+    })
+    this.register(`spread:${id}`, line)
+    this.spreadWaves.push({
+      line,
+      path,
+      delay: total <= 1 ? 0 : (Math.max(0, order) / (total - 1)) * 2200,
+      duration: 1600,
+    })
+    this.startSpreadAnimation()
+  }
+
+  private startSpreadAnimation(): void {
+    if (this.spreadAnimationId != null || !this.spreadWaves.length || typeof window === 'undefined') return
+    this.spreadCompletion = new Promise<void>((resolve) => {
+      this.resolveSpreadCompletion = resolve
+    })
+    this.spreadStartedAt = performance.now()
+    const frame = (now: number) => {
+      const elapsed = now - this.spreadStartedAt
+      let pending = false
+      for (const wave of this.spreadWaves) {
+        const localMs = elapsed - wave.delay
+        const progress = Math.max(0, Math.min(1, localMs / wave.duration))
+        if (localMs < 0) {
+          wave.line.setPath?.([wave.path[0], wave.path[0]])
+          pending = true
+        } else {
+          wave.line.setPath?.(pathPrefix(wave.path, progress))
+          if (progress < 1) pending = true
+        }
+      }
+      if (pending && this.spreadWaves.length) {
+        this.spreadAnimationId = window.requestAnimationFrame(frame)
+      } else {
+        this.spreadAnimationId = null
+        this.resolveSpreadCompletion?.()
+        this.resolveSpreadCompletion = null
+      }
+    }
+    this.spreadAnimationId = window.requestAnimationFrame(frame)
+  }
+
+  private stopSpreadAnimation(): void {
+    if (this.spreadAnimationId != null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(this.spreadAnimationId)
+    }
+    this.spreadAnimationId = null
+    this.resolveSpreadCompletion?.()
+    this.resolveSpreadCompletion = null
+    this.spreadWaves = []
+  }
+
+  whenSpreadComplete(): Promise<void> {
+    return this.spreadCompletion
+  }
+
   private sniffColors(
     node: TraceSniffIntersection,
     traceDirection: SniffTraceDirection,
@@ -153,10 +249,14 @@ export class TraceLayer {
       node: TraceSniffIntersection
       traceDirection: SniffTraceDirection
       linkRole?: string | null
+      color?: string
+      progressive?: boolean
     },
   ): void {
     if (this.byId.has(id) || path.length < 2) return
-    const colors = this.sniffColors(opts.node, opts.traceDirection)
+    const colors = opts.color
+      ? { glow: opts.color, core: opts.color }
+      : this.sniffColors(opts.node, opts.traceDirection)
     const isTarget = opts.node.role === 'target'
     const isMain = Boolean(opts.node.in_main_corridor)
     const entrance = isEntranceLink(opts.linkRole)
@@ -167,20 +267,22 @@ export class TraceLayer {
     const glow = new this.AMap.Polyline({
       path,
       strokeColor: colors.glow,
-      strokeWeight: isTarget ? weight * 2.2 : weight * 3,
-      strokeOpacity: isTarget ? 0.18 : 0.22,
+      strokeWeight: opts.color ? weight * 1.5 : isTarget ? weight * 2.2 : weight * 3,
+      strokeOpacity: opts.color ? (opts.progressive ? 0.08 : 0.14) : isTarget ? 0.18 : 0.22,
       lineJoin: 'round',
-      lineCap: 'round',
+      lineCap: opts.color ? 'butt' : 'round',
       zIndex: zBase,
     })
     const core = new this.AMap.Polyline({
       path,
       strokeColor: colors.core,
       strokeWeight: weight,
-      strokeOpacity: isTarget ? (entrance ? 0.55 : 0.32) : 0.92,
+      strokeOpacity: opts.color && opts.traceDirection === 'upstream' && opts.progressive
+        ? 0.2
+        : isTarget ? (entrance ? 0.55 : 0.32) : 0.92,
       lineJoin: 'round',
-      lineCap: 'round',
-      showDir: !isTarget,
+      lineCap: 'butt',
+      showDir: false,
       zIndex: zBase + 2,
     })
     this.register(id, glow)
@@ -201,7 +303,7 @@ export class TraceLayer {
     const shadowOuter = (34 * glow).toFixed(1)
     const alpha = (0.78 * glow).toFixed(2)
     const alphaOuter = (0.26 * glow).toFixed(2)
-    const rgb = role === 'downstream' ? '14,165,233' : '245,166,35'
+    const rgb = role === 'downstream' ? '46,213,115' : '0,212,180'
     return (
       `<div class="trace-node is-scaled ${roleCls}" ` +
       `style="width:${size}px;height:${size}px;opacity:${opacity.toFixed(2)};` +
@@ -405,6 +507,7 @@ export class TraceLayer {
       lat?: number | null
       ratio?: number
       flow?: number
+      fc?: number | null
       [k: string]: unknown
     }>
     links?: Array<{
@@ -417,11 +520,23 @@ export class TraceLayer {
     }>
     quality_filters?: { low_sample?: boolean }
     stats?: { target_flow?: number; low_sample?: boolean }
-  }): void {
+    visualization?: {
+      particle_color?: string
+      palette?: {
+        severe?: string
+        high?: string
+        medium?: string
+        low?: string
+        near?: string
+        middle?: string
+        far?: string
+      }
+    }
+  }, animate = true): void {
     if (!scene?.available) return
     const upstream = scene.trace_direction !== 'downstream'
-    const stroke = upstream ? '#0f9f8f' : '#0ea5e9'
-    const nodeFill = upstream ? '#2563eb' : '#7c3aed'
+    const nodeFill = upstream ? MAP_PALETTE.flow : MAP_PALETTE.reasoning
+    const traceColor = scene.visualization?.particle_color ?? MAP_PALETTE.flow
     const targetFlow =
       scene.stats?.target_flow ??
       (typeof scene.target?.target_flow === 'number' ? scene.target.target_flow : null)
@@ -429,27 +544,18 @@ export class TraceLayer {
 
     const target = scene.target
     if (target && target.lng != null && target.lat != null) {
-      const marker = new this.AMap.CircleMarker({
-        center: [target.lng, target.lat],
-        radius: 9,
-        fillColor: '#f97316',
-        fillOpacity: 0.95,
-        strokeColor: '#fff',
-        strokeWeight: 3,
-        zIndex: 20,
+      const targetLabel = buildSegmentCoverageTargetHtml({
+        name: String(target.name ?? '目标路口'),
+        targetFlow,
+        lowSample,
+      })
+      const marker = new this.AMap.Marker({
+        position: [target.lng, target.lat],
+        anchor: 'center',
+        zIndex: 94,
+        content: `<div class="trace-target-wrap"><div class="trace-node is-target"></div>${targetLabel}</div>`,
       })
       this.register('coverage:target', marker)
-      this.ensureLabel(
-        'coverage:target',
-        target.lng,
-        target.lat,
-        buildSegmentCoverageTargetHtml({
-          name: String(target.name ?? '目标路口'),
-          targetFlow,
-          lowSample,
-        }),
-        true,
-      )
     }
 
     const eligibleLinks = (scene.links ?? [])
@@ -463,24 +569,46 @@ export class TraceLayer {
       })
     const defaultLinkLabels = this.defaultLabelIndexes(eligibleLinks.length, 3)
 
+    const spreadOrigin: LngLat | null =
+      target && target.lng != null && target.lat != null ? [target.lng, target.lat] : null
+    const spreadOrder = new Map<unknown, number>()
+    ;[...eligibleLinks]
+      .sort((a, b) => {
+        const aOrder = Number((a.link as any).spread_order ?? (a.link as any).rank ?? a.idx)
+        const bOrder = Number((b.link as any).spread_order ?? (b.link as any).rank ?? b.idx)
+        return aOrder - bOrder
+      })
+      .forEach(({ link }, index) => spreadOrder.set(link, index))
+
     for (const { link, idx } of eligibleLinks) {
       const path = (link.coords ?? []).filter(
         (p): p is LngLat => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]),
       )
       const ratio = typeof link.ratio === 'number' && Number.isFinite(link.ratio) ? link.ratio : 0
-      const weight = Math.max(4, Math.min(14, 3 + ratio * 38))
+      const weight = Math.max(3, Math.min(8, 2.5 + ratio * 18))
+      const order = spreadOrder.get(link) ?? idx
       const line = new this.AMap.Polyline({
         path,
-        strokeColor: stroke,
-        strokeOpacity: 0.72,
+        strokeColor: traceColor,
+        strokeOpacity: upstream && animate ? 0.2 : 0.82,
         strokeWeight: weight,
         lineJoin: 'round',
-        lineCap: 'round',
-        showDir: true,
-        dirColor: '#fbbf24',
-        zIndex: 8,
+        lineCap: 'butt',
+        showDir: false,
+        zIndex: 72,
       })
       this.register(`coverage:link:${link.id ?? idx}`, line)
+      if (upstream && animate) {
+        this.addSpreadWave(
+          String(link.id ?? idx),
+          path,
+          spreadOrigin,
+          order,
+          spreadOrder.size,
+          traceColor,
+          weight,
+        )
+      }
       const mid = path[Math.floor(path.length / 2)]
       if (mid) {
         this.ensureLabel(
@@ -498,14 +626,26 @@ export class TraceLayer {
       }
     }
 
-    const intersections = (scene.intersections ?? []).filter(
-      (item) => item.lng != null && item.lat != null,
-    )
+    // 以当前镜头的屏幕像素做节点抽样；圆点本身也属于 marker，禁止互相覆盖。
+    const markerPixels: Array<[number, number]> = []
+    const intersections = [...(scene.intersections ?? [])]
+      .filter((item) => item.lng != null && item.lat != null)
+      .sort((a, b) => Number(b.ratio ?? 0) - Number(a.ratio ?? 0))
+      .filter((item) => {
+        if (item.lng == null || item.lat == null) return false
+        const pixel = this.map.lngLatToContainer?.([item.lng, item.lat])
+        const x = Number(pixel?.getX?.() ?? pixel?.x)
+        const y = Number(pixel?.getY?.() ?? pixel?.y)
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return markerPixels.length < 14
+        if (markerPixels.some(([px, py]) => Math.hypot(x - px, y - py) < 30)) return false
+        markerPixels.push([x, y])
+        return markerPixels.length <= 18
+      })
     const defaultLabels = this.defaultLabelIndexes(intersections.length)
     for (const [idx, item] of intersections.entries()) {
       if (item.lng == null || item.lat == null) continue
       const ratio = typeof item.ratio === 'number' && Number.isFinite(item.ratio) ? item.ratio : 0
-      const radius = Math.max(5, Math.min(18, 4 + ratio * 36))
+      const radius = Math.max(4, Math.min(9, 3.5 + ratio * 8))
       const marker = new this.AMap.CircleMarker({
         center: [item.lng, item.lat],
         radius,
@@ -513,7 +653,7 @@ export class TraceLayer {
         fillOpacity: 0.78,
         strokeColor: '#ffffff',
         strokeWeight: 2,
-        zIndex: 16,
+        zIndex: 76,
       })
       const id = `coverage:inter:${item.id ?? idx}`
       this.register(id, marker)
@@ -534,12 +674,14 @@ export class TraceLayer {
     }
   }
 
-  /** 标准 link sniff 溯源：目标/主走廊/其他链分色，真实 link 双层发光，主链粒子与占比节点。 */
-  renderSniffScene(scene: TraceSniffScene): void {
+  /** 标准 link sniff 溯源：仅在 coverage 缺失时回退，仍只消费原有真实点位与 link。 */
+  renderSniffScene(scene: TraceSniffScene, animate = true): void {
     const traceDirection = scene.trace_direction === 'downstream' ? 'downstream' : 'upstream'
     let topId = ''
     let topCoverage = -1
     const renderNodes = (scene.intersections ?? []).filter(shouldRenderSniffNode)
+    const targetCenter = renderNodes.find((node) => node.role === 'target')?.center ?? null
+    const spreadColor = scene.visualization?.particle_color ?? MAP_PALETTE.flow
     renderNodes.forEach((node, index) => {
       const cov = sniffCoverage(node)
       const id = sniffNodeId(node, index)
@@ -559,7 +701,19 @@ export class TraceLayer {
           node,
           traceDirection,
           linkRole: link.link_role,
+          color: spreadColor,
+          progressive: animate && traceDirection === 'upstream',
         })
+        if (animate && traceDirection === 'upstream' && node.role !== 'target' && node.in_main_corridor) {
+          this.addSpreadWave(
+            `sniff:${nodeId}:${link.link_id ?? linkIndex}`,
+            path,
+            targetCenter as LngLat | null,
+            index,
+            renderNodes.length,
+            spreadColor,
+          )
+        }
       }
 
       const center = node.center
@@ -589,6 +743,7 @@ export class TraceLayer {
   }
 
   reset(): void {
+    this.stopSpreadAnimation()
     this.labelMarkers.clear()
     this.openLabelIds.clear()
     for (const list of this.byId.values()) {

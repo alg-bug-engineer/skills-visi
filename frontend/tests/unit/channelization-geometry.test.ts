@@ -17,10 +17,10 @@ describe('channelization geometry helpers', () => {
   })
 
   it('maps lane function to reference colors and labels', () => {
-    expect(laneColor('B')).toBe('#3b82f6')
-    expect(laneColor('C')).toBe('#94a3b8')
-    expect(laneColor('D')).toBe('#22c55e')
-    expect(laneColor('CD')).toBe('#14b8a6')
+    expect(laneColor('B')).toBe('#2189ff')
+    expect(laneColor('C')).toBe('#39dfff')
+    expect(laneColor('D')).toBe('#2ed573')
+    expect(laneColor('CD')).toBe('#ffd247')
     expect(laneLabel('AB')).toBe('掉头左转')
   })
 

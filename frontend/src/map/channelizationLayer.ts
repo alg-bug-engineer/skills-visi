@@ -18,6 +18,7 @@ import {
   type ChannelLink,
   type LngLat,
 } from './channelizationGeometry'
+import { MAP_PALETTE } from './mapPalette'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AMapNS = any
@@ -32,13 +33,13 @@ export interface ChannelizationScene {
 
 function metricColor(value: number | null | undefined, kind: 'saturation' | 'queue' | 'green' | 'flow'): string {
   const v = Number(value)
-  if (!Number.isFinite(v)) return '#6dffb5'
-  if (kind === 'green') return v < 0.55 ? '#ffb020' : '#6dffb5'
-  if (kind === 'flow') return v >= 800 ? '#29b6f6' : v >= 400 ? '#4dd0e1' : '#80deea'
-  if (v >= 1 || (kind === 'queue' && v >= 180)) return '#ff3311'
-  if (v >= 0.85 || (kind === 'queue' && v >= 120)) return '#ff8800'
-  if (v >= 0.65 || (kind === 'queue' && v >= 60)) return '#fbbf24'
-  return '#6dffb5'
+  if (!Number.isFinite(v)) return MAP_PALETTE.success
+  if (kind === 'green') return v < 0.55 ? MAP_PALETTE.warning : MAP_PALETTE.success
+  if (kind === 'flow') return v >= 800 ? MAP_PALETTE.primary : MAP_PALETTE.flow
+  if (v >= 1 || (kind === 'queue' && v >= 180)) return MAP_PALETTE.danger
+  if (v >= 0.85 || (kind === 'queue' && v >= 120)) return MAP_PALETTE.warning
+  if (v >= 0.65 || (kind === 'queue' && v >= 60)) return MAP_PALETTE.reasoning
+  return MAP_PALETTE.success
 }
 
 function metricText(metrics: Record<string, number | null | undefined> | undefined): string {
@@ -111,11 +112,11 @@ export class ChannelizationLayer {
       new this.amap.Circle({
         center: this.center,
         radius: this.boxR + 8,
-        strokeColor: '#38bdf8',
+        strokeColor: MAP_PALETTE.flow,
         strokeWeight: 2,
         strokeOpacity: 0.85,
         strokeStyle: 'dashed',
-        fillColor: '#38bdf8',
+        fillColor: MAP_PALETTE.flow,
         fillOpacity: 0.05,
         bubble: true,
         zIndex: 12,
@@ -131,7 +132,7 @@ export class ChannelizationLayer {
         'L1',
         new this.amap.Polyline({
           path,
-          strokeColor: String(link.link_role).toLowerCase() === 'exit' ? '#3a4757' : '#4b5b6e',
+          strokeColor: String(link.link_role).toLowerCase() === 'exit' ? '#1f4d7c' : '#214a66',
           strokeWeight: 2,
           strokeOpacity: 0.55,
           bubble: true,
@@ -156,10 +157,10 @@ export class ChannelizationLayer {
       'L1',
       new this.amap.Polygon({
         path: this.rect(arm, u0, u1, -wIn - MEDIAN_W, wOut + MEDIAN_W),
-        strokeColor: '#1f2937',
+        strokeColor: '#061225',
         strokeWeight: 1,
         strokeOpacity: 0.8,
-        fillColor: '#39424f',
+        fillColor: '#07111f',
         fillOpacity: 0.5,
         bubble: true,
         zIndex: 14,
@@ -250,7 +251,7 @@ export class ChannelizationLayer {
         'L2',
         new this.amap.Polyline({
           path: [this.ll(u0, off, b), this.ll(u1, off, b)],
-          strokeColor: '#fbbf24',
+          strokeColor: MAP_PALETTE.warning,
           strokeWeight: 2,
           strokeOpacity: 0.95,
           bubble: true,
@@ -306,7 +307,7 @@ export class ChannelizationLayer {
     const u0 = this.boxR
     const sat = metrics.saturation
     const queue = metrics.queue_m
-    const color = sat != null ? metricColor(sat, 'saturation') : queue != null ? metricColor(queue, 'queue') : '#6dffb5'
+    const color = sat != null ? metricColor(sat, 'saturation') : queue != null ? metricColor(queue, 'queue') : '#2ed573'
     const fillLen =
       queue != null
         ? Math.min(ARM_LEN * 0.92, Math.max(2, Number(queue)))
@@ -388,10 +389,10 @@ export class ChannelizationLayer {
     this.highlights.push(
       new this.amap.Polygon({
         path,
-        strokeColor: '#ff5050',
+        strokeColor: MAP_PALETTE.danger,
         strokeWeight: 3,
         strokeOpacity: 0.95,
-        fillColor: '#ff5050',
+        fillColor: MAP_PALETTE.danger,
         fillOpacity: 0.12,
         bubble: true,
         zIndex: 48,
@@ -406,7 +407,7 @@ export class ChannelizationLayer {
       new this.amap.Marker({
         position: labelPos,
         content:
-          `<div class="channel-approach-badge" style="--c:#ff5050">` +
+          `<div class="channel-approach-badge" style="--c:${MAP_PALETTE.danger}">` +
           `<div>${arm.inLink.dir8_label ?? direction ?? '进口'} · ${mov}</div>` +
           (metricHint ? `<div class="channel-approach-badge__metric">${metricHint}</div>` : '') +
           `</div>`,

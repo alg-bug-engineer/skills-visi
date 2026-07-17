@@ -98,12 +98,12 @@ const STATUS_LABEL: Record<SkillBuildFileNode['status'], string> = {
   color: var(--text-mute);
 }
 .file-node:hover {
-  border-color: rgba(0, 229, 255, 0.2);
+  border-color: rgba(26, 127, 255, 0.2);
   color: var(--text);
 }
 .file-node.active {
-  background: rgba(0, 229, 255, 0.1);
-  border-color: rgba(0, 229, 255, 0.28);
+  background: rgba(26, 127, 255, 0.1);
+  border-color: rgba(26, 127, 255, 0.28);
   color: var(--text);
 }
 .file-node.status-writing .file-node__status {

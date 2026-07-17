@@ -87,8 +87,8 @@ watch(
   flex-direction: column;
   overflow: hidden;
   padding: 14px 16px;
-  border-radius: 8px;
-  border-color: rgba(0, 229, 255, 0.32);
+  border-radius: var(--radius);
+  border-color: rgba(26, 127, 255, 0.32);
   background: rgba(4, 13, 24, 0.96);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }

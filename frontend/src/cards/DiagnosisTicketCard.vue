@@ -77,7 +77,7 @@ const constraintList = computed(() => ticketConstraintList(tk.value))
 .tag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   line-height: 1.6;
 }

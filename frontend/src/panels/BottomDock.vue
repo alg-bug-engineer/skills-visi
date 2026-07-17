@@ -158,7 +158,7 @@ const signalText = computed(
 .chip {
   max-width: 100%;
   padding: 5px 12px;
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--panel-border);
   background: transparent;
   color: var(--text-dim);

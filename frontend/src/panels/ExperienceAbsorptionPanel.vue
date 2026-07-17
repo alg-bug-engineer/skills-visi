@@ -289,7 +289,7 @@ watch(
 .ref-chip {
   padding: 1px 6px;
   font-size: 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--primary);
   color: var(--primary);
 }

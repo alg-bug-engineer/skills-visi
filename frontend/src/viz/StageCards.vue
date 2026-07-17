@@ -128,7 +128,7 @@ function hasFlow(stage: PhaseStageTiming): boolean {
   flex: 0 0 200px;
   padding: 10px;
   border: 1px solid rgba(138, 160, 180, 0.28);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.025);
 }
 .card-head {
@@ -171,8 +171,8 @@ function hasFlow(stage: PhaseStageTiming): boolean {
   gap: 4px;
   margin-bottom: 8px;
   padding: 6px 4px;
-  border-radius: 6px;
-  background: rgba(0, 229, 255, 0.06);
+  border-radius: var(--radius-sm);
+  background: rgba(26, 127, 255, 0.06);
 }
 .green-cmp .label {
   width: 100%;

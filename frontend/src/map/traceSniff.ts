@@ -33,6 +33,41 @@ export interface TraceSniffScene {
   trace_direction?: SniffTraceDirection | string | null
   intersections?: TraceSniffIntersection[]
   stats?: Record<string, unknown>
+  visualization?: TraceSpreadVisualization
+}
+
+export interface TraceSpreadVisualization {
+  contract_version?: string
+  effect?: string
+  direction?: string
+  origin?: LngLat | null
+  geometry_source?: string
+  context_geometry_source?: string | null
+  render_geometry_scope?: string
+  ordering?: string
+  particle_anchor?: string
+  particle_color?: string
+  particle_texture?: string | null
+  particle_count?: number
+  particle_color_mode?: string
+  propagation_renderer?: string
+  repeat?: boolean
+  color_metric?: string
+  color_semantics?: string
+  camera?: { pitch?: number; radius_m?: number; max_zoom?: number }
+  palette?: {
+    trace?: string
+    severe?: string
+    high?: string
+    medium?: string
+    low?: string
+    near?: string
+    middle?: string
+    far?: string
+  }
+  map_style?: string
+  road_classification_source?: string | null
+  source?: string
 }
 
 export interface TraceSniffSummary {

@@ -307,12 +307,66 @@
         },
         "highlight_path": [
           [
-            117.108428,
-            36.662959
+            117.108432,
+            36.664043
+          ],
+          [
+            117.108416,
+            36.663464
+          ],
+          [
+            117.108427,
+            36.663045
+          ],
+          [
+            117.108411,
+            36.662916
+          ],
+          [
+            117.1084,
+            36.662326
+          ],
+          [
+            117.108411,
+            36.66187
           ]
         ],
-        "upstream_nodes": [],
-        "downstream_nodes": [],
+        "target_approach_path": [
+          [117.108432, 36.664043],
+          [117.108416, 36.663464],
+          [117.108427, 36.663045]
+        ],
+        "movement_path": [
+          [117.108432, 36.664043],
+          [117.108416, 36.663464],
+          [117.108427, 36.663045],
+          [117.108411, 36.662916],
+          [117.1084, 36.662326],
+          [117.108411, 36.66187]
+        ],
+        "upstream_nodes": [
+          {
+            "inter_id": "011wwe28f7z00001",
+            "inter_name": "书昌街与齐音路路口",
+            "lng": 117.108429,
+            "lat": 36.664068
+          }
+        ],
+        "downstream_nodes": [
+          {
+            "inter_id": "011wwe28f5f00001",
+            "inter_name": "永绥路与齐音路路口",
+            "lng": 117.108427,
+            "lat": 36.661851
+          }
+        ],
+        "data_lineage": {
+          "source": "postgresql",
+          "schema": "road6",
+          "version_id": "20260501",
+          "tables": ["dim_inter_info", "dim_link_info", "dwd_tfc_rltn_wide_inter_ft_link"],
+          "link_ids": ["12wwe28f7wwe28f702", "12wwe28f7wwe28f501"]
+        },
         "main_path": "上游来车 → 解放东路与齐川路路口 → 下游承接节点",
         "axis_roads": {
           "ew_road": "解放东路",
@@ -2086,6 +2140,35 @@
         "expert_question": "加绿以后，车有没有地方去？"
       },
       "map_scenes": {
+        "queue_evidence": {
+          "action": "map_scene",
+          "phase": "queue_evidence",
+          "available": true,
+          "source": "postgresql",
+          "path_source": "road6.dim_link_info.geom",
+          "link_id": "12wwe28f7wwe28f702",
+          "path": [
+            [117.108432, 36.664043],
+            [117.108416, 36.663464],
+            [117.108427, 36.663045]
+          ],
+          "label_anchor": [117.108416, 36.663464],
+          "queue_length_m": 107.8,
+          "storage_length_m": 110.78,
+          "queue_ratio": 0.9731,
+          "stop_line": {
+            "available": false,
+            "reason": "road6 未提供停止线几何；设备车道 distance_t_stopline 为空",
+            "missing_fields": ["geometry"],
+            "mock": true,
+            "source": "mock_visualization",
+            "geometry": [[117.108382, 36.663045], [117.108472, 36.663045]]
+          },
+          "data_lineage": {
+            "geometry": {"schema": "road6", "table": "dim_link_info", "version_id": "20260501"},
+            "metric": {"schema": "xianchang", "table": "dws_inter_dir_turn_perf_5min_mm", "day_of_week": 5, "step_start": 204, "step_end": 228, "row_count": 23, "queue_max_m": 178.0, "queue_avg_m": 13.1913}
+          }
+        },
         "channelization_map": {
           "action": "map_scene",
           "phase": "channelization_map",
@@ -2466,6 +2549,39 @@
           ],
           "trace_direction": "upstream",
           "business_direction": "incoming",
+          "visualization": {
+            "contract_version": "trace-spread/v3",
+            "effect": "upstream_spread",
+            "direction": "target_to_source",
+            "origin": [
+              117.108428,
+              36.662959
+            ],
+            "geometry_source": "links[].coords",
+            "context_geometry_source": null,
+            "render_geometry_scope": "links[].coords",
+            "ordering": "links[].spread_order|rank",
+            "particle_anchor": "path",
+            "particle_color": "#39dfff",
+            "particle_texture": null,
+            "particle_count": 0,
+            "particle_color_mode": "uniform",
+            "propagation_renderer": "path_prefix",
+            "repeat": false,
+            "color_metric": null,
+            "color_semantics": "uniform_flow_trace",
+            "camera": {
+              "pitch": 48,
+              "radius_m": 2000,
+              "max_zoom": 13.8
+            },
+            "palette": {
+              "trace": "#39dfff"
+            },
+            "map_style": "amap://styles/darkblue",
+            "road_classification_source": "links[].fc|road6.dim_rid_trace_info.fc",
+            "source": "postgresql_and_trip_trace"
+          },
           "target": {
             "id": "011wwe28f7c00001",
             "name": "解放东路与齐川路路口",
@@ -3169,6 +3285,7 @@
           "links": [
             {
               "id": "012wwe28fewwe28f70001",
+              "fc": 5,
               "name": "齐音路:安成街-书昌街",
               "coords": [
                 [
@@ -3190,6 +3307,7 @@
             },
             {
               "id": "012wwe28f7wwe28f70002",
+              "fc": 5,
               "name": "齐音路:无名道路-解放东路",
               "coords": [
                 [
@@ -3215,6 +3333,7 @@
             },
             {
               "id": "012wwe28fswwe28fe0001",
+              "fc": 5,
               "name": "坤顺路:无名道路-雪晴路",
               "coords": [
                 [
@@ -3236,6 +3355,7 @@
             },
             {
               "id": "012wwe285bwwe285c0001",
+              "fc": 5,
               "name": "山大南路:无名道路-二环东路辅路",
               "coords": [
                 [
@@ -3261,6 +3381,7 @@
             },
             {
               "id": "012wwe285gwwe285f0001",
+              "fc": 4,
               "name": "山大南路:工业南路-二环东路辅路",
               "coords": [
                 [
@@ -3290,6 +3411,7 @@
             },
             {
               "id": "012wwe28g3wwe28g60001",
+              "fc": 5,
               "name": "无名道路:山左路-雪晴路",
               "coords": [
                 [
@@ -3311,6 +3433,7 @@
             },
             {
               "id": "012wwe285bwwe285b0002",
+              "fc": 5,
               "name": "山大南路:无名道路-二环东路辅路",
               "coords": [
                 [
@@ -3336,6 +3459,7 @@
             },
             {
               "id": "012wwe28v1wwe28v40001",
+              "fc": 3,
               "name": "工业南路:山左路-奥体西路",
               "coords": [
                 [
@@ -3357,6 +3481,7 @@
             },
             {
               "id": "012wwe28vwwwe28vw0006",
+              "fc": 4,
               "name": "正丰路:会展路-工业南路",
               "coords": [
                 [
@@ -3382,6 +3507,7 @@
             },
             {
               "id": "012wwe28g4wwe28g50001",
+              "fc": 5,
               "name": "养浩街:山左路-奥体西路",
               "coords": [
                 [
@@ -3403,6 +3529,7 @@
             },
             {
               "id": "012wwe0xvcwwe0xtz0001",
+              "fc": 4,
               "name": "花园路:洪家楼南路-山大路",
               "coords": [
                 [
@@ -3444,6 +3571,7 @@
             },
             {
               "id": "012wwe28vzwwe28vz0002",
+              "fc": 5,
               "name": "会展路:奥体中路-正丰路",
               "coords": [
                 [
@@ -3465,6 +3593,7 @@
             },
             {
               "id": "012wwe0xeywwe0xez0002",
+              "fc": 5,
               "name": "山大南路:山大路-无名道路",
               "coords": [
                 [
@@ -3494,6 +3623,7 @@
             },
             {
               "id": "012wwe28fgwwe28fg0004",
+              "fc": 5,
               "name": "齐音路:安成街-书昌街",
               "coords": [
                 [
@@ -3515,6 +3645,7 @@
             },
             {
               "id": "012wwe0xgywwe0xgy0002",
+              "fc": 5,
               "name": "山大南路:闵孝中路-无名道路",
               "coords": [
                 [
@@ -3540,6 +3671,7 @@
             },
             {
               "id": "012wwe0xgzwwe285b0001",
+              "fc": 5,
               "name": "山大南路:闵孝中路-无名道路",
               "coords": [
                 [
@@ -3565,6 +3697,7 @@
             },
             {
               "id": "012wwe0xtzwwe0xtv0001",
+              "fc": 4,
               "name": "花园路:洪家楼南路-山大路",
               "coords": [
                 [
@@ -3602,6 +3735,7 @@
             },
             {
               "id": "012wwe0xy5wwe0xvc0001",
+              "fc": 4,
               "name": "花园路:洪家楼南路-山大路",
               "coords": [
                 [
@@ -3643,6 +3777,7 @@
             },
             {
               "id": "012wwe28vjwwe28vq0001",
+              "fc": 3,
               "name": "工业南路:奥体西路-奥体中路",
               "coords": [
                 [
@@ -3668,6 +3803,7 @@
             },
             {
               "id": "012wwe28s7wwe28s70001",
+              "fc": 5,
               "name": "齐风路:工业南路-新泺大街",
               "coords": [
                 [
@@ -3689,6 +3825,7 @@
             },
             {
               "id": "012wwe28n3wwe0xyj0001",
+              "fc": 4,
               "name": "花园路:二环东路辅路-洪家楼南路",
               "coords": [
                 [
@@ -3750,6 +3887,7 @@
             },
             {
               "id": "012wwe28k1wwe28k60001",
+              "fc": 3,
               "name": "工业南路:七里河路-华信路",
               "coords": [
                 [
@@ -3783,6 +3921,7 @@
             },
             {
               "id": "012wwe28vhwwe28v50001",
+              "fc": 3,
               "name": "工业南路:奥体西路-山左路",
               "coords": [
                 [
@@ -3804,6 +3943,7 @@
             },
             {
               "id": "012wwe285bwwe285b0001",
+              "fc": 5,
               "name": "山大南路:二环东路-无名道路",
               "coords": [
                 [
@@ -3829,6 +3969,7 @@
             },
             {
               "id": "012wwe0xgywwe0xgy0001",
+              "fc": 5,
               "name": "山大南路:无名道路-闵孝中路",
               "coords": [
                 [
@@ -3854,6 +3995,7 @@
             },
             {
               "id": "012wwe0xezwwe0xgb0001",
+              "fc": 5,
               "name": "山大南路:山大路-无名道路",
               "coords": [
                 [
@@ -3875,6 +4017,7 @@
             },
             {
               "id": "012wwe285vwwe285g0002",
+              "fc": 4,
               "name": "山大南路:工业南路-二环东路辅路",
               "coords": [
                 [
@@ -3904,6 +4047,7 @@
             },
             {
               "id": "012wwe0xstwwe0xev0001",
+              "fc": 5,
               "name": "山大路:花园庄东路-山大南路",
               "coords": [
                 [
@@ -3973,6 +4117,7 @@
             },
             {
               "id": "012wwe28vjwwe28vh0001",
+              "fc": 3,
               "name": "工业南路:无名道路-奥体西路",
               "coords": [
                 [
@@ -3994,6 +4139,7 @@
             },
             {
               "id": "012wwe28vwwwe28vw0004",
+              "fc": 4,
               "name": "正丰路:会展路-工业南路",
               "coords": [
                 [
@@ -4023,6 +4169,7 @@
             },
             {
               "id": "012wwe28hpwwe285v0001",
+              "fc": 3,
               "name": "工业南路:无名道路-山大南路",
               "coords": [
                 [
@@ -4060,6 +4207,7 @@
             },
             {
               "id": "012wwe0xgfwwe0xgg0001",
+              "fc": 5,
               "name": "山大南路:闵子骞西路-闵孝中路",
               "coords": [
                 [
@@ -4085,6 +4233,7 @@
             },
             {
               "id": "012wwe0xguwwe0xgu0006",
+              "fc": 5,
               "name": "山大南路:闵孝中路-闵子骞西路",
               "coords": [
                 [
@@ -4106,6 +4255,7 @@
             },
             {
               "id": "012wwe28euwwe28eu0001",
+              "fc": 5,
               "name": "辛公北街:海右路-齐风路",
               "coords": [
                 [
@@ -4131,6 +4281,7 @@
             },
             {
               "id": "012wwe28g9wwe28g30002",
+              "fc": 4,
               "name": "山左路:无名道路-无名道路",
               "coords": [
                 [
@@ -4156,6 +4307,7 @@
             },
             {
               "id": "012wwe0xzqwwe0xzr0003",
+              "fc": 3,
               "name": "二环东路辅路:南全福大街-祝舜路",
               "coords": [
                 [
@@ -4181,6 +4333,7 @@
             },
             {
               "id": "012wwe285cwwe285b0001",
+              "fc": 5,
               "name": "山大南路:二环东路-无名道路",
               "coords": [
                 [
@@ -4206,6 +4359,7 @@
             },
             {
               "id": "012wwe28egwwe28eu0002",
+              "fc": 5,
               "name": "辛公北街:齐风路-海右路",
               "coords": [
                 [
@@ -4227,6 +4381,7 @@
             },
             {
               "id": "012wwe0zbswwe0zbk0001",
+              "fc": 3,
               "name": "二环东路辅路:无名道路-南全福大街",
               "coords": [
                 [
@@ -4256,6 +4411,7 @@
             },
             {
               "id": "012wwe28sewwe28se0003",
+              "fc": 3,
               "name": "工业南路:齐风路-礼士路",
               "coords": [
                 [
@@ -4277,6 +4433,7 @@
             },
             {
               "id": "012wwe28szwwe28su0001",
+              "fc": 3,
               "name": "工业南路:山左路-茂岭二号路",
               "coords": [
                 [
@@ -4318,6 +4475,7 @@
             },
             {
               "id": "012wwe28vywwe28vw0001",
+              "fc": 4,
               "name": "正丰路:会展路-工业南路",
               "coords": [
                 [
@@ -4339,6 +4497,7 @@
             },
             {
               "id": "012wwe0xguwwe0xgu0009",
+              "fc": 5,
               "name": "山大南路:闵子骞西路-闵孝中路",
               "coords": [
                 [
@@ -4360,6 +4519,7 @@
             },
             {
               "id": "012wwe28sswwe28se0001",
+              "fc": 5,
               "name": "虞舜街:礼士路-齐风路",
               "coords": [
                 [
@@ -4385,6 +4545,7 @@
             },
             {
               "id": "012wwe0xyjwwe0xyh0002",
+              "fc": 4,
               "name": "花园路:二环东路辅路-洪家楼南路",
               "coords": [
                 [
@@ -4406,6 +4567,7 @@
             },
             {
               "id": "012wwe28euwwe28eu0002",
+              "fc": 5,
               "name": "辛公北街:齐风路-海右路",
               "coords": [
                 [
@@ -4427,6 +4589,7 @@
             },
             {
               "id": "012wwe28suwwe28sz0001",
+              "fc": 3,
               "name": "工业南路:无名道路-山左路",
               "coords": [
                 [
@@ -4464,6 +4627,7 @@
             },
             {
               "id": "012wwe28etwwe28eu0001",
+              "fc": 4,
               "name": "海右路:新泺大街-工业南路",
               "coords": [
                 [
@@ -4489,6 +4653,7 @@
             },
             {
               "id": "012wwe29j2wwe29jb0001",
+              "fc": 3,
               "name": "奥体中路:工业南路-会展路",
               "coords": [
                 [
@@ -4522,6 +4687,7 @@
             },
             {
               "id": "012wwe28vzwwe28vz0001",
+              "fc": 5,
               "name": "会展路:奥体中路-正丰路",
               "coords": [
                 [
@@ -4547,6 +4713,7 @@
             },
             {
               "id": "012wwe28kwwwe28s80001",
+              "fc": 3,
               "name": "工业南路:无名道路-泺邑路",
               "coords": [
                 [
@@ -4584,6 +4751,7 @@
             },
             {
               "id": "012wwe0xgzwwe0xgz0002",
+              "fc": 5,
               "name": "山大南路:无名道路-闵孝中路",
               "coords": [
                 [
@@ -4609,6 +4777,7 @@
             },
             {
               "id": "012wwe28exwwe28g90001",
+              "fc": 4,
               "name": "新泺大街:无名道路-茂岭山三号路",
               "coords": [
                 [
@@ -4630,6 +4799,7 @@
             },
             {
               "id": "012wwe29jbwwe28vz0002",
+              "fc": 5,
               "name": "会展路:奥体中路-正丰路",
               "coords": [
                 [
@@ -4655,6 +4825,7 @@
             },
             {
               "id": "012wwe285cwwe285c0001",
+              "fc": 5,
               "name": "山大南路:二环东路-无名道路",
               "coords": [
                 [
@@ -4680,6 +4851,7 @@
             },
             {
               "id": "012wwe0xgbwwe0xgf0001",
+              "fc": 5,
               "name": "山大南路:无名道路-闵子骞西路",
               "coords": [
                 [
@@ -4709,6 +4881,7 @@
             },
             {
               "id": "012wwe0zc5wwe0zc50001",
+              "fc": 3,
               "name": "二环东路辅路:无名道路-南全福大街",
               "coords": [
                 [
@@ -4734,6 +4907,7 @@
             },
             {
               "id": "012wwe285gwwe285v0002",
+              "fc": 4,
               "name": "山大南路:二环东路-工业南路",
               "coords": [
                 [
@@ -4759,6 +4933,7 @@
             },
             {
               "id": "012wwe0xgzwwe0xgz0010",
+              "fc": 5,
               "name": "山大南路:闵孝中路-无名道路",
               "coords": [
                 [
@@ -4784,6 +4959,7 @@
             },
             {
               "id": "012wwe28ewwwe28ex0001",
+              "fc": 4,
               "name": "新泺大街:无名道路-茂岭山三号路",
               "coords": [
                 [
@@ -4805,6 +4981,7 @@
             },
             {
               "id": "012wwe28s7wwe28s50001",
+              "fc": 5,
               "name": "齐风路:工业南路-新泺大街",
               "coords": [
                 [
@@ -4830,6 +5007,7 @@
             },
             {
               "id": "012wwe28suwwe28su0001",
+              "fc": 3,
               "name": "工业南路:齐风路-礼士路",
               "coords": [
                 [
@@ -4863,6 +5041,7 @@
             },
             {
               "id": "012wwe0xgzwwe0xgy0001",
+              "fc": 5,
               "name": "山大南路:无名道路-闵孝中路",
               "coords": [
                 [
@@ -4892,6 +5071,7 @@
             },
             {
               "id": "012wwe28vwwwe28vw0005",
+              "fc": 4,
               "name": "正丰路:会展路-工业南路",
               "coords": [
                 [
@@ -4913,6 +5093,7 @@
             },
             {
               "id": "012wwe28euwwe28et0001",
+              "fc": 4,
               "name": "海右路:工业南路-新泺大街",
               "coords": [
                 [
@@ -4938,6 +5119,7 @@
             },
             {
               "id": "012wwe28vhwwe28vj0001",
+              "fc": 3,
               "name": "工业南路:奥体西路-奥体中路",
               "coords": [
                 [
@@ -4959,6 +5141,7 @@
             },
             {
               "id": "012wwe28szwwe28v10001",
+              "fc": 3,
               "name": "工业南路:山左路-奥体西路",
               "coords": [
                 [
@@ -5004,6 +5187,7 @@
             },
             {
               "id": "012wwe28nbwwe28n30001",
+              "fc": 3,
               "name": "二环东路辅路:祝舜路-花园路",
               "coords": [
                 [
@@ -5037,6 +5221,7 @@
             },
             {
               "id": "012wwe285zwwe28k10001",
+              "fc": 3,
               "name": "工业南路:七里河路-华信路",
               "coords": [
                 [
@@ -5074,6 +5259,7 @@
             },
             {
               "id": "012wwe28k6wwe28k70001",
+              "fc": 3,
               "name": "工业南路:华信路-彤霞路",
               "coords": [
                 [
@@ -5099,6 +5285,7 @@
             },
             {
               "id": "012wwe28s5wwe28eg0001",
+              "fc": 5,
               "name": "齐风路:工业南路-新泺大街",
               "coords": [
                 [
@@ -5128,6 +5315,7 @@
             },
             {
               "id": "012wwe28g9wwe28g90002",
+              "fc": 4,
               "name": "山左路:无名道路-无名道路",
               "coords": [
                 [
@@ -5149,6 +5337,7 @@
             },
             {
               "id": "012wwe0xgzwwe0xgz0001",
+              "fc": 5,
               "name": "山大南路:无名道路-闵孝中路",
               "coords": [
                 [
@@ -5174,6 +5363,7 @@
             },
             {
               "id": "012wwe28k3wwe28hp0001",
+              "fc": 3,
               "name": "工业南路:清秋路-七里河路",
               "coords": [
                 [
@@ -5215,6 +5405,7 @@
             },
             {
               "id": "012wwe28v5wwe28vh0001",
+              "fc": 3,
               "name": "工业南路:山左路-奥体西路",
               "coords": [
                 [
@@ -5236,6 +5427,7 @@
             },
             {
               "id": "012wwe0xguwwe0xgu0005",
+              "fc": 5,
               "name": "山大南路:闵孝中路-闵子骞西路",
               "coords": [
                 [
@@ -5261,6 +5453,7 @@
             },
             {
               "id": "012wwe28g5wwe28g50002",
+              "fc": 5,
               "name": "齐音路:安成街-书昌街",
               "coords": [
                 [
@@ -5290,6 +5483,7 @@
             },
             {
               "id": "012wwe0xevwwe0xey0001",
+              "fc": 5,
               "name": "山大南路:山大路-无名道路",
               "coords": [
                 [
@@ -5315,6 +5509,7 @@
             },
             {
               "id": "012wwe29j2wwe29j20002",
+              "fc": 3,
               "name": "工业南路:奥体西路-奥体中路",
               "coords": [
                 [
@@ -5336,6 +5531,7 @@
             },
             {
               "id": "012wwe0xggwwe0xgu0001",
+              "fc": 5,
               "name": "山大南路:闵子骞西路-闵孝中路",
               "coords": [
                 [
@@ -5365,6 +5561,7 @@
             },
             {
               "id": "012wwe28sdwwe28se0004",
+              "fc": 3,
               "name": "工业南路:齐风路-礼士路",
               "coords": [
                 [
@@ -5390,6 +5587,7 @@
             },
             {
               "id": "012wwe0xtuwwe0xtm0001",
+              "fc": 5,
               "name": "山大路:花园路-山大北路",
               "coords": [
                 [
@@ -5427,6 +5625,7 @@
             },
             {
               "id": "012wwe285vwwe285z0001",
+              "fc": 3,
               "name": "工业南路:山大南路-七里河路",
               "coords": [
                 [
@@ -5472,6 +5671,7 @@
             },
             {
               "id": "012wwe285fwwe285c0001",
+              "fc": 5,
               "name": "山大南路:二环东路-无名道路",
               "coords": [
                 [
@@ -5497,6 +5697,7 @@
             },
             {
               "id": "012wwe28etwwe28et0002",
+              "fc": 4,
               "name": "海右路:新泺大街-工业南路",
               "coords": [
                 [
@@ -5526,6 +5727,7 @@
             },
             {
               "id": "012wwe285fwwe285g0001",
+              "fc": 4,
               "name": "山大南路:二环东路-工业南路",
               "coords": [
                 [
@@ -5559,6 +5761,7 @@
             },
             {
               "id": "012wwe28vqwwe28vq0002",
+              "fc": 4,
               "name": "正丰路:会展路-工业南路",
               "coords": [
                 [
@@ -5580,6 +5783,7 @@
             },
             {
               "id": "012wwe28vqwwe29j20002",
+              "fc": 3,
               "name": "工业南路:奥体西路-奥体中路",
               "coords": [
                 [
@@ -5609,6 +5813,7 @@
             },
             {
               "id": "012wwe28k7wwe28kw0001",
+              "fc": 3,
               "name": "工业南路:华信路-彤霞路",
               "coords": [
                 [
@@ -5646,6 +5851,7 @@
             },
             {
               "id": "012wwe285vwwe285v0001",
+              "fc": 4,
               "name": "山大南路:工业南路-二环东路辅路",
               "coords": [
                 [
@@ -5683,6 +5889,7 @@
             },
             {
               "id": "012wwe28k7wwe28k60001",
+              "fc": 3,
               "name": "工业南路:清秋路-七里河路",
               "coords": [
                 [
@@ -5704,6 +5911,7 @@
             },
             {
               "id": "012wwe28etwwe28et0001",
+              "fc": 4,
               "name": "海右路:工业南路-新泺大街",
               "coords": [
                 [
@@ -5729,6 +5937,7 @@
             },
             {
               "id": "012wwe28g5wwe28fg0002",
+              "fc": 5,
               "name": "齐音路:安成街-书昌街",
               "coords": [
                 [
@@ -5754,6 +5963,7 @@
             },
             {
               "id": "012wwe28sgwwe28ss0001",
+              "fc": 4,
               "name": "海右路:工业南路-新泺大街",
               "coords": [
                 [
@@ -5775,6 +5985,7 @@
             },
             {
               "id": "012wwe0xgywwe0xgz0001",
+              "fc": 5,
               "name": "山大南路:闵孝中路-无名道路",
               "coords": [
                 [
@@ -5800,6 +6011,7 @@
             },
             {
               "id": "012wwe0xzrwwe28nb0001",
+              "fc": 3,
               "name": "二环东路辅路:祝舜路-花园路",
               "coords": [
                 [
@@ -5845,6 +6057,7 @@
             },
             {
               "id": "012wwe28vzwwe28vy0001",
+              "fc": 5,
               "name": "会展路:奥体中路-正丰路",
               "coords": [
                 [
@@ -5866,6 +6079,7 @@
             },
             {
               "id": "012wwe285cwwe285f0001",
+              "fc": 5,
               "name": "山大南路:无名道路-二环东路辅路",
               "coords": [
                 [
@@ -5887,6 +6101,7 @@
             },
             {
               "id": "012wwe0xgzwwe0xgz0009",
+              "fc": 5,
               "name": "山大南路:闵孝中路-无名道路",
               "coords": [
                 [
@@ -5916,6 +6131,7 @@
             },
             {
               "id": "012wwe28g4wwe28g40001",
+              "fc": 5,
               "name": "雪晴路:无名道路-坤顺路",
               "coords": [
                 [
@@ -5979,6 +6195,39 @@
           ],
           "trace_direction": "upstream",
           "business_direction": "incoming",
+          "visualization": {
+            "contract_version": "trace-spread/v3",
+            "effect": "upstream_spread",
+            "direction": "target_to_source",
+            "origin": [
+              117.108428,
+              36.662959
+            ],
+            "geometry_source": "intersections[].links[].path",
+            "context_geometry_source": null,
+            "render_geometry_scope": "intersections[].links[].path",
+            "ordering": "intersections[].corridor_hop",
+            "particle_anchor": "path",
+            "particle_color": "#39dfff",
+            "particle_texture": null,
+            "particle_count": 0,
+            "particle_color_mode": "uniform",
+            "propagation_renderer": "path_prefix",
+            "repeat": false,
+            "color_metric": null,
+            "color_semantics": "uniform_flow_trace",
+            "camera": {
+              "pitch": 48,
+              "radius_m": 2000,
+              "max_zoom": 13.8
+            },
+            "palette": {
+              "trace": "#39dfff"
+            },
+            "map_style": "amap://styles/darkblue",
+            "road_classification_source": null,
+            "source": "postgresql_and_trip_trace"
+          },
           "target_inter_id": "011wwe28f7c00001",
           "title": "解放东路与齐川路路口 · 北向南直行 · 来向溯源",
           "logic": "real link geometry + flow_correlate share; upstream locked to single topo one-hop (exclude secondary correlated upstreams)",
@@ -13770,6 +14019,25 @@
           "available": true,
           "reason": null,
           "comparison_label": "本路口 vs 主要下游",
+          "connector_path": [
+            [117.108411, 36.662916],
+            [117.1084, 36.662326],
+            [117.108411, 36.66187]
+          ],
+          "decision": "downstream_has_storage_metrics_partial",
+          "confidence": 0.72,
+          "missing_metrics": ["downstream_saturation", "downstream_green_utilization"],
+          "data_lineage": {
+            "source": "postgresql",
+            "geometry_table": "road6.dim_link_info",
+            "metric_tables": ["xianchang.dws_inter_dir_turn_perf_5min_mm", "xianchang.dws_turn_saturation_5min_mm", "xianchang.dws_turn_green_utilization_5min_mm"],
+            "day_of_week": 5,
+            "step_start": 204,
+            "step_end": 228,
+            "downstream_queue_rows": 23,
+            "downstream_saturation_rows": 0,
+            "downstream_green_rows": 0
+          },
           "target": {
             "inter_id": "011wwe28f7c00001",
             "inter_name": "解放东路与齐川路路口",
@@ -13804,13 +14072,19 @@
           "available": true,
           "reason": null,
           "primary_cause": "放行效率异常，待核验",
+          "mechanism": "discharge_anomaly",
+          "status": "trial_required",
+          "confidence": 0.72,
           "annotations": [
             {
               "kind": "approach",
               "label": "北向南直行进口",
               "lng": 117.108428,
               "lat": 36.662959,
-              "color": "#ff5050"
+              "color": "#ff3c1f"
+              ,"evidence_role": "supporting",
+              "evidence_ids": ["queue_ratio", "green_utilization"],
+              "priority": 100
             },
             {
               "kind": "downstream",
@@ -13818,7 +14092,10 @@
               "inter_id": "011wwe28f5f00001",
               "lng": 117.108427,
               "lat": 36.661851,
-              "color": "#38bdf8"
+              "color": "#39dfff"
+              ,"evidence_role": "counter_evidence",
+              "evidence_ids": ["downstream_queue_ratio"],
+              "priority": 90
             }
           ]
         },
@@ -13833,12 +14110,12 @@
           ],
           "plan_id": "conditional_incremental_release",
           "plan_name": "小步增绿试运行方案",
-          "cycle_delta_s": -20,
+          "cycle_delta_s": 0,
           "phase_changes": [
             {
               "phase_stage_id": "1",
               "phase_stage_name": "西直、东直、南行人、北行人",
-              "green_delta_s": -25,
+              "green_delta_s": -5,
               "label": "西直、东直、南行人、北行人"
             },
             {
@@ -15415,7 +15692,10 @@
             "inter_id": "011wwe28f7z00001",
             "inter_name": "书昌街与齐音路路口",
             "lng": 117.108429,
-            "lat": 36.664068
+            "lat": 36.664068,
+            "action": "meter_inflow",
+            "priority": 100,
+            "status": "candidate"
           }
         ],
         "downstream_protection_nodes": [
@@ -15424,28 +15704,40 @@
             "inter_name": "永绥路与齐音路路口",
             "lng": 117.108427,
             "lat": 36.661851,
-            "blocked": false
+            "blocked": false,
+            "action": "protect_storage",
+            "priority": 100,
+            "status": "monitor"
           },
           {
             "inter_id": "011wwe28fmc00001",
             "inter_name": "奥体西路与解放东路路口",
             "lng": 117.111368,
             "lat": 36.663092,
-            "blocked": null
+            "blocked": null,
+            "action": "protect_corridor",
+            "priority": 70,
+            "status": "metrics_missing"
           },
           {
             "inter_id": "011wwe28f3100001",
             "inter_name": "茂岭山三号路与解放东路路口",
             "lng": 117.104881,
             "lat": 36.663005,
-            "blocked": null
+            "blocked": null,
+            "action": "protect_corridor",
+            "priority": 70,
+            "status": "metrics_missing"
           },
           {
             "inter_id": "011wwe28f7z00001",
             "inter_name": "书昌街与齐音路路口",
             "lng": 117.108429,
             "lat": 36.664068,
-            "blocked": null
+            "blocked": null,
+            "action": "meter_inflow",
+            "priority": 100,
+            "status": "candidate"
           }
         ],
         "coordination_paths": [
@@ -15467,9 +15759,57 @@
               ]
             ],
             "role": "upstream_inflow"
+          },
+          {
+            "inter_id": "011wwe28f5f00001",
+            "inter_name": "永绥路与齐音路路口",
+            "path": [
+              [117.108411, 36.662916],
+              [117.1084, 36.662326],
+              [117.108411, 36.66187]
+            ],
+            "role": "downstream_protection"
+          },
+          {
+            "inter_id": "011wwe28fmc00001",
+            "inter_name": "奥体西路与解放东路路口",
+            "path": [
+              [117.108448, 36.662916],
+              [117.109124, 36.662975],
+              [117.110009, 36.663029],
+              [117.11127, 36.663051]
+            ],
+            "role": "corridor_protection"
+          },
+          {
+            "inter_id": "011wwe28f3100001",
+            "inter_name": "茂岭山三号路与解放东路路口",
+            "path": [
+              [117.108427, 36.663045],
+              [117.106984, 36.663002],
+              [117.106152, 36.663029],
+              [117.10495, 36.663077]
+            ],
+            "role": "corridor_protection"
           }
         ],
-        "risk_boundary": "controlled_release"
+        "risk_boundary": {
+          "type": "controlled_release",
+          "geometry": {
+            "available": false,
+            "reason": "PostgreSQL 路网与指标表无策略风险边界 polygon 真源",
+            "missing_fields": ["polygon"],
+            "mock": true,
+            "source": "mock_visualization",
+            "polygon": [[117.1047, 36.6600], [117.11155, 36.6600], [117.11155, 36.6643], [117.1047, 36.6643]]
+          }
+        },
+        "data_lineage": {
+          "source": "postgresql",
+          "schema": "road6",
+          "version_id": "20260501",
+          "tables": ["dim_inter_info", "dim_link_info", "dwd_tfc_rltn_wide_inter_ft_link"]
+        }
       },
       "experience_contrast": {
         "available": true,
@@ -15771,14 +16111,14 @@
           },
           "timing": {
             "available": true,
-            "cycle_s": 136,
+            "cycle_s": 156,
             "current_cycle_s": 156,
-            "cycle_delta_s": -20,
+            "cycle_delta_s": 0,
             "phase_stage_timing_list": [
               {
                 "phase_stage_id": "1",
                 "phase_stage_name": "西直、东直、南行人、北行人",
-                "green_time_s": 60,
+                "green_time_s": 80,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
                 "min_green_time_s": 14,
@@ -15797,13 +16137,13 @@
                   "stage_total_s": 90
                 },
                 "optimized_timing": {
-                  "green_time_s": 60,
+                  "green_time_s": 80,
                   "yellow_time_s": 3,
                   "all_red_time_s": 2,
-                  "stage_total_s": 65
+                  "stage_total_s": 85
                 },
-                "green_delta_s": -25,
-                "stage_delta_s": -25,
+                "green_delta_s": -5,
+                "stage_delta_s": -5,
                 "movements": [
                   {
                     "movement_key": "d6_t2",
@@ -16209,7 +16549,7 @@
             "donor_stage_index": 0,
             "requested_target_green_delta_s": 5,
             "target_green_delta_s": 5,
-            "donor_green_delta_s": -25
+            "donor_green_delta_s": -5
           },
           "upstream_control": {
             "enabled": false,
@@ -16422,14 +16762,14 @@
         },
         "timing": {
           "available": true,
-          "cycle_s": 136,
+          "cycle_s": 156,
           "current_cycle_s": 156,
-          "cycle_delta_s": -20,
+          "cycle_delta_s": 0,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "1",
               "phase_stage_name": "西直、东直、南行人、北行人",
-              "green_time_s": 60,
+              "green_time_s": 80,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 14,
@@ -16448,13 +16788,13 @@
                 "stage_total_s": 90
               },
               "optimized_timing": {
-                "green_time_s": 60,
+                "green_time_s": 80,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 65
+                "stage_total_s": 85
               },
-              "green_delta_s": -25,
-              "stage_delta_s": -25,
+              "green_delta_s": -5,
+              "stage_delta_s": -5,
               "movements": [
                 {
                   "movement_key": "d6_t2",
@@ -16860,7 +17200,7 @@
           "donor_stage_index": 0,
           "requested_target_green_delta_s": 5,
           "target_green_delta_s": 5,
-          "donor_green_delta_s": -25
+          "donor_green_delta_s": -5
         },
         "upstream_control": {
           "enabled": false,
@@ -19112,6 +19452,52 @@
     }
   },
   "plan": {
+    "map_scene": {
+      "action": "map_scene",
+      "phase": "plan_output",
+      "available": true,
+      "source": "final_plan_and_postgresql",
+      "center": [117.108428, 36.662959],
+      "plan_id": "conditional_incremental_release",
+      "plan_name": "小步增绿试运行方案",
+      "cycle_delta_s": 0,
+      "phase_changes": [
+        {
+          "movement_key": "d0_t2",
+          "label": "北向南直行",
+          "green_delta_s": 5,
+          "link_id": "12wwe28f7wwe28f702",
+          "path": [[117.108432, 36.664043], [117.108416, 36.663464], [117.108427, 36.663045]],
+          "label_anchor": [117.108416, 36.663464],
+          "phase_stage_ids": ["3"],
+          "mapping_status": "phase_resolved"
+        },
+        {
+          "label": "非目标最长相位",
+          "green_delta_s": -5,
+          "mapping_status": "phase_resolved",
+          "source": "final_plan_and_postgresql",
+          "phase_stage_id": "1",
+          "movement_keys": ["d2_t2", "d6_t2"],
+          "link_ids": ["12wwe28fmwwe28f701", "12wwe28f3wwe28f701"],
+          "paths": [
+            [[117.11127, 36.663131], [117.110041, 36.663115], [117.10943, 36.663067], [117.108427, 36.663045]],
+            [[117.104956, 36.662932], [117.106174, 36.662884], [117.107601, 36.662868], [117.108411, 36.662916]]
+          ],
+          "label_anchor": [117.10943, 36.663067]
+        }
+      ],
+      "consistency": {
+        "source": "plan.recommended.action_package",
+        "trial_loop_cycle_delta_s": 0,
+        "diagnosis_preview_cycle_delta_s": 0,
+        "status": "aligned"
+      },
+      "data_lineage": {
+        "geometry": {"schema": "road6", "table": "dim_link_info", "version_id": "20260501"},
+        "plan": "plan.recommended.action_package"
+      }
+    },
     "candidates": [
       {
         "plan_id": "conditional_incremental_release",
@@ -19125,14 +19511,14 @@
         },
         "timing": {
           "available": true,
-          "cycle_s": 136,
+          "cycle_s": 156,
           "current_cycle_s": 156,
-          "cycle_delta_s": -20,
+          "cycle_delta_s": 0,
           "phase_stage_timing_list": [
             {
               "phase_stage_id": "1",
               "phase_stage_name": "西直、东直、南行人、北行人",
-              "green_time_s": 60,
+              "green_time_s": 80,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
               "min_green_time_s": 14,
@@ -19151,13 +19537,13 @@
                 "stage_total_s": 90
               },
               "optimized_timing": {
-                "green_time_s": 60,
+                "green_time_s": 80,
                 "yellow_time_s": 3,
                 "all_red_time_s": 2,
-                "stage_total_s": 65
+                "stage_total_s": 85
               },
-              "green_delta_s": -25,
-              "stage_delta_s": -25,
+              "green_delta_s": -5,
+              "stage_delta_s": -5,
               "movements": [
                 {
                   "movement_key": "d6_t2",
@@ -19563,7 +19949,7 @@
           "donor_stage_index": 0,
           "requested_target_green_delta_s": 5,
           "target_green_delta_s": 5,
-          "donor_green_delta_s": -25
+          "donor_green_delta_s": -5
         },
         "upstream_control": {
           "enabled": false,
@@ -19776,14 +20162,14 @@
       },
       "timing": {
         "available": true,
-        "cycle_s": 136,
+        "cycle_s": 156,
         "current_cycle_s": 156,
-        "cycle_delta_s": -20,
+        "cycle_delta_s": 0,
         "phase_stage_timing_list": [
           {
             "phase_stage_id": "1",
             "phase_stage_name": "西直、东直、南行人、北行人",
-            "green_time_s": 60,
+            "green_time_s": 80,
             "yellow_time_s": 3,
             "all_red_time_s": 2,
             "min_green_time_s": 14,
@@ -19802,13 +20188,13 @@
               "stage_total_s": 90
             },
             "optimized_timing": {
-              "green_time_s": 60,
+              "green_time_s": 80,
               "yellow_time_s": 3,
               "all_red_time_s": 2,
-              "stage_total_s": 65
+              "stage_total_s": 85
             },
-            "green_delta_s": -25,
-            "stage_delta_s": -25,
+            "green_delta_s": -5,
+            "stage_delta_s": -5,
             "movements": [
               {
                 "movement_key": "d6_t2",
@@ -20214,7 +20600,7 @@
         "donor_stage_index": 0,
         "requested_target_green_delta_s": 5,
         "target_green_delta_s": 5,
-        "donor_green_delta_s": -25
+        "donor_green_delta_s": -5
       },
       "upstream_control": {
         "enabled": false,

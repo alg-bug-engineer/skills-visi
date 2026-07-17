@@ -151,6 +151,31 @@ class SkillExecutor:
 
             result.duration_ms = round((time.perf_counter() - start) * 1000, 2)
 
+            # Act 2 首帧必须包含真实 PG 上下游几何。预取与 NLU 并行，
+            # 但在 intent phase_done 前完成严格工单签名校验和场景富化，
+            # 避免前端先收到单点 highlight_path 后再二次补图。
+            if skill_id == "intent_understanding" and result.success and diagnosis_prefetch is not None:
+                try:
+                    prefetched = await diagnosis_prefetch
+                    from app.data.diagnosis_prefetch import apply_diagnosis_prefetch
+
+                    actual_ticket = context.task.get("diagnosis_ticket") or {}
+                    reused = apply_diagnosis_prefetch(context.task, actual_ticket, prefetched)
+                    if reused and isinstance(result.output, dict):
+                        from app.trace.act_map_enrichment import enrich_intent_spatial_scene
+
+                        resolved = prefetched.get("resolved") or {}
+                        enrich_intent_spatial_scene(
+                            intent=result.output,
+                            ticket=actual_ticket,
+                            topology=resolved.get("topology") if isinstance(resolved.get("topology"), dict) else {},
+                            source=str(resolved.get("source") or "postgresql"),
+                        )
+                    logger.info("intent 地图预取完成 trace_id=%s reused=%s", trace_id, reused)
+                except Exception as exc:  # noqa: BLE001 - 预取失败交给诊断阶段正常处理
+                    logger.warning("intent 地图预取失败 trace_id=%s error=%s", trace_id, exc)
+                diagnosis_prefetch = None
+
             # 需求 35：溢出闭环阶段语义校验（对象/机制/决策/可执行一致性）
             if result.success:
                 transition_errors = apply_overflow_transition(

@@ -1,3 +1,5 @@
+import { MAP_PALETTE } from './mapPalette'
+
 export type LngLat = [number, number]
 
 export interface ChannelLink {
@@ -31,12 +33,12 @@ export const CW_LEN = 6.0
 export const LOD_THRESHOLDS = { L1: 16, L2: 18 } as const
 
 export const MOVE_COLOR = {
-  left: '#3b82f6',
-  straight: '#94a3b8',
-  right: '#22c55e',
-  mixed: '#14b8a6',
-  uturn: '#a855f7',
-  exit: '#cbd5e1',
+  left: MAP_PALETTE.primary,
+  straight: MAP_PALETTE.flow,
+  right: MAP_PALETTE.success,
+  mixed: MAP_PALETTE.warning,
+  uturn: MAP_PALETTE.reasoning,
+  exit: MAP_PALETTE.muted,
 } as const
 
 const R = 6378137

@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import ProcessPanel from '@/panels/ProcessPanel.vue'
 import { usePresentationStore } from '@/stores/presentation'
 import fixture from '@/mock/run_1_fixture.json'
@@ -9,6 +9,7 @@ import type { RunResponse } from '@/api/types'
 const fx = fixture as unknown as RunResponse
 
 let originalWebdriver: PropertyDescriptor | undefined
+enableAutoUnmount(afterEach)
 beforeAll(() => {
   originalWebdriver = Object.getOwnPropertyDescriptor(navigator, 'webdriver')
   Object.defineProperty(navigator, 'webdriver', { value: true, configurable: true })
@@ -24,7 +25,8 @@ describe('ProcessPanel · autoPlay act 推进', () => {
     const store = usePresentationStore()
     store.applySnapshot(fx)
     store.autoPlay = true
-    store.currentAct = 0
+    store.beginAct(0)
+    store.completeActBarrier('map', 0, store.actBarrierKey)
     store.setVoiceBarrier(() => Promise.resolve())
 
     mount(ProcessPanel)
@@ -37,7 +39,8 @@ describe('ProcessPanel · autoPlay act 推进', () => {
     const store = usePresentationStore()
     store.applySnapshot(fx)
     store.autoPlay = true
-    store.currentAct = 0
+    store.beginAct(0)
+    store.completeActBarrier('map', 0, store.actBarrierKey)
     let finishVoice!: () => void
     const voiceDone = new Promise<void>((resolve) => {
       finishVoice = resolve
@@ -64,7 +67,8 @@ describe('ProcessPanel · autoPlay act 推进', () => {
     const store = usePresentationStore()
     store.applySnapshot(fx)
     store.autoPlay = true
-    store.currentAct = 0
+    store.beginAct(0)
+    store.completeActBarrier('map', 0, store.actBarrierKey)
     store.setVoiceBarrier(() => Promise.resolve())
 
     mount(ProcessPanel)
@@ -91,12 +95,13 @@ describe('ProcessPanel · 旁白缓存一致性', () => {
     const store = usePresentationStore()
     store.applySnapshot(fx)
     store.autoPlay = false
-    store.currentAct = 0
+    store.beginAct(0)
 
     const wrapper = mount(ProcessPanel)
     await flushPromises()
+    await vi.waitFor(() => expect(store.revealedActs).toContain(0))
 
-    store.currentAct = 1
+    store.beginAct(1)
     await flushPromises()
 
     const frozen = wrapper.findAll('[data-testid="process-narration-frozen"]')
@@ -108,13 +113,14 @@ describe('ProcessPanel · 旁白缓存一致性', () => {
     const store = usePresentationStore()
     store.applySnapshot(fx)
     store.autoPlay = false
-    store.currentAct = 0
+    store.beginAct(0)
     const wrapper = mount(ProcessPanel)
     await flushPromises()
+    await vi.waitFor(() => expect(store.revealedActs).toContain(0))
 
-    store.currentAct = 1
+    store.beginAct(1)
     await flushPromises()
-    store.currentAct = 2
+    store.beginAct(2)
     await flushPromises()
 
     expect(wrapper.find('[data-act-index="0"]').classes()).not.toContain('collapsed')

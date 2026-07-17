@@ -142,11 +142,14 @@ const timelineRef = ref<HTMLElement | null>(null)
 /** 当前幕收尾：语音与幕间停留不受暂停打断；仅在切入下一幕前等待恢复。 */
 async function finishActAndAdvance(idx: number) {
   if (store.currentAct !== idx) return
-  // currentAct 的语音由 App watcher 入队；先跨过一次 Vue flush，避免极快打字完成时
-  // barrier 在该幕 cue 入队前误判为空闲。
+  const barrierKey = store.actBarrierKey
+  // 地图、打字、语音三项均完成后才能推进，固定 dwell 仅作可选观感停留。
   await nextTick()
   if (store.currentAct !== idx) return
+  // 兼容无 App watcher 的嵌入/单测入口；正式运行与 App voice barrier 指向同一 whenIdle。
   await store.waitForVoiceBarrier()
+  store.completeActBarrier('voice', idx, barrierKey)
+  await store.waitForActBarriers(idx, barrierKey)
   if (store.currentAct !== idx) return
   await store.pauseAwareSleep(actDwellMs(idx, instant, store.acts[idx]?.id))
   if (store.currentAct !== idx) return
@@ -165,8 +168,10 @@ const { shown, done } = useTyping(typingLines, {
   onDone: () => {
     const idx = store.currentAct
     if (idx < 0) return
+    const barrierKey = store.actBarrierKey
     narrationCache.value = { ...narrationCache.value, [idx]: typingLines.value.filter((l) => l.trim()) }
     store.onActTyped(idx)
+    store.completeActBarrier('typing', idx, barrierKey)
     if (store.autoPlay) void finishActAndAdvance(idx)
   },
 })
@@ -408,10 +413,10 @@ async function scrollTimelineToActive() {
   height: 100%;
   padding: 12px 10px;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border-color: rgba(118, 177, 222, 0.26);
   background:
-    linear-gradient(180deg, rgba(0, 229, 255, 0.06), transparent 34%),
+    linear-gradient(180deg, rgba(26, 127, 255, 0.06), transparent 34%),
     rgba(4, 13, 24, 0.9);
 }
 .reasoning__hd {
@@ -433,7 +438,7 @@ async function scrollTimelineToActive() {
 }
 .panel-toggle {
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--panel-border);
   background: transparent;
   color: var(--text-dim);
@@ -452,7 +457,7 @@ async function scrollTimelineToActive() {
 }
 .tab-switch__btn {
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--panel-border);
   background: transparent;
   color: var(--text-mute);
@@ -536,7 +541,7 @@ async function scrollTimelineToActive() {
 }
 .step-item.done .step-head,
 .step-item.active .step-head {
-  border-color: rgba(0, 229, 255, 0.14);
+  border-color: rgba(26, 127, 255, 0.14);
 }
 .step-head:disabled {
   cursor: default;
@@ -605,7 +610,7 @@ async function scrollTimelineToActive() {
   line-height: 1.55;
   color: var(--text-dim);
   border-left: 2px solid var(--primary);
-  background: rgba(0, 229, 255, 0.04);
+  background: rgba(26, 127, 255, 0.04);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 .collapsed-summary {

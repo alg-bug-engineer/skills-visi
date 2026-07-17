@@ -577,8 +577,8 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
 .tab-count {
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 10px;
-  background: rgba(0, 229, 255, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(26, 127, 255, 0.2);
   color: var(--primary);
 }
 .tab-body {
@@ -659,7 +659,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
 .badge {
   font-size: 10px;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--primary-dim);
   color: var(--primary);
   font-weight: 600;
@@ -667,8 +667,8 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
 .fresh-badge {
   font-size: 10px;
   padding: 2px 8px;
-  border-radius: 10px;
-  background: rgba(0, 229, 255, 0.22);
+  border-radius: var(--radius-sm);
+  background: rgba(26, 127, 255, 0.22);
   color: var(--primary);
   font-weight: 600;
   margin: 2px 0;
@@ -693,7 +693,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
 .chip {
   font-size: 10px;
   padding: 2px 7px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--panel-border);
   color: var(--text-mute);
@@ -715,7 +715,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   flex: 0 0 auto;
   font-size: 10px;
   padding: 1px 7px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   background: var(--primary-dim);
   color: var(--primary);
@@ -757,7 +757,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   transition: all 0.16s ease;
 }
 .skill-dl:hover {
-  background: rgba(0, 229, 255, 0.22);
+  background: rgba(26, 127, 255, 0.22);
 }
 
 /* —— 行业案例 —— */
@@ -829,8 +829,8 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   flex: 0 0 auto;
   font-size: 10px;
   padding: 1px 7px;
-  border-radius: 10px;
-  background: rgba(0, 229, 255, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(26, 127, 255, 0.18);
   color: var(--primary);
   font-weight: 600;
 }
@@ -871,7 +871,7 @@ onBeforeUnmount(() => window.removeEventListener('open-case-library', openCases 
   flex: 0 0 auto;
   font-size: 10px;
   padding: 1px 7px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--primary-dim);
   color: var(--primary);
   font-weight: 600;

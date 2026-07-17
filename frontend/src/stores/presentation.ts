@@ -23,6 +23,8 @@ export type RunStatus = 'idle' | 'submitting' | 'running' | 'done' | 'error'
 export type DockState = 'input' | 'running' | 'plan'
 export type SignalState = 'idle' | 'connecting' | 'open' | 'closed' | 'error'
 export type RunMode = 'stream' | 'batch'
+export type ActBarrierKind = 'typing' | 'voice' | 'map'
+export type ActBarrierState = Record<ActBarrierKind, boolean>
 /** 方案下发后的技能固化子流程状态机。 */
 export type SolidifyPhase = 'idle' | 'prompt' | 'absorbing' | 'building' | 'completed'
 
@@ -33,6 +35,19 @@ let voiceInterrupt: (() => void) | null = null
 let voiceEnqueue: ((cue: VoiceCue) => void) | null = null
 let stepResumeResolve: (() => void) | null = null
 const stepResumeWaiters: Array<() => void> = []
+const actBarrierWaiters: Array<{ key: string; resolve: () => void }> = []
+let actBarrierEpoch = 0
+
+const EMPTY_ACT_BARRIERS = (): ActBarrierState => ({ typing: false, voice: false, map: false })
+
+function resolveActBarrierWaiters(key: string) {
+  if (!key) return
+  for (let i = actBarrierWaiters.length - 1; i >= 0; i -= 1) {
+    if (actBarrierWaiters[i].key !== key) continue
+    actBarrierWaiters[i].resolve()
+    actBarrierWaiters.splice(i, 1)
+  }
+}
 
 const PHASE_LABEL: Record<PhaseKey, string> = {
   intent: '问题理解',
@@ -84,6 +99,9 @@ interface State {
   /** 幕末推进因暂停被推迟，恢复后需补一次 tryAdvance。 */
   stepAdvancePending: boolean
   mapResetSeq: number
+  /** 当前幕三栅栏；key 包含 run + act，防止旧异步回调穿透。 */
+  actBarrierKey: string
+  actBarriers: ActBarrierState
   solidifyPhase: SolidifyPhase
   skillResult: SkillSolidificationResult | null
   pendingSolidifyPlanId: string | null
@@ -148,6 +166,8 @@ export const usePresentationStore = defineStore('presentation', {
     stepPaused: false,
     stepAdvancePending: false,
     mapResetSeq: 0,
+    actBarrierKey: '',
+    actBarriers: EMPTY_ACT_BARRIERS(),
     solidifyPhase: 'idle',
     skillResult: null,
     pendingSolidifyPlanId: null,
@@ -413,13 +433,52 @@ export const usePresentationStore = defineStore('presentation', {
       if (snap.trace_id) this.traceId = snap.trace_id
     },
 
+    beginAct(index: number) {
+      if (index < 0 || index >= this.acts.length) return
+      const previousKey = this.actBarrierKey
+      this.currentAct = index
+      this.actBarrierKey = `${this.mapResetSeq}:${++actBarrierEpoch}:${index}`
+      this.actBarriers = EMPTY_ACT_BARRIERS()
+      this.stepAdvancePending = false
+      // 只释放本 store 的旧幕 waiter；其他 Pinia 实例/测试不可串扰。
+      resolveActBarrierWaiters(previousKey)
+    },
+
+    completeActBarrier(kind: ActBarrierKind, index: number, key: string) {
+      if (index !== this.currentAct || key !== this.actBarrierKey) return
+      if (this.actBarriers[kind]) return
+      this.actBarriers = { ...this.actBarriers, [kind]: true }
+      if (this.actBarriers.typing && this.actBarriers.voice && this.actBarriers.map) {
+        resolveActBarrierWaiters(key)
+      }
+    },
+
+    actBarrierReady(index?: number, key?: string): boolean {
+      const expectedIndex = index ?? this.currentAct
+      const expectedKey = key ?? this.actBarrierKey
+      return (
+        expectedIndex === this.currentAct &&
+        expectedKey === this.actBarrierKey &&
+        this.actBarriers.typing &&
+        this.actBarriers.voice &&
+        this.actBarriers.map
+      )
+    },
+
+    waitForActBarriers(index: number, key: string): Promise<void> {
+      if (index !== this.currentAct || key !== this.actBarrierKey || this.actBarrierReady(index, key)) {
+        return Promise.resolve()
+      }
+      return new Promise((resolve) => actBarrierWaiters.push({ key, resolve }))
+    },
+
     /** 快照更新后，尝试从等待态进入下一（或首个）阶段。 */
     resumeIfReady() {
       if (this.currentAct === -1) {
         if (phaseReady(this.response, 'intent')) {
           this.waiting = false
           this.computingPhase = null
-          this.currentAct = 0
+          this.beginAct(0)
         }
         return
       }
@@ -429,7 +488,7 @@ export const usePresentationStore = defineStore('presentation', {
         if (next && phaseReady(this.response, next.phase)) {
           this.waiting = false
           this.computingPhase = null
-          this.currentAct += 1
+          this.beginAct(this.currentAct + 1)
         }
       }
     },
@@ -450,7 +509,7 @@ export const usePresentationStore = defineStore('presentation', {
       this.signal = 'open'
       this.waiting = false
       this.computingPhase = null
-      this.currentAct = 0
+      this.beginAct(0)
     },
 
     /** 当前阶段说明打字完成：揭示证据卡，并按门控推进。 */
@@ -470,6 +529,10 @@ export const usePresentationStore = defineStore('presentation', {
 
     /** 打字完成后请求推进：下一阶段 phase 未就绪则进入等待态。 */
     tryAdvance() {
+      if (this.currentAct >= 0 && this.actBarrierKey && !this.actBarrierReady()) {
+        this.stepAdvancePending = true
+        return
+      }
       if (this.stepPaused) {
         this.stepAdvancePending = true
         return
@@ -489,7 +552,7 @@ export const usePresentationStore = defineStore('presentation', {
       }
       const next = this.acts[this.currentAct + 1]
       if (this.mode === 'batch' || phaseReady(this.response, next.phase)) {
-        this.currentAct += 1
+        this.beginAct(this.currentAct + 1)
       } else if (this.response?.pipeline_complete) {
         // 典型 Case 截断产物（仅诊断）或健康收尾后缺少后续幕：正常结束，避免空等。
         this.waiting = false
@@ -505,8 +568,9 @@ export const usePresentationStore = defineStore('presentation', {
       if (index < 0 || index >= this.acts.length) return
       // 仅允许跳到已就绪 phase 的阶段（流式）；batch 全就绪
       if (this.mode === 'stream' && !phaseReady(this.response, this.acts[index].phase)) return
+      if (index > this.currentAct && this.actBarrierKey && !this.actBarrierReady()) return
       this.waiting = false
-      this.currentAct = index
+      this.beginAct(index)
     },
 
     revealCard(_key: CardKey) {},
@@ -686,6 +750,7 @@ export const usePresentationStore = defineStore('presentation', {
     },
 
     reset(toInput = true) {
+      const previousBarrierKey = this.actBarrierKey
       controller?.close()
       controller = null
       this.interruptVoice()
@@ -695,6 +760,8 @@ export const usePresentationStore = defineStore('presentation', {
       this.signal = 'idle'
       this.response = null
       this.currentAct = -1
+      this.actBarrierKey = ''
+      this.actBarriers = EMPTY_ACT_BARRIERS()
       this.revealedActs = []
       this.waiting = false
       this.computingPhase = null
@@ -709,6 +776,7 @@ export const usePresentationStore = defineStore('presentation', {
       stepResumeResolve?.()
       stepResumeResolve = null
       stepResumeWaiters.length = 0
+      resolveActBarrierWaiters(previousBarrierKey)
       if (toInput) this.dock = 'input'
     },
   },

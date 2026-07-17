@@ -146,7 +146,7 @@ watch(activeKeys, draw, { deep: true })
 canvas {
   width: 100%;
   max-width: 150px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: #073f5e;
   box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.12);
 }

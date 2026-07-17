@@ -8,6 +8,48 @@ import type { SkillBuildStage } from '@/types/skillBuild'
 
 export type LngLat = [number, number]
 
+export interface MapDataLineage {
+  source?: string | null
+  geometry_source?: string | null
+  tables?: string[]
+  link_ids?: string[]
+  [k: string]: unknown
+}
+
+export interface TraceSpreadVisualization {
+  contract_version?: string
+  effect?: 'upstream_spread' | 'downstream_flow' | string
+  direction?: 'target_to_source' | 'source_to_target' | string
+  origin?: LngLat | null
+  geometry_source?: string
+  context_geometry_source?: string | null
+  render_geometry_scope?: string
+  ordering?: string
+  particle_anchor?: 'path' | string
+  particle_color?: string
+  particle_texture?: string | null
+  particle_count?: number
+  particle_color_mode?: string
+  propagation_renderer?: string
+  repeat?: boolean
+  color_metric?: string
+  color_semantics?: string
+  camera?: { pitch?: number; radius_m?: number; max_zoom?: number }
+  palette?: {
+    trace?: string
+    severe?: string
+    high?: string
+    medium?: string
+    low?: string
+    near?: string
+    middle?: string
+    far?: string
+  }
+  map_style?: string
+  road_classification_source?: string | null
+  source?: string
+}
+
 export interface MatchCandidate {
   inter_id: string | null
   inter_name: string | null
@@ -54,6 +96,8 @@ export interface SpatialNode {
   inter_name?: string | null
   lng?: number | null
   lat?: number | null
+  link_id?: string | null
+  path?: LngLat[]
   [k: string]: unknown
 }
 
@@ -69,8 +113,14 @@ export interface SpatialScene {
     movement: string | null
   } | null
   highlight_path: LngLat[]
+  target_approach_path?: LngLat[]
+  movement_path?: LngLat[]
   upstream_nodes: SpatialNode[]
   downstream_nodes: SpatialNode[]
+  source?: string | null
+  missing_fields?: string[]
+  data_lineage?: MapDataLineage
+  visualization?: TraceSpreadVisualization
   main_path?: string | null
   axis_roads?: {
     ew_road?: string | null
@@ -245,6 +295,11 @@ export interface MapScene {
   action?: string
   phase?: string
   available?: boolean
+  reason?: string | null
+  source?: string | null
+  missing_fields?: string[]
+  data_lineage?: MapDataLineage
+  visualization?: TraceSpreadVisualization
   center?: LngLat | null
   trace_direction?: string
   scope?: string
@@ -465,6 +520,16 @@ export interface StrategyPhase {
     upstream_metering_points?: Array<Record<string, unknown>>
     downstream_protection_nodes?: Array<Record<string, unknown>>
     coordination_paths?: Array<{ path?: [number, number][]; inter_name?: string; role?: string }>
+    risk_boundary?: {
+      type?: string
+      geometry?: {
+        available?: boolean
+        reason?: string | null
+        missing_fields?: string[]
+        source?: string | null
+        polygon?: LngLat[]
+      }
+    }
   }
   experience_contrast?: ExperienceContrast
   case_references?: Record<string, unknown>
@@ -583,6 +648,24 @@ export interface PlanBlock {
   signal_source: string | null
   optimizer_engine: string | null
   all_guardrails_passed: boolean | null
+  map_scene?: MapScene & {
+    plan_id?: string | null
+    plan_name?: string | null
+    cycle_delta_s?: number | null
+    phase_changes?: Array<{
+      phase_stage_id?: string | null
+      movement_key?: string | null
+      link_id?: string | null
+      link_ids?: string[]
+      path?: LngLat[]
+      paths?: LngLat[][]
+      label_anchor?: LngLat | null
+      mapping_status?: 'phase_resolved' | 'phase_unresolved' | string
+      missing_fields?: string[]
+      green_delta_s?: number | null
+      label?: string | null
+    }>
+  }
 }
 
 export interface PhaseResult {

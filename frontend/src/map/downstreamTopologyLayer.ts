@@ -1,6 +1,7 @@
 import { validPath } from '@/utils/guards'
 import { ratio } from '@/utils/format'
 import type { LngLat } from './channelizationGeometry'
+import { MAP_PALETTE } from './mapPalette'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AMapNS = any
@@ -285,7 +286,7 @@ export class DownstreamTopologyLayer {
       this.add(
         new this.amap.Polyline({
           path: edge.path,
-          strokeColor: edge.highlighted ? '#38bdf8' : '#8aa0b8',
+          strokeColor: edge.highlighted ? MAP_PALETTE.flow : MAP_PALETTE.muted,
           strokeWeight: edge.highlighted ? 7 : 4,
           strokeOpacity: edge.highlighted ? 0.9 : 0.48,
           strokeStyle: edge.highlighted ? 'solid' : 'dashed',

@@ -174,9 +174,9 @@ watch(activeContent, () => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid rgba(0, 229, 255, 0.28);
+  border: 1px solid rgba(26, 127, 255, 0.28);
   border-radius: var(--radius-sm);
-  background: rgba(0, 229, 255, 0.06);
+  background: rgba(26, 127, 255, 0.06);
   font-size: 12px;
   color: var(--text-dim);
 }

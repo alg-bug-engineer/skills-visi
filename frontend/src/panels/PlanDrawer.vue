@@ -392,11 +392,11 @@ async function onReject() {
   gap: 5px;
   padding: 10px 12px;
   border-left: 3px solid var(--primary);
-  background: rgba(0, 229, 255, 0.07);
+  background: rgba(26, 127, 255, 0.07);
 }
 .scope-box strong { color: var(--text); font-size: 13px; }
 .scope-box small { color: var(--text-mute); }
-.list-box--constraint { border-color: rgba(0, 229, 255, 0.32); }
+.list-box--constraint { border-color: rgba(26, 127, 255, 0.32); }
 .drawer__hd p {
   margin: 3px 0 0;
   color: var(--text-mute);
@@ -412,7 +412,7 @@ async function onReject() {
 }
 .rec--trial {
   padding: 2px 7px;
-  border: 1px solid rgba(109, 255, 181, 0.38);
+  border: 1px solid rgba(46, 213, 115, 0.38);
   color: var(--protected);
 }
 .pane {
@@ -533,11 +533,11 @@ async function onReject() {
   background: rgba(255, 255, 255, 0.025);
 }
 .list-box--red {
-  border-color: rgba(255, 80, 80, 0.5);
+  border-color: rgba(255, 71, 87, 0.5);
 }
 .decision-box {
-  border-color: rgba(0, 229, 255, 0.38);
-  background: rgba(0, 229, 255, 0.055);
+  border-color: rgba(26, 127, 255, 0.38);
+  background: rgba(26, 127, 255, 0.055);
 }
 .decision-box strong {
   display: block;

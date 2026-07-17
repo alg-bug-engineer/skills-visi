@@ -63,7 +63,7 @@ const promptIntersection = computed(
   width: min(460px, calc(100% - 32px));
   padding: 22px 24px;
   border-radius: var(--radius);
-  border: 1px solid rgba(0, 229, 255, 0.32);
+  border: 1px solid rgba(26, 127, 255, 0.32);
   background: rgba(6, 14, 26, 0.98);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }

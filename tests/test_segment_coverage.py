@@ -181,7 +181,7 @@ def test_trace_links_lazily_loads_only_ranked_path_ids():
     def fake_load_links(link_ids):
         requested.extend(link_ids)
         svc.links["POPULAR"] = LinkMeta(
-            "POPULAR", "主路", [[117.0, 36.6], [117.01, 36.61]], "U1", "T", "1", 100.0
+            "POPULAR", "主路", [[117.0, 36.6], [117.01, 36.61]], "U1", "T", "1", 100.0, 3
         )
 
     svc._load_restored_trips = fake_load_trips  # type: ignore[method-assign]
@@ -190,6 +190,7 @@ def test_trace_links_lazily_loads_only_ranked_path_ids():
     rows = svc._trace_links(req, target_events, target_flow=2)
     assert requested == ["POPULAR"]
     assert [row["id"] for row in rows] == ["POPULAR"]
+    assert rows[0]["fc"] == 3
 
 
 def test_trace_reads_restored_trip_parquet_once():

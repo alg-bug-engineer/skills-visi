@@ -4,18 +4,74 @@
  */
 export type LngLat = [number, number]
 
+function segmentLengths(path: LngLat[]): number[] {
+  const lengths: number[] = []
+  for (let i = 1; i < path.length; i += 1) {
+    lengths.push(Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]))
+  }
+  return lengths
+}
+
 /** 沿折线按归一化进度 t∈[0,1] 线性插值，端点夹紧。空路径返回 null。 */
 export function interpolatePath(path: LngLat[], t: number): LngLat | null {
   const pts = (path ?? []).filter(Boolean)
   if (!pts.length) return null
   if (pts.length === 1) return [pts[0][0], pts[0][1]]
   const clamped = Math.max(0, Math.min(1, t))
-  const segT = clamped * (pts.length - 1)
-  const idx = Math.min(pts.length - 2, Math.floor(segT))
-  const local = segT - idx
-  const a = pts[idx]
-  const b = pts[idx + 1]
-  return [a[0] + (b[0] - a[0]) * local, a[1] + (b[1] - a[1]) * local]
+  const lengths = segmentLengths(pts)
+  const total = lengths.reduce((sum, value) => sum + value, 0)
+  if (total <= 0) return [pts[0][0], pts[0][1]]
+  const target = total * clamped
+  let passed = 0
+  for (let i = 0; i < lengths.length; i += 1) {
+    const next = passed + lengths[i]
+    if (target <= next || i === lengths.length - 1) {
+      const local = lengths[i] <= 0 ? 0 : (target - passed) / lengths[i]
+      const a = pts[i]
+      const b = pts[i + 1]
+      return [a[0] + (b[0] - a[0]) * local, a[1] + (b[1] - a[1]) * local]
+    }
+    passed = next
+  }
+  return [pts[pts.length - 1][0], pts[pts.length - 1][1]]
+}
+
+/** 返回从起点蔓延到 t 的真实折线前缀，用于逐帧扩散线。 */
+export function pathPrefix(path: LngLat[], t: number): LngLat[] {
+  const pts = (path ?? []).filter(Boolean)
+  if (pts.length < 2) return pts.map((p) => [p[0], p[1]])
+  const clamped = Math.max(0, Math.min(1, t))
+  if (clamped >= 1) return pts.map((p) => [p[0], p[1]])
+  const lengths = segmentLengths(pts)
+  const total = lengths.reduce((sum, value) => sum + value, 0)
+  if (total <= 0) return [pts[0], pts[0]]
+  const target = total * clamped
+  const out: LngLat[] = [[pts[0][0], pts[0][1]]]
+  let passed = 0
+  for (let i = 0; i < lengths.length; i += 1) {
+    const next = passed + lengths[i]
+    if (target >= next) {
+      out.push([pts[i + 1][0], pts[i + 1][1]])
+      passed = next
+      continue
+    }
+    const local = lengths[i] <= 0 ? 0 : (target - passed) / lengths[i]
+    const a = pts[i]
+    const b = pts[i + 1]
+    out.push([a[0] + (b[0] - a[0]) * local, a[1] + (b[1] - a[1]) * local])
+    break
+  }
+  return out.length >= 2 ? out : [out[0], out[0]]
+}
+
+/** 将真实 path 朝“目标点 → 上游来源”定向，只允许反转，不生成新几何。 */
+export function orientPathFromOrigin(path: LngLat[], origin: LngLat | null | undefined): LngLat[] {
+  const pts = (path ?? []).filter(Boolean)
+  if (pts.length < 2 || !origin) return pts.map((p) => [p[0], p[1]])
+  const first = Math.hypot(pts[0][0] - origin[0], pts[0][1] - origin[1])
+  const last = Math.hypot(pts[pts.length - 1][0] - origin[0], pts[pts.length - 1][1] - origin[1])
+  const oriented = first <= last ? pts : [...pts].reverse()
+  return oriented.map((p) => [p[0], p[1]])
 }
 
 /** 沿折线等距采样 count 个点（含起点），用于布置原位流动点。 */

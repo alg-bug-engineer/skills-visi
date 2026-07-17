@@ -70,7 +70,7 @@ export function buildUpstreamLabelHtml(opts: {
   return (
     `<div class="trace-label">` +
     `<div class="trace-name">${name}</div>` +
-    `<div class="trace-metric" style="color:#fbbf24">${dir}${share}</div>` +
+    `<div class="trace-metric" style="color:#39dfff">${dir}${share}</div>` +
     `</div>`
   )
 }
